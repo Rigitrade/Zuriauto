@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/lib/hooks/use-i18n";
 import { Menu, X } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { LanguageSwitcher } from "./LanguageSwitcher";
@@ -45,17 +46,18 @@ export default function Header() {
         <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 xl:px-8">
           <div className="flex h-16 sm:h-18 md:h-20 items-center justify-between">
             {/* Logo */}
-            <Link href="/" className="flex-shrink-0">
-              <div className="flex items-center space-x-2 sm:space-x-3">
-                <div className="flex h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10 items-center justify-center rounded-none bg-slate-800">
-                  <span className="text-xs sm:text-sm font-bold text-white tracking-wider">
-                    Q
-                  </span>
-                </div>
-                <h1 className="text-lg sm:text-xl font-light tracking-widest uppercase">
-                  ZURIAUTO
-                </h1>
-              </div>
+            <Link
+              href="/"
+              className="flex-shrink-0 border border-black hover:border-slate-800 hover:shadow-lg shadow-sm transition-all duration-200 ease-in-out"
+            >
+              <Image
+                src="/logo.jpg"
+                alt="Zuriauto Logo"
+                width={400}
+                height={123}
+                priority
+                className="h-8 w-auto sm:h-10 md:h-12 object-contain"
+              />
             </Link>
 
             {/* Desktop Navigation */}
