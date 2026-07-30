@@ -60,6 +60,34 @@ export default function Header() {
               />
             </Link>
 
+            {/* Desktop Navigation */}
+            <nav className="hidden lg:flex items-center space-x-4 xl:space-x-6">
+              <Link href="/book/">
+                <Button
+                  variant="ghost"
+                  className="text-xs uppercase tracking-widest font-light hover:bg-transparent hover:text-slate-800 transition-colors px-2 py-1 h-auto"
+                >
+                  {t("navigation:vehicles")}
+                </Button>
+              </Link>
+              <Link href="/book/">
+                <Button
+                  variant="ghost"
+                  className="text-xs uppercase tracking-widest font-light hover:bg-transparent hover:text-slate-800 transition-colors px-2 py-1 h-auto"
+                >
+                  {t("navigation:pricing")}
+                </Button>
+              </Link>
+              <Link href="/book/">
+                <Button
+                  variant="ghost"
+                  className="text-xs uppercase tracking-widest font-light hover:bg-transparent hover:text-slate-800 transition-colors px-2 py-1 h-auto"
+                >
+                  {t("navigation:contact")}
+                </Button>
+              </Link>
+            </nav>
+
             {/* Right side controls */}
             <div className="flex items-center space-x-2 sm:space-x-3 lg:space-x-4">
               {/* Desktop Language switcher */}
@@ -111,8 +139,39 @@ export default function Header() {
           <div className="fixed top-16 sm:top-18 md:top-20 inset-x-0 bg-white border-b shadow-lg">
             <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
               <div className="py-4 space-y-3">
+                {/* Navigation Links */}
+                <div className="space-y-2">
+                  <Link href="/book/">
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-start text-xs sm:text-sm uppercase tracking-widest font-light hover:bg-slate-50 hover:text-slate-800 py-3 px-4"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      {t("navigation:vehicles")}
+                    </Button>
+                  </Link>
+                  <Link href="/book/">
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-start text-xs sm:text-sm uppercase tracking-widest font-light hover:bg-slate-50 hover:text-slate-800 py-3 px-4"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      {t("navigation:pricing")}
+                    </Button>
+                  </Link>
+                  <Link href="/book/">
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-start text-xs sm:text-sm uppercase tracking-widest font-light hover:bg-slate-50 hover:text-slate-800 py-3 px-4"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      {t("navigation:contact")}
+                    </Button>
+                  </Link>
+                </div>
+
                 {/* Language Switcher */}
-                <div className="flex justify-center py-4">
+                <div className="flex justify-center py-4 border-t border-slate-200">
                   <LanguageSwitcher />
                 </div>
 
