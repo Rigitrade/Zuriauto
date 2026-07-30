@@ -1,3 +1,4 @@
+import WhatsAppButton from "@/components/WhatsAppButton";
 import { I18nProvider } from "@/providers/I18nProvider";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
@@ -382,6 +383,7 @@ export default function RootLayout({
       >
         <I18nProvider>{children}</I18nProvider>
         <Toaster />
+        <WhatsAppButton />
       </body>
     </html>
   );
