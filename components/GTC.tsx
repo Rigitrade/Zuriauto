@@ -108,8 +108,10 @@ export default function GTCPage() {
 
               <LegalNotice />
 
-              {/* Document date, at the foot of the terms */}
-              <p className="mt-6 text-center text-sm text-slate-600">
+              {/* Document date, at the foot of the terms. Same placement and
+                  styling the previous version of this page used for its
+                  version stamp. */}
+              <p className="text-slate-500 text-xs mt-8 text-center">
                 {GTC_DATE}
               </p>
             </div>
