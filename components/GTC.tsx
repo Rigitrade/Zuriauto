@@ -1,211 +1,133 @@
 "use client";
 
 import { useI18n } from "@/lib/hooks/use-i18n";
+import gtc, {
+  GTC_ENTITY,
+  GTC_LANGUAGES,
+  type GtcBlock,
+  type GtcLanguage,
+} from "@/locales/gtc";
+import { useState } from "react";
 import LegalNotice from "./LegalNotice";
 
+/** The terms exist in three languages; the site UI only has two. */
+function asGtcLanguage(lang: string | undefined): GtcLanguage {
+  return lang === "en" ? "en" : "de";
+}
+
+function Block({ block }: { block: GtcBlock }) {
+  switch (block.kind) {
+    case "sub":
+      return (
+        <h5 className="font-semibold mt-5 mb-2 text-slate-900 tracking-[1px]">
+          {block.title}
+        </h5>
+      );
+
+    case "p":
+      return <p className="leading-relaxed mb-3">{block.text}</p>;
+
+    case "list":
+      return (
+        <ul className="list-disc pl-5 mb-3 space-y-1">
+          {block.items.map((item, i) => (
+            <li key={i} className="leading-relaxed">
+              {item}
+            </li>
+          ))}
+        </ul>
+      );
+
+    case "table":
+      return (
+        <div className="overflow-x-auto mb-4">
+          <table className="w-full text-left border-collapse text-sm">
+            {block.head && (
+              <thead>
+                <tr className="bg-slate-50">
+                  <th className="border border-slate-200 px-3 py-2 font-semibold text-slate-900">
+                    {block.head[0]}
+                  </th>
+                  <th className="border border-slate-200 px-3 py-2 font-semibold text-slate-900 whitespace-nowrap">
+                    {block.head[1]}
+                  </th>
+                </tr>
+              </thead>
+            )}
+            <tbody>
+              {block.rows.map((row, i) => (
+                <tr key={i}>
+                  <td className="border border-slate-200 px-3 py-2 align-top">
+                    {row[0]}
+                  </td>
+                  <td className="border border-slate-200 px-3 py-2 align-top">
+                    {row[1]}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+  }
+}
+
 export default function GTCPage() {
-  const { t } = useI18n();
+  const { currentLanguage } = useI18n();
+  const [selected, setSelected] = useState<GtcLanguage | null>(null);
+
+  // Follow the site language unless the reader picks a version explicitly.
+  const active: GtcLanguage = selected ?? asGtcLanguage(currentLanguage);
+  const doc = gtc[active];
 
   return (
     <section className="py-24 bg-gradient-to-b from-slate-50 to-white relative overflow-hidden">
       <div className="container mx-auto px-2">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
-          <div className="text-center mb-12">
+          <div className="text-center mb-8">
             <h3 className="font-semibold mb-2 text-slate-900 uppercase tracking-[3px]">
-              {t("terms:title")}
+              {doc.title}
             </h3>
             <p className="font-semibold mb-2 text-slate-900 uppercase tracking-[3px]">
-              {t("terms:company")}
+              ZURIAUTO ({GTC_ENTITY})
             </p>
+            <p className="text-sm text-slate-500">{doc.updated}</p>
+          </div>
+
+          {/* Language versions of the terms */}
+          <div className="flex justify-center gap-2 mb-8">
+            {GTC_LANGUAGES.map(({ code, label }) => (
+              <button
+                key={code}
+                onClick={() => setSelected(code)}
+                aria-current={active === code}
+                className={`px-4 py-2 text-xs uppercase tracking-widest font-light border transition-colors ${
+                  active === code
+                    ? "bg-slate-800 text-white border-slate-800"
+                    : "bg-white text-slate-700 border-slate-300 hover:border-slate-800 hover:text-slate-900"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
 
           <div className="bg-white p-4 md:p-6 rounded-xl shadow-lg border border-slate-200">
             <div className="prose max-w-none text-slate-700">
-              {/* Parties to the Contract */}
-              <div className="mb-6 px-2">
-                <h4 className="uppercase font-semibold mb-3 text-slate-900 tracking-[2px]">
-                  {t("terms:sections:parties:title")}
-                </h4>
-                <p className="leading-relaxed mb-3">
-                  <strong>Owner:</strong> {t("terms:sections:parties:owner")}
-                </p>
-                <p className="leading-relaxed">
-                  <strong>Renter / Driver:</strong>{" "}
-                  {t("terms:sections:parties:renter")}
-                </p>
-              </div>
-
-              {/* Subject of the Contract */}
-              <div className="mb-6 px-2">
-                <h4 className="uppercase font-semibold mb-3 text-slate-900 tracking-[2px]">
-                  {t("terms:sections:subject:title")}
-                </h4>
-                <p className="leading-relaxed">
-                  {t("terms:sections:subject:content")}
-                </p>
-              </div>
-
-              {/* Conclusion of Contract */}
-              <div className="mb-6 px-2">
-                <h4 className="uppercase font-semibold mb-3 text-slate-900 tracking-[2px]">
-                  {t("terms:sections:conclusion:title")}
-                </h4>
-                <p className="leading-relaxed">
-                  {t("terms:sections:conclusion:content")}
-                </p>
-              </div>
-
-              {/* Contract Duration */}
-              <div className="mb-6 px-2">
-                <h4 className="uppercase font-semibold mb-3 text-slate-900 tracking-[2px]">
-                  {t("terms:sections:duration:title")}
-                </h4>
-                <p className="leading-relaxed">
-                  {t("terms:sections:duration:content")}
-                </p>
-              </div>
-
-              {/* Rates & Payment */}
-              <div className="mb-6 px-2">
-                <h4 className="uppercase font-semibold mb-3 text-slate-900 tracking-[2px]">
-                  {t("terms:sections:rates:title")}
-                </h4>
-                <p className="leading-relaxed">
-                  {t("terms:sections:rates:content")}
-                </p>
-              </div>
-
-              {/* Security Deposit & Insurance */}
-              <div className="mb-6 px-2">
-                <h4 className="uppercase font-semibold mb-3 text-slate-900 tracking-[2px]">
-                  {t("terms:sections:deposit:title")}
-                </h4>
-                <p className="leading-relaxed">
-                  {t("terms:sections:deposit:content")}
-                </p>
-              </div>
-
-              {/* Use of Vehicle & Lessee's Obligations */}
-              <div className="mb-6 px-2">
-                <h4 className="uppercase font-semibold mb-3 text-slate-900 tracking-[2px]">
-                  {t("terms:sections:use:title")}
-                </h4>
-                <p className="leading-relaxed mb-[4px]">Lessee Obligations:</p>
-                <ul className="space-y-1 ">
-                  {(
-                    t("terms:sections:use:obligations", {
-                      returnObjects: true,
-                    }) as string[]
-                  ).map((obligation, index) => (
-                    <li key={index} className="leading-relaxed">
-                      {obligation}
-                    </li>
+              {doc.sections.map((section) => (
+                <div key={section.num} data-gtc-section={section.num} className="mb-6 px-2">
+                  <h4 className="uppercase font-semibold mb-3 text-slate-900 tracking-[2px]">
+                    {section.num}. {section.title}
+                  </h4>
+                  {section.blocks.map((block, i) => (
+                    <Block key={i} block={block} />
                   ))}
-                </ul>
-              </div>
+                </div>
+              ))}
 
-              {/* Vehicle Handover & Return */}
-              <div className="mb-6 px-2">
-                <h4 className="uppercase font-semibold mb-3 text-slate-900 tracking-[2px]">
-                  {t("terms:sections:handover:title")}
-                </h4>
-                <p className="leading-relaxed">
-                  {t("terms:sections:handover:content")}
-                </p>
-              </div>
-
-              {/* Operating Costs & Maintenance */}
-              <div className="mb-6 px-2">
-                <h4 className="uppercase font-semibold mb-3 text-slate-900 tracking-[2px]">
-                  {t("terms:sections:maintenance:title")}
-                </h4>
-                <p className="leading-relaxed mb-3">
-                  <strong>Lessor bears costs for:</strong>{" "}
-                  {t("terms:sections:maintenance:lessor")}
-                </p>
-                <p className="leading-relaxed">
-                  <strong>Lessee bears costs for:</strong>{" "}
-                  {t("terms:sections:maintenance:lessee")}
-                </p>
-              </div>
-
-              {/* Cancellation & Refunds */}
-              <div className="mb-6 px-2">
-                <h4 className="uppercase font-semibold mb-3 text-slate-900 tracking-[2px]">
-                  {t("terms:sections:cancellation:title")}
-                </h4>
-                <p className="leading-relaxed mb-[4px]">Cancellation Policy:</p>
-                <ul className="space-y-1 ">
-                  {(
-                    t("terms:sections:cancellation:rules", {
-                      returnObjects: true,
-                    }) as string[]
-                  ).map((rule, index) => (
-                    <li key={index} className="leading-relaxed">
-                      {rule}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Liability */}
-              <div className="mb-6 px-2">
-                <h4 className="uppercase font-semibold mb-3 text-slate-900 tracking-[2px]">
-                  {t("terms:sections:liability:title")}
-                </h4>
-                <p className="leading-relaxed">
-                  {t("terms:sections:liability:content")}
-                </p>
-              </div>
-
-              {/* Data Protection */}
-              <div className="mb-6 px-2">
-                <h4 className="uppercase font-semibold mb-3 text-slate-900 tracking-[2px]">
-                  {t("terms:sections:data:title")}
-                </h4>
-                <p className="leading-relaxed">
-                  {t("terms:sections:data:content")}
-                </p>
-              </div>
-
-              {/* Complaints */}
-              <div className="mb-6 px-2">
-                <h4 className="uppercase font-semibold mb-3 text-slate-900 tracking-[2px]">
-                  {t("terms:sections:complaints:title")}
-                </h4>
-                <p className="leading-relaxed">
-                  {t("terms:sections:complaints:content")}
-                </p>
-              </div>
-
-              {/* Force Majeure */}
-              <div className="mb-6 px-2">
-                <h4 className="uppercase font-semibold mb-3 text-slate-900 tracking-[2px]">
-                  {t("terms:sections:force:title")}
-                </h4>
-                <p className="leading-relaxed">
-                  {t("terms:sections:force:content")}
-                </p>
-              </div>
-
-              {/* Final Provisions */}
-              <div className="mb-6 px-2">
-                <h4 className="uppercase font-semibold mb-3 text-slate-900 tracking-[2px]">
-                  {t("terms:sections:final:title")}
-                </h4>
-                <p className="leading-relaxed">
-                  {t("terms:sections:final:content")}
-                </p>
-              </div>
+              <LegalNotice />
             </div>
-
-            {/* Legal Notice */}
-            <LegalNotice />
-
-            <p className="text-slate-500 text-xs mt-8 text-center">
-              {t("terms:version")}
-            </p>
           </div>
         </div>
       </div>
