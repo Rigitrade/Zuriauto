@@ -20,7 +20,7 @@ type Version = {
   Flag: () => React.ReactElement;
 };
 
-const FLAG_CLASS = "h-5 w-8 border border-slate-300 shadow-sm";
+const FLAG_CLASS = "h-7 w-11 shrink-0 border border-slate-300";
 
 function GermanFlag() {
   return (
@@ -85,7 +85,7 @@ const VERSIONS: Version[] = [
 
 export default function GtcPdfFlags() {
   return (
-    <div className="flex justify-center items-start gap-6">
+    <div className="flex flex-wrap justify-center gap-3 sm:gap-4">
       {VERSIONS.map(({ code, label, file, Flag }) => (
         <a
           key={code}
@@ -95,11 +95,14 @@ export default function GtcPdfFlags() {
           title={`GTC PDF – ${label}`}
           aria-label={`GTC PDF – ${label}`}
           data-gtc-pdf={code}
-          className="group flex flex-col items-center gap-1 transition-opacity hover:opacity-70"
+          className="group flex items-center gap-3 bg-white border border-slate-300 px-4 py-3 shadow-sm transition-all hover:border-slate-800 hover:shadow-md"
         >
           <Flag />
-          <span className="text-[10px] uppercase tracking-widest text-slate-500 group-hover:text-slate-800">
-            PDF
+          <span className="flex flex-col leading-tight text-left">
+            <span className="text-sm font-medium text-slate-900">{label}</span>
+            <span className="text-[10px] uppercase tracking-widest text-slate-500 group-hover:text-slate-800">
+              PDF
+            </span>
           </span>
         </a>
       ))}

@@ -82,11 +82,6 @@ export default function GTCPage() {
     <section className="py-24 bg-gradient-to-b from-slate-50 to-white relative overflow-hidden">
       <div className="container mx-auto px-2">
         <div className="max-w-4xl mx-auto">
-          {/* Downloadable PDF of the signed terms, one per language */}
-          <div className="mb-8">
-            <GtcPdfFlags />
-          </div>
-
           {/* Header */}
           <div className="text-center mb-8">
             <h3 className="font-semibold mb-2 text-slate-900 uppercase tracking-[3px]">
@@ -113,6 +108,11 @@ export default function GTCPage() {
 
               <LegalNotice />
             </div>
+          </div>
+
+          {/* The signed terms as PDF, one per language, at the foot of the page */}
+          <div className="mt-10">
+            <GtcPdfFlags />
           </div>
         </div>
       </div>
