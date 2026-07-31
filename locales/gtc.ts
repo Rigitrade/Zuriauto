@@ -37,6 +37,13 @@ export const GTC_LANGUAGES: { code: GtcLanguage; label: string }[] = [
 /** The entity named as lessor in all three documents. */
 export const GTC_ENTITY = "Rigitrade AG";
 
+/**
+ * Document date, shown at the foot of the terms. All three language versions
+ * carry the same date; the German and French files print it in this exact
+ * DD.MM.YYYY form.
+ */
+export const GTC_DATE = "30.07.2026";
+
 const gtc: Record<GtcLanguage, GtcDocument> = {
   "de": {
     "title": "AGB Allgemeine Geschäftsbedingungen",

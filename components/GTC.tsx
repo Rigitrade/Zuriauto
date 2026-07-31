@@ -2,6 +2,7 @@
 
 import { useI18n } from "@/lib/hooks/use-i18n";
 import gtc, {
+  GTC_DATE,
   GTC_ENTITY,
   type GtcBlock,
   type GtcLanguage,
@@ -90,7 +91,6 @@ export default function GTCPage() {
             <p className="font-semibold mb-2 text-slate-900 uppercase tracking-[3px]">
               ZURIAUTO ({GTC_ENTITY})
             </p>
-            <p className="text-sm text-slate-500">{doc.updated}</p>
           </div>
 
           <div className="bg-white p-4 md:p-6 rounded-xl shadow-lg border border-slate-200">
@@ -107,6 +107,11 @@ export default function GTCPage() {
               ))}
 
               <LegalNotice />
+
+              {/* Document date, at the foot of the terms */}
+              <p className="mt-6 text-center text-sm text-slate-600">
+                {GTC_DATE}
+              </p>
             </div>
           </div>
 
