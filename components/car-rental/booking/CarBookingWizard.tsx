@@ -10,11 +10,7 @@ import { toast } from "sonner";
 import { FormData } from "./types";
 import { calculateTotal, calculateTotalDays, isStepValid } from "./utils";
 
-// Import the new PHP-based email service
-import {
-  sendAdminNotificationEmail,
-  sendBookingEmails,
-} from "@/app/_actions/connection";
+import { submitBooking } from "@/app/_actions/booking";
 
 import Step1_BookingDetails from "./Step1_BookingDetails";
 import Step3_PersonalInformation from "./Step3_PersonalInformation";
@@ -121,15 +117,8 @@ const CarBookingWizard: React.FC = () => {
       const totalCost = calculateTotal(formData);
       const selectedPackage = packages.find((p) => p.id === formData.packageId);
 
-      // Use the new PHP-based email service
-      const result = await sendBookingEmails({
-        formData,
-        selectedPackage,
-        days: totalDays,
-        totalPrice: totalCost,
-      });
-
-      await sendAdminNotificationEmail({
+      // Sends both the customer confirmation and the admin notification.
+      const result = await submitBooking({
         formData,
         selectedPackage,
         days: totalDays,
