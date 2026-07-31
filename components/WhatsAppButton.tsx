@@ -1,8 +1,10 @@
 "use client";
 
+import { waLink } from "@/lib/whatsapp";
 import { useEffect, useState } from "react";
 
-const WHATSAPP_URL = "https://wa.me/41763666669";
+// Shared with the booking form so the number cannot drift between the two.
+const WHATSAPP_URL = waLink();
 
 export default function WhatsAppButton() {
   const [isVisible, setIsVisible] = useState(false);

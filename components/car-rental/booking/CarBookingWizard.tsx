@@ -10,7 +10,8 @@ import { toast } from "sonner";
 import { FormData } from "./types";
 import { calculateTotal, calculateTotalDays, isStepValid } from "./utils";
 
-import { submitBooking } from "@/app/_actions/booking";
+import { waLink } from "@/lib/whatsapp";
+import { buildBookingMessage } from "./whatsappMessage";
 
 import Step1_BookingDetails from "./Step1_BookingDetails";
 import Step3_PersonalInformation from "./Step3_PersonalInformation";
@@ -44,7 +45,7 @@ const initialFormData: FormData = {
 };
 
 const CarBookingWizard: React.FC = () => {
-  const { t } = useI18n();
+  const { t, currentLanguage } = useI18n();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionAttempted, setSubmissionAttempted] = useState(false);
@@ -108,43 +109,32 @@ const CarBookingWizard: React.FC = () => {
     }
   };
 
-  const handleSubmit = async () => {
+  /**
+   * Hands the booking to WhatsApp. The customer presses Send in WhatsApp
+   * itself, so there is no request to await and nothing that can fail - hence
+   * no loading or error toast, only a reminder to complete the send.
+   */
+  const handleSubmit = () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
 
-    const submissionPromise = async () => {
-      const totalDays = calculateTotalDays(formData);
-      const totalCost = calculateTotal(formData);
-      const selectedPackage = packages.find((p) => p.id === formData.packageId);
+    const totalDays = calculateTotalDays(formData);
+    const totalCost = calculateTotal(formData);
+    const selectedPackage = packages.find((p) => p.id === formData.packageId);
 
-      // Sends both the customer confirmation and the admin notification.
-      const result = await submitBooking({
-        formData,
-        selectedPackage,
-        days: totalDays,
-        totalPrice: totalCost,
-      });
+    const message = buildBookingMessage(
+      formData,
+      selectedPackage,
+      totalDays,
+      totalCost,
+      currentLanguage === "en" ? "en" : "de"
+    );
 
-      if (!result.success) {
-        throw new Error(result.error || "Failed to send emails");
-      }
+    window.open(waLink(message), "_blank", "noopener,noreferrer");
 
-      return result;
-    };
-
-    toast.promise(submissionPromise(), {
-      loading: t("booking:wizard:toast:loading"),
-      success: () => {
-        resetForm();
-        setIsSubmitting(false);
-        return t("booking:wizard:toast:success");
-      },
-      error: (err: unknown) => {
-        console.error("Submission Error:", err);
-        setIsSubmitting(false);
-        return t("booking:wizard:toast:error");
-      },
-    });
+    toast.success(t("booking:wizard:toast:success"));
+    resetForm();
+    setIsSubmitting(false);
   };
 
   const renderCurrentStep = () => {
