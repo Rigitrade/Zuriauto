@@ -3,14 +3,16 @@
 import { useI18n } from "@/lib/hooks/use-i18n";
 import gtc, {
   GTC_ENTITY,
-  GTC_LANGUAGES,
   type GtcBlock,
   type GtcLanguage,
 } from "@/locales/gtc";
-import { useState } from "react";
+import GtcPdfFlags from "./GtcPdfFlags";
 import LegalNotice from "./LegalNotice";
 
-/** The terms exist in three languages; the site UI only has two. */
+/**
+ * The on-page text follows the site language. The site UI is German/English
+ * only; the French version of the terms is published as a PDF via the flags.
+ */
 function asGtcLanguage(lang: string | undefined): GtcLanguage {
   return lang === "en" ? "en" : "de";
 }
@@ -74,16 +76,17 @@ function Block({ block }: { block: GtcBlock }) {
 
 export default function GTCPage() {
   const { currentLanguage } = useI18n();
-  const [selected, setSelected] = useState<GtcLanguage | null>(null);
-
-  // Follow the site language unless the reader picks a version explicitly.
-  const active: GtcLanguage = selected ?? asGtcLanguage(currentLanguage);
-  const doc = gtc[active];
+  const doc = gtc[asGtcLanguage(currentLanguage)];
 
   return (
     <section className="py-24 bg-gradient-to-b from-slate-50 to-white relative overflow-hidden">
       <div className="container mx-auto px-2">
         <div className="max-w-4xl mx-auto">
+          {/* Downloadable PDF of the signed terms, one per language */}
+          <div className="mb-8">
+            <GtcPdfFlags />
+          </div>
+
           {/* Header */}
           <div className="text-center mb-8">
             <h3 className="font-semibold mb-2 text-slate-900 uppercase tracking-[3px]">
@@ -93,24 +96,6 @@ export default function GTCPage() {
               ZURIAUTO ({GTC_ENTITY})
             </p>
             <p className="text-sm text-slate-500">{doc.updated}</p>
-          </div>
-
-          {/* Language versions of the terms */}
-          <div className="flex justify-center gap-2 mb-8">
-            {GTC_LANGUAGES.map(({ code, label }) => (
-              <button
-                key={code}
-                onClick={() => setSelected(code)}
-                aria-current={active === code}
-                className={`px-4 py-2 text-xs uppercase tracking-widest font-light border transition-colors ${
-                  active === code
-                    ? "bg-slate-800 text-white border-slate-800"
-                    : "bg-white text-slate-700 border-slate-300 hover:border-slate-800 hover:text-slate-900"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
           </div>
 
           <div className="bg-white p-4 md:p-6 rounded-xl shadow-lg border border-slate-200">
