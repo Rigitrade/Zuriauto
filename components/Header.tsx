@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/lib/hooks/use-i18n";
 import { Menu, X } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { LanguageSwitcher } from "./LanguageSwitcher";
@@ -45,22 +46,23 @@ export default function Header() {
         <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 xl:px-8">
           <div className="flex h-16 sm:h-18 md:h-20 items-center justify-between">
             {/* Logo */}
-            <Link href="/" className="flex-shrink-0">
-              <div className="flex items-center space-x-2 sm:space-x-3">
-                <div className="flex h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10 items-center justify-center rounded-none bg-slate-800">
-                  <span className="text-xs sm:text-sm font-bold text-white tracking-wider">
-                    Q
-                  </span>
-                </div>
-                <h1 className="text-lg sm:text-xl font-light tracking-widest uppercase">
-                  ZURIAUTO
-                </h1>
-              </div>
+            <Link
+              href="/"
+              className="flex-shrink-0 border border-black hover:border-slate-800 hover:shadow-lg shadow-sm transition-all duration-200 ease-in-out"
+            >
+              <Image
+                src="/logo.jpg"
+                alt="Zuriauto Logo"
+                width={400}
+                height={123}
+                priority
+                className="h-8 w-auto sm:h-10 md:h-12 object-contain"
+              />
             </Link>
 
             {/* Desktop Navigation */}
             <nav className="hidden lg:flex items-center space-x-4 xl:space-x-6">
-              <Link href="/#booking-wizard">
+              <Link href="/book/">
                 <Button
                   variant="ghost"
                   className="text-xs uppercase tracking-widest font-light hover:bg-transparent hover:text-slate-800 transition-colors px-2 py-1 h-auto"
@@ -68,23 +70,7 @@ export default function Header() {
                   {t("navigation:vehicles")}
                 </Button>
               </Link>
-              {/* <Link href="/#services">
-                <Button
-                  variant="ghost"
-                  className="text-xs uppercase tracking-widest font-light hover:bg-transparent hover:text-slate-800 transition-colors px-2 py-1 h-auto"
-                >
-                  {t("navigation:services")}
-                </Button>
-              </Link> */}
-              {/* <Link href="/#benefits">
-                <Button
-                  variant="ghost"
-                  className="text-xs uppercase tracking-widest font-light hover:bg-transparent hover:text-slate-800 transition-colors px-2 py-1 h-auto"
-                >
-                  {t("navigation:benefits")}
-                </Button>
-              </Link> */}
-              <Link href="/#booking-wizard">
+              <Link href="/book/">
                 <Button
                   variant="ghost"
                   className="text-xs uppercase tracking-widest font-light hover:bg-transparent hover:text-slate-800 transition-colors px-2 py-1 h-auto"
@@ -92,7 +78,7 @@ export default function Header() {
                   {t("navigation:pricing")}
                 </Button>
               </Link>
-              <Link href="/#booking-wizard">
+              <Link href="/book/">
                 <Button
                   variant="ghost"
                   className="text-xs uppercase tracking-widest font-light hover:bg-transparent hover:text-slate-800 transition-colors px-2 py-1 h-auto"
@@ -110,7 +96,7 @@ export default function Header() {
               </div>
 
               {/* Desktop Book Now button */}
-              <Link href="/#booking-wizard" className="hidden lg:block">
+              <Link href="/book/" className="hidden lg:block">
                 <Button
                   variant="outline"
                   className="rounded-none text-xs tracking-widest uppercase font-light px-4 xl:px-6 py-2 border-slate-800 text-slate-800 hover:bg-slate-800 hover:text-white transition-colors"
@@ -155,7 +141,7 @@ export default function Header() {
               <div className="py-4 space-y-3">
                 {/* Navigation Links */}
                 <div className="space-y-2">
-                  <Link href="/#booking-wizard">
+                  <Link href="/book/">
                     <Button
                       variant="ghost"
                       className="w-full justify-start text-xs sm:text-sm uppercase tracking-widest font-light hover:bg-slate-50 hover:text-slate-800 py-3 px-4"
@@ -164,25 +150,7 @@ export default function Header() {
                       {t("navigation:vehicles")}
                     </Button>
                   </Link>
-                  {/* <Link href="/#services">
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start text-xs sm:text-sm uppercase tracking-widest font-light hover:bg-slate-50 hover:text-slate-800 py-3 px-4"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      {t("navigation:services")}
-                    </Button>
-                  </Link> */}
-                  {/* <Link href="/#benefits">
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start text-xs sm:text-sm uppercase tracking-widest font-light hover:bg-slate-50 hover:text-slate-800 py-3 px-4"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      {t("navigation:benefits")}
-                    </Button>
-                  </Link> */}
-                  <Link href="/#booking-wizard">
+                  <Link href="/book/">
                     <Button
                       variant="ghost"
                       className="w-full justify-start text-xs sm:text-sm uppercase tracking-widest font-light hover:bg-slate-50 hover:text-slate-800 py-3 px-4"
@@ -191,7 +159,7 @@ export default function Header() {
                       {t("navigation:pricing")}
                     </Button>
                   </Link>
-                  <Link href="/#booking-wizard">
+                  <Link href="/book/">
                     <Button
                       variant="ghost"
                       className="w-full justify-start text-xs sm:text-sm uppercase tracking-widest font-light hover:bg-slate-50 hover:text-slate-800 py-3 px-4"
@@ -209,7 +177,7 @@ export default function Header() {
 
                 {/* Book Now Button */}
                 <div className="pt-2">
-                  <Link href="/#booking-wizard" className="block">
+                  <Link href="/book/" className="block">
                     <Button
                       variant="outline"
                       className="w-full justify-center rounded-none text-xs sm:text-sm tracking-widest uppercase font-light px-6 py-3 border-slate-800 text-slate-800 hover:bg-slate-800 hover:text-white transition-colors"

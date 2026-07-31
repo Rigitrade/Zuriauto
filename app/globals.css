@@ -1,6 +1,15 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/*
+ * Tailwind v4 auto-detects source files and scans everything not gitignored,
+ * markdown included. Prose documentation is never a source of utility classes,
+ * and content in docs/ has been observed to make the scanner emit no CSS at
+ * all while the build still exits 0 - a silent, hard-to-trace failure.
+ * Excluding it keeps the build honest.
+ */
+@source not "../docs";
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
