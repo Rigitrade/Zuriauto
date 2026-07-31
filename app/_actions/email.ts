@@ -12,6 +12,19 @@ type EmailData = {
   from?: string;
 };
 
+/**
+ * Thrown when SMTP_USER or SMTP_PASS is absent, as opposed to a delivery
+ * failure. Callers distinguish the two so the site can say "not configured"
+ * instead of a generic "could not be sent", which is otherwise impossible to
+ * diagnose from the browser.
+ */
+export class EmailNotConfiguredError extends Error {
+  constructor() {
+    super("SMTP_USER and SMTP_PASS are not set");
+    this.name = "EmailNotConfiguredError";
+  }
+}
+
 export async function sendEmail({
   to,
   subject,
@@ -26,9 +39,7 @@ export async function sendEmail({
   const SMTP_PASS = process.env.SMTP_PASS;
 
   if (!SMTP_USER || !SMTP_PASS) {
-    throw new Error(
-      "Missing email configuration. Please set SMTP_USER and SMTP_PASS environment variables."
-    );
+    throw new EmailNotConfiguredError();
   }
 
   try {
@@ -44,6 +55,13 @@ export async function sendEmail({
       tls: {
         rejectUnauthorized: false,
       },
+      // Serverless functions are killed at their timeout (10s by default on
+      // Vercel's Hobby plan). Without these, an unreachable or slow SMTP host
+      // hangs until the platform kills the function, which surfaces as an
+      // opaque failure with nothing useful in the logs.
+      connectionTimeout: 8000,
+      greetingTimeout: 8000,
+      socketTimeout: 12000,
     });
 
     const senderEmail = from || SMTP_USER;

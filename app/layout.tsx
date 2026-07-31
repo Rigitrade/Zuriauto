@@ -384,14 +384,11 @@ export default function RootLayout({
           crossOrigin="anonymous"
         />
 
-        {/* Enhanced Favicon */}
-        <link rel="icon" href="/favicon.ico" sizes="any" />
-        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        {/* Favicon. The browser-tab icon itself comes from app/icon.jpg via
+            Next's file convention; favicon.ico and favicon.svg were declared
+            here but never existed, so they only produced 404s. */}
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <link rel="manifest" href="/manifest.json" />
-
-        {/* Preload critical resources */}
-        <link rel="preload" href="/hero-image.webp" as="image" />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}

@@ -5,6 +5,7 @@ import type {
   Package,
 } from "@/components/car-rental/booking/types";
 import {
+  EmailNotConfiguredError,
   generateAdminNotificationEmail,
   generateUserConfirmationEmail,
   sendEmail,
@@ -90,8 +91,19 @@ export async function submitBooking(payload: {
 
     return { success: true };
   } catch (error) {
-    // sendEmail throws when SMTP_USER or SMTP_PASS is unset. Log the detail and
-    // return something generic, since this value reaches the browser.
+    // Distinguish "nobody configured the mailbox" from "the send failed", so a
+    // missing environment variable is obvious from the browser instead of
+    // looking like a mail delivery problem. Neither message reveals a secret.
+    if (error instanceof EmailNotConfiguredError) {
+      console.error(
+        "Booking mailer is not configured: set SMTP_USER and SMTP_PASS in the deployment environment."
+      );
+      return {
+        success: false,
+        error: "Email service is not configured on the server",
+      };
+    }
+
     console.error(
       "Booking mailer error:",
       error instanceof Error ? error.message : error
