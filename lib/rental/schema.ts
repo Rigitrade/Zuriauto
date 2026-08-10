@@ -7,6 +7,7 @@
  */
 
 import { z } from "zod";
+import { isKnownCountry } from "./countries";
 import { FUEL_LEVELS } from "./fleet";
 
 const required = (message: string) => z.string().trim().min(1, message);
@@ -34,6 +35,9 @@ export const contractDetailsSchema = z.object({
   street: required("required").max(200),
   postalCode: required("required").max(20),
   city: required("required").max(100),
+  // Validated against the list rather than accepted as free text, so the
+  // address on a signed contract cannot say "Schweizz".
+  country: required("country").refine(isKnownCountry, "country"),
   mobile: required("required").max(40),
   email: z.email("email").max(200),
 

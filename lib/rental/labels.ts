@@ -58,6 +58,7 @@ const de = {
     street: "Strasse, Haus-Nr.",
     postalCode: "PLZ",
     city: "Ort",
+    country: "Land",
     mobile: "Mobil-Nr.",
     email: "E-Mail",
     emailHint: "An diese Adresse senden wir Ihren Vertrag.",
@@ -66,9 +67,11 @@ const de = {
   documents: {
     heading: "Ausweisdokumente",
     intro:
-      "Fotografieren Sie beide Dokumente gut lesbar und vollständig im Bild.",
-    id: "Identitätskarte oder Pass",
-    licence: "Führerausweis",
+      "Fotografieren Sie Vorder- und Rückseite beider Dokumente gut lesbar und vollständig im Bild.",
+    idFront: "Identitätskarte oder Pass – Vorderseite",
+    idBack: "Identitätskarte oder Pass – Rückseite",
+    licenceFront: "Führerausweis – Vorderseite",
+    licenceBack: "Führerausweis – Rückseite",
     take: "Foto aufnehmen",
     retake: "Neues Foto",
     remove: "Entfernen",
@@ -86,7 +89,10 @@ const de = {
     heading: "Unterschrift",
     hint: "Unterschreiben Sie mit dem Finger im Feld.",
     clear: "Löschen",
-    place: "Ort",
+    place: "Ort, Datum, Uhrzeit",
+    placeOnly: "Ort",
+    dateTime: "Datum, Uhrzeit",
+    stampedNote: "Datum und Uhrzeit werden beim Absenden festgehalten.",
   },
 
   submit: {
@@ -117,8 +123,13 @@ const de = {
     birthDate: "Bitte geben Sie ein gültiges Geburtsdatum ein.",
     minor: "Der Mieter muss mindestens 18 Jahre alt sein.",
     vehicle: "Bitte wählen Sie ein Fahrzeug.",
-    idPhoto: "Bitte fotografieren Sie Ihren Ausweis.",
-    licencePhoto: "Bitte fotografieren Sie Ihren Führerausweis.",
+    country: "Bitte wählen Sie ein Land.",
+    idFrontPhoto: "Bitte fotografieren Sie die Vorderseite Ihres Ausweises.",
+    idBackPhoto: "Bitte fotografieren Sie die Rückseite Ihres Ausweises.",
+    licenceFrontPhoto:
+      "Bitte fotografieren Sie die Vorderseite Ihres Führerausweises.",
+    licenceBackPhoto:
+      "Bitte fotografieren Sie die Rückseite Ihres Führerausweises.",
     signature: "Bitte unterschreiben Sie.",
     gtc: "Bitte akzeptieren Sie die AGB.",
     imageRead: "Das Bild konnte nicht gelesen werden. Bitte erneut aufnehmen.",
@@ -131,6 +142,7 @@ const de = {
   pdf: {
     title: "MIETVERTRAG – FAHRZEUGÜBERNAHME",
     lessor: "Vermieter",
+    brand: "Vermietung unter der Marke ZURIAUTO",
     contractNumber: "Vertrags-Nr.",
     issued: "Erstellt am",
     vehicleSection: "Fahrzeug",
@@ -151,8 +163,10 @@ const de = {
     damageNone: "Keine sichtbaren Schäden gemeldet",
     conditionPhoto: "Zustandsfoto",
     documentsSection: "Ausweisdokumente",
-    idPhoto: "Identitätskarte / Pass",
-    licencePhoto: "Führerausweis",
+    idFrontPhoto: "Identitätskarte / Pass – Vorderseite",
+    idBackPhoto: "Identitätskarte / Pass – Rückseite",
+    licenceFrontPhoto: "Führerausweis – Vorderseite",
+    licenceBackPhoto: "Führerausweis – Rückseite",
     gtcSection: "Annahme der AGB",
     gtcAccepted:
       "Der Mieter hat die Allgemeinen Geschäftsbedingungen gelesen und akzeptiert.",
@@ -161,7 +175,7 @@ const de = {
     acceptedAt: "Akzeptiert am",
     signatureSection: "Unterschrift des Mieters",
     signedBy: "Name in Druckschrift",
-    placeAndDate: "Ort und Datum",
+    placeAndDate: "Ort, Datum, Uhrzeit",
     appendixTitle: "Anhang: Allgemeine Geschäftsbedingungen",
     page: "Seite",
     of: "von",
@@ -170,9 +184,9 @@ const de = {
 
   email: {
     officeSubject: "Neuer Mietvertrag",
-    customerSubject: "Ihr Mietvertrag – ZURIAUTO",
+    customerSubject: "Ihr Mietvertrag – Rigitrade AG",
     customerBody:
-      "Guten Tag\n\nIm Anhang finden Sie Ihren unterschriebenen Mietvertrag.\n\nFreundliche Grüsse\nZURIAUTO",
+      "Guten Tag\n\nIm Anhang finden Sie Ihren unterschriebenen Mietvertrag.\n\nFreundliche Grüsse\nRigitrade AG",
   },
 };
 
@@ -214,6 +228,7 @@ const en: typeof de = {
     street: "Street, house no.",
     postalCode: "Postal code",
     city: "City",
+    country: "Country",
     mobile: "Mobile no.",
     email: "Email",
     emailHint: "We will send your contract to this address.",
@@ -221,9 +236,12 @@ const en: typeof de = {
 
   documents: {
     heading: "Identity documents",
-    intro: "Photograph both documents fully in frame and clearly legible.",
-    id: "ID card or passport",
-    licence: "Driving licence",
+    intro:
+      "Photograph the front and back of both documents fully in frame and clearly legible.",
+    idFront: "ID card or passport – front",
+    idBack: "ID card or passport – back",
+    licenceFront: "Driving licence – front",
+    licenceBack: "Driving licence – back",
     take: "Take photo",
     retake: "Retake",
     remove: "Remove",
@@ -241,7 +259,10 @@ const en: typeof de = {
     heading: "Signature",
     hint: "Sign with your finger in the field.",
     clear: "Clear",
-    place: "Place",
+    place: "Place, date, time",
+    placeOnly: "Place",
+    dateTime: "Date, time",
+    stampedNote: "The date and time are recorded when you submit.",
   },
 
   submit: {
@@ -271,8 +292,11 @@ const en: typeof de = {
     birthDate: "Please enter a valid date of birth.",
     minor: "The renter must be at least 18 years old.",
     vehicle: "Please select a vehicle.",
-    idPhoto: "Please photograph your ID.",
-    licencePhoto: "Please photograph your driving licence.",
+    country: "Please select a country.",
+    idFrontPhoto: "Please photograph the front of your ID.",
+    idBackPhoto: "Please photograph the back of your ID.",
+    licenceFrontPhoto: "Please photograph the front of your driving licence.",
+    licenceBackPhoto: "Please photograph the back of your driving licence.",
     signature: "Please sign.",
     gtc: "Please accept the GTC.",
     imageRead: "The image could not be read. Please take it again.",
@@ -284,6 +308,7 @@ const en: typeof de = {
   pdf: {
     title: "RENTAL CONTRACT – VEHICLE HANDOVER",
     lessor: "Lessor",
+    brand: "Rental under the ZURIAUTO brand",
     contractNumber: "Contract no.",
     issued: "Issued",
     vehicleSection: "Vehicle",
@@ -304,8 +329,10 @@ const en: typeof de = {
     damageNone: "No visible damage reported",
     conditionPhoto: "Condition photo",
     documentsSection: "Identity documents",
-    idPhoto: "ID card / passport",
-    licencePhoto: "Driving licence",
+    idFrontPhoto: "ID card / passport – front",
+    idBackPhoto: "ID card / passport – back",
+    licenceFrontPhoto: "Driving licence – front",
+    licenceBackPhoto: "Driving licence – back",
     gtcSection: "Acceptance of the GTC",
     gtcAccepted:
       "The renter has read and accepted the General Terms and Conditions.",
@@ -314,7 +341,7 @@ const en: typeof de = {
     acceptedAt: "Accepted at",
     signatureSection: "Renter's signature",
     signedBy: "Name in block capitals",
-    placeAndDate: "Place and date",
+    placeAndDate: "Place, date, time",
     appendixTitle: "Appendix: General Terms and Conditions",
     page: "Page",
     of: "of",
@@ -323,9 +350,9 @@ const en: typeof de = {
 
   email: {
     officeSubject: "New rental contract",
-    customerSubject: "Your rental contract – ZURIAUTO",
+    customerSubject: "Your rental contract – Rigitrade AG",
     customerBody:
-      "Hello\n\nPlease find your signed rental contract attached.\n\nKind regards\nZURIAUTO",
+      "Hello\n\nPlease find your signed rental contract attached.\n\nKind regards\nRigitrade AG",
   },
 };
 

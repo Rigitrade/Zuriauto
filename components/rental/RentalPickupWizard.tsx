@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -23,6 +23,11 @@ import {
   type FuelLevel,
 } from "@/lib/rental/fleet";
 import { asRentalLanguage, labelsFor } from "@/lib/rental/labels";
+import {
+  COUNTRIES,
+  DEFAULT_COUNTRY,
+  PRIORITY_COUNT,
+} from "@/lib/rental/countries";
 import {
   recompress,
   toUint8Array,
@@ -71,10 +76,35 @@ interface FormState {
   street: string;
   postalCode: string;
   city: string;
+  country: string;
   mobile: string;
   email: string;
   place: string;
 }
+
+/**
+ * The four identity images, in the order they appear in the PDF.
+ *
+ * Held as a keyed record rather than four pieces of state so validation and
+ * the oversize retry can iterate them instead of repeating themselves.
+ */
+const DOCUMENT_SLOTS = [
+  { key: "idFront", label: "idFront", error: "idFrontPhoto" },
+  { key: "idBack", label: "idBack", error: "idBackPhoto" },
+  { key: "licenceFront", label: "licenceFront", error: "licenceFrontPhoto" },
+  { key: "licenceBack", label: "licenceBack", error: "licenceBackPhoto" },
+] as const;
+
+type DocumentKey = (typeof DOCUMENT_SLOTS)[number]["key"];
+
+type DocumentImages = Record<DocumentKey, CompressedImage | null>;
+
+const EMPTY_DOCUMENTS: DocumentImages = {
+  idFront: null,
+  idBack: null,
+  licenceFront: null,
+  licenceBack: null,
+};
 
 const EMPTY_FORM: FormState = {
   vehicleId: availableFleet.length === 1 ? availableFleet[0].id : "",
@@ -87,10 +117,20 @@ const EMPTY_FORM: FormState = {
   street: "",
   postalCode: "",
   city: "",
+  country: DEFAULT_COUNTRY,
   mobile: "",
   email: "",
   place: "Zurich",
 };
+
+/** `DD.MM.YYYY, HH:MM` — the same shape the PDF prints. */
+function formatStamp(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return (
+    `${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${date.getFullYear()}, ` +
+    `${pad(date.getHours())}:${pad(date.getMinutes())}`
+  );
+}
 
 function dataUrlToBytes(dataUrl: string): Uint8Array {
   const base64 = dataUrl.split(",")[1] ?? "";
@@ -107,8 +147,7 @@ export default function RentalPickupWizard() {
 
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
-  const [idPhoto, setIdPhoto] = useState<CompressedImage | null>(null);
-  const [licencePhoto, setLicencePhoto] = useState<CompressedImage | null>(null);
+  const [documents, setDocuments] = useState<DocumentImages>(EMPTY_DOCUMENTS);
   const [conditionPhotos, setConditionPhotos] = useState<
     (CompressedImage | null)[]
   >([null]);
@@ -124,6 +163,16 @@ export default function RentalPickupWizard() {
   } | null>(null);
 
   const vehicle = useMemo(() => findVehicle(form.vehicleId), [form.vehicleId]);
+
+  // The stamp shown next to the place. Ticks so a form left open for ten
+  // minutes does not display a time that disagrees with the one the PDF
+  // records at submit.
+  const [now, setNow] = useState<Date | null>(null);
+  useEffect(() => {
+    setNow(new Date());
+    const timer = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(timer);
+  }, []);
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -182,9 +231,14 @@ export default function RentalPickupWizard() {
       }
     }
 
+    if (target === 2 && !form.country.trim()) {
+      found.country = L.errors.country;
+    }
+
     if (target === 3) {
-      if (!idPhoto) found.idPhoto = L.errors.idPhoto;
-      if (!licencePhoto) found.licencePhoto = L.errors.licencePhoto;
+      for (const slot of DOCUMENT_SLOTS) {
+        if (!documents[slot.key]) found[slot.key] = L.errors[slot.error];
+      }
     }
 
     if (target === 4) {
@@ -210,11 +264,7 @@ export default function RentalPickupWizard() {
 
   async function assemble(
     details: ContractDetails,
-    photos: {
-      id: CompressedImage;
-      licence: CompressedImage;
-      condition: CompressedImage[];
-    },
+    photos: { docs: DocumentImages; condition: CompressedImage[] },
     contractNumber: string,
     issuedAt: Date
   ): Promise<Blob> {
@@ -228,8 +278,10 @@ export default function RentalPickupWizard() {
       contractNumber,
       issuedAt,
       language,
-      idPhoto: await toUint8Array(photos.id.blob),
-      licencePhoto: await toUint8Array(photos.licence.blob),
+      idFrontPhoto: await toUint8Array(photos.docs.idFront!.blob),
+      idBackPhoto: await toUint8Array(photos.docs.idBack!.blob),
+      licenceFrontPhoto: await toUint8Array(photos.docs.licenceFront!.blob),
+      licenceBackPhoto: await toUint8Array(photos.docs.licenceBack!.blob),
       conditionPhotos: await Promise.all(
         photos.condition.map((photo) => toUint8Array(photo.blob))
       ),
@@ -239,7 +291,8 @@ export default function RentalPickupWizard() {
   }
 
   async function submit() {
-    if (!validateStep(4) || !vehicle || !signature || !idPhoto || !licencePhoto) {
+    const allDocuments = DOCUMENT_SLOTS.every((slot) => documents[slot.key]);
+    if (!validateStep(4) || !vehicle || !signature || !allDocuments) {
       return;
     }
 
@@ -254,6 +307,7 @@ export default function RentalPickupWizard() {
       street: form.street,
       postalCode: form.postalCode,
       city: form.city,
+      country: form.country,
       mobile: form.mobile,
       email: form.email,
       gtcAccepted: gtcAccepted as true,
@@ -288,30 +342,40 @@ export default function RentalPickupWizard() {
       const issuedAt = new Date();
       let condition = conditionPhotos.filter(Boolean) as CompressedImage[];
 
+      let docs = documents;
+
       let pdf = await assemble(
         parsed.data,
-        { id: idPhoto, licence: licencePhoto, condition },
+        { docs, condition },
         contractNumber,
         issuedAt
       );
 
-      // One retry at lower quality before giving up. Phone cameras vary enough
-      // that a first pass can still land over the request limit.
+      // One retry at lower quality before giving up. Six photos of a phone
+      // camera's output vary enough that a first pass can still land over the
+      // request limit — and with front and back of both documents there are
+      // now twice as many as before.
       if (pdf.size > SOFT_LIMIT) {
         const harder = { maxEdge: 1200, quality: 0.55 };
-        const [id, licence, ...rest] = await Promise.all([
-          recompress(idPhoto, harder),
-          recompress(licencePhoto, harder),
-          ...condition.map((photo) => recompress(photo, harder)),
-        ]);
-        setIdPhoto(id);
-        setLicencePhoto(licence);
-        condition = rest;
-        setConditionPhotos(rest.length ? rest : [null]);
+
+        const shrunkDocuments = await Promise.all(
+          DOCUMENT_SLOTS.map(async (slot) => [
+            slot.key,
+            await recompress(documents[slot.key]!, harder),
+          ] as const)
+        );
+        docs = Object.fromEntries(shrunkDocuments) as DocumentImages;
+
+        condition = await Promise.all(
+          condition.map((photo) => recompress(photo, harder))
+        );
+
+        setDocuments(docs);
+        setConditionPhotos(condition.length ? condition : [null]);
 
         pdf = await assemble(
           parsed.data,
-          { id, licence, condition },
+          { docs, condition },
           contractNumber,
           issuedAt
         );
@@ -667,6 +731,31 @@ export default function RentalPickupWizard() {
                 </div>
               </div>
 
+              <Field label={L.details.country} error={errors.country} required>
+                <select
+                  value={form.country}
+                  onChange={(e) => set("country", e.target.value)}
+                  className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 md:text-sm"
+                >
+                  {COUNTRIES.map((name, index) => (
+                    <option
+                      key={name}
+                      value={name}
+                      // A rule after the priority block, so Switzerland and its
+                      // neighbours read as a shortlist rather than a jumbled
+                      // alphabet.
+                      className={
+                        index === PRIORITY_COUNT
+                          ? "border-t border-slate-200"
+                          : undefined
+                      }
+                    >
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+
               <Field label={L.details.mobile} error={errors.mobile} required>
                 <Input
                   type="tel"
@@ -704,29 +793,22 @@ export default function RentalPickupWizard() {
                 </p>
               </div>
 
-              <PhotoCapture
-                label={L.documents.id}
-                language={language}
-                value={idPhoto}
-                onChange={(image) => {
-                  setIdPhoto(image);
-                  setErrors((prev) => ({ ...prev, idPhoto: "" }));
-                }}
-                required
-                error={errors.idPhoto || undefined}
-              />
-
-              <PhotoCapture
-                label={L.documents.licence}
-                language={language}
-                value={licencePhoto}
-                onChange={(image) => {
-                  setLicencePhoto(image);
-                  setErrors((prev) => ({ ...prev, licencePhoto: "" }));
-                }}
-                required
-                error={errors.licencePhoto || undefined}
-              />
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                {DOCUMENT_SLOTS.map((slot) => (
+                  <PhotoCapture
+                    key={slot.key}
+                    label={L.documents[slot.label]}
+                    language={language}
+                    value={documents[slot.key]}
+                    onChange={(image) => {
+                      setDocuments((prev) => ({ ...prev, [slot.key]: image }));
+                      setErrors((prev) => ({ ...prev, [slot.key]: "" }));
+                    }}
+                    required
+                    error={errors[slot.key] || undefined}
+                  />
+                ))}
+              </div>
             </div>
           )}
 
@@ -758,11 +840,29 @@ export default function RentalPickupWizard() {
                 )}
               </div>
 
-              <Field label={L.signature.place}>
-                <Input
-                  value={form.place}
-                  onChange={(e) => set("place", e.target.value)}
-                />
+              <Field
+                label={L.signature.place}
+                hint={L.signature.stampedNote}
+              >
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto]">
+                  <Input
+                    value={form.place}
+                    onChange={(e) => set("place", e.target.value)}
+                    placeholder={L.signature.placeOnly}
+                    aria-label={L.signature.placeOnly}
+                  />
+                  {/* Read-only: the authoritative timestamp is taken at submit,
+                      so letting anyone edit it here would be misleading. */}
+                  <div
+                    className="flex h-10 items-center justify-center rounded-md border border-input bg-slate-50 px-3 text-sm tabular-nums text-slate-600"
+                    aria-label={L.signature.dateTime}
+                  >
+                    {/* Rendered only after mount: formatting on the server
+                        would produce a different clock and hydration would
+                        complain. */}
+                    {now ? formatStamp(now) : "—"}
+                  </div>
+                </div>
               </Field>
             </div>
           )}
