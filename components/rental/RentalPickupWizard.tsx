@@ -1,10 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
+  CalendarDays,
   CheckCircle2,
+  Clock,
   Download,
   Loader2,
   Share2,
@@ -23,6 +25,11 @@ import {
   type FuelLevel,
 } from "@/lib/rental/fleet";
 import { asRentalLanguage, labelsFor } from "@/lib/rental/labels";
+import {
+  COUNTRIES,
+  DEFAULT_COUNTRY,
+  PRIORITY_COUNT,
+} from "@/lib/rental/countries";
 import {
   recompress,
   toUint8Array,
@@ -71,10 +78,35 @@ interface FormState {
   street: string;
   postalCode: string;
   city: string;
+  country: string;
   mobile: string;
   email: string;
   place: string;
 }
+
+/**
+ * The four identity images, in the order they appear in the PDF.
+ *
+ * Held as a keyed record rather than four pieces of state so validation and
+ * the oversize retry can iterate them instead of repeating themselves.
+ */
+const DOCUMENT_SLOTS = [
+  { key: "idFront", label: "idFront", error: "idFrontPhoto" },
+  { key: "idBack", label: "idBack", error: "idBackPhoto" },
+  { key: "licenceFront", label: "licenceFront", error: "licenceFrontPhoto" },
+  { key: "licenceBack", label: "licenceBack", error: "licenceBackPhoto" },
+] as const;
+
+type DocumentKey = (typeof DOCUMENT_SLOTS)[number]["key"];
+
+type DocumentImages = Record<DocumentKey, CompressedImage | null>;
+
+const EMPTY_DOCUMENTS: DocumentImages = {
+  idFront: null,
+  idBack: null,
+  licenceFront: null,
+  licenceBack: null,
+};
 
 const EMPTY_FORM: FormState = {
   vehicleId: availableFleet.length === 1 ? availableFleet[0].id : "",
@@ -87,10 +119,23 @@ const EMPTY_FORM: FormState = {
   street: "",
   postalCode: "",
   city: "",
+  country: DEFAULT_COUNTRY,
   mobile: "",
   email: "",
   place: "Zurich",
 };
+
+const pad = (n: number) => String(n).padStart(2, "0");
+
+/** `DD.MM.YYYY` — the same shape the PDF prints. */
+function formatDatePart(date: Date): string {
+  return `${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${date.getFullYear()}`;
+}
+
+/** `HH:MM`, 24-hour, as Switzerland writes it. */
+function formatTimePart(date: Date): string {
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
 
 function dataUrlToBytes(dataUrl: string): Uint8Array {
   const base64 = dataUrl.split(",")[1] ?? "";
@@ -107,8 +152,7 @@ export default function RentalPickupWizard() {
 
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
-  const [idPhoto, setIdPhoto] = useState<CompressedImage | null>(null);
-  const [licencePhoto, setLicencePhoto] = useState<CompressedImage | null>(null);
+  const [documents, setDocuments] = useState<DocumentImages>(EMPTY_DOCUMENTS);
   const [conditionPhotos, setConditionPhotos] = useState<
     (CompressedImage | null)[]
   >([null]);
@@ -124,6 +168,16 @@ export default function RentalPickupWizard() {
   } | null>(null);
 
   const vehicle = useMemo(() => findVehicle(form.vehicleId), [form.vehicleId]);
+
+  // The stamp shown next to the place. Ticks so a form left open for ten
+  // minutes does not display a time that disagrees with the one the PDF
+  // records at submit.
+  const [now, setNow] = useState<Date | null>(null);
+  useEffect(() => {
+    setNow(new Date());
+    const timer = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(timer);
+  }, []);
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -182,9 +236,14 @@ export default function RentalPickupWizard() {
       }
     }
 
+    if (target === 2 && !form.country.trim()) {
+      found.country = L.errors.country;
+    }
+
     if (target === 3) {
-      if (!idPhoto) found.idPhoto = L.errors.idPhoto;
-      if (!licencePhoto) found.licencePhoto = L.errors.licencePhoto;
+      for (const slot of DOCUMENT_SLOTS) {
+        if (!documents[slot.key]) found[slot.key] = L.errors[slot.error];
+      }
     }
 
     if (target === 4) {
@@ -210,11 +269,7 @@ export default function RentalPickupWizard() {
 
   async function assemble(
     details: ContractDetails,
-    photos: {
-      id: CompressedImage;
-      licence: CompressedImage;
-      condition: CompressedImage[];
-    },
+    photos: { docs: DocumentImages; condition: CompressedImage[] },
     contractNumber: string,
     issuedAt: Date
   ): Promise<Blob> {
@@ -228,8 +283,10 @@ export default function RentalPickupWizard() {
       contractNumber,
       issuedAt,
       language,
-      idPhoto: await toUint8Array(photos.id.blob),
-      licencePhoto: await toUint8Array(photos.licence.blob),
+      idFrontPhoto: await toUint8Array(photos.docs.idFront!.blob),
+      idBackPhoto: await toUint8Array(photos.docs.idBack!.blob),
+      licenceFrontPhoto: await toUint8Array(photos.docs.licenceFront!.blob),
+      licenceBackPhoto: await toUint8Array(photos.docs.licenceBack!.blob),
       conditionPhotos: await Promise.all(
         photos.condition.map((photo) => toUint8Array(photo.blob))
       ),
@@ -239,7 +296,8 @@ export default function RentalPickupWizard() {
   }
 
   async function submit() {
-    if (!validateStep(4) || !vehicle || !signature || !idPhoto || !licencePhoto) {
+    const allDocuments = DOCUMENT_SLOTS.every((slot) => documents[slot.key]);
+    if (!validateStep(4) || !vehicle || !signature || !allDocuments) {
       return;
     }
 
@@ -254,6 +312,7 @@ export default function RentalPickupWizard() {
       street: form.street,
       postalCode: form.postalCode,
       city: form.city,
+      country: form.country,
       mobile: form.mobile,
       email: form.email,
       gtcAccepted: gtcAccepted as true,
@@ -288,30 +347,40 @@ export default function RentalPickupWizard() {
       const issuedAt = new Date();
       let condition = conditionPhotos.filter(Boolean) as CompressedImage[];
 
+      let docs = documents;
+
       let pdf = await assemble(
         parsed.data,
-        { id: idPhoto, licence: licencePhoto, condition },
+        { docs, condition },
         contractNumber,
         issuedAt
       );
 
-      // One retry at lower quality before giving up. Phone cameras vary enough
-      // that a first pass can still land over the request limit.
+      // One retry at lower quality before giving up. Six photos of a phone
+      // camera's output vary enough that a first pass can still land over the
+      // request limit — and with front and back of both documents there are
+      // now twice as many as before.
       if (pdf.size > SOFT_LIMIT) {
         const harder = { maxEdge: 1200, quality: 0.55 };
-        const [id, licence, ...rest] = await Promise.all([
-          recompress(idPhoto, harder),
-          recompress(licencePhoto, harder),
-          ...condition.map((photo) => recompress(photo, harder)),
-        ]);
-        setIdPhoto(id);
-        setLicencePhoto(licence);
-        condition = rest;
-        setConditionPhotos(rest.length ? rest : [null]);
+
+        const shrunkDocuments = await Promise.all(
+          DOCUMENT_SLOTS.map(async (slot) => [
+            slot.key,
+            await recompress(documents[slot.key]!, harder),
+          ] as const)
+        );
+        docs = Object.fromEntries(shrunkDocuments) as DocumentImages;
+
+        condition = await Promise.all(
+          condition.map((photo) => recompress(photo, harder))
+        );
+
+        setDocuments(docs);
+        setConditionPhotos(condition.length ? condition : [null]);
 
         pdf = await assemble(
           parsed.data,
-          { id, licence, condition },
+          { docs, condition },
           contractNumber,
           issuedAt
         );
@@ -507,10 +576,17 @@ export default function RentalPickupWizard() {
                       {vehicle.plate}
                     </dd>
                   </div>
-                  <div>
-                    <dt className="text-slate-500">{L.vehicle.vin}</dt>
-                    <dd className="font-medium text-slate-900">{vehicle.vin}</dd>
-                  </div>
+                  {/* Hidden when unknown, matching the PDF: an empty chassis
+                      row looks like a fault rather than missing reference
+                      data. */}
+                  {vehicle.vin && (
+                    <div>
+                      <dt className="text-slate-500">{L.vehicle.vin}</dt>
+                      <dd className="font-medium text-slate-900">
+                        {vehicle.vin}
+                      </dd>
+                    </div>
+                  )}
                 </dl>
               )}
 
@@ -529,19 +605,26 @@ export default function RentalPickupWizard() {
               </Field>
 
               <Field label={L.vehicle.fuel} required>
-                <div className="grid grid-cols-4 gap-2">
+                {/* Five positions, low to high, mirroring the dashboard gauge.
+                    Tighter gap and smaller text than the four-way version so
+                    "Leer" and "Voll" still fit on a narrow phone. */}
+                <div className="grid grid-cols-5 gap-1.5">
                   {FUEL_LEVELS.map((level) => (
                     <button
                       key={level}
                       type="button"
                       onClick={() => set("fuelLevel", level)}
-                      className={`rounded-md border px-2 py-2 text-sm transition-colors ${
+                      className={`rounded-md border px-1 py-2 text-xs transition-colors sm:text-sm ${
                         form.fuelLevel === level
                           ? "border-slate-800 bg-slate-800 text-white"
                           : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
                       }`}
                     >
-                      {level === "full" ? L.vehicle.fuelFull : level}
+                      {level === "empty"
+                        ? L.vehicle.fuelEmpty
+                        : level === "full"
+                        ? L.vehicle.fuelFull
+                        : level}
                     </button>
                   ))}
                 </div>
@@ -667,6 +750,31 @@ export default function RentalPickupWizard() {
                 </div>
               </div>
 
+              <Field label={L.details.country} error={errors.country} required>
+                <select
+                  value={form.country}
+                  onChange={(e) => set("country", e.target.value)}
+                  className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 md:text-sm"
+                >
+                  {COUNTRIES.map((name, index) => (
+                    <option
+                      key={name}
+                      value={name}
+                      // A rule after the priority block, so Switzerland and its
+                      // neighbours read as a shortlist rather than a jumbled
+                      // alphabet.
+                      className={
+                        index === PRIORITY_COUNT
+                          ? "border-t border-slate-200"
+                          : undefined
+                      }
+                    >
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+
               <Field label={L.details.mobile} error={errors.mobile} required>
                 <Input
                   type="tel"
@@ -704,29 +812,22 @@ export default function RentalPickupWizard() {
                 </p>
               </div>
 
-              <PhotoCapture
-                label={L.documents.id}
-                language={language}
-                value={idPhoto}
-                onChange={(image) => {
-                  setIdPhoto(image);
-                  setErrors((prev) => ({ ...prev, idPhoto: "" }));
-                }}
-                required
-                error={errors.idPhoto || undefined}
-              />
-
-              <PhotoCapture
-                label={L.documents.licence}
-                language={language}
-                value={licencePhoto}
-                onChange={(image) => {
-                  setLicencePhoto(image);
-                  setErrors((prev) => ({ ...prev, licencePhoto: "" }));
-                }}
-                required
-                error={errors.licencePhoto || undefined}
-              />
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                {DOCUMENT_SLOTS.map((slot) => (
+                  <PhotoCapture
+                    key={slot.key}
+                    label={L.documents[slot.label]}
+                    language={language}
+                    value={documents[slot.key]}
+                    onChange={(image) => {
+                      setDocuments((prev) => ({ ...prev, [slot.key]: image }));
+                      setErrors((prev) => ({ ...prev, [slot.key]: "" }));
+                    }}
+                    required
+                    error={errors[slot.key] || undefined}
+                  />
+                ))}
+              </div>
             </div>
           )}
 
@@ -758,12 +859,48 @@ export default function RentalPickupWizard() {
                 )}
               </div>
 
-              <Field label={L.signature.place}>
-                <Input
-                  value={form.place}
-                  onChange={(e) => set("place", e.target.value)}
-                />
-              </Field>
+              {/* Three separate cells rather than a place field with the
+                  timestamp squeezed into an auto-sized box beside it. Each
+                  part of "Ort, Datum, Uhrzeit" gets its own labelled column,
+                  which is both roomier and clearer about which value is which. */}
+              <div className="space-y-2">
+                <Label className="text-slate-700">{L.signature.place}</Label>
+
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  <div className="col-span-2 space-y-1 sm:col-span-1">
+                    <span className="block text-xs text-slate-500">
+                      {L.signature.placeOnly}
+                    </span>
+                    <Input
+                      className="h-10"
+                      value={form.place}
+                      onChange={(e) => set("place", e.target.value)}
+                      placeholder={L.signature.placeOnly}
+                      aria-label={L.signature.placeOnly}
+                    />
+                  </div>
+
+                  {/* Read-only: the authoritative timestamp is taken at submit,
+                      so letting anyone edit it here would be misleading.
+                      Values render only after mount — formatting on the server
+                      would produce a different clock and hydration would
+                      complain. */}
+                  <Stamp
+                    caption={L.signature.dateOnly}
+                    icon={<CalendarDays className="h-4 w-4 text-slate-400" />}
+                    value={now ? formatDatePart(now) : "—"}
+                  />
+                  <Stamp
+                    caption={L.signature.timeOnly}
+                    icon={<Clock className="h-4 w-4 text-slate-400" />}
+                    value={now ? formatTimePart(now) : "—"}
+                  />
+                </div>
+
+                <p className="text-xs text-slate-500">
+                  {L.signature.stampedNote}
+                </p>
+              </div>
             </div>
           )}
 
@@ -807,6 +944,30 @@ export default function RentalPickupWizard() {
         </div>
       </div>
     </section>
+  );
+}
+
+/** A read-only value cell, for figures the form records rather than collects. */
+function Stamp({
+  caption,
+  icon,
+  value,
+}: {
+  caption: string;
+  icon: React.ReactNode;
+  value: string;
+}) {
+  return (
+    <div className="space-y-1">
+      <span className="block text-xs text-slate-500">{caption}</span>
+      <div
+        className="flex h-10 items-center justify-center gap-2 rounded-md border border-input bg-slate-50 px-3"
+        aria-label={caption}
+      >
+        {icon}
+        <span className="text-sm tabular-nums text-slate-700">{value}</span>
+      </div>
+    </div>
   );
 }
 

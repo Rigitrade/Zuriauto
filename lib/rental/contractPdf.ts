@@ -16,7 +16,7 @@ import {
   rgb,
 } from "pdf-lib";
 import gtc, { GTC_DATE, GTC_ENTITY, type GtcLanguage } from "@/locales/gtc";
-import type { FleetVehicle } from "./fleet";
+import { fuelLevelToFraction, type FleetVehicle } from "./fleet";
 import { labelsFor, type RentalLanguage } from "./labels";
 import type { ContractDetails } from "./schema";
 
@@ -271,12 +271,19 @@ function formatDate(value: string): string {
   return match ? `${match[3]}.${match[2]}.${match[1]}` : value;
 }
 
+const pad = (n: number) => String(n).padStart(2, "0");
+
 function formatDateTime(date: Date): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return (
-    `${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${date.getFullYear()} ` +
-    `${pad(date.getHours())}:${pad(date.getMinutes())}`
-  );
+  return `${formatDate(toIsoDate(date))} ${formatTime(date)}`;
+}
+
+/** Local calendar date as YYYY-MM-DD, so `formatDate` is the single formatter. */
+function toIsoDate(date: Date): string {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+function formatTime(date: Date): string {
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 function formatMileage(km: number): string {
@@ -289,9 +296,15 @@ export interface ContractPdfInput {
   contractNumber: string;
   issuedAt: Date;
   language: RentalLanguage;
-  /** JPEG bytes, already downscaled by `imageCompress`. */
-  idPhoto: Uint8Array;
-  licencePhoto: Uint8Array;
+  /**
+   * JPEG bytes, already downscaled by `imageCompress`. Both sides of each
+   * document: a Swiss ID card carries the issuing data and validity on the
+   * reverse, so a front-only copy is incomplete.
+   */
+  idFrontPhoto: Uint8Array;
+  idBackPhoto: Uint8Array;
+  licenceFrontPhoto: Uint8Array;
+  licenceBackPhoto: Uint8Array;
   conditionPhotos: Uint8Array[];
   /** PNG bytes from the signature canvas. */
   signaturePng: Uint8Array;
@@ -323,7 +336,9 @@ export async function buildContractPdf(
   const w = new Writer(doc, font, bold);
 
   // --- Header ----------------------------------------------------------
-  w.page.drawText(toWinAnsi("ZURIAUTO"), {
+  // The contracting party, not the trading brand. GTC_ENTITY is the same name
+  // the terms give as lessor, so the document and the terms cannot disagree.
+  w.page.drawText(toWinAnsi(GTC_ENTITY.toUpperCase()), {
     x: MARGIN,
     y: w.cursor,
     size: 18,
@@ -331,7 +346,7 @@ export async function buildContractPdf(
     color: INK,
   });
   w.gap(20);
-  w.text(`${L.lessor}: ${GTC_ENTITY}`, { size: 9, color: MUTED });
+  w.text(L.brand, { size: 9, color: MUTED });
   w.gap(10);
   w.text(L.title, { size: 14, font: bold });
   w.gap(6);
@@ -342,9 +357,12 @@ export async function buildContractPdf(
   w.sectionTitle(L.vehicleSection);
   w.field(L.model, vehicle.model);
   w.field(L.plate, vehicle.plate);
-  w.field(L.vin, vehicle.vin);
+  // Omitted rather than printed as a dash when the chassis number is unknown:
+  // an empty field on a signed contract reads as a defect in the document,
+  // whereas the plate already identifies the vehicle unambiguously.
+  if (vehicle.vin) w.field(L.vin, vehicle.vin);
   w.field(L.mileage, `${formatMileage(details.mileageKm)} ${L.km}`);
-  w.field(L.fuel, details.fuelLevel === "full" ? "4/4" : details.fuelLevel);
+  w.field(L.fuel, fuelLevelToFraction(details.fuelLevel));
 
   // --- Renter ----------------------------------------------------------
   w.sectionTitle(L.customerSection);
@@ -353,7 +371,7 @@ export async function buildContractPdf(
   w.field(L.birthDate, formatDate(details.birthDate));
   w.field(
     L.address,
-    `${details.street}, ${details.postalCode} ${details.city}`
+    `${details.street}, ${details.postalCode} ${details.city}, ${details.country}`
   );
   w.field(L.mobile, details.mobile);
   w.field(L.email, details.email);
@@ -400,17 +418,24 @@ export async function buildContractPdf(
     { size: 9, color: MUTED }
   );
   w.gap(2);
+  // Place, date and time as three comma-separated parts, matching the label.
   w.text(
-    `${L.placeAndDate}: ${details.place || "Zurich"}, ${formatDateTime(issuedAt)}`,
+    `${L.placeAndDate}: ${details.place || "Zurich"}, ` +
+      `${formatDate(toIsoDate(issuedAt))}, ${formatTime(issuedAt)}`,
     { size: 9, color: MUTED }
   );
 
   // --- Photo pages -----------------------------------------------------
-  const idImage = await doc.embedJpg(input.idPhoto);
-  w.imagePage(idImage, L.idPhoto);
+  const documentPages: [Uint8Array, string][] = [
+    [input.idFrontPhoto, L.idFrontPhoto],
+    [input.idBackPhoto, L.idBackPhoto],
+    [input.licenceFrontPhoto, L.licenceFrontPhoto],
+    [input.licenceBackPhoto, L.licenceBackPhoto],
+  ];
 
-  const licenceImage = await doc.embedJpg(input.licencePhoto);
-  w.imagePage(licenceImage, L.licencePhoto);
+  for (const [bytes, caption] of documentPages) {
+    w.imagePage(await doc.embedJpg(bytes), caption);
+  }
 
   for (const [index, photo] of input.conditionPhotos.entries()) {
     const image = await doc.embedJpg(photo);

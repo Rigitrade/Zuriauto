@@ -1,6 +1,11 @@
 # Rental pickup contract — setup
 
-The pickup contract lives at **`/rental/pickup/`**. Everything up to the PDF
+The pickup contract lives at **`/apply/`** — the former `/rental/pickup/` path
+redirects there, since links to it had already been sent to customers. The
+route is marked `noindex`, because a form that invites identity documents
+should be reachable only by someone the office sent the link to.
+
+Everything up to the PDF
 runs in the browser; the only server call is `/api/rental-contract`, which
 emails the finished document to the office and to the customer.
 
@@ -88,5 +93,5 @@ Download and Share, including on every failure path.
 npm run dev
 ```
 
-Then open `http://localhost:3000/rental/pickup/`. Camera capture needs a real
+Then open `http://localhost:3000/apply/`. Camera capture needs a real
 phone; on desktop the photo fields fall back to a file picker.
