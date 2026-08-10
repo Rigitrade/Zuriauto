@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -41,7 +41,11 @@ import {
   contractDetailsSchema,
   type ContractDetails,
 } from "@/lib/rental/schema";
-import { formatDateInput, parseTypedDate } from "@/lib/rental/dateInput";
+import {
+  formatDateInput,
+  parseTypedDate,
+  toTypedDate,
+} from "@/lib/rental/dateInput";
 import GtcAcceptance from "./GtcAcceptance";
 import PhotoCapture from "./PhotoCapture";
 import SignaturePad from "./SignaturePad";
@@ -180,6 +184,47 @@ export default function RentalPickupWizard() {
     const timer = setInterval(() => setNow(new Date()), 30_000);
     return () => clearInterval(timer);
   }, []);
+
+  const birthDatePickerRef = useRef<HTMLInputElement | null>(null);
+
+  /**
+   * Bounds for the native picker, so it cannot offer a future date or one a
+   * century and a half ago.
+   *
+   * Derived from `now` rather than computed during render: this page is
+   * statically prerendered, so a date calculated at build time would not match
+   * the one the browser calculates and hydration would complain.
+   */
+  const birthDateBounds = useMemo(() => {
+    if (!now) return undefined;
+    const iso = (d: Date) =>
+      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    return {
+      min: iso(new Date(now.getFullYear() - 120, now.getMonth(), now.getDate())),
+      max: iso(now),
+    };
+  }, [now]);
+
+  /**
+   * Opens the platform date picker.
+   *
+   * `showPicker` is the supported route on Chrome, Edge and Safari 16+, but it
+   * must come from a user gesture and throws if the browser declines. Older
+   * Safari and some Android browsers open the native wheel on a plain click
+   * instead, so that is the fallback rather than leaving the button dead.
+   */
+  function openBirthDatePicker() {
+    const el = birthDatePickerRef.current;
+    if (!el) return;
+    try {
+      el.showPicker();
+      return;
+    } catch {
+      // Fall through to the click fallback below.
+    }
+    el.focus();
+    el.click();
+  }
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -716,22 +761,61 @@ export default function RentalPickupWizard() {
                 error={errors.birthDate}
                 required
               >
-                {/* A text field rather than type="date": the platform picker
-                    makes the customer scroll a calendar back four or five
-                    decades to reach a birth year, when eight digits is faster.
-                    `inputMode` still brings up the numeric keypad, and the dots
-                    are inserted as they type. */}
-                <Input
-                  type="text"
-                  inputMode="numeric"
-                  value={form.birthDate}
-                  onChange={(e) =>
-                    set("birthDate", formatDateInput(e.target.value))
-                  }
-                  placeholder={L.details.birthDatePlaceholder}
-                  maxLength={10}
-                  autoComplete="bday"
-                />
+                {/* Both routes to the same value. Typing is primary — eight
+                    digits beats scrolling a calendar back five decades for a
+                    birth year — with the platform picker a tap away for
+                    anyone who would rather not type. */}
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    value={form.birthDate}
+                    onChange={(e) =>
+                      set("birthDate", formatDateInput(e.target.value))
+                    }
+                    placeholder={L.details.birthDatePlaceholder}
+                    maxLength={10}
+                    autoComplete="bday"
+                    className="min-w-0 flex-1"
+                  />
+
+                  <div className="relative shrink-0">
+                    <button
+                      type="button"
+                      onClick={openBirthDatePicker}
+                      aria-label={L.details.birthDatePick}
+                      title={L.details.birthDatePick}
+                      // w-11 is 44px — a comfortable touch target next to a
+                      // 40px-tall field, rather than a 40px one that gets
+                      // mistapped on a phone.
+                      className="flex h-10 w-11 items-center justify-center rounded-md border border-input bg-white text-slate-500 transition-colors hover:bg-slate-50 active:bg-slate-100"
+                    >
+                      <CalendarDays className="h-4 w-4" />
+                    </button>
+
+                    {/* The native control, rendered but invisible behind the
+                        button. It cannot be `display: none` — showPicker()
+                        throws on an element that is not rendered — and
+                        pointer-events-none stops the transparent field
+                        swallowing the tap, which on desktop would focus an
+                        invisible input instead of opening the calendar.
+                        tabIndex -1 keeps it out of the tab order so keyboard
+                        users meet one date field, not two. */}
+                    <input
+                      ref={birthDatePickerRef}
+                      type="date"
+                      tabIndex={-1}
+                      aria-hidden="true"
+                      value={parseTypedDate(form.birthDate) ?? ""}
+                      min={birthDateBounds?.min}
+                      max={birthDateBounds?.max}
+                      onChange={(e) =>
+                        set("birthDate", toTypedDate(e.target.value))
+                      }
+                      className="pointer-events-none absolute inset-0 h-full w-full opacity-0"
+                    />
+                  </div>
+                </div>
               </Field>
 
               <Field label={L.details.street} error={errors.street} required>
