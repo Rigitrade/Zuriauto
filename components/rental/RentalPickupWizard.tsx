@@ -593,19 +593,26 @@ export default function RentalPickupWizard() {
               </Field>
 
               <Field label={L.vehicle.fuel} required>
-                <div className="grid grid-cols-4 gap-2">
+                {/* Five positions, low to high, mirroring the dashboard gauge.
+                    Tighter gap and smaller text than the four-way version so
+                    "Leer" and "Voll" still fit on a narrow phone. */}
+                <div className="grid grid-cols-5 gap-1.5">
                   {FUEL_LEVELS.map((level) => (
                     <button
                       key={level}
                       type="button"
                       onClick={() => set("fuelLevel", level)}
-                      className={`rounded-md border px-2 py-2 text-sm transition-colors ${
+                      className={`rounded-md border px-1 py-2 text-xs transition-colors sm:text-sm ${
                         form.fuelLevel === level
                           ? "border-slate-800 bg-slate-800 text-white"
                           : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
                       }`}
                     >
-                      {level === "full" ? L.vehicle.fuelFull : level}
+                      {level === "empty"
+                        ? L.vehicle.fuelEmpty
+                        : level === "full"
+                        ? L.vehicle.fuelFull
+                        : level}
                     </button>
                   ))}
                 </div>

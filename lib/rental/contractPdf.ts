@@ -16,7 +16,7 @@ import {
   rgb,
 } from "pdf-lib";
 import gtc, { GTC_DATE, GTC_ENTITY, type GtcLanguage } from "@/locales/gtc";
-import type { FleetVehicle } from "./fleet";
+import { fuelLevelToFraction, type FleetVehicle } from "./fleet";
 import { labelsFor, type RentalLanguage } from "./labels";
 import type { ContractDetails } from "./schema";
 
@@ -359,7 +359,7 @@ export async function buildContractPdf(
   w.field(L.plate, vehicle.plate);
   w.field(L.vin, vehicle.vin);
   w.field(L.mileage, `${formatMileage(details.mileageKm)} ${L.km}`);
-  w.field(L.fuel, details.fuelLevel === "full" ? "4/4" : details.fuelLevel);
+  w.field(L.fuel, fuelLevelToFraction(details.fuelLevel));
 
   // --- Renter ----------------------------------------------------------
   w.sectionTitle(L.customerSection);

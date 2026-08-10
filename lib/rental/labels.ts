@@ -41,6 +41,7 @@ const de = {
     mileage: "Kilometerstand (km)",
     mileageHint: "Ablesen am Armaturenbrett",
     fuel: "Tankfüllung",
+    fuelEmpty: "Leer",
     fuelFull: "Voll",
     damage: "Vorhandene Schäden",
     damageHint:
@@ -211,6 +212,7 @@ const en: typeof de = {
     mileage: "Mileage (km)",
     mileageHint: "Read from the dashboard",
     fuel: "Fuel level",
+    fuelEmpty: "Empty",
     fuelFull: "Full",
     damage: "Pre-existing damage",
     damageHint:

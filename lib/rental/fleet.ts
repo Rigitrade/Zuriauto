@@ -62,6 +62,19 @@ export function findVehicle(id: string): FleetVehicle | undefined {
   return availableFleet.find((vehicle) => vehicle.id === id);
 }
 
-/** Fuel gauge positions, as marked on the dashboard. */
-export const FUEL_LEVELS = ["1/4", "1/2", "3/4", "full"] as const;
+/**
+ * Fuel gauge positions, as marked on the dashboard, low to high.
+ *
+ * `empty` is a real reading, not a missing value: a car can come back on the
+ * reserve light, and without it the lowest recordable level is a quarter tank,
+ * which would overstate what was returned and understate the refuelling charge.
+ */
+export const FUEL_LEVELS = ["empty", "1/4", "1/2", "3/4", "full"] as const;
 export type FuelLevel = (typeof FUEL_LEVELS)[number];
+
+/** How a level is printed on the contract. */
+export function fuelLevelToFraction(level: FuelLevel): string {
+  if (level === "empty") return "0/4";
+  if (level === "full") return "4/4";
+  return level;
+}
