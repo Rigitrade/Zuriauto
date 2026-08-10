@@ -504,14 +504,14 @@ const en = {
     },
   },
   privacy: {
-    title: "Privacy Policy – Zuriauto (Digihome Swiss AG)",
+    title: "Privacy Policy – Zuriauto (Rigitrade AG)",
     sections: {
       introduction: {
         title: "1. Introduction & Data Controller",
         content:
-          "Your privacy is important to us. This Privacy Policy explains how Digihome Swiss AG, trading as Zuriauto, processes your data.",
+          "Your privacy is important to us. This Privacy Policy explains how Rigitrade AG, trading as Zuriauto, processes your data.",
         controller:
-          "Digihome Swiss AG, Tannenstrasse 16, 8424 Embrach, Switzerland",
+          "Rigitrade AG, Tannenstrasse 16, 8424 Embrach, Switzerland",
         email: "info@zuriauto.ch",
         dataProtectionContact: "Mr. Katamesh, reachable at info@zuriauto.ch",
       },
@@ -576,9 +576,18 @@ const en = {
   },
   legalNotice: {
     brandName: "ZuriAuto",
-    ownedBy: "DIGIHOME SWISS AG",
+    ownedBy: "RIGITRADE AG",
+    // TODO — WRONG NUMBER. CHE-199.884.159 is Digihome Swiss AG's UID, kept
+    // from before the entity changed. A UID identifies one specific company,
+    // so this line currently claims Rigitrade AG holds another company's
+    // registration. Replace with Rigitrade AG's own CHE number, or drop the
+    // line until it is known: an absent register number is better than a
+    // false one in an Impressum.
     tradingRegister:
       "Zurich Nr. CHE-199.884.159 - Swiss Public Limited Company (PLC)",
+    // TODO — also verify. The privacy policy gives the controller's address as
+    // Tannenstrasse 16 while this says Tannenstrasse 1; they cannot both be
+    // right, and a new entity may have a different registered seat entirely.
     address: "Tannenstrasse 1, 8424 Embrach, Zurich",
     headOffice: "Schaffhauserstrasse 550, 8052 Zürich, Switzerland",
     representedBy: "Ahmed Katamesh",

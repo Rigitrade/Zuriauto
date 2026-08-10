@@ -36,10 +36,12 @@ import {
   type CompressedImage,
 } from "@/lib/rental/imageCompress";
 import {
+  ageOn,
   buildContractNumber,
   contractDetailsSchema,
   type ContractDetails,
 } from "@/lib/rental/schema";
+import { formatDateInput, parseTypedDate } from "@/lib/rental/dateInput";
 import GtcAcceptance from "./GtcAcceptance";
 import PhotoCapture from "./PhotoCapture";
 import SignaturePad from "./SignaturePad";
@@ -225,14 +227,17 @@ export default function RentalPickupWizard() {
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim())) {
         found.email = L.errors.email;
       }
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(form.birthDate)) {
+      // `ageOn` is the schema's own rule rather than a second calculation
+      // here. The previous division by 365.25 could disagree with it within a
+      // day of a birthday, letting the form advance on an age the schema then
+      // rejected at submit — after the customer had signed.
+      const birthDateIso = parseTypedDate(form.birthDate);
+      if (!birthDateIso) {
         found.birthDate = L.errors.birthDate;
       } else {
-        const age =
-          (Date.now() - new Date(form.birthDate).getTime()) /
-          (365.25 * 24 * 3600 * 1000);
+        const age = ageOn(birthDateIso);
         if (age < 18) found.birthDate = L.errors.minor;
-        if (age > 120) found.birthDate = L.errors.birthDate;
+        else if (age >= 120) found.birthDate = L.errors.birthDate;
       }
     }
 
@@ -308,7 +313,8 @@ export default function RentalPickupWizard() {
       existingDamage: form.existingDamage,
       lastName: form.lastName,
       firstName: form.firstName,
-      birthDate: form.birthDate,
+      // The field holds DD.MM.YYYY; the schema and the PDF work in ISO.
+      birthDate: parseTypedDate(form.birthDate) ?? "",
       street: form.street,
       postalCode: form.postalCode,
       city: form.city,
@@ -706,13 +712,24 @@ export default function RentalPickupWizard() {
 
               <Field
                 label={L.details.birthDate}
+                hint={L.details.birthDateHint}
                 error={errors.birthDate}
                 required
               >
+                {/* A text field rather than type="date": the platform picker
+                    makes the customer scroll a calendar back four or five
+                    decades to reach a birth year, when eight digits is faster.
+                    `inputMode` still brings up the numeric keypad, and the dots
+                    are inserted as they type. */}
                 <Input
-                  type="date"
+                  type="text"
+                  inputMode="numeric"
                   value={form.birthDate}
-                  onChange={(e) => set("birthDate", e.target.value)}
+                  onChange={(e) =>
+                    set("birthDate", formatDateInput(e.target.value))
+                  }
+                  placeholder={L.details.birthDatePlaceholder}
+                  maxLength={10}
                   autoComplete="bday"
                 />
               </Field>
