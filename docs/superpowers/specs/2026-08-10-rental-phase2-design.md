@@ -183,6 +183,35 @@ server writes the record, stores the files, renders the PDF and sends the mail.
 
 `/api/rental-contract` is retired once the tokenised flow is live.
 
+### Images upload directly to storage, not through the API
+
+Moving PDF generation to the server does not move the images through it.
+Vercel's ~4.5 MB request cap applies to any route handler, so posting three
+photos to the server would hit exactly the ceiling Phase 1 had to work around.
+
+Instead the browser requests a short-lived signed upload URL per image and
+uploads straight to Supabase Storage, then posts only the storage paths with
+the form data. The server reads the images back from storage to render the PDF.
+
+Consequences:
+
+- The request body stays small, so the size ceiling disappears rather than
+  being managed. Client-side downscaling stays anyway, because a 6 MB upload
+  over mobile data at the rental counter is slow regardless of what is legal.
+- Signed upload URLs must be scoped to a single path and expiry, or they become
+  an open upload endpoint.
+- An abandoned form can leave orphaned objects in storage. The nightly job
+  deletes uploads with no matching `documents` row.
+
+### Postgres connections must use the pooler
+
+Serverless functions open many short-lived connections, which exhausts a direct
+Postgres connection limit. Supabase's pooled connection string (port 6543) is
+required rather than the direct one (5432). Getting this wrong appears as
+intermittent "too many connections" failures under load rather than an
+immediate error, so it is worth verifying in M1 rather than discovering in
+production.
+
 ### The return screen
 
 The highest-value screen in the system, and the one the brief does not
