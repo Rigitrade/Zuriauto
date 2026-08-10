@@ -4,7 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
+  CalendarDays,
   CheckCircle2,
+  Clock,
   Download,
   Loader2,
   Share2,
@@ -123,13 +125,16 @@ const EMPTY_FORM: FormState = {
   place: "Zurich",
 };
 
-/** `DD.MM.YYYY, HH:MM` — the same shape the PDF prints. */
-function formatStamp(date: Date): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return (
-    `${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${date.getFullYear()}, ` +
-    `${pad(date.getHours())}:${pad(date.getMinutes())}`
-  );
+const pad = (n: number) => String(n).padStart(2, "0");
+
+/** `DD.MM.YYYY` — the same shape the PDF prints. */
+function formatDatePart(date: Date): string {
+  return `${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${date.getFullYear()}`;
+}
+
+/** `HH:MM`, 24-hour, as Switzerland writes it. */
+function formatTimePart(date: Date): string {
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 function dataUrlToBytes(dataUrl: string): Uint8Array {
@@ -854,30 +859,48 @@ export default function RentalPickupWizard() {
                 )}
               </div>
 
-              <Field
-                label={L.signature.place}
-                hint={L.signature.stampedNote}
-              >
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto]">
-                  <Input
-                    value={form.place}
-                    onChange={(e) => set("place", e.target.value)}
-                    placeholder={L.signature.placeOnly}
-                    aria-label={L.signature.placeOnly}
-                  />
-                  {/* Read-only: the authoritative timestamp is taken at submit,
-                      so letting anyone edit it here would be misleading. */}
-                  <div
-                    className="flex h-10 items-center justify-center rounded-md border border-input bg-slate-50 px-3 text-sm tabular-nums text-slate-600"
-                    aria-label={L.signature.dateTime}
-                  >
-                    {/* Rendered only after mount: formatting on the server
-                        would produce a different clock and hydration would
-                        complain. */}
-                    {now ? formatStamp(now) : "—"}
+              {/* Three separate cells rather than a place field with the
+                  timestamp squeezed into an auto-sized box beside it. Each
+                  part of "Ort, Datum, Uhrzeit" gets its own labelled column,
+                  which is both roomier and clearer about which value is which. */}
+              <div className="space-y-2">
+                <Label className="text-slate-700">{L.signature.place}</Label>
+
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  <div className="col-span-2 space-y-1 sm:col-span-1">
+                    <span className="block text-xs text-slate-500">
+                      {L.signature.placeOnly}
+                    </span>
+                    <Input
+                      className="h-10"
+                      value={form.place}
+                      onChange={(e) => set("place", e.target.value)}
+                      placeholder={L.signature.placeOnly}
+                      aria-label={L.signature.placeOnly}
+                    />
                   </div>
+
+                  {/* Read-only: the authoritative timestamp is taken at submit,
+                      so letting anyone edit it here would be misleading.
+                      Values render only after mount — formatting on the server
+                      would produce a different clock and hydration would
+                      complain. */}
+                  <Stamp
+                    caption={L.signature.dateOnly}
+                    icon={<CalendarDays className="h-4 w-4 text-slate-400" />}
+                    value={now ? formatDatePart(now) : "—"}
+                  />
+                  <Stamp
+                    caption={L.signature.timeOnly}
+                    icon={<Clock className="h-4 w-4 text-slate-400" />}
+                    value={now ? formatTimePart(now) : "—"}
+                  />
                 </div>
-              </Field>
+
+                <p className="text-xs text-slate-500">
+                  {L.signature.stampedNote}
+                </p>
+              </div>
             </div>
           )}
 
@@ -921,6 +944,30 @@ export default function RentalPickupWizard() {
         </div>
       </div>
     </section>
+  );
+}
+
+/** A read-only value cell, for figures the form records rather than collects. */
+function Stamp({
+  caption,
+  icon,
+  value,
+}: {
+  caption: string;
+  icon: React.ReactNode;
+  value: string;
+}) {
+  return (
+    <div className="space-y-1">
+      <span className="block text-xs text-slate-500">{caption}</span>
+      <div
+        className="flex h-10 items-center justify-center gap-2 rounded-md border border-input bg-slate-50 px-3"
+        aria-label={caption}
+      >
+        {icon}
+        <span className="text-sm tabular-nums text-slate-700">{value}</span>
+      </div>
+    </div>
   );
 }
 

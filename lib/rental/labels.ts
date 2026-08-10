@@ -93,6 +93,8 @@ const de = {
     place: "Ort, Datum, Uhrzeit",
     placeOnly: "Ort",
     dateTime: "Datum, Uhrzeit",
+    dateOnly: "Datum",
+    timeOnly: "Uhrzeit",
     stampedNote: "Datum und Uhrzeit werden beim Absenden festgehalten.",
   },
 
@@ -264,6 +266,8 @@ const en: typeof de = {
     place: "Place, date, time",
     placeOnly: "Place",
     dateTime: "Date, time",
+    dateOnly: "Date",
+    timeOnly: "Time",
     stampedNote: "The date and time are recorded when you submit.",
   },
 
