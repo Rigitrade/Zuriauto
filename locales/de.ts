@@ -587,8 +587,17 @@ const de: TranslationKeys = {
   legalNotice: {
     brandName: "ZuriAuto",
     ownedBy: "RIGITRADE AG",
+    // TODO — WRONG NUMBER. CHE-199.884.159 is Digihome Swiss AG's UID, kept
+    // from before the entity changed. A UID identifies one specific company,
+    // so this line currently claims Rigitrade AG holds another company's
+    // registration. Replace with Rigitrade AG's own CHE number, or drop the
+    // line until it is known: an absent register number is better than a
+    // false one in an Impressum.
     tradingRegister:
       "Handelsregister Zürich Nr. CHE-199.884.159 – Schweizer Aktiengesellschaft (AG)",
+    // TODO — also verify. The privacy policy gives the controller's address as
+    // Tannenstrasse 16 while this says Tannenstrasse 1; they cannot both be
+    // right, and a new entity may have a different registered seat entirely.
     address: "Tannenstrasse 1, 8424 Embrach, Zürich",
     headOffice: "Schaffhauserstrasse 550, 8052 Zürich, Schweiz",
     representedBy: "Ahmed Katamesh",
