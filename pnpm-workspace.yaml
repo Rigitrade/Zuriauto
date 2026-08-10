@@ -1,0 +1,9 @@
+# allowBuilds lists the dependencies whose install scripts may run. pnpm 11
+# blocks build scripts by default and exits non-zero until each is decided,
+# which otherwise makes `pnpm dev` fail before Next even starts.
+#
+#   sharp         - Next.js image optimisation
+#   unrs-resolver - the resolver behind eslint-config-next
+allowBuilds:
+  sharp: true
+  unrs-resolver: true
