@@ -1,0 +1,338 @@
+/**
+ * German and English strings for the pickup contract flow.
+ *
+ * These live here rather than in the i18n catalogue for the same reason
+ * `locales/gtc.ts` and `whatsappMessage.ts` do: the contract is a
+ * self-contained document, and routing it through `t()` would mean adding
+ * keys to `locales/de.ts`, `locales/en.ts` and `types/i18n.ts` for strings
+ * nothing else uses.
+ *
+ * The PDF labels are deliberately in the same table as the form labels, so a
+ * field cannot be renamed on screen without the document following.
+ */
+
+export type RentalLanguage = "de" | "en";
+
+/** The site UI is German/English only; anything else falls back to German. */
+export function asRentalLanguage(lang: string | undefined): RentalLanguage {
+  return lang === "en" ? "en" : "de";
+}
+
+// Deliberately not `as const`: the literal types that would produce make
+// `en: typeof de` unsatisfiable, since every English string differs.
+const de = {
+  pageTitle: "Mietvertrag – Fahrzeugübernahme",
+  pageIntro:
+    "Bitte füllen Sie das Formular aus, fotografieren Sie Ihre Ausweise und unterschreiben Sie direkt auf dem Bildschirm. Sie erhalten den Vertrag anschliessend per E-Mail.",
+
+  steps: {
+    vehicle: "Fahrzeug",
+    details: "Ihre Daten",
+    documents: "Dokumente",
+    sign: "Unterschrift",
+  },
+
+  vehicle: {
+    heading: "Fahrzeug und Zustand",
+    select: "Fahrzeug",
+    selectPlaceholder: "Bitte wählen",
+    plate: "Kontrollschild-Nr.",
+    vin: "Fahrgestell-Nr.",
+    mileage: "Kilometerstand (km)",
+    mileageHint: "Ablesen am Armaturenbrett",
+    fuel: "Tankfüllung",
+    fuelFull: "Voll",
+    damage: "Vorhandene Schäden",
+    damageHint:
+      "Beschreiben Sie sichtbare Schäden. Ohne Eintrag gilt das Fahrzeug als mängelfrei übernommen.",
+    damageNone: "Keine sichtbaren Schäden",
+    conditionPhotos: "Zustandsfotos (optional)",
+    conditionPhotosHint: "Bis zu 4 Fotos des Fahrzeugs",
+  },
+
+  details: {
+    heading: "Ihre Daten",
+    lastName: "Name",
+    firstName: "Vorname",
+    birthDate: "Geburtsdatum",
+    street: "Strasse, Haus-Nr.",
+    postalCode: "PLZ",
+    city: "Ort",
+    mobile: "Mobil-Nr.",
+    email: "E-Mail",
+    emailHint: "An diese Adresse senden wir Ihren Vertrag.",
+  },
+
+  documents: {
+    heading: "Ausweisdokumente",
+    intro:
+      "Fotografieren Sie beide Dokumente gut lesbar und vollständig im Bild.",
+    id: "Identitätskarte oder Pass",
+    licence: "Führerausweis",
+    take: "Foto aufnehmen",
+    retake: "Neues Foto",
+    remove: "Entfernen",
+  },
+
+  gtc: {
+    heading: "Allgemeine Geschäftsbedingungen",
+    intro: "Bitte lesen Sie die AGB und bestätigen Sie diese.",
+    accept: "Ich habe die AGB gelesen und akzeptiere sie.",
+    locked: "Bitte akzeptieren Sie zuerst die AGB.",
+    version: "Fassung",
+  },
+
+  signature: {
+    heading: "Unterschrift",
+    hint: "Unterschreiben Sie mit dem Finger im Feld.",
+    clear: "Löschen",
+    place: "Ort",
+  },
+
+  submit: {
+    button: "Vertrag abschliessen",
+    working: "Vertrag wird erstellt …",
+    sending: "Vertrag wird gesendet …",
+  },
+
+  result: {
+    successTitle: "Vertrag abgeschlossen",
+    successBody:
+      "Der unterschriebene Vertrag wurde an Sie und an ZURIAUTO gesendet.",
+    partialTitle: "Vertrag an ZURIAUTO gesendet",
+    partialBody:
+      "Ihre Kopie konnte nicht zugestellt werden. Bitte laden Sie den Vertrag hier herunter.",
+    offlineTitle: "Vertrag erstellt",
+    offlineBody:
+      "Der Versand per E-Mail ist derzeit nicht möglich. Bitte laden Sie den Vertrag herunter und senden Sie ihn an ZURIAUTO.",
+    download: "PDF herunterladen",
+    share: "Teilen",
+    contractNumber: "Vertrags-Nr.",
+  },
+
+  errors: {
+    required: "Pflichtfeld",
+    email: "Bitte geben Sie eine gültige E-Mail-Adresse ein.",
+    mileage: "Bitte geben Sie den Kilometerstand als Zahl ein.",
+    birthDate: "Bitte geben Sie ein gültiges Geburtsdatum ein.",
+    minor: "Der Mieter muss mindestens 18 Jahre alt sein.",
+    vehicle: "Bitte wählen Sie ein Fahrzeug.",
+    idPhoto: "Bitte fotografieren Sie Ihren Ausweis.",
+    licencePhoto: "Bitte fotografieren Sie Ihren Führerausweis.",
+    signature: "Bitte unterschreiben Sie.",
+    gtc: "Bitte akzeptieren Sie die AGB.",
+    imageRead: "Das Bild konnte nicht gelesen werden. Bitte erneut aufnehmen.",
+    tooLarge:
+      "Die Fotos sind zu gross. Bitte nehmen Sie sie mit weniger Detail erneut auf.",
+    sendFailed:
+      "Der Vertrag konnte nicht gesendet werden. Bitte laden Sie ihn herunter.",
+  },
+
+  pdf: {
+    title: "MIETVERTRAG – FAHRZEUGÜBERNAHME",
+    lessor: "Vermieter",
+    contractNumber: "Vertrags-Nr.",
+    issued: "Erstellt am",
+    vehicleSection: "Fahrzeug",
+    model: "Modell",
+    plate: "Kontrollschild-Nr.",
+    vin: "Fahrgestell-Nr.",
+    mileage: "Kilometerstand bei Übernahme",
+    fuel: "Tankfüllung",
+    customerSection: "Mieter",
+    lastName: "Name",
+    firstName: "Vorname",
+    birthDate: "Geburtsdatum",
+    address: "Adresse",
+    mobile: "Mobil-Nr.",
+    email: "E-Mail",
+    conditionSection: "Fahrzeugzustand bei Übernahme",
+    damage: "Vorhandene Schäden",
+    damageNone: "Keine sichtbaren Schäden gemeldet",
+    conditionPhoto: "Zustandsfoto",
+    documentsSection: "Ausweisdokumente",
+    idPhoto: "Identitätskarte / Pass",
+    licencePhoto: "Führerausweis",
+    gtcSection: "Annahme der AGB",
+    gtcAccepted:
+      "Der Mieter hat die Allgemeinen Geschäftsbedingungen gelesen und akzeptiert.",
+    gtcVersion: "Fassung",
+    gtcLanguage: "Sprache",
+    acceptedAt: "Akzeptiert am",
+    signatureSection: "Unterschrift des Mieters",
+    signedBy: "Name in Druckschrift",
+    placeAndDate: "Ort und Datum",
+    appendixTitle: "Anhang: Allgemeine Geschäftsbedingungen",
+    page: "Seite",
+    of: "von",
+    km: "km",
+  },
+
+  email: {
+    officeSubject: "Neuer Mietvertrag",
+    customerSubject: "Ihr Mietvertrag – ZURIAUTO",
+    customerBody:
+      "Guten Tag\n\nIm Anhang finden Sie Ihren unterschriebenen Mietvertrag.\n\nFreundliche Grüsse\nZURIAUTO",
+  },
+};
+
+const en: typeof de = {
+  pageTitle: "Rental contract – vehicle handover",
+  pageIntro:
+    "Please complete the form, photograph your documents and sign on screen. You will receive the contract by email afterwards.",
+
+  steps: {
+    vehicle: "Vehicle",
+    details: "Your details",
+    documents: "Documents",
+    sign: "Signature",
+  },
+
+  vehicle: {
+    heading: "Vehicle and condition",
+    select: "Vehicle",
+    selectPlaceholder: "Please select",
+    plate: "Licence plate no.",
+    vin: "Chassis no.",
+    mileage: "Mileage (km)",
+    mileageHint: "Read from the dashboard",
+    fuel: "Fuel level",
+    fuelFull: "Full",
+    damage: "Pre-existing damage",
+    damageHint:
+      "Describe any visible damage. If left empty, the vehicle is taken as free of defects.",
+    damageNone: "No visible damage",
+    conditionPhotos: "Condition photos (optional)",
+    conditionPhotosHint: "Up to 4 photos of the vehicle",
+  },
+
+  details: {
+    heading: "Your details",
+    lastName: "Family name",
+    firstName: "First name",
+    birthDate: "Date of birth",
+    street: "Street, house no.",
+    postalCode: "Postal code",
+    city: "City",
+    mobile: "Mobile no.",
+    email: "Email",
+    emailHint: "We will send your contract to this address.",
+  },
+
+  documents: {
+    heading: "Identity documents",
+    intro: "Photograph both documents fully in frame and clearly legible.",
+    id: "ID card or passport",
+    licence: "Driving licence",
+    take: "Take photo",
+    retake: "Retake",
+    remove: "Remove",
+  },
+
+  gtc: {
+    heading: "General Terms and Conditions",
+    intro: "Please read the GTC and confirm your acceptance.",
+    accept: "I have read and accept the GTC.",
+    locked: "Please accept the GTC first.",
+    version: "Version",
+  },
+
+  signature: {
+    heading: "Signature",
+    hint: "Sign with your finger in the field.",
+    clear: "Clear",
+    place: "Place",
+  },
+
+  submit: {
+    button: "Complete contract",
+    working: "Creating contract …",
+    sending: "Sending contract …",
+  },
+
+  result: {
+    successTitle: "Contract completed",
+    successBody: "The signed contract has been sent to you and to ZURIAUTO.",
+    partialTitle: "Contract sent to ZURIAUTO",
+    partialBody:
+      "Your copy could not be delivered. Please download the contract here.",
+    offlineTitle: "Contract created",
+    offlineBody:
+      "Email delivery is currently unavailable. Please download the contract and send it to ZURIAUTO.",
+    download: "Download PDF",
+    share: "Share",
+    contractNumber: "Contract no.",
+  },
+
+  errors: {
+    required: "Required",
+    email: "Please enter a valid email address.",
+    mileage: "Please enter the mileage as a number.",
+    birthDate: "Please enter a valid date of birth.",
+    minor: "The renter must be at least 18 years old.",
+    vehicle: "Please select a vehicle.",
+    idPhoto: "Please photograph your ID.",
+    licencePhoto: "Please photograph your driving licence.",
+    signature: "Please sign.",
+    gtc: "Please accept the GTC.",
+    imageRead: "The image could not be read. Please take it again.",
+    tooLarge:
+      "The photos are too large. Please retake them with less detail.",
+    sendFailed: "The contract could not be sent. Please download it.",
+  },
+
+  pdf: {
+    title: "RENTAL CONTRACT – VEHICLE HANDOVER",
+    lessor: "Lessor",
+    contractNumber: "Contract no.",
+    issued: "Issued",
+    vehicleSection: "Vehicle",
+    model: "Model",
+    plate: "Licence plate no.",
+    vin: "Chassis no.",
+    mileage: "Mileage at handover",
+    fuel: "Fuel level",
+    customerSection: "Renter",
+    lastName: "Family name",
+    firstName: "First name",
+    birthDate: "Date of birth",
+    address: "Address",
+    mobile: "Mobile no.",
+    email: "Email",
+    conditionSection: "Vehicle condition at handover",
+    damage: "Pre-existing damage",
+    damageNone: "No visible damage reported",
+    conditionPhoto: "Condition photo",
+    documentsSection: "Identity documents",
+    idPhoto: "ID card / passport",
+    licencePhoto: "Driving licence",
+    gtcSection: "Acceptance of the GTC",
+    gtcAccepted:
+      "The renter has read and accepted the General Terms and Conditions.",
+    gtcVersion: "Version",
+    gtcLanguage: "Language",
+    acceptedAt: "Accepted at",
+    signatureSection: "Renter's signature",
+    signedBy: "Name in block capitals",
+    placeAndDate: "Place and date",
+    appendixTitle: "Appendix: General Terms and Conditions",
+    page: "Page",
+    of: "of",
+    km: "km",
+  },
+
+  email: {
+    officeSubject: "New rental contract",
+    customerSubject: "Your rental contract – ZURIAUTO",
+    customerBody:
+      "Hello\n\nPlease find your signed rental contract attached.\n\nKind regards\nZURIAUTO",
+  },
+};
+
+export const RENTAL_LABELS = { de, en } as const;
+
+export type RentalLabels = typeof de;
+
+export function labelsFor(lang: RentalLanguage): RentalLabels {
+  return RENTAL_LABELS[lang];
+}
