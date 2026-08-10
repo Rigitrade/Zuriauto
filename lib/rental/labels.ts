@@ -56,6 +56,9 @@ const de = {
     lastName: "Name",
     firstName: "Vorname",
     birthDate: "Geburtsdatum",
+    // German convention: Tag, Monat, Jahr.
+    birthDatePlaceholder: "TT.MM.JJJJ",
+    birthDateHint: "z. B. 28.01.1978",
     street: "Strasse, Haus-Nr.",
     postalCode: "PLZ",
     city: "Ort",
@@ -229,6 +232,8 @@ const en: typeof de = {
     lastName: "Family name",
     firstName: "First name",
     birthDate: "Date of birth",
+    birthDatePlaceholder: "DD.MM.YYYY",
+    birthDateHint: "e.g. 28.01.1978",
     street: "Street, house no.",
     postalCode: "Postal code",
     city: "City",
