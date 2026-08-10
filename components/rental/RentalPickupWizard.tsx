@@ -571,10 +571,17 @@ export default function RentalPickupWizard() {
                       {vehicle.plate}
                     </dd>
                   </div>
-                  <div>
-                    <dt className="text-slate-500">{L.vehicle.vin}</dt>
-                    <dd className="font-medium text-slate-900">{vehicle.vin}</dd>
-                  </div>
+                  {/* Hidden when unknown, matching the PDF: an empty chassis
+                      row looks like a fault rather than missing reference
+                      data. */}
+                  {vehicle.vin && (
+                    <div>
+                      <dt className="text-slate-500">{L.vehicle.vin}</dt>
+                      <dd className="font-medium text-slate-900">
+                        {vehicle.vin}
+                      </dd>
+                    </div>
+                  )}
                 </dl>
               )}
 

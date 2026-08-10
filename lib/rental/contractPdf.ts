@@ -357,7 +357,10 @@ export async function buildContractPdf(
   w.sectionTitle(L.vehicleSection);
   w.field(L.model, vehicle.model);
   w.field(L.plate, vehicle.plate);
-  w.field(L.vin, vehicle.vin);
+  // Omitted rather than printed as a dash when the chassis number is unknown:
+  // an empty field on a signed contract reads as a defect in the document,
+  // whereas the plate already identifies the vehicle unambiguously.
+  if (vehicle.vin) w.field(L.vin, vehicle.vin);
   w.field(L.mileage, `${formatMileage(details.mileageKm)} ${L.km}`);
   w.field(L.fuel, fuelLevelToFraction(details.fuelLevel));
 
