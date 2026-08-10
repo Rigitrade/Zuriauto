@@ -40,13 +40,34 @@ const EUROPE_CODES = [
   "AD", "MC", "SM", "VA", "GI", "FO",
 ];
 
+/**
+ * Readable names where the package's official form is unwieldy.
+ *
+ * These are printed on the address line of a signed contract, where
+ * "8001 Zurich, United Kingdom of Great Britain and Northern Ireland (the)"
+ * reads as a database export rather than a document.
+ */
+const DISPLAY_NAMES: Record<string, string> = {
+  GB: "United Kingdom",
+  NL: "Netherlands",
+  RU: "Russia",
+  MD: "Moldova",
+  VA: "Vatican City",
+  FO: "Faroe Islands",
+  BA: "Bosnia and Herzegovina",
+};
+
+function nameFor(code: string): string | undefined {
+  return DISPLAY_NAMES[code] ?? getName(code);
+}
+
 function build(): string[] {
   // `getName` returns undefined for anything the package does not carry, so a
   // code it does not recognise drops out instead of producing "undefined" in
   // the dropdown.
   const named = EUROPE_CODES.map((code) => ({
     code,
-    name: getName(code),
+    name: nameFor(code),
   })).filter((entry): entry is { code: string; name: string } =>
     Boolean(entry.name)
   );
@@ -67,7 +88,7 @@ export const COUNTRIES: string[] = build();
 
 /** Separator index, so the select can draw a rule after the priority block. */
 export const PRIORITY_COUNT = PRIORITY_CODES.filter((code) => {
-  const name = getName(code);
+  const name = nameFor(code);
   return Boolean(name) && COUNTRIES.includes(name as string);
 }).length;
 
