@@ -38,7 +38,7 @@ export default function Footer() {
             <div className="space-y-1 sm:space-y-1.5">
               <h4 className="font-semibold text-sm sm:text-base">ZURIAUTO</h4>
               <h4 className="uppercase text-xs sm:text-sm">
-                A brand by DIGIHOME SWISS AG
+                A brand by RIGITRADE AG
               </h4>
               <h4 className="mt-2 uppercase text-xs sm:text-sm">
                 Schaffhauserstrasse 550

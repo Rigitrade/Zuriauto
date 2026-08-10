@@ -89,8 +89,8 @@ export const metadata: Metadata = {
   ],
 
   // Author and Publisher - Updated
-  authors: [{ name: "ZURIAUTO - Digihome Swiss AG" }],
-  creator: "Digihome Swiss AG",
+  authors: [{ name: "ZURIAUTO - Rigitrade AG" }],
+  creator: "Rigitrade AG",
   publisher: "ZURIAUTO Car Rental",
 
   // Robots and Indexing
@@ -172,7 +172,7 @@ export default function RootLayout({
     "@context": "https://schema.org",
     "@type": "CarRental",
     name: "ZURIAUTO Car Rental",
-    alternateName: "Digihome Swiss AG",
+    alternateName: "Rigitrade AG",
     description:
       "Professional car rental services in Switzerland specializing in taxi-licensed vehicles, Uber-compatible cars, tourist rentals, and long-term business solutions with all-inclusive packages.",
     url: siteUrl,

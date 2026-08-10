@@ -336,9 +336,11 @@ export async function buildContractPdf(
   const w = new Writer(doc, font, bold);
 
   // --- Header ----------------------------------------------------------
-  // The contracting party, not the trading brand. GTC_ENTITY is the same name
-  // the terms give as lessor, so the document and the terms cannot disagree.
-  w.page.drawText(toWinAnsi(GTC_ENTITY.toUpperCase()), {
+  // The brand the customer booked with, above the entity actually named as
+  // lessor in the terms. Both belong on a contract: one is what they
+  // recognise, the other is who they are contracting with. GTC_ENTITY comes
+  // from the terms themselves, so the two cannot disagree.
+  w.page.drawText(toWinAnsi("ZURIAUTO"), {
     x: MARGIN,
     y: w.cursor,
     size: 18,
@@ -346,7 +348,7 @@ export async function buildContractPdf(
     color: INK,
   });
   w.gap(20);
-  w.text(L.brand, { size: 9, color: MUTED });
+  w.text(`${L.lessor}: ${GTC_ENTITY}`, { size: 9, color: MUTED });
   w.gap(10);
   w.text(L.title, { size: 14, font: bold });
   w.gap(6);

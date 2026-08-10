@@ -148,7 +148,6 @@ const de = {
   pdf: {
     title: "MIETVERTRAG – FAHRZEUGÜBERNAHME",
     lessor: "Vermieter",
-    brand: "Vermietung unter der Marke ZURIAUTO",
     contractNumber: "Vertrags-Nr.",
     issued: "Erstellt am",
     vehicleSection: "Fahrzeug",
@@ -190,9 +189,9 @@ const de = {
 
   email: {
     officeSubject: "Neuer Mietvertrag",
-    customerSubject: "Ihr Mietvertrag – Rigitrade AG",
+    customerSubject: "Ihr Mietvertrag – ZURIAUTO",
     customerBody:
-      "Guten Tag\n\nIm Anhang finden Sie Ihren unterschriebenen Mietvertrag.\n\nFreundliche Grüsse\nRigitrade AG",
+      "Guten Tag\n\nIm Anhang finden Sie Ihren unterschriebenen Mietvertrag.\n\nFreundliche Grüsse\nZURIAUTO",
   },
 };
 
@@ -319,7 +318,6 @@ const en: typeof de = {
   pdf: {
     title: "RENTAL CONTRACT – VEHICLE HANDOVER",
     lessor: "Lessor",
-    brand: "Rental under the ZURIAUTO brand",
     contractNumber: "Contract no.",
     issued: "Issued",
     vehicleSection: "Vehicle",
@@ -361,9 +359,9 @@ const en: typeof de = {
 
   email: {
     officeSubject: "New rental contract",
-    customerSubject: "Your rental contract – Rigitrade AG",
+    customerSubject: "Your rental contract – ZURIAUTO",
     customerBody:
-      "Hello\n\nPlease find your signed rental contract attached.\n\nKind regards\nRigitrade AG",
+      "Hello\n\nPlease find your signed rental contract attached.\n\nKind regards\nZURIAUTO",
   },
 };
 

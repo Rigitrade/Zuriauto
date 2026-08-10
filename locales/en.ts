@@ -504,14 +504,14 @@ const en = {
     },
   },
   privacy: {
-    title: "Privacy Policy – Zuriauto (Digihome Swiss AG)",
+    title: "Privacy Policy – Zuriauto (Rigitrade AG)",
     sections: {
       introduction: {
         title: "1. Introduction & Data Controller",
         content:
-          "Your privacy is important to us. This Privacy Policy explains how Digihome Swiss AG, trading as Zuriauto, processes your data.",
+          "Your privacy is important to us. This Privacy Policy explains how Rigitrade AG, trading as Zuriauto, processes your data.",
         controller:
-          "Digihome Swiss AG, Tannenstrasse 16, 8424 Embrach, Switzerland",
+          "Rigitrade AG, Tannenstrasse 16, 8424 Embrach, Switzerland",
         email: "info@zuriauto.ch",
         dataProtectionContact: "Mr. Katamesh, reachable at info@zuriauto.ch",
       },
@@ -576,7 +576,7 @@ const en = {
   },
   legalNotice: {
     brandName: "ZuriAuto",
-    ownedBy: "DIGIHOME SWISS AG",
+    ownedBy: "RIGITRADE AG",
     tradingRegister:
       "Zurich Nr. CHE-199.884.159 - Swiss Public Limited Company (PLC)",
     address: "Tannenstrasse 1, 8424 Embrach, Zurich",
