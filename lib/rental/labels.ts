@@ -209,8 +209,12 @@ const de = {
   email: {
     officeSubject: "Neuer Mietvertrag",
     customerSubject: "Ihr Mietvertrag – ZURIAUTO",
-    customerBody:
-      "Guten Tag\n\nIm Anhang finden Sie Ihren unterschriebenen Mietvertrag.\n\nFreundliche Grüsse\nZURIAUTO",
+    // Split so the payment link lands before the sign-off rather than trailing
+    // after it, which reads as an afterthought.
+    customerGreeting:
+      "Guten Tag\n\nIm Anhang finden Sie Ihren unterschriebenen Mietvertrag.",
+    customerPayment: "Zahlung per Karte:",
+    customerSignature: "Freundliche Grüsse\nZURIAUTO",
   },
 };
 
@@ -396,8 +400,10 @@ const en: typeof de = {
   email: {
     officeSubject: "New rental contract",
     customerSubject: "Your rental contract – ZURIAUTO",
-    customerBody:
-      "Hello\n\nPlease find your signed rental contract attached.\n\nKind regards\nZURIAUTO",
+    customerGreeting:
+      "Hello\n\nPlease find your signed rental contract attached.",
+    customerPayment: "Pay by card:",
+    customerSignature: "Kind regards\nZURIAUTO",
   },
 };
 
