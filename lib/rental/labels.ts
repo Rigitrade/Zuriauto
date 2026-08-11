@@ -80,6 +80,18 @@ const de = {
     take: "Foto aufnehmen",
     retake: "Neues Foto",
     remove: "Entfernen",
+    openCamera: "Kamera öffnen",
+    chooseFile: "Datei wählen",
+    shutter: "Aufnehmen",
+    switchCamera: "Kamera wechseln",
+    cancel: "Abbrechen",
+    cameraStarting: "Kamera wird gestartet …",
+    cameraDenied:
+      "Kein Zugriff auf die Kamera. Bitte im Browser erlauben oder eine Datei wählen.",
+    cameraUnavailable:
+      "Keine Kamera gefunden. Bitte stattdessen eine Datei wählen.",
+    cameraInsecure:
+      "Die Kamera funktioniert nur über eine sichere Verbindung (https). Bitte eine Datei wählen.",
   },
 
   gtc: {
@@ -256,6 +268,17 @@ const en: typeof de = {
     take: "Take photo",
     retake: "Retake",
     remove: "Remove",
+    openCamera: "Open camera",
+    chooseFile: "Choose file",
+    shutter: "Capture",
+    switchCamera: "Switch camera",
+    cancel: "Cancel",
+    cameraStarting: "Starting the camera …",
+    cameraDenied:
+      "No access to the camera. Allow it in your browser, or choose a file instead.",
+    cameraUnavailable: "No camera found. Please choose a file instead.",
+    cameraInsecure:
+      "The camera only works over a secure connection (https). Please choose a file instead.",
   },
 
   gtc: {

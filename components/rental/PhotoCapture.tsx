@@ -1,19 +1,26 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Camera, Loader2, X } from "lucide-react";
+import { Camera, Loader2, Upload, X } from "lucide-react";
 import {
   compressImage,
   type CompressedImage,
 } from "@/lib/rental/imageCompress";
 import { labelsFor, type RentalLanguage } from "@/lib/rental/labels";
+import CameraCapture from "./CameraCapture";
 
 /**
- * A single photo slot: opens the camera on mobile, downscales immediately.
+ * A single photo slot, filled from a live camera or from a file.
  *
- * Compression runs on selection rather than at submit so the wait happens
- * while the customer is still filling the form, and so an oversized set of
- * photos is caught before they have signed.
+ * The camera is primary: it works on a phone and on a laptop webcam alike,
+ * which a file input with `capture` does not — on a desktop that only ever
+ * produces a file picker. The file route stays available because camera access
+ * can be refused, absent, or blocked by an insecure origin, and none of those
+ * should stop the customer finishing.
+ *
+ * Compression runs the moment an image arrives rather than at submit, so the
+ * wait happens while they are still filling the form and an oversized set is
+ * caught before they have signed.
  */
 
 interface PhotoCaptureProps {
@@ -23,6 +30,8 @@ interface PhotoCaptureProps {
   onChange: (image: CompressedImage | null) => void;
   required?: boolean;
   error?: string;
+  /** Front camera for a portrait, rear for documents. */
+  facing?: "environment" | "user";
 }
 
 export default function PhotoCapture({
@@ -32,11 +41,13 @@ export default function PhotoCapture({
   onChange,
   required = false,
   error,
+  facing = "environment",
 }: PhotoCaptureProps) {
   const L = labelsFor(language).documents;
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
 
   // The object URL is owned by whoever created it; release it when this slot
   // stops showing that image, or the blob leaks for the life of the tab.
@@ -47,23 +58,24 @@ export default function PhotoCapture({
     // Intentionally keyed on the URL: a new image means the old one is gone.
   }, [value?.previewUrl]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function handleFile(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    // Allows re-picking the same file, which otherwise fires no change event.
-    event.target.value = "";
-    if (!file) return;
-
+  async function accept(source: Blob) {
     setBusy(true);
     setFailed(false);
     try {
-      const compressed = await compressImage(file);
-      onChange(compressed);
+      onChange(await compressImage(source));
     } catch {
       setFailed(true);
       onChange(null);
     } finally {
       setBusy(false);
     }
+  }
+
+  async function handleFile(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    // Allows re-picking the same file, which otherwise fires no change event.
+    event.target.value = "";
+    if (file) await accept(file);
   }
 
   function remove() {
@@ -80,11 +92,13 @@ export default function PhotoCapture({
         {required && <span className="ml-0.5 text-rose-500">*</span>}
       </span>
 
+      {/* `capture` is a hint for mobile; on desktop this is a plain file
+          picker, which is exactly its role here — the fallback. */}
       <input
         ref={inputRef}
         type="file"
         accept="image/*"
-        capture="environment"
+        capture={facing}
         onChange={handleFile}
         className="sr-only"
       />
@@ -103,7 +117,7 @@ export default function PhotoCapture({
           <div className="flex items-center justify-between gap-2 border-t border-slate-200 bg-white px-3 py-2">
             <button
               type="button"
-              onClick={() => inputRef.current?.click()}
+              onClick={() => setCameraOpen(true)}
               className="text-sm text-slate-600 transition-colors hover:text-slate-900"
             >
               {L.retake}
@@ -119,26 +133,63 @@ export default function PhotoCapture({
           </div>
         </div>
       ) : (
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          disabled={busy}
-          className={`flex h-32 w-full flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed transition-colors ${
+        <div
+          className={`rounded-lg border-2 border-dashed ${
             message
-              ? "border-rose-300 bg-rose-50 text-rose-600"
-              : "border-slate-300 bg-slate-50 text-slate-500 hover:border-slate-400 hover:text-slate-700"
+              ? "border-rose-300 bg-rose-50"
+              : "border-slate-300 bg-slate-50"
           }`}
         >
-          {busy ? (
-            <Loader2 className="h-6 w-6 animate-spin" />
-          ) : (
-            <Camera className="h-6 w-6" />
-          )}
-          <span className="text-sm">{L.take}</span>
-        </button>
+          <button
+            type="button"
+            onClick={() => setCameraOpen(true)}
+            disabled={busy}
+            className={`flex h-28 w-full flex-col items-center justify-center gap-2 transition-colors ${
+              message
+                ? "text-rose-600"
+                : "text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            {busy ? (
+              <Loader2 className="h-6 w-6 animate-spin" />
+            ) : (
+              <Camera className="h-6 w-6" />
+            )}
+            <span className="text-sm">{L.openCamera}</span>
+          </button>
+
+          <div className="border-t border-slate-200/70 px-3 py-2 text-center">
+            <button
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              disabled={busy}
+              className="inline-flex items-center gap-1.5 text-xs text-slate-500 transition-colors hover:text-slate-700"
+            >
+              <Upload className="h-3.5 w-3.5" />
+              {L.chooseFile}
+            </button>
+          </div>
+        </div>
       )}
 
       {message && <p className="text-sm text-rose-600">{message}</p>}
+
+      {cameraOpen && (
+        <CameraCapture
+          language={language}
+          title={label}
+          facing={facing}
+          onCapture={async (photo) => {
+            setCameraOpen(false);
+            await accept(photo);
+          }}
+          onClose={() => setCameraOpen(false)}
+          onChooseFile={() => {
+            setCameraOpen(false);
+            inputRef.current?.click();
+          }}
+        />
+      )}
     </div>
   );
 }
