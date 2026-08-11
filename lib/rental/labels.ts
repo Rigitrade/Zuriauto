@@ -137,6 +137,8 @@ const de = {
     download: "PDF herunterladen",
     share: "Teilen",
     contractNumber: "Vertrags-Nr.",
+    payNow: "Jetzt bezahlen",
+    payHint: "Sie können die Miete direkt und sicher per Karte bezahlen.",
   },
 
   errors: {
@@ -331,6 +333,8 @@ const en: typeof de = {
     download: "Download PDF",
     share: "Share",
     contractNumber: "Contract no.",
+    payNow: "Pay now",
+    payHint: "You can pay the rental securely by card right away.",
   },
 
   errors: {
