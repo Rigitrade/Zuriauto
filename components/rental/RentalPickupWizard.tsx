@@ -201,6 +201,22 @@ export default function RentalPickupWizard() {
     return () => clearInterval(timer);
   }, []);
 
+  /**
+   * Brings the result screen into view.
+   *
+   * Submit happens at the foot of a long step 4, so replacing the form with the
+   * much shorter result panel left the viewport parked over the footer — the
+   * customer saw contact details instead of their download, share and payment
+   * buttons.
+   *
+   * Instant rather than smooth: the content has been swapped wholesale, so
+   * animating a scroll through a page that no longer exists reads as a glitch.
+   * The step navigation keeps its smooth scroll, where the content persists.
+   */
+  useEffect(() => {
+    if (status.kind === "done") window.scrollTo({ top: 0, behavior: "auto" });
+  }, [status.kind]);
+
   const birthDatePickerRef = useRef<HTMLInputElement | null>(null);
 
   /**
