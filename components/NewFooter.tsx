@@ -139,13 +139,16 @@ export default function Footer() {
                 navigation: someone looking for how to pay looks here. The
                 checkout is hosted by SumUp, so no card details touch this
                 site. */}
+            {/* Outlined rather than a solid white block: at footer scale a
+                filled button drew more attention than the bank details it sits
+                beside. Still obviously a button, just proportionate. */}
             <a
               href={PAYMENT_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-5 inline-flex items-center gap-2 rounded-lg bg-white px-5 py-2.5 text-xs font-semibold uppercase tracking-widest text-slate-900 transition-colors hover:bg-slate-200 sm:text-sm"
+              className="mt-4 inline-flex items-center gap-1.5 rounded-md border border-white/25 bg-white/5 px-3 py-1.5 text-[11px] uppercase tracking-widest transition-colors hover:border-white/50 hover:bg-white/15"
             >
-              <CreditCard className="h-4 w-4" />
+              <CreditCard className="h-3.5 w-3.5" />
               Pay now
             </a>
 

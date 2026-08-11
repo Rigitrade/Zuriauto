@@ -7,6 +7,7 @@ import {
   CalendarDays,
   CheckCircle2,
   Clock,
+  CreditCard,
   Download,
   Loader2,
   Share2,
@@ -17,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useI18n } from "@/lib/hooks/use-i18n";
+import { PAYMENT_URL } from "@/lib/payment";
 import { GTC_DATE, type GtcLanguage } from "@/locales/gtc";
 import {
   availableFleet,
@@ -590,6 +592,25 @@ export default function RentalPickupWizard() {
                 <Share2 className="h-4 w-4" />
                 {L.result.share}
               </button>
+            </div>
+
+            {/* Payment sits below a rule rather than in the row above, because
+                it leaves the site. Keeping it out of the Download/Share group
+                stops a customer tapping it expecting their contract.
+                Shown on every outcome: the rental is owed whether or not the
+                email got through. */}
+            <div className="mt-7 border-t border-slate-100 pt-6">
+              <p className="text-sm text-slate-600">{L.result.payHint}</p>
+
+              <a
+                href={PAYMENT_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3 inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700"
+              >
+                <CreditCard className="h-4 w-4" />
+                {L.result.payNow}
+              </a>
             </div>
           </div>
         </div>
