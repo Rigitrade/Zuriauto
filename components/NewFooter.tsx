@@ -120,9 +120,11 @@ export default function Footer() {
               <h4 className="uppercase text-xs sm:text-sm">
                 UBS Switzerland AG 8098 Zurich
               </h4>
-              <h4 className="uppercase text-xs sm:text-sm">
-                DIGIHOME SWISS AG
-              </h4>
+              {/* Account holder for the IBAN below. Confirm with the bank that
+                  the account was transferred with the entity: Swiss banks
+                  increasingly verify that the payee name matches the IBAN, and
+                  a mismatch gets transfers rejected. */}
+              <h4 className="uppercase text-xs sm:text-sm">RIGITRADE AG</h4>
               <h4 className="uppercase mt-2 text-xs sm:text-sm break-all">
                 IBAN CH650020720711359501Q
               </h4>
