@@ -73,6 +73,9 @@ const de = {
     heading: "Ausweisdokumente",
     intro:
       "Fotografieren Sie Vorder- und Rückseite beider Dokumente gut lesbar und vollständig im Bild.",
+    portrait: "Personenfoto",
+    portraitHint:
+      "Ein Foto von Ihnen, damit wir es mit Ihrem Ausweis abgleichen können.",
     idFront: "Identitätskarte oder Pass – Vorderseite",
     idBack: "Identitätskarte oder Pass – Rückseite",
     licenceFront: "Führerausweis – Vorderseite",
@@ -144,6 +147,7 @@ const de = {
     minor: "Der Mieter muss mindestens 18 Jahre alt sein.",
     vehicle: "Bitte wählen Sie ein Fahrzeug.",
     country: "Bitte wählen Sie ein Land.",
+    portraitPhoto: "Bitte nehmen Sie ein Personenfoto auf.",
     idFrontPhoto: "Bitte fotografieren Sie die Vorderseite Ihres Ausweises.",
     idBackPhoto: "Bitte fotografieren Sie die Rückseite Ihres Ausweises.",
     licenceFrontPhoto:
@@ -182,6 +186,7 @@ const de = {
     damageNone: "Keine sichtbaren Schäden gemeldet",
     conditionPhoto: "Zustandsfoto",
     documentsSection: "Ausweisdokumente",
+    portraitPhoto: "Personenfoto",
     idFrontPhoto: "Identitätskarte / Pass – Vorderseite",
     idBackPhoto: "Identitätskarte / Pass – Rückseite",
     licenceFrontPhoto: "Führerausweis – Vorderseite",
@@ -261,6 +266,8 @@ const en: typeof de = {
     heading: "Identity documents",
     intro:
       "Photograph the front and back of both documents fully in frame and clearly legible.",
+    portrait: "Personal photo",
+    portraitHint: "A photo of you, so we can match it against your ID.",
     idFront: "ID card or passport – front",
     idBack: "ID card or passport – back",
     licenceFront: "Driving licence – front",
@@ -330,6 +337,7 @@ const en: typeof de = {
     minor: "The renter must be at least 18 years old.",
     vehicle: "Please select a vehicle.",
     country: "Please select a country.",
+    portraitPhoto: "Please take a personal photo.",
     idFrontPhoto: "Please photograph the front of your ID.",
     idBackPhoto: "Please photograph the back of your ID.",
     licenceFrontPhoto: "Please photograph the front of your driving licence.",
@@ -365,6 +373,7 @@ const en: typeof de = {
     damageNone: "No visible damage reported",
     conditionPhoto: "Condition photo",
     documentsSection: "Identity documents",
+    portraitPhoto: "Personal photo",
     idFrontPhoto: "ID card / passport – front",
     idBackPhoto: "ID card / passport – back",
     licenceFrontPhoto: "Driving licence – front",
