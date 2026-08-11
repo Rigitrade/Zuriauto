@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useI18n } from "@/lib/hooks/use-i18n";
-import { GTC_DATE } from "@/locales/gtc";
+import { GTC_DATE, type GtcLanguage } from "@/locales/gtc";
 import {
   availableFleet,
   findVehicle,
@@ -165,6 +165,12 @@ export default function RentalPickupWizard() {
   const [signature, setSignature] = useState<string | null>(null);
   const [gtcAccepted, setGtcAccepted] = useState(false);
   const [acceptedAt, setAcceptedAt] = useState<string | null>(null);
+  /**
+   * Which language version of the terms the customer reads, independent of the
+   * interface language. Recorded on the contract, so it must be the version
+   * they actually saw — including French, which the site UI does not offer.
+   */
+  const [gtcLanguage, setGtcLanguage] = useState<GtcLanguage>(language);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<Status>({ kind: "editing" });
   const [result, setResult] = useState<{
@@ -368,7 +374,8 @@ export default function RentalPickupWizard() {
       email: form.email,
       gtcAccepted: gtcAccepted as true,
       gtcVersion: GTC_DATE,
-      gtcLanguage: language,
+      // The version read, not the interface language.
+      gtcLanguage,
       acceptedAt: acceptedAt ?? new Date().toISOString(),
       place: form.place,
     });
@@ -936,6 +943,8 @@ export default function RentalPickupWizard() {
             <div className="space-y-6">
               <GtcAcceptance
                 language={language}
+                gtcLanguage={gtcLanguage}
+                onGtcLanguageChange={setGtcLanguage}
                 accepted={gtcAccepted}
                 onAcceptedChange={acceptGtc}
                 error={errors.gtc}

@@ -85,6 +85,7 @@ const de = {
   gtc: {
     heading: "Allgemeine Geschäftsbedingungen",
     intro: "Bitte lesen Sie die AGB und bestätigen Sie diese.",
+    languageLabel: "Sprache der AGB",
     accept: "Ich habe die AGB gelesen und akzeptiere sie.",
     locked: "Bitte akzeptieren Sie zuerst die AGB.",
     version: "Fassung",
@@ -260,6 +261,7 @@ const en: typeof de = {
   gtc: {
     heading: "General Terms and Conditions",
     intro: "Please read the GTC and confirm your acceptance.",
+    languageLabel: "Language of the terms",
     accept: "I have read and accept the GTC.",
     locked: "Please accept the GTC first.",
     version: "Version",
