@@ -301,6 +301,8 @@ export interface ContractPdfInput {
    * document: a Swiss ID card carries the issuing data and validity on the
    * reverse, so a front-only copy is incomplete.
    */
+  /** A photo of the renter, for comparison against the identity document. */
+  portraitPhoto: Uint8Array;
   idFrontPhoto: Uint8Array;
   idBackPhoto: Uint8Array;
   licenceFrontPhoto: Uint8Array;
@@ -429,6 +431,9 @@ export async function buildContractPdf(
 
   // --- Photo pages -----------------------------------------------------
   const documentPages: [Uint8Array, string][] = [
+    // The portrait leads, so whoever checks the contract sees the person
+    // before the documents they are being compared against.
+    [input.portraitPhoto, L.portraitPhoto],
     [input.idFrontPhoto, L.idFrontPhoto],
     [input.idBackPhoto, L.idBackPhoto],
     [input.licenceFrontPhoto, L.licenceFrontPhoto],

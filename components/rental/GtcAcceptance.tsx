@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check } from "lucide-react";
 import gtc, { GTC_DATE, type GtcBlock, type GtcLanguage } from "@/locales/gtc";
+import GtcLanguageTabs from "@/components/GtcLanguageTabs";
 import { labelsFor, type RentalLanguage } from "@/lib/rental/labels";
 
 /**
@@ -16,7 +17,17 @@ import { labelsFor, type RentalLanguage } from "@/lib/rental/labels";
  */
 
 interface GtcAcceptanceProps {
+  /** Site language, used for the surrounding copy. */
   language: RentalLanguage;
+  /**
+   * Language of the terms themselves, chosen by the customer.
+   *
+   * Held by the parent rather than here, because it is recorded on the contract
+   * — the PDF must state which version was actually read, not which interface
+   * language happened to be active.
+   */
+  gtcLanguage: GtcLanguage;
+  onGtcLanguageChange: (language: GtcLanguage) => void;
   accepted: boolean;
   onAcceptedChange: (accepted: boolean) => void;
   error?: string;
@@ -78,12 +89,14 @@ function Block({ block }: { block: GtcBlock }) {
 
 export default function GtcAcceptance({
   language,
+  gtcLanguage,
+  onGtcLanguageChange,
   accepted,
   onAcceptedChange,
   error,
 }: GtcAcceptanceProps) {
   const L = labelsFor(language).gtc;
-  const doc = gtc[language as GtcLanguage] ?? gtc.de;
+  const doc = gtc[gtcLanguage] ?? gtc.de;
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [read, setRead] = useState(false);
@@ -105,7 +118,9 @@ export default function GtcAcceptance({
   }, [checkScrolled]);
 
   // Changing language swaps the document, so the previous read-through and
-  // acceptance no longer apply to what is on screen.
+  // acceptance no longer apply to what is on screen. This matters legally as
+  // much as visually: a tick recorded against the German terms cannot stand as
+  // acceptance of the French ones.
   useEffect(() => {
     setRead(false);
     onAcceptedChange(false);
@@ -113,13 +128,22 @@ export default function GtcAcceptance({
     // `onAcceptedChange` is a parent callback; including it would reset
     // acceptance on every parent render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [language]);
+  }, [gtcLanguage]);
 
   return (
     <div className="space-y-3">
-      <div>
-        <h3 className="text-lg font-semibold text-slate-900">{L.heading}</h3>
-        <p className="text-sm text-slate-500">{L.intro}</p>
+      <div className="space-y-3">
+        <div>
+          <h3 className="text-lg font-semibold text-slate-900">{L.heading}</h3>
+          <p className="text-sm text-slate-500">{L.intro}</p>
+        </div>
+
+        <GtcLanguageTabs
+          value={gtcLanguage}
+          onChange={onGtcLanguageChange}
+          label={L.languageLabel}
+          className="w-full justify-between sm:w-auto sm:justify-start"
+        />
       </div>
 
       <div

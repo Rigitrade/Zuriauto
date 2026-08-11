@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/hooks/use-i18n";
 import gtc, {
   GTC_DATE,
@@ -7,12 +8,14 @@ import gtc, {
   type GtcBlock,
   type GtcLanguage,
 } from "@/locales/gtc";
+import GtcLanguageTabs from "./GtcLanguageTabs";
 import GtcPdfFlags from "./GtcPdfFlags";
 import LegalNotice from "./LegalNotice";
 
 /**
- * The on-page text follows the site language. The site UI is German/English
- * only; the French version of the terms is published as a PDF via the flags.
+ * The site UI is German/English only, so a visitor arrives on one of those.
+ * All three versions of the terms are readable on the page via the language
+ * buttons, with the signed PDFs still linked at the foot.
  */
 function asGtcLanguage(lang: string | undefined): GtcLanguage {
   return lang === "en" ? "en" : "de";
@@ -77,7 +80,21 @@ function Block({ block }: { block: GtcBlock }) {
 
 export default function GTCPage() {
   const { currentLanguage } = useI18n();
-  const doc = gtc[asGtcLanguage(currentLanguage)];
+
+  // Defaults to the site language, then follows the reader's own choice. The
+  // French terms were previously reachable only as a PDF via the flags below.
+  const [gtcLanguage, setGtcLanguage] = useState<GtcLanguage>(() =>
+    asGtcLanguage(currentLanguage)
+  );
+
+  // Following the site switcher keeps the two in step for anyone who changes
+  // the interface language while on this page, without preventing them from
+  // choosing a different version afterwards.
+  useEffect(() => {
+    setGtcLanguage(asGtcLanguage(currentLanguage));
+  }, [currentLanguage]);
+
+  const doc = gtc[gtcLanguage];
 
   return (
     <section className="py-24 bg-gradient-to-b from-slate-50 to-white relative overflow-hidden">
@@ -91,6 +108,20 @@ export default function GTCPage() {
             <p className="font-semibold mb-2 text-slate-900 uppercase tracking-[3px]">
               ZURIAUTO ({GTC_ENTITY})
             </p>
+
+            <div className="mt-6 flex justify-center">
+              <GtcLanguageTabs
+                value={gtcLanguage}
+                onChange={setGtcLanguage}
+                label={
+                  gtcLanguage === "de"
+                    ? "Sprache der AGB"
+                    : gtcLanguage === "fr"
+                    ? "Langue des CGV"
+                    : "Language of the terms"
+                }
+              />
+            </div>
           </div>
 
           <div className="bg-white p-4 md:p-6 rounded-xl shadow-lg border border-slate-200">

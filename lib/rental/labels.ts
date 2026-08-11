@@ -73,6 +73,9 @@ const de = {
     heading: "Ausweisdokumente",
     intro:
       "Fotografieren Sie Vorder- und Rückseite beider Dokumente gut lesbar und vollständig im Bild.",
+    portrait: "Personenfoto",
+    portraitHint:
+      "Ein Foto von Ihnen, damit wir es mit Ihrem Ausweis abgleichen können.",
     idFront: "Identitätskarte oder Pass – Vorderseite",
     idBack: "Identitätskarte oder Pass – Rückseite",
     licenceFront: "Führerausweis – Vorderseite",
@@ -80,11 +83,24 @@ const de = {
     take: "Foto aufnehmen",
     retake: "Neues Foto",
     remove: "Entfernen",
+    openCamera: "Kamera öffnen",
+    chooseFile: "Datei wählen",
+    shutter: "Aufnehmen",
+    switchCamera: "Kamera wechseln",
+    cancel: "Abbrechen",
+    cameraStarting: "Kamera wird gestartet …",
+    cameraDenied:
+      "Kein Zugriff auf die Kamera. Bitte im Browser erlauben oder eine Datei wählen.",
+    cameraUnavailable:
+      "Keine Kamera gefunden. Bitte stattdessen eine Datei wählen.",
+    cameraInsecure:
+      "Die Kamera funktioniert nur über eine sichere Verbindung (https). Bitte eine Datei wählen.",
   },
 
   gtc: {
     heading: "Allgemeine Geschäftsbedingungen",
     intro: "Bitte lesen Sie die AGB und bestätigen Sie diese.",
+    languageLabel: "Sprache der AGB",
     accept: "Ich habe die AGB gelesen und akzeptiere sie.",
     locked: "Bitte akzeptieren Sie zuerst die AGB.",
     version: "Fassung",
@@ -131,6 +147,7 @@ const de = {
     minor: "Der Mieter muss mindestens 18 Jahre alt sein.",
     vehicle: "Bitte wählen Sie ein Fahrzeug.",
     country: "Bitte wählen Sie ein Land.",
+    portraitPhoto: "Bitte nehmen Sie ein Personenfoto auf.",
     idFrontPhoto: "Bitte fotografieren Sie die Vorderseite Ihres Ausweises.",
     idBackPhoto: "Bitte fotografieren Sie die Rückseite Ihres Ausweises.",
     licenceFrontPhoto:
@@ -169,6 +186,7 @@ const de = {
     damageNone: "Keine sichtbaren Schäden gemeldet",
     conditionPhoto: "Zustandsfoto",
     documentsSection: "Ausweisdokumente",
+    portraitPhoto: "Personenfoto",
     idFrontPhoto: "Identitätskarte / Pass – Vorderseite",
     idBackPhoto: "Identitätskarte / Pass – Rückseite",
     licenceFrontPhoto: "Führerausweis – Vorderseite",
@@ -191,8 +209,12 @@ const de = {
   email: {
     officeSubject: "Neuer Mietvertrag",
     customerSubject: "Ihr Mietvertrag – ZURIAUTO",
-    customerBody:
-      "Guten Tag\n\nIm Anhang finden Sie Ihren unterschriebenen Mietvertrag.\n\nFreundliche Grüsse\nZURIAUTO",
+    // Split so the payment link lands before the sign-off rather than trailing
+    // after it, which reads as an afterthought.
+    customerGreeting:
+      "Guten Tag\n\nIm Anhang finden Sie Ihren unterschriebenen Mietvertrag.",
+    customerPayment: "Zahlung per Karte:",
+    customerSignature: "Freundliche Grüsse\nZURIAUTO",
   },
 };
 
@@ -248,6 +270,8 @@ const en: typeof de = {
     heading: "Identity documents",
     intro:
       "Photograph the front and back of both documents fully in frame and clearly legible.",
+    portrait: "Personal photo",
+    portraitHint: "A photo of you, so we can match it against your ID.",
     idFront: "ID card or passport – front",
     idBack: "ID card or passport – back",
     licenceFront: "Driving licence – front",
@@ -255,11 +279,23 @@ const en: typeof de = {
     take: "Take photo",
     retake: "Retake",
     remove: "Remove",
+    openCamera: "Open camera",
+    chooseFile: "Choose file",
+    shutter: "Capture",
+    switchCamera: "Switch camera",
+    cancel: "Cancel",
+    cameraStarting: "Starting the camera …",
+    cameraDenied:
+      "No access to the camera. Allow it in your browser, or choose a file instead.",
+    cameraUnavailable: "No camera found. Please choose a file instead.",
+    cameraInsecure:
+      "The camera only works over a secure connection (https). Please choose a file instead.",
   },
 
   gtc: {
     heading: "General Terms and Conditions",
     intro: "Please read the GTC and confirm your acceptance.",
+    languageLabel: "Language of the terms",
     accept: "I have read and accept the GTC.",
     locked: "Please accept the GTC first.",
     version: "Version",
@@ -305,6 +341,7 @@ const en: typeof de = {
     minor: "The renter must be at least 18 years old.",
     vehicle: "Please select a vehicle.",
     country: "Please select a country.",
+    portraitPhoto: "Please take a personal photo.",
     idFrontPhoto: "Please photograph the front of your ID.",
     idBackPhoto: "Please photograph the back of your ID.",
     licenceFrontPhoto: "Please photograph the front of your driving licence.",
@@ -340,6 +377,7 @@ const en: typeof de = {
     damageNone: "No visible damage reported",
     conditionPhoto: "Condition photo",
     documentsSection: "Identity documents",
+    portraitPhoto: "Personal photo",
     idFrontPhoto: "ID card / passport – front",
     idBackPhoto: "ID card / passport – back",
     licenceFrontPhoto: "Driving licence – front",
@@ -362,8 +400,10 @@ const en: typeof de = {
   email: {
     officeSubject: "New rental contract",
     customerSubject: "Your rental contract – ZURIAUTO",
-    customerBody:
-      "Hello\n\nPlease find your signed rental contract attached.\n\nKind regards\nZURIAUTO",
+    customerGreeting:
+      "Hello\n\nPlease find your signed rental contract attached.",
+    customerPayment: "Pay by card:",
+    customerSignature: "Kind regards\nZURIAUTO",
   },
 };
 

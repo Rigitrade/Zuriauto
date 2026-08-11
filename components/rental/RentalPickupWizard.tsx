@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useI18n } from "@/lib/hooks/use-i18n";
-import { GTC_DATE } from "@/locales/gtc";
+import { GTC_DATE, type GtcLanguage } from "@/locales/gtc";
 import {
   availableFleet,
   findVehicle,
@@ -97,6 +97,13 @@ interface FormState {
  * the oversize retry can iterate them instead of repeating themselves.
  */
 const DOCUMENT_SLOTS = [
+  // Front camera: this one is a photo of the customer, not of a document.
+  {
+    key: "portrait",
+    label: "portrait",
+    error: "portraitPhoto",
+    facing: "user",
+  },
   { key: "idFront", label: "idFront", error: "idFrontPhoto" },
   { key: "idBack", label: "idBack", error: "idBackPhoto" },
   { key: "licenceFront", label: "licenceFront", error: "licenceFrontPhoto" },
@@ -108,6 +115,7 @@ type DocumentKey = (typeof DOCUMENT_SLOTS)[number]["key"];
 type DocumentImages = Record<DocumentKey, CompressedImage | null>;
 
 const EMPTY_DOCUMENTS: DocumentImages = {
+  portrait: null,
   idFront: null,
   idBack: null,
   licenceFront: null,
@@ -165,6 +173,12 @@ export default function RentalPickupWizard() {
   const [signature, setSignature] = useState<string | null>(null);
   const [gtcAccepted, setGtcAccepted] = useState(false);
   const [acceptedAt, setAcceptedAt] = useState<string | null>(null);
+  /**
+   * Which language version of the terms the customer reads, independent of the
+   * interface language. Recorded on the contract, so it must be the version
+   * they actually saw — including French, which the site UI does not offer.
+   */
+  const [gtcLanguage, setGtcLanguage] = useState<GtcLanguage>(language);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<Status>({ kind: "editing" });
   const [result, setResult] = useState<{
@@ -333,6 +347,7 @@ export default function RentalPickupWizard() {
       contractNumber,
       issuedAt,
       language,
+      portraitPhoto: await toUint8Array(photos.docs.portrait!.blob),
       idFrontPhoto: await toUint8Array(photos.docs.idFront!.blob),
       idBackPhoto: await toUint8Array(photos.docs.idBack!.blob),
       licenceFrontPhoto: await toUint8Array(photos.docs.licenceFront!.blob),
@@ -368,7 +383,8 @@ export default function RentalPickupWizard() {
       email: form.email,
       gtcAccepted: gtcAccepted as true,
       gtcVersion: GTC_DATE,
-      gtcLanguage: language,
+      // The version read, not the interface language.
+      gtcLanguage,
       acceptedAt: acceptedAt ?? new Date().toISOString(),
       place: form.place,
     });
@@ -915,18 +931,33 @@ export default function RentalPickupWizard() {
 
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                 {DOCUMENT_SLOTS.map((slot) => (
-                  <PhotoCapture
+                  <div
                     key={slot.key}
-                    label={L.documents[slot.label]}
-                    language={language}
-                    value={documents[slot.key]}
-                    onChange={(image) => {
-                      setDocuments((prev) => ({ ...prev, [slot.key]: image }));
-                      setErrors((prev) => ({ ...prev, [slot.key]: "" }));
-                    }}
-                    required
-                    error={errors[slot.key] || undefined}
-                  />
+                    // The portrait spans the row: it is the odd one out among
+                    // four document sides, and pairing it with an ID side in a
+                    // two-column grid reads as though they belong together.
+                    className={
+                      slot.key === "portrait" ? "sm:col-span-2" : undefined
+                    }
+                  >
+                    <PhotoCapture
+                      label={L.documents[slot.label]}
+                      language={language}
+                      facing={"facing" in slot ? slot.facing : "environment"}
+                      value={documents[slot.key]}
+                      onChange={(image) => {
+                        setDocuments((prev) => ({ ...prev, [slot.key]: image }));
+                        setErrors((prev) => ({ ...prev, [slot.key]: "" }));
+                      }}
+                      required
+                      error={errors[slot.key] || undefined}
+                    />
+                    {slot.key === "portrait" && (
+                      <p className="mt-1.5 text-xs text-slate-500">
+                        {L.documents.portraitHint}
+                      </p>
+                    )}
+                  </div>
                 ))}
               </div>
             </div>
@@ -936,6 +967,8 @@ export default function RentalPickupWizard() {
             <div className="space-y-6">
               <GtcAcceptance
                 language={language}
+                gtcLanguage={gtcLanguage}
+                onGtcLanguageChange={setGtcLanguage}
                 accepted={gtcAccepted}
                 onAcceptedChange={acceptGtc}
                 error={errors.gtc}

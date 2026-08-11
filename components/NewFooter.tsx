@@ -2,6 +2,7 @@
 
 import {
   Building2,
+  CreditCard,
   Facebook,
   Instagram,
   Linkedin,
@@ -10,6 +11,7 @@ import {
   Twitter,
 } from "lucide-react";
 import Link from "next/link";
+import { PAYMENT_URL } from "@/lib/payment";
 
 export default function Footer() {
   return (
@@ -120,9 +122,11 @@ export default function Footer() {
               <h4 className="uppercase text-xs sm:text-sm">
                 UBS Switzerland AG 8098 Zurich
               </h4>
-              <h4 className="uppercase text-xs sm:text-sm">
-                DIGIHOME SWISS AG
-              </h4>
+              {/* Account holder for the IBAN below. Confirm with the bank that
+                  the account was transferred with the entity: Swiss banks
+                  increasingly verify that the payee name matches the IBAN, and
+                  a mismatch gets transfers rejected. */}
+              <h4 className="uppercase text-xs sm:text-sm">RIGITRADE AG</h4>
               <h4 className="uppercase mt-2 text-xs sm:text-sm break-all">
                 IBAN CH650020720711359501Q
               </h4>
@@ -130,6 +134,20 @@ export default function Footer() {
                 SWIFT / BIC UBSWCHZH81M
               </h4>
             </div>
+
+            {/* Card payment, next to the bank details rather than in the
+                navigation: someone looking for how to pay looks here. The
+                checkout is hosted by SumUp, so no card details touch this
+                site. */}
+            <a
+              href={PAYMENT_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-5 inline-flex items-center gap-2 rounded-lg bg-white px-5 py-2.5 text-xs font-semibold uppercase tracking-widest text-slate-900 transition-colors hover:bg-slate-200 sm:text-sm"
+            >
+              <CreditCard className="h-4 w-4" />
+              Pay now
+            </a>
 
             {/* Social Media Icons */}
             <div className="flex justify-center space-x-3 sm:space-x-4 mt-4 sm:mt-6">
