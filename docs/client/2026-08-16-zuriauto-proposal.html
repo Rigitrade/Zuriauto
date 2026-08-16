@@ -1,0 +1,627 @@
+<meta charset="utf-8">
+<title>ZURIAUTO — Rental system proposal</title>
+<style>
+  /* ------------------------------------------------------------------
+     ZURIAUTO — rental system proposal
+     Print-first A4 document. Display face is Bahnschrift (DIN), the
+     signage and number-plate typeface of the subject's own world;
+     Constantia carries the reading text; Consolas carries data.
+     All three ship with Windows, so the PDF embeds them faithfully.
+     ------------------------------------------------------------------ */
+
+  :root {
+    --ink:    #06283c;
+    --ink-2:  #123a52;
+    --slate:  #52626d;
+    --rule:   #d6dee3;
+    --tint:   #f1f4f6;
+    --amber:  #a8761c;
+
+    --display: Bahnschrift, "DIN Alternate", "Segoe UI Variable Display",
+               "Segoe UI", Roboto, sans-serif;
+    --body:    Constantia, Cambria, Georgia, "Times New Roman", serif;
+    --data:    Consolas, "SF Mono", ui-monospace, "Courier New", monospace;
+  }
+
+  @page {
+    size: A4;
+    margin: 18mm 20mm 16mm;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    margin: 0;
+    font-family: var(--body);
+    font-size: 10.2pt;
+    line-height: 1.55;
+    color: var(--ink);
+    background: #fff;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  /* Screen preview only — mimics the printed sheet. */
+  @media screen {
+    body {
+      background: #e7ebee;
+      padding: 24px 16px 64px;
+    }
+    .sheet {
+      max-width: 170mm;
+      margin: 0 auto;
+      background: #fff;
+      padding: 18mm 20mm 16mm;
+      box-shadow: 0 2px 24px rgba(6, 40, 60, 0.16);
+    }
+    .hint {
+      max-width: 170mm;
+      margin: 0 auto 16px;
+      font-family: var(--data);
+      font-size: 11px;
+      letter-spacing: 0.04em;
+      color: #5c6b75;
+      text-transform: uppercase;
+    }
+  }
+  @media print {
+    .hint { display: none; }
+    .sheet { padding: 0; }
+  }
+
+  /* --- masthead ---------------------------------------------------- */
+
+  .masthead { border-bottom: 2px solid var(--ink); padding-bottom: 7mm; }
+
+  .masthead__logo { display: block; width: 46mm; height: auto; }
+
+  .masthead__meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 8mm;
+    margin: 9mm 0 4mm;
+    font-family: var(--data);
+    font-size: 7.6pt;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--slate);
+  }
+
+  .masthead__title {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 33pt;
+    line-height: 1.02;
+    letter-spacing: 0.055em;
+    text-transform: uppercase;
+    margin: 0;
+  }
+
+  .masthead__deck {
+    margin: 4mm 0 0;
+    font-size: 11.4pt;
+    line-height: 1.45;
+    color: var(--ink-2);
+    max-width: 128mm;
+  }
+
+  /* --- sections ---------------------------------------------------- */
+
+  .section { margin-top: 11mm; }
+
+  .section--break { break-before: page; }
+
+  .section__eyebrow {
+    font-family: var(--data);
+    font-size: 7.4pt;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--slate);
+    margin: 0 0 2mm;
+  }
+
+  .section__title {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 16pt;
+    letter-spacing: 0.035em;
+    text-transform: uppercase;
+    margin: 0 0 4mm;
+    padding-bottom: 2.5mm;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .lede { margin: 0 0 6mm; max-width: 140mm; }
+
+  p { margin: 0 0 3.5mm; }
+  p:last-child { margin-bottom: 0; }
+
+  /* --- delivered capabilities: a spec sheet ------------------------ */
+
+  .spec {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    border-top: 1px solid var(--rule);
+  }
+
+  .spec__item {
+    border-bottom: 1px solid var(--rule);
+    padding: 3.5mm 6mm 3.5mm 0;
+    break-inside: avoid;
+  }
+  .spec__item:nth-child(even) { padding-right: 0; padding-left: 6mm; }
+
+  .spec__name {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 9pt;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    margin: 0 0 1mm;
+  }
+
+  .spec__desc { margin: 0; font-size: 9.6pt; line-height: 1.45; color: var(--slate); }
+
+  /* --- the limitation: the one dark panel in the document ---------- */
+
+  .statement {
+    background: var(--ink);
+    color: #eef3f6;
+    padding: 8mm 9mm;
+    break-inside: avoid;
+  }
+
+  .statement p { margin-bottom: 3.5mm; }
+  .statement p:last-child { margin-bottom: 0; }
+
+  .statement strong {
+    font-family: var(--display);
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    color: #fff;
+  }
+
+  /* --- the dependency spine: signature element --------------------- */
+
+  .spine { margin-top: 2mm; }
+
+  .step {
+    display: grid;
+    grid-template-columns: 16mm 1fr;
+    column-gap: 7mm;
+    break-inside: avoid;
+    padding-bottom: 7mm;
+  }
+
+  .step__rail { position: relative; }
+
+  /* The connector that makes the sequence read as dependency. */
+  .step__rail::before {
+    content: "";
+    position: absolute;
+    left: 5.5mm;
+    top: 11mm;
+    bottom: -7mm;
+    width: 1px;
+    background: var(--rule);
+  }
+  .step:last-child .step__rail::before { display: none; }
+
+  .step__node {
+    width: 11mm;
+    height: 11mm;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--ink);
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 11pt;
+    letter-spacing: 0.04em;
+  }
+
+  .step--done .step__node { background: var(--ink); color: #fff; }
+
+  /* Title and its status flag share a baseline, so the flag never crowds
+     the connector running down the rail. */
+  .step__head {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 4mm;
+    margin: 1.5mm 0 2.5mm;
+  }
+
+  .step__title {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 13pt;
+    letter-spacing: 0.045em;
+    text-transform: uppercase;
+    margin: 0;
+  }
+
+  .step__flag {
+    font-family: var(--data);
+    font-size: 6.6pt;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--slate);
+    border: 1px solid var(--rule);
+    padding: 0.5mm 1.8mm;
+    white-space: nowrap;
+  }
+
+  /* Amber marks everything that wants the reader's action — the step we
+     recommend starting with, and the decisions on the last page. */
+  .step__flag--start { color: var(--amber); border-color: var(--amber); }
+
+  /* Steps without a flag carry no .step__head wrapper, so restore the
+     spacing the wrapper would otherwise provide. */
+  .step__body > .step__title { margin: 1.5mm 0 2.5mm; }
+
+  .step__body { max-width: 132mm; }
+
+  .step__body p { margin-bottom: 2.5mm; font-size: 9.9pt; }
+
+  .step__label {
+    font-family: var(--data);
+    font-size: 7.2pt;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--slate);
+  }
+
+  .step__note {
+    margin-top: 3mm;
+    padding-left: 4mm;
+    border-left: 2px solid var(--rule);
+    font-size: 9.2pt;
+    color: var(--slate);
+  }
+
+  /* --- decisions --------------------------------------------------- */
+
+  .ask {
+    border-top: 1px solid var(--rule);
+    padding: 4.5mm 0 4.5mm 9mm;
+    position: relative;
+    break-inside: avoid;
+  }
+  .ask:last-of-type { border-bottom: 1px solid var(--rule); }
+
+  .ask::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 5.6mm;
+    width: 3.5mm;
+    height: 3.5mm;
+    background: var(--amber);
+  }
+
+  .ask__q {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 11.5pt;
+    letter-spacing: 0.03em;
+    margin: 0 0 1.5mm;
+    color: var(--ink);
+  }
+
+  .ask__a { margin: 0; font-size: 9.8pt; color: var(--slate); max-width: 140mm; }
+
+  .closing {
+    margin-top: 7mm;
+    font-size: 10.4pt;
+    max-width: 140mm;
+  }
+
+  .signoff {
+    margin-top: 10mm;
+    padding-top: 4mm;
+    border-top: 2px solid var(--ink);
+    font-family: var(--data);
+    font-size: 7.6pt;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: var(--slate);
+    display: flex;
+    justify-content: space-between;
+    gap: 8mm;
+  }
+</style>
+
+<p class="hint">Print this page and choose “Save as PDF” — the layout is set for A4.</p>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <img class="masthead__logo" src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/4QMsRXhpZgAATU0AKgAAAAgABAEOAAIAAAA6AAABSodpAAQAAAABAAABhJybAAEAAAB0AAACsOocAAcAAAEMAAAAPgAAAAAc6gAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQmxhY2sgV2hpdGUgTWluaW1hbGlzdCBJbml0aWFscyBNb25vZ3JhbSBKZXdlbHJ5IExvZ28gLSAxAAACkAAABwAAAAQwMjEw6hwABwAAAQwAAAGiAAAAABzqAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEIAbABhAGMAawAgAFcAaABpAHQAZQAgAE0AaQBuAGkAbQBhAGwAaQBzAHQAIABJAG4AaQB0AGkAYQBsAHMAIABNAG8AbgBvAGcAcgBhAG0AIABKAGUAdwBlAGwAcgB5ACAATABvAGcAbwAgAC0AIAAxAAAA/+EEhGh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC8APD94cGFja2V0IGJlZ2luPSfvu78nIGlkPSdXNU0wTXBDZWhpSHpyZVN6TlRjemtjOWQnPz4NCjx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iPjxyZGY6UkRGIHhtbG5zOnJkZj0iaHR0cDovL3d3dy53My5vcmcvMTk5OS8wMi8yMi1yZGYtc3ludGF4LW5zIyI+PHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9InV1aWQ6ZmFmNWJkZDUtYmEzZC0xMWRhLWFkMzEtZDMzZDc1MTgyZjFiIiB4bWxuczpkYz0iaHR0cDovL3B1cmwub3JnL2RjL2VsZW1lbnRzLzEuMS8iPjxkYzp0aXRsZT48cmRmOkFsdCB4bWxuczpyZGY9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkvMDIvMjItcmRmLXN5bnRheC1ucyMiPjxyZGY6bGkgeG1sOmxhbmc9IngtZGVmYXVsdCI+QmxhY2sgV2hpdGUgTWluaW1hbGlzdCBJbml0aWFscyBNb25vZ3JhbSBKZXdlbHJ5IExvZ28gLSAxPC9yZGY6bGk+PC9yZGY6QWx0Pg0KCQkJPC9kYzp0aXRsZT48L3JkZjpEZXNjcmlwdGlvbj48cmRmOkRlc2NyaXB0aW9uIHJkZjphYm91dD0idXVpZDpmYWY1YmRkNS1iYTNkLTExZGEtYWQzMS1kMzNkNzUxODJmMWIiIHhtbG5zOmRjPSJodHRwOi8vcHVybC5vcmcvZGMvZWxlbWVudHMvMS4xLyI+PGRjOmRlc2NyaXB0aW9uPjxyZGY6QWx0IHhtbG5zOnJkZj0iaHR0cDovL3d3dy53My5vcmcvMTk5OS8wMi8yMi1yZGYtc3ludGF4LW5zIyI+PHJkZjpsaSB4bWw6bGFuZz0ieC1kZWZhdWx0Ij5CbGFjayBXaGl0ZSBNaW5pbWFsaXN0IEluaXRpYWxzIE1vbm9ncmFtIEpld2VscnkgTG9nbyAtIDE8L3JkZjpsaT48L3JkZjpBbHQ+DQoJCQk8L2RjOmRlc2NyaXB0aW9uPjwvcmRmOkRlc2NyaXB0aW9uPjwvcmRmOlJERj48L3g6eG1wbWV0YT4NCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA8P3hwYWNrZXQgZW5kPSd3Jz8+/9sAQwADAgIDAgIDAwMDBAMDBAUIBQUEBAUKBwcGCAwKDAwLCgsLDQ4SEA0OEQ4LCxAWEBETFBUVFQwPFxgWFBgSFBUU/9sAQwEDBAQFBAUJBQUJFA0LDRQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQU/8AAEQgAewGQAwEiAAIRAQMRAf/EAB8AAAEFAQEBAQEBAAAAAAAAAAABAgMEBQYHCAkKC//EALUQAAIBAwMCBAMFBQQEAAABfQECAwAEEQUSITFBBhNRYQcicRQygZGhCCNCscEVUtHwJDNicoIJChYXGBkaJSYnKCkqNDU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6g4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2drh4uPk5ebn6Onq8fLz9PX29/j5+v/EAB8BAAMBAQEBAQEBAQEAAAAAAAABAgMEBQYHCAkKC//EALURAAIBAgQEAwQHBQQEAAECdwABAgMRBAUhMQYSQVEHYXETIjKBCBRCkaGxwQkjM1LwFWJy0QoWJDThJfEXGBkaJicoKSo1Njc4OTpDREVGR0hJSlNUVVZXWFlaY2RlZmdoaWpzdHV2d3h5eoKDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uLj5OXm5+jp6vLz9PX29/j5+v/aAAwDAQACEQMRAD8A/PqiiivsD4cKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAK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" alt="ZURIAUTO — car rental">
+    <div class="masthead__meta">
+      <span>Proposal · Rental system</span>
+      <span>ZA-PROPOSAL-20260816</span>
+    </div>
+    <h1 class="masthead__title">Rental<br>system</h1>
+    <p class="masthead__deck">
+      What runs today, what it cannot yet do, and the five steps that close
+      the gap — in the order they have to be built.
+    </p>
+  </header>
+
+  <section class="section">
+    <p class="section__eyebrow">Step 01 · Delivered</p>
+    <h2 class="section__title">Running today</h2>
+    <p class="lede">
+      The pickup side of a rental is fully digital. A customer can be handed a
+      car and sign for it at the kerb, on a phone, with everything the contract
+      needs captured at that moment.
+    </p>
+
+    <div class="spec">
+      <div class="spec__item">
+        <p class="spec__name">Booking enquiry</p>
+        <p class="spec__desc">A complete enquiry goes from the website straight to WhatsApp.</p>
+      </div>
+      <div class="spec__item">
+        <p class="spec__name">Pickup contract</p>
+        <p class="spec__desc">Filled in and signed on a phone or tablet at handover.</p>
+      </div>
+      <div class="spec__item">
+        <p class="spec__name">Identity on file</p>
+        <p class="spec__desc">ID and driving licence photographed front and back, with a portrait of the driver.</p>
+      </div>
+      <div class="spec__item">
+        <p class="spec__name">Condition record</p>
+        <p class="spec__desc">Mileage, fuel level, existing damage and photographs of the car as handed over.</p>
+      </div>
+      <div class="spec__item">
+        <p class="spec__name">Terms acceptance</p>
+        <p class="spec__desc">The GTC are shown in the customer's own language and must be accepted before signing.</p>
+      </div>
+      <div class="spec__item">
+        <p class="spec__name">Signature</p>
+        <p class="spec__desc">Signed on screen and reproduced on the contract.</p>
+      </div>
+      <div class="spec__item">
+        <p class="spec__name">Contract document</p>
+        <p class="spec__desc">Generated instantly and emailed to the customer, the office and the archive.</p>
+      </div>
+      <div class="spec__item">
+        <p class="spec__name">Payment link</p>
+        <p class="spec__desc">Carried in the contract email and in the site footer, so a customer can pay from either.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--break">
+    <p class="section__eyebrow">The constraint</p>
+    <h2 class="section__title">Where it stops</h2>
+
+    <div class="statement">
+      <p>
+        <strong>Everything above ends with an email.</strong> Nothing is kept.
+        Once a contract has been sent, the system has no memory of it — no
+        record that the rental exists, which car is out, when it is due back,
+        or whether this customer has rented before.
+      </p>
+      <p>
+        That is why the four things you asked for cannot be built on top of
+        what exists. A reminder cannot be sent about a rental that was never
+        written down. A dashboard cannot report on records that are not there.
+        A tracked car cannot be matched to a driver without a rental to match
+        it to.
+      </p>
+      <p>
+        Every step that follows begins by fixing that one thing.
+      </p>
+    </div>
+  </section>
+
+  <section class="section">
+    <p class="section__eyebrow">Steps 02 – 06</p>
+    <h2 class="section__title">What we propose</h2>
+
+    <div class="spine">
+
+      <article class="step step--done">
+        <div class="step__rail">
+          <div class="step__node">01</div>
+        </div>
+        <div class="step__body">
+          <div class="step__head">
+            <h3 class="step__title">Digital pickup contract</h3>
+            <span class="step__flag">Delivered</span>
+          </div>
+          <p>Live and in use. Everything listed on the previous page.</p>
+        </div>
+      </article>
+
+      <article class="step">
+        <div class="step__rail">
+          <div class="step__node">02</div>
+        </div>
+        <div class="step__body">
+          <div class="step__head">
+            <h3 class="step__title">Rental records</h3>
+            <span class="step__flag step__flag--start">Start here</span>
+          </div>
+          <p>
+            <span class="step__label">What changes —</span>
+            every rental is written down: who took the car, which car, from
+            when until when, at what price and what deposit. The contract you
+            already sign creates the record by itself. Nobody types anything
+            twice.
+          </p>
+          <p>
+            <span class="step__label">Why it matters —</span>
+            a speed camera fine arriving three months later names a car, not a
+            driver. With records behind it, the person driving that car at that
+            exact minute is found immediately. Today it is a search through old
+            email.
+          </p>
+        </div>
+      </article>
+
+      <article class="step">
+        <div class="step__rail">
+          <div class="step__node">03</div>
+        </div>
+        <div class="step__body">
+          <h3 class="step__title">Renewal and return reminders</h3>
+          <p>
+            <span class="step__label">What changes —</span>
+            twenty-four hours before a rental ends, the customer is emailed
+            automatically. Two choices: confirm the car comes back tomorrow, or
+            extend the rental and pay for it there and then, by TWINT or card.
+            The office is told which they chose.
+          </p>
+          <p>
+            <span class="step__label">Why it matters —</span>
+            renters stop being chased by telephone. An extension becomes
+            something the customer decides and pays for on their own, at the
+            moment they realise they need it.
+          </p>
+        </div>
+      </article>
+
+      <article class="step">
+        <div class="step__rail">
+          <div class="step__node">04</div>
+        </div>
+        <div class="step__body">
+          <h3 class="step__title">Digital return protocol</h3>
+          <p>
+            <span class="step__label">What changes —</span>
+            the return is recorded the way the handover already is: mileage,
+            fuel, any new damage, photographs and a signature. The customer
+            receives a closing document and the car is marked free.
+          </p>
+          <p>
+            <span class="step__label">Why it matters —</span>
+            a damage or fuel dispute is settled against the record taken at
+            handover instead of from memory. The photographs you already take
+            at pickup finally have something to be compared against.
+          </p>
+        </div>
+      </article>
+
+      <article class="step">
+        <div class="step__rail">
+          <div class="step__node">05</div>
+        </div>
+        <div class="step__body">
+          <h3 class="step__title">Office dashboard</h3>
+          <p>
+            <span class="step__label">What changes —</span>
+            one screen for the office: which cars are out and which are free,
+            which rentals end this week, who has paid and who has not, and what
+            each car has earned.
+          </p>
+          <p>
+            <span class="step__label">Why it matters —</span>
+            the questions you answer today by reading back through email are
+            answered at a glance.
+          </p>
+        </div>
+      </article>
+
+      <article class="step">
+        <div class="step__rail">
+          <div class="step__node">06</div>
+        </div>
+        <div class="step__body">
+          <h3 class="step__title">Vehicle tracking</h3>
+          <p>
+            <span class="step__label">What changes —</span>
+            trackers fitted to the cars report to the system, so each vehicle's
+            position and mileage sit next to its rental record.
+          </p>
+          <p>
+            <span class="step__label">Why it matters —</span>
+            you can see where a car is, and the mileage at return is read from
+            the vehicle rather than typed in by hand.
+          </p>
+          <p class="step__note">
+            Depends on the tracking hardware being fitted. Scheduled after the
+            steps above, and the system is prepared for it from step 02 so that
+            adding it later changes nothing already built.
+          </p>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <section class="section section--break">
+    <p class="section__eyebrow">Sequence</p>
+    <h2 class="section__title">Why this order</h2>
+    <p class="lede">
+      The order is not a preference. Each step needs the one above it to exist
+      first.
+    </p>
+    <p>
+      Reminders need rentals with an end date to remind anyone about. A return
+      protocol needs a rental to close. Reports need something to report on,
+      which only steps 02 to 04 produce. And a tracked car only becomes useful
+      once it can be tied to the person renting it.
+    </p>
+    <p>
+      Step 02 is the smallest of the five and the only one that unlocks the
+      other four. It is also useful on its own, from the day it is finished:
+      the traffic fine lookup works as soon as rentals are being recorded,
+      before anything else is built. That is where we would start.
+    </p>
+  </section>
+
+  <section class="section">
+    <p class="section__eyebrow">Decisions</p>
+    <h2 class="section__title">What we need from you</h2>
+    <p class="lede">
+      Three things only you can answer. None of them is technical.
+    </p>
+
+    <div class="ask">
+      <p class="ask__q">Does your payment link already accept TWINT?</p>
+      <p class="ask__a">
+        Open your existing SumUp payment link on a phone and tell us whether
+        TWINT appears as a way to pay. If it does, renewals can be paid by
+        TWINT from the first day and no new payment provider is needed.
+      </p>
+    </div>
+
+    <div class="ask">
+      <p class="ask__q">How long should identity documents be kept?</p>
+      <p class="ask__a">
+        Once photographs of ID and driving licences are stored rather than only
+        emailed, they need a fixed period after which they are deleted
+        automatically. Tell us the period you are comfortable with and deletion
+        is built in from the start rather than added later.
+      </p>
+    </div>
+
+    <div class="ask">
+      <p class="ask__q">How should deposits be handled?</p>
+      <p class="ask__a">
+        Today the deposit is written on the contract but not collected through
+        the system. Should it stay a note on the contract, or should the system
+        take the deposit and return it when the car comes back?
+      </p>
+    </div>
+
+    <p class="closing">
+      The first question is enough to begin with. Step 02 does not depend on
+      the other two — but both are far cheaper to decide now than to change
+      once rentals are being recorded.
+    </p>
+
+    <div class="signoff">
+      <span>ZURIAUTO · Car rental · Zurich</span>
+      <span>16 August 2026</span>
+    </div>
+  </section>
+
+</div>
