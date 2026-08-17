@@ -6,7 +6,12 @@
 
 **Architecture:** Prisma over Postgres, in this repo, no second service. The browser keeps building the PDF and posting it to `app/api/rental-contract/route.ts`; the handler grows a shared-secret fence, uploads the images to Cloudflare R2 under opaque keys, commits one transaction, and only then sends mail — so a mail failure can never lose a contract. The fleet file stays the source of truth for a car's legal identity and seeds the `Car` table, which owns status. Vitest arrives with the first task.
 
-**Tech Stack:** Next.js 15.5 (App Router, Node runtime), TypeScript, Prisma 6 + PostgreSQL 16, Zod 4, `@date-fns/tz`, `@aws-sdk/client-s3` against Cloudflare R2, Vitest 3, pnpm.
+**Tech Stack:** Next.js 15.5 (App Router, Node runtime), TypeScript, Prisma 7 + PostgreSQL 16, Zod 4, `@date-fns/tz`, `@aws-sdk/client-s3` against Cloudflare R2, Vitest 3, pnpm.
+
+> **Task 1 is done.** What it actually took differed from what was planned in
+> four ways, all recorded under "Prisma 7, not 6" below. Later tasks in this
+> document still say `@prisma/client` and `prisma-client-js` in places; read
+> them against that section.
 
 **Spec:** `docs/superpowers/specs/2026-08-16-rental-persistence-design.md`
 **Roadmap:** `docs/superpowers/specs/2026-08-16-rental-platform-roadmap.md`
@@ -40,6 +45,74 @@ Three things the spec leaves open or does not name. Each is called out again in 
 Spec open question 2 — whether `Car.status` flips to `rented` — is resolved as **yes, it flips**, because the spec's own request flow (step 4) says so. Deriving availability from active rentals is deferred.
 
 ---
+
+## Prisma 7, not 6 — what Task 1 actually needed
+
+Written after the fact, because the plan assumed Prisma 6 and `pnpm add`
+installed 7.9.1. Four differences, all of which later tasks inherit:
+
+1. **The generator is `prisma-client`, not `prisma-client-js`, and `output` is
+   required.** The client is generated into `generated/prisma/` in the repo,
+   not into `node_modules`. So **every import is
+   `from "@/generated/prisma/client"`, never `from "@prisma/client"`** — that
+   includes `PrismaClient`, the `Prisma` namespace, the model types and the
+   enums. `/generated/` is gitignored; `postinstall` and `build` regenerate it.
+2. **`datasource db` has no `url`.** It moved to a new root `prisma.config.ts`,
+   which also does not read `.env` files by itself — it calls
+   `config({ path: ".env.local" })` explicitly. Consequence: `dotenv-cli` is
+   not needed to wrap the migrate and seed scripts, and they are plain
+   `prisma migrate dev` / `tsx prisma/seed.ts`.
+3. **The client refuses to connect without a driver adapter.**
+   `@prisma/adapter-pg` is a runtime dependency, and `lib/db.ts` constructs
+   `new PrismaClient({ adapter: new PrismaPg({ connectionString }) })`.
+4. **`fileParallelism` is a root-level Vitest option**, not a per-project one.
+   It sits on the root `test` block and applies to both projects.
+
+Two more things reality changed:
+
+- **Vitest is pinned to 3.2.7.** Latest (4.1.10) pulls Vite 8.2.1, which
+  depends on `lightningcss@^1.33.0` — a version that is not published, so the
+  install fails outright. Revisit when that resolves.
+- **Local Postgres is `zuriauto-site-db` on port 5434**, not `zuriauto-db` on
+  5433. The old project at `D:\Personal\zuriauto` already owns that container
+  name, that port and a volume holding its own v1 `Car`, `Customer` and
+  `Rental` tables. Reusing any of the three meant either a name clash or these
+  migrations landing on that project's data. Both can now run at once.
+
+## Designed for the return wizard
+
+Phase 4 adds a second form — the customer, not the office, reporting the car
+back in. It is not built here, but Phase 2 decides how expensive it will be, so
+these constraints hold throughout this plan.
+
+**Already accommodated by the schema, deliberately.** `ContractKind` has
+`RETURN_ADDENDUM`; `AssetKind` has `DAMAGE_PHOTO`; `RentalStatus` has
+`RETURN_SUBMITTED`. `mileageKm`, `fuelLevel` and `damageNotes` sit on every
+`Contract`, not on `Rental` — which is what makes the return a *comparison*
+against the pickup's baseline rather than an overwrite of it. Nothing in this
+plan may move those three fields up to `Rental`.
+
+**The fence is different, and this is the one that bites.** `APPLY_SECRET`
+(Task 12) is an office credential pasted into a WhatsApp link by staff. The
+return form is opened by a renter from an email. Mailing customers the office's
+shared secret would hand every past renter permanent write access to the system
+of record. Phase 3 brings signed single-use `ActionToken`s for exactly this, and
+the return form uses those.
+
+So: `lib/applyKey.ts` stays narrowly named and narrowly scoped. Do not
+generalise it to `lib/auth.ts`, do not add a `role` parameter, and do not reach
+for it from any handler other than the pickup one.
+
+**Keep reusable what is already reusable.** `CameraCapture`, `PhotoCapture`,
+`SignaturePad` and `GtcAcceptance` are components Phase 4 mounts unchanged.
+Task 5 adds a step beside them; it must not push pickup-specific assumptions
+down into them.
+
+**Two things Phase 4 will refactor, and that is fine.** `buildContractPdf`
+requires five identity photographs, which a return addendum does not have; and
+`RentalPickupWizard` owns its step navigation inline. Both are cheap to split
+when there is a second caller and speculative to split now, when there is one.
+Do not pre-emptively generalise either — but do not deepen them either.
 
 ## File structure
 
@@ -2266,7 +2339,7 @@ git commit -m "feat(rental): move rate limiting into the database"
 ## Task 10: The asset store
 
 **Files:**
-- Create: `lib/storage/types.ts`, `lib/storage/memory.ts`, `lib/storage/r2.ts`, `lib/storage/index.ts`, `lib/storage/keys.ts`, `lib/storage/keys.test.ts`
+- Create: `lib/storage/types.ts`, `lib/storage/memory.ts`, `lib/storage/r2.ts`, `lib/storage/index.ts`, `lib/storage/keys.ts`, `lib/storage/keys.test.ts`, `lib/storage/upload.ts`
 - Modify: `.env.local.example`
 
 **Interfaces:**
@@ -2275,6 +2348,9 @@ git commit -m "feat(rental): move rate limiting into the database"
   - `createMemoryStore(): AssetStore & { objects: Map<string, { body: Uint8Array; contentType: string }> }`
   - `getAssetStore(): AssetStore`
   - `assetKey(submissionId: string, kind: string, extension: string): string`
+  - `interface PendingUpload { kind: string; body: Uint8Array; contentType: string }`
+  - `interface StoredAsset { kind: string; storageKey: string; contentType: string; bytes: number }`
+  - `uploadAssets(store: AssetStore, submissionId: string, uploads: PendingUpload[]): Promise<StoredAsset[]>`
 
 - [ ] **Step 1: Write the failing test for keys**
 
@@ -2499,6 +2575,71 @@ export function getAssetStore(): AssetStore {
 
   return cached;
 }
+```
+
+Create `lib/storage/upload.ts`:
+
+```ts
+import { assetKey, extensionFor } from "./keys";
+import type { AssetStore } from "./types";
+
+/**
+ * Uploading a submission's images, kept separate from what is done with them.
+ *
+ * `kind` is a plain string rather than Prisma's `AssetKind` on purpose: this
+ * module is about bytes and keys, and importing the database's enum here would
+ * make the storage layer depend on the schema for no gain. The caller does the
+ * narrowing.
+ */
+export interface PendingUpload {
+  kind: string;
+  body: Uint8Array;
+  contentType: string;
+}
+
+export interface StoredAsset {
+  kind: string;
+  storageKey: string;
+  contentType: string;
+  bytes: number;
+}
+
+/**
+ * Puts every object under one submission prefix and reports what landed where.
+ *
+ * Extracted rather than inlined into the pickup path because the return wizard
+ * in Phase 4 uploads damage photographs and a second signature through exactly
+ * this shape. Nothing here knows what a pickup is.
+ */
+export async function uploadAssets(
+  store: AssetStore,
+  submissionId: string,
+  uploads: PendingUpload[]
+): Promise<StoredAsset[]> {
+  return Promise.all(
+    uploads.map(async (upload) => {
+      const key = assetKey(
+        submissionId,
+        upload.kind,
+        extensionFor(upload.contentType)
+      );
+      await store.put(key, upload.body, upload.contentType);
+      return {
+        kind: upload.kind,
+        storageKey: key,
+        contentType: upload.contentType,
+        bytes: upload.body.byteLength,
+      };
+    })
+  );
+}
+```
+
+Re-export it from `lib/storage/index.ts`:
+
+```ts
+export { uploadAssets } from "./upload";
+export type { PendingUpload, StoredAsset } from "./upload";
 ```
 
 Install the SDK:
@@ -3424,8 +3565,8 @@ Create `lib/rental/persistPickup.ts`:
 import { randomUUID } from "node:crypto";
 import type { AssetKind, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { assetKey, extensionFor } from "@/lib/storage/keys";
-import type { AssetStore } from "@/lib/storage";
+import { assetKey } from "@/lib/storage/keys";
+import { uploadAssets, type AssetStore } from "@/lib/storage";
 import { allocateContractNumber } from "./contractNumber";
 import { upsertCustomer } from "./customers";
 import { fuelLevelToDb } from "./fleet";
@@ -3470,22 +3611,7 @@ export async function persistPickup(
   // take to upload. A failure here means orphaned objects under one prefix,
   // which is sweepable; a failure the other way round would mean a contract
   // row pointing at images that do not exist.
-  const stored = await Promise.all(
-    uploads.map(async (upload) => {
-      const key = assetKey(
-        submissionId,
-        upload.kind,
-        extensionFor(upload.contentType)
-      );
-      await store.put(key, upload.body, upload.contentType);
-      return {
-        kind: upload.kind,
-        storageKey: key,
-        contentType: upload.contentType,
-        bytes: upload.body.byteLength,
-      };
-    })
-  );
+  const stored = await uploadAssets(store, submissionId, uploads);
 
   const pdfKey = assetKey(submissionId, "CONTRACT_PDF", "pdf");
   await store.put(pdfKey, input.pdf.body, "application/pdf");
@@ -3559,7 +3685,14 @@ export async function persistPickup(
       });
 
       await tx.asset.createMany({
-        data: stored.map((asset) => ({ ...asset, contractId: contract.id })),
+        // `uploadAssets` deals in plain strings so the storage layer stays
+        // free of the schema; the narrowing happens here, where the enum
+        // actually matters. Safe because `uploads` arrived typed as AssetKind.
+        data: stored.map((asset) => ({
+          ...asset,
+          kind: asset.kind as AssetKind,
+          contractId: contract.id,
+        })),
       });
 
       await tx.car.update({

@@ -2,8 +2,14 @@
 # blocks build scripts by default and exits non-zero until each is decided,
 # which otherwise makes `pnpm dev` fail before Next even starts.
 #
-#   sharp         - Next.js image optimisation
-#   unrs-resolver - the resolver behind eslint-config-next
+#   sharp           - Next.js image optimisation
+#   unrs-resolver   - the resolver behind eslint-config-next
+#   @prisma/engines - downloads the query engine binary
+#   prisma          - the CLI's own postinstall
+#   esbuild         - the transformer behind vitest
 allowBuilds:
+  '@prisma/engines': true
+  esbuild: true
+  prisma: true
   sharp: true
   unrs-resolver: true

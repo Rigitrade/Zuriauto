@@ -1,0 +1,33 @@
+# Local Postgres for development and the integration tests.
+#
+# Modelled on the earlier project at D:\Personal\zuriauto, but deliberately NOT
+# identical to it. That project's container is also called `zuriauto-db`, also
+# binds host port 5433, and its volume still holds its v1 schema — a Car,
+# Customer and Rental table of a different shape from this one. Reusing any of
+# the three would have meant either a name conflict or this project's
+# migrations landing on top of that project's data.
+#
+# So: its own container, its own volume, and port 5434. Both projects can run
+# at once, and neither can corrupt the other.
+services:
+  db:
+    image: postgres:16
+    container_name: zuriauto-site-db
+    environment:
+      POSTGRES_USER: zuriauto
+      POSTGRES_PASSWORD: zuriauto
+      POSTGRES_DB: zuriauto
+    ports:
+      - '5434:5432'
+    volumes:
+      - zuriauto-site-pgdata:/var/lib/postgresql/data
+    # So `docker compose up -d db` can be followed straight away by a migration
+    # rather than by a guess about whether the server is accepting connections.
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U zuriauto -d zuriauto']
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+volumes:
+  zuriauto-site-pgdata:

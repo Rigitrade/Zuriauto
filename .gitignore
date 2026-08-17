@@ -43,6 +43,11 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# prisma client, generated from prisma/schema.prisma
+# Prisma 7 generates into the project rather than into node_modules, so it has
+# to be ignored explicitly. `pnpm install` and `pnpm build` both regenerate it.
+/generated/
+
 out.zip
 
 # duplicate extracted copy of the site (identical to working tree) and its archive

@@ -1,0 +1,254 @@
+// The rental system's data model.
+//
+// Extends the schema from the earlier project at D:\Personal\zuriauto for
+// fixed-term rentals and for everything the pickup wizard already captures.
+// See docs/superpowers/specs/2026-08-16-rental-persistence-design.md.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum CarStatus {
+  available
+  rented
+  maintenance
+  retired
+}
+
+enum RentalType {
+  WEEKLY
+  FIXED_TERM
+}
+
+enum RentalStatus {
+  ACTIVE
+  EXTENSION_REQUESTED
+  RETURN_SUBMITTED
+  COMPLETED
+  CANCELLED
+}
+
+enum ContractKind {
+  PICKUP
+  RETURN_ADDENDUM
+}
+
+// Spelled out rather than fractional: a Prisma enum cannot contain a slash.
+// The mapping to and from "1/4" lives in lib/rental/fleet.ts, beside the
+// function that prints it, so the two representations cannot drift apart.
+enum FuelLevel {
+  empty
+  quarter
+  half
+  three_quarter
+  full
+}
+
+enum AssetKind {
+  PORTRAIT
+  ID_FRONT
+  ID_BACK
+  LICENCE_FRONT
+  LICENCE_BACK
+  CONDITION_PHOTO
+  SIGNATURE
+  DAMAGE_PHOTO
+}
+
+/// One row for the foreseeable future. Present so that a tenant key exists on
+/// every table from the first migration rather than being retrofitted, which
+/// would mean rewriting every query and every access check.
+model Organisation {
+  id        String            @id @default(cuid())
+  name      String
+  createdAt DateTime          @default(now())
+  cars      Car[]
+  customers Customer[]
+  rentals   Rental[]
+  contracts Contract[]
+  counters  ContractCounter[]
+}
+
+model Car {
+  id String @id @default(cuid())
+
+  organisationId String
+  /// Mirrors FleetVehicle.id in lib/rental/fleet.ts. The seed reconciles on it.
+  slug           String
+  model          String
+  plate          String
+  vin            String?
+  /// Owned by the database, never by the seed: a car is taken out of service
+  /// by the office, without a deploy.
+  status         CarStatus @default(available)
+  /// Reserved for Phase 6. Nothing is built against it until trackers exist.
+  telematicsDeviceId String?
+
+  organisation Organisation @relation(fields: [organisationId], references: [id])
+  rentals      Rental[]
+
+  @@unique([organisationId, plate])
+  @@unique([organisationId, slug])
+}
+
+model Customer {
+  id String @id @default(cuid())
+
+  organisationId String
+  firstName      String
+  lastName       String
+  /// Always stored lowercased and trimmed. See lib/rental/customers.ts.
+  email          String
+  phone          String
+  birthDate      DateTime @db.Date
+  street         String
+  postalCode     String
+  city           String
+  country        String
+  createdAt      DateTime @default(now())
+
+  organisation Organisation @relation(fields: [organisationId], references: [id])
+  rentals      Rental[]
+
+  @@unique([organisationId, email])
+}
+
+model Rental {
+  id String @id @default(cuid())
+
+  organisationId String
+  carId          String
+  customerId     String
+  /// "office" until Phase 5 brings named accounts. Written from the first day
+  /// because attribution cannot be recovered for rows already recorded, and
+  /// these are exactly the rows a fine or a dispute reaches back into.
+  createdBy      String
+
+  type   RentalType
+  status RentalStatus @default(ACTIVE)
+
+  startAt DateTime
+  /// Written, never computed on read, so the Phase 3 reminder pass is a plain
+  /// indexed range scan. Derived for WEEKLY, explicit for FIXED_TERM.
+  endAt   DateTime
+
+  currency     String @default("chf")
+  depositCents Int    @default(0)
+
+  weeklyAmountCents Int?
+  totalWeeks        Int?
+  billingWeekday    Int?
+
+  totalAmountCents Int?
+
+  createdAt DateTime @default(now())
+
+  organisation Organisation  @relation(fields: [organisationId], references: [id])
+  car          Car           @relation(fields: [carId], references: [id])
+  customer     Customer      @relation(fields: [customerId], references: [id])
+  contracts    Contract[]
+  events       RentalEvent[]
+
+  @@index([organisationId, status, endAt])
+  @@index([carId, startAt, endAt])
+}
+
+/// A signed document. Two kinds share this table: the pickup contract and the
+/// return addendum Phase 4 adds.
+///
+/// Mileage, fuel level and damage notes belong here rather than on Rental
+/// precisely so the return can be a comparison against the pickup's baseline
+/// instead of an overwrite of it.
+model Contract {
+  id String @id @default(cuid())
+
+  organisationId String
+  rentalId       String
+  contractNumber String
+  createdBy      String
+  kind           ContractKind
+
+  mileageKm   Int
+  fuelLevel   FuelLevel
+  damageNotes String    @default("")
+
+  gtcVersion  String
+  gtcLanguage String
+  acceptedAt  DateTime
+
+  place    String   @default("")
+  signedAt DateTime @default(now())
+
+  pdfKey     String?
+  mailSentAt DateTime?
+  mailError  String?
+
+  organisation Organisation @relation(fields: [organisationId], references: [id])
+  rental       Rental       @relation(fields: [rentalId], references: [id])
+  assets       Asset[]
+
+  @@unique([organisationId, contractNumber])
+  @@index([rentalId])
+}
+
+model Asset {
+  id String @id @default(cuid())
+
+  contractId  String
+  kind        AssetKind
+  /// Opaque, and deliberately meaningless. See lib/storage/keys.ts.
+  storageKey  String    @unique
+  contentType String
+  bytes       Int
+  createdAt   DateTime  @default(now())
+
+  contract Contract @relation(fields: [contractId], references: [id])
+
+  @@index([contractId])
+}
+
+model RentalEvent {
+  id String @id @default(cuid())
+
+  rentalId  String
+  type      String
+  payload   Json?
+  createdAt DateTime @default(now())
+
+  rental Rental @relation(fields: [rentalId], references: [id])
+
+  @@index([rentalId, createdAt])
+}
+
+/// Client IPs are hashed, never stored, so the rate limiter is not itself a
+/// store of personal data.
+model SubmissionAttempt {
+  id String @id @default(cuid())
+
+  ipHash    String
+  createdAt DateTime @default(now())
+
+  @@index([ipHash, createdAt])
+}
+
+/// The sequence behind ZA-YYYYMMDD-NNNN.
+///
+/// One row per organisation per day, incremented atomically inside the
+/// contract transaction so two simultaneous handovers cannot collide on a
+/// number. Not in the design spec, which assumed a sequence without naming
+/// where it lives.
+model ContractCounter {
+  organisationId String
+  /// "YYYYMMDD", as Zurich reckons the day.
+  day            String
+  value          Int    @default(0)
+
+  organisation Organisation @relation(fields: [organisationId], references: [id])
+
+  @@id([organisationId, day])
+}
