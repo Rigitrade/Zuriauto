@@ -75,6 +75,38 @@ against. Both gaps close here.
    and addresses are updated from the newest contract; the contract PDF retains
    what was signed.
 
+9. **The write endpoint is fenced with a shared secret, not a login.** From
+   Phase 2 `/apply` stops being merely a spam-relay target and becomes a write
+   to the system of record: an open endpoint would let anyone create rentals
+   against real plates and poison the table the traffic-fine lookup depends on.
+   A fabricated rental naming a real driver is a far worse artifact than a spam
+   email.
+
+   A secret carried in the URL and checked alongside the existing origin,
+   honeypot and rate-limit checks closes that hole for almost no work. The page
+   is already unindexed. Accepted trade-off: no attribution and no per-person
+   revocation — the secret leaks the moment a URL is forwarded.
+
+   Real accounts arrive in Phase 5 with the dashboard, where they are needed
+   anyway. Rejected for Phase 2: named accounts with owner/staff roles, which
+   is more machinery than a six-car office needs before anyone is looking at a
+   dashboard.
+
+10. **Two columns are added now purely because they are expensive later.**
+
+    `createdBy` on `Rental` and `Contract`, written from the first day even if
+    every row says `"office"`. Adding the column later is trivial; recovering
+    attribution for rentals already recorded is impossible, and those are
+    exactly the records a fine or a dispute reaches back into.
+
+    `organisationId` on every tenant-owned table, with exactly one row in
+    `Organisation`. This is the only concession Phase 2 makes to the
+    possibility of selling the system to a second operator. Retrofitting a
+    tenant key means rewriting every query and every access check; adding it
+    now costs an afternoon and is invisible while there is one tenant. No
+    other multi-tenant machinery — no tenant switching, no per-tenant
+    branding, no signup — is built or designed here.
+
 ## Schema
 
 ```prisma
@@ -86,35 +118,57 @@ enum FuelLevel       { empty quarter half three_quarter full }
 enum AssetKind       { PORTRAIT ID_FRONT ID_BACK LICENCE_FRONT LICENCE_BACK
                        CONDITION_PHOTO SIGNATURE DAMAGE_PHOTO }
 
+// One row for the foreseeable future. Present so that a tenant key exists
+// on every table from the first migration rather than being retrofitted.
+model Organisation {
+  id        String     @id @default(cuid())
+  name      String
+  createdAt DateTime   @default(now())
+  cars      Car[]
+  customers Customer[]
+  rentals   Rental[]
+  contracts Contract[]
+}
+
 model Car {
-  id                 String    @id @default(cuid())
+  id                 String       @id @default(cuid())
+  organisationId     String
   model              String
-  plate              String    @unique
+  plate              String
   vin                String?
-  status             CarStatus @default(available)
+  status             CarStatus    @default(available)
   telematicsDeviceId String?                        // reserved for Phase 6
+  organisation       Organisation @relation(fields: [organisationId], references: [id])
   rentals            Rental[]
+
+  @@unique([organisationId, plate])
 }
 
 model Customer {
-  id          String   @id @default(cuid())
-  firstName   String
-  lastName    String
-  email       String   @unique                      // stored lowercased
-  phone       String
-  birthDate   DateTime @db.Date
-  street      String
-  postalCode  String
-  city        String
-  country     String
-  createdAt   DateTime @default(now())
-  rentals     Rental[]
+  id             String       @id @default(cuid())
+  organisationId String
+  firstName      String
+  lastName       String
+  email          String                             // stored lowercased
+  phone          String
+  birthDate      DateTime     @db.Date
+  street         String
+  postalCode     String
+  city           String
+  country        String
+  createdAt      DateTime     @default(now())
+  organisation   Organisation @relation(fields: [organisationId], references: [id])
+  rentals        Rental[]
+
+  @@unique([organisationId, email])
 }
 
 model Rental {
   id                String       @id @default(cuid())
+  organisationId    String
   carId             String
   customerId        String
+  createdBy         String                          // "office" until Phase 5
   type              RentalType
   status            RentalStatus @default(ACTIVE)
   startAt           DateTime
@@ -127,19 +181,22 @@ model Rental {
   totalAmountCents  Int?                            // FIXED_TERM only
   createdAt         DateTime     @default(now())
 
-  car        Car        @relation(fields: [carId], references: [id])
-  customer   Customer   @relation(fields: [customerId], references: [id])
-  contracts  Contract[]
-  events     RentalEvent[]
+  organisation Organisation @relation(fields: [organisationId], references: [id])
+  car          Car          @relation(fields: [carId], references: [id])
+  customer     Customer     @relation(fields: [customerId], references: [id])
+  contracts    Contract[]
+  events       RentalEvent[]
 
-  @@index([status, endAt])                          // Phase 3 reminder pass
+  @@index([organisationId, status, endAt])          // Phase 3 reminder pass
   @@index([carId, startAt, endAt])                  // radar ticket lookup
 }
 
 model Contract {
   id             String       @id @default(cuid())
+  organisationId String
   rentalId       String
-  contractNumber String       @unique
+  contractNumber String
+  createdBy      String                             // "office" until Phase 5
   kind           ContractKind
   mileageKm      Int
   fuelLevel      FuelLevel
@@ -152,8 +209,11 @@ model Contract {
   pdfKey         String?
   mailSentAt     DateTime?
   mailError      String?
+  organisation   Organisation @relation(fields: [organisationId], references: [id])
   rental         Rental       @relation(fields: [rentalId], references: [id])
   assets         Asset[]
+
+  @@unique([organisationId, contractNumber])
 }
 
 model Asset {
@@ -222,8 +282,10 @@ untouched, as the Phase 1 spec anticipated.
 ## Request flow
 
 1. Browser validates, compresses images, builds the PDF, posts it with metadata.
-2. Handler validates again, checks the honeypot, checks the origin, checks the
-   size cap, and checks the rate limit against `SubmissionAttempt`.
+2. Handler checks the shared secret, then validates again, checks the honeypot,
+   checks the origin, checks the size cap, and checks the rate limit against
+   `SubmissionAttempt`. The secret is checked first so an unauthorised request
+   costs nothing to reject.
 3. Assets upload to object storage. A failure here aborts before any database
    write; orphaned objects are acceptable and swept later.
 4. One transaction: upsert `Customer` by lowercased email, resolve `Car` by id,
