@@ -3,6 +3,8 @@ import nodemailer from "nodemailer";
 import { PAYMENT_URL } from "@/lib/payment";
 import { labelsFor } from "@/lib/rental/labels";
 import { contractMetaSchema } from "@/lib/rental/schema";
+import { prisma } from "@/lib/db";
+import { rateLimited } from "@/lib/rental/rateLimit";
 
 /**
  * Emails a signed pickup contract to the office and to the customer.
@@ -10,8 +12,8 @@ import { contractMetaSchema } from "@/lib/rental/schema";
  * Stateless by design: nothing is written down in Phase 1. The endpoint is
  * public and unauthenticated, which makes it a spam-relay target, so it is
  * fenced with a size cap, an origin check, a honeypot and a per-IP limiter.
- * Those are mitigations rather than a solution — real rate limiting arrives
- * with the Phase 2 datastore.
+ * The limiter is backed by the database, so it survives a cold start and is
+ * shared across instances.
  */
 
 // SMTP needs a socket, so this cannot run on the Edge runtime.
@@ -21,37 +23,8 @@ export const maxDuration = 30;
 /** Vercel rejects bodies past ~4.5 MB; refuse just under so the error is ours. */
 const MAX_PDF_BYTES = 4.4 * 1024 * 1024;
 
-const RATE_LIMIT = { max: 5, windowMs: 10 * 60 * 1000 };
-
-/**
- * Held in module scope, so it resets on every cold start and is not shared
- * between concurrent instances. Good enough to blunt a naive script; it is
- * explicitly not a real rate limiter.
- */
-const recentByIp = new Map<string, number[]>();
-
 /** Keeps the no-archive warning to once per cold start rather than per send. */
 let warnedAboutArchive = false;
-
-function rateLimited(ip: string): boolean {
-  const now = Date.now();
-  const hits = (recentByIp.get(ip) ?? []).filter(
-    (at) => now - at < RATE_LIMIT.windowMs
-  );
-  hits.push(now);
-  recentByIp.set(ip, hits);
-
-  // Keep the map from growing without bound across a warm instance's life.
-  if (recentByIp.size > 500) {
-    for (const [key, times] of recentByIp) {
-      if (times.every((at) => now - at >= RATE_LIMIT.windowMs)) {
-        recentByIp.delete(key);
-      }
-    }
-  }
-
-  return hits.length > RATE_LIMIT.max;
-}
 
 function clientIp(request: Request): string {
   const forwarded = request.headers.get("x-forwarded-for");
@@ -137,7 +110,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ code: "bad-origin" }, { status: 403 });
   }
 
-  if (rateLimited(clientIp(request))) {
+  if (await rateLimited(prisma, clientIp(request))) {
     return NextResponse.json({ code: "rate-limited" }, { status: 429 });
   }
 
