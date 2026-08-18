@@ -54,6 +54,7 @@ import RentalTermsStep, {
   type TermsFormState,
 } from "./RentalTermsStep";
 import { rentalTermsSchema } from "@/lib/rental/terms";
+import { APPLY_KEY_HEADER, APPLY_KEY_PARAM } from "@/lib/applyKey";
 import GtcAcceptance from "./GtcAcceptance";
 import PhotoCapture from "./PhotoCapture";
 import SignaturePad from "./SignaturePad";
@@ -185,6 +186,20 @@ export default function RentalPickupWizard() {
    * available.
    */
   const [vehicles, setVehicles] = useState<FleetVehicle[]>(availableFleet);
+  /**
+   * The key from the link the office sent.
+   *
+   * Read from window.location.search rather than useSearchParams, because this
+   * page is statically prerendered and useSearchParams would force it into a
+   * Suspense boundary for the sake of one string. `undefined` means not read
+   * yet — rendering the refusal during that moment would flash it at every
+   * legitimate visitor.
+   */
+  const [applyKey, setApplyKey] = useState<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    setApplyKey(new URLSearchParams(window.location.search).get(APPLY_KEY_PARAM));
+  }, []);
   const [documents, setDocuments] = useState<DocumentImages>(EMPTY_DOCUMENTS);
   const [conditionPhotos, setConditionPhotos] = useState<
     (CompressedImage | null)[]
@@ -584,6 +599,7 @@ export default function RentalPickupWizard() {
       // multi-megabyte body to follow it.
       const response = await fetch("/api/rental-contract/", {
         method: "POST",
+        headers: applyKey ? { [APPLY_KEY_HEADER]: applyKey } : undefined,
         body,
       });
 
@@ -622,6 +638,26 @@ export default function RentalPickupWizard() {
     } catch {
       // A cancelled share throws; nothing to recover from.
     }
+  }
+
+  // --- Link gate -------------------------------------------------------
+  // Checked at load, never at submit. A customer who fills in five steps,
+  // photographs four documents and signs, only to be told the link was
+  // invalid, has been made to do all of that for nothing.
+  if (applyKey === null) {
+    return (
+      <section className="bg-gradient-to-b from-slate-50 to-white py-16">
+        <div className="container mx-auto max-w-xl px-4">
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm sm:p-10">
+            <TriangleAlert className="mx-auto h-14 w-14 text-amber-500" />
+            <h2 className="mt-4 text-xl font-semibold text-slate-900">
+              {L.gate.title}
+            </h2>
+            <p className="mt-2 text-slate-600">{L.gate.body}</p>
+          </div>
+        </div>
+      </section>
+    );
   }
 
   // --- Result screen ---------------------------------------------------

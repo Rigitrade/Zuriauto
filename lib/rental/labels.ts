@@ -163,6 +163,11 @@ const de = {
     payHint: "Sie können die Miete direkt und sicher per Karte bezahlen.",
   },
 
+  gate: {
+    title: "Link nicht gültig",
+    body: "Dieser Link ist unvollständig oder abgelaufen. Bitte fordern Sie bei ZURIAUTO einen neuen Link an.",
+  },
+
   errors: {
     required: "Pflichtfeld",
     email: "Bitte geben Sie eine gültige E-Mail-Adresse ein.",
@@ -396,6 +401,11 @@ const en: typeof de = {
     contractNumber: "Contract no.",
     payNow: "Pay now",
     payHint: "You can pay the rental securely by card right away.",
+  },
+
+  gate: {
+    title: "Link not valid",
+    body: "This link is incomplete or has expired. Please ask ZURIAUTO for a new one.",
   },
 
   errors: {

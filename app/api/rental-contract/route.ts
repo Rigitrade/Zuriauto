@@ -5,6 +5,7 @@ import { labelsFor } from "@/lib/rental/labels";
 import { contractMetaSchema } from "@/lib/rental/schema";
 import { prisma } from "@/lib/db";
 import { rateLimited } from "@/lib/rental/rateLimit";
+import { APPLY_KEY_HEADER, applyKeyValid } from "@/lib/applyKey";
 
 /**
  * Emails a signed pickup contract to the office and to the customer.
@@ -106,6 +107,11 @@ function readMailConfig(): MailConfig | null {
 }
 
 export async function POST(request: Request) {
+  // First, so an unauthorised request costs nothing to reject.
+  if (!applyKeyValid(request.headers.get(APPLY_KEY_HEADER))) {
+    return NextResponse.json({ code: "unauthorised" }, { status: 401 });
+  }
+
   if (!sameOrigin(request)) {
     return NextResponse.json({ code: "bad-origin" }, { status: 403 });
   }
