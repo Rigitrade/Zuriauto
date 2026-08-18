@@ -16,7 +16,8 @@
     "db:studio": "prisma studio",
     "test": "vitest run --project unit --passWithNoTests",
     "test:db": "vitest run --project db",
-    "test:all": "vitest run --passWithNoTests"
+    "test:all": "vitest run --passWithNoTests",
+    "db:backfill-charges": "tsx scripts/backfill-charges.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1111.0",

@@ -15,6 +15,7 @@ import { assetKey, uploadAssets, type AssetStore } from "@/lib/storage";
 import { allocateContractNumber } from "./contractNumber";
 import { upsertCustomer } from "./customers";
 import { fuelLevelToDb } from "./fleet";
+import { generateWeeklyCharges } from "./passes";
 import type { ContractDetails } from "./schema";
 import { billingWeekdayOf, resolveEndAt } from "./terms";
 
@@ -144,6 +145,28 @@ export async function persistPickup(
         where: { id: car.id },
         data: { status: "rented" },
       });
+
+      // The weekly schedule, generated up front rather than derived at run
+      // time, so the Phase 3 charge pass walks rows instead of doing date
+      // arithmetic. A fixed-term rental is paid once and has no schedule.
+      if (terms.type === "WEEKLY") {
+        const schedule = generateWeeklyCharges({
+          startAt,
+          fromWeek: 1,
+          weeks: terms.totalWeeks,
+          amountCents: terms.weeklyAmountCents,
+        });
+        await tx.charge.createMany({
+          data: schedule.map((charge) => ({
+            organisationId,
+            rentalId: rental.id,
+            weekNumber: charge.weekNumber,
+            dueDate: charge.dueDate,
+            amountCents: charge.amountCents,
+            currency: "chf",
+          })),
+        });
+      }
 
       await tx.rentalEvent.create({
         data: {

@@ -151,8 +151,11 @@ model Rental {
   organisation Organisation  @relation(fields: [organisationId], references: [id])
   car          Car           @relation(fields: [carId], references: [id])
   customer     Customer      @relation(fields: [customerId], references: [id])
-  contracts    Contract[]
-  events       RentalEvent[]
+  contracts     Contract[]
+  events        RentalEvent[]
+  charges       Charge[]
+  notifications Notification[]
+  tokens        ActionToken[]
 
   @@index([organisationId, status, endAt])
   @@index([carId, startAt, endAt])
@@ -251,4 +254,114 @@ model ContractCounter {
   organisation Organisation @relation(fields: [organisationId], references: [id])
 
   @@id([organisationId, day])
+}
+
+// ---------------------------------------------------------------------
+// Phase 3 — lifecycle automation.
+// See docs/superpowers/specs/2026-08-18-rental-lifecycle-design.md
+// ---------------------------------------------------------------------
+
+enum ChargeStatus {
+  SCHEDULED
+  REQUESTED
+  REMINDED
+  OVERDUE
+  PAID
+  VOID
+}
+
+enum NotificationKind {
+  RENTAL_ENDING
+  RENTAL_OVERDUE
+  CHARGE_REQUESTED
+  CHARGE_REMINDER
+  CHARGE_OVERDUE
+  EXTENSION_CONFIRMED
+  RETURN_INTENT
+}
+
+enum ActionTokenPurpose {
+  MANAGE_RENTAL
+}
+
+/// One payable amount against a rental.
+model Charge {
+  id             String @id @default(cuid())
+  organisationId String
+  rentalId       String
+
+  /// 1-based. Extensions continue the sequence rather than restarting it.
+  weekNumber  Int
+  dueDate     DateTime
+  amountCents Int
+  currency    String   @default("chf")
+
+  status          ChargeStatus @default(SCHEDULED)
+  paymentUrl      String?
+  providerRef     String?
+  requestedAt     DateTime?
+  remindedAt      DateTime?
+  officeAlertedAt DateTime?
+  paidAt          DateTime?
+  createdAt       DateTime     @default(now())
+
+  rental Rental @relation(fields: [rentalId], references: [id])
+
+  /// The old project's rule, kept: two runs cannot create two week-3 charges.
+  @@unique([rentalId, weekNumber])
+  @@index([status, dueDate])
+}
+
+/// Every email the system decides to send.
+///
+/// The unique constraint is the idempotency, not a boolean flag. A pass inserts
+/// the row before sending, so a unique violation means somebody already decided
+/// to send this and the pass moves on. A boolean set after the send would let
+/// two concurrent runs both read false and both send.
+model Notification {
+  id             String @id @default(cuid())
+  organisationId String
+  rentalId       String
+
+  kind NotificationKind
+  /// What makes this send distinct — the Zurich day of an endAt, a week
+  /// number. Never a timestamp, which would be unique on every run and so
+  /// would dedupe nothing.
+  dedupeKey String
+  to        String
+
+  sentAt   DateTime?
+  error    String?
+  attempts Int       @default(0)
+
+  createdAt DateTime @default(now())
+
+  rental Rental @relation(fields: [rentalId], references: [id])
+
+  @@unique([rentalId, kind, dedupeKey])
+  @@index([sentAt, attempts])
+}
+
+/// A single-use link that authenticates a renter who has no account.
+///
+/// Deliberately not APPLY_SECRET, which is an office credential. Mailing
+/// customers that key would give every past renter permanent write access to
+/// the system of record.
+model ActionToken {
+  id             String @id @default(cuid())
+  organisationId String
+  rentalId       String
+
+  purpose ActionTokenPurpose
+  /// SHA-256 of the token. The token itself exists only in the email, so a
+  /// database dump does not hand over a set of live links.
+  tokenHash String             @unique
+
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  rental Rental @relation(fields: [rentalId], references: [id])
+
+  @@index([rentalId, purpose])
 }
