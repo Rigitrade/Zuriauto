@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "_comment": "Vercel cron schedules are UTC, not Zurich. 0 7 * * * is 09:00 Zurich in summer and 08:00 in winter; the 48-hour reminder window absorbs the drift. See docs/DEPLOY-PHASE-2-3.md.",
   "crons": [
     {
       "path": "/api/cron/daily/",

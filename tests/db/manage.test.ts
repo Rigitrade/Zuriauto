@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { prisma } from "@/lib/db";
 import { generateToken, hashToken } from "@/lib/rental/actionToken";
 import {
@@ -8,7 +8,25 @@ import {
   recordReturnIntent,
   resolveManageToken,
 } from "@/lib/rental/manage";
+import { notifyExtension } from "@/lib/rental/manageActions";
 import { ensureOrganisation, seedFleet } from "@/prisma/seed";
+
+// Real claim-and-send logic, with the transport stubbed so nothing leaves.
+vi.mock("@/lib/rental/lifecycleMail", async (importOriginal) => {
+  const original = await importOriginal<
+    typeof import("@/lib/rental/lifecycleMail")
+  >();
+  return { ...original, sendMail: async () => {} };
+});
+
+beforeAll(() => {
+  // readLifecycleMailConfig returns null without these, and notifyExtension
+  // then returns before claiming anything.
+  process.env.SMTP_HOST = "localhost";
+  process.env.SMTP_USER = "u";
+  process.env.SMTP_PASS = "p";
+  process.env.MAIL_OFFICE = "office@zuriauto.ch";
+});
 
 const NOW = new Date("2026-08-18T09:00:00Z");
 const START = new Date("2026-07-21T08:00:00Z");
@@ -381,5 +399,99 @@ describe("extendRental", () => {
       where: { id: rental.id },
     });
     expect(after.totalWeeks).toBe(6);
+  });
+});
+
+describe("audit regressions", () => {
+  it("notifies the office about an extension without labelling it overdue", async () => {
+    // It used to claim kind RENTAL_OVERDUE, which would have Phase 5 counting
+    // every extension as a late car. Asserted on the rows, not the source.
+    const { token, rental } = await aRentalWithToken();
+
+    const result = await extendRental(prisma, {
+      tokenId: token.id,
+      rentalId: rental.id,
+      weeks: 1,
+      now: NOW,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const resolved = await prisma.rental.findUniqueOrThrow({
+      where: { id: rental.id },
+      include: { customer: true, car: true },
+    });
+
+    await notifyExtension(
+      {
+        id: resolved.id,
+        organisationId: resolved.organisationId,
+        endAt: resolved.endAt,
+        customerFirstName: resolved.customer.firstName,
+        customerEmail: resolved.customer.email,
+        customerName: `${resolved.customer.firstName} ${resolved.customer.lastName}`,
+        customerPhone: resolved.customer.phone,
+        carModel: resolved.car.model,
+        carPlate: resolved.car.plate,
+        language: "de",
+      },
+      {
+        weeks: result.quote.weeks,
+        newEndAt: result.quote.newEndAt,
+        amountCents: result.quote.amountCents,
+        paymentUrl: result.paymentUrl,
+      },
+      NOW
+    );
+
+    const rows = await prisma.notification.findMany({
+      orderBy: { dedupeKey: "asc" },
+    });
+
+    // Two rows: the renter's and the office's, both extensions.
+    expect(rows).toHaveLength(2);
+    expect(rows.every((r) => r.kind === "EXTENSION_CONFIRMED")).toBe(true);
+    expect(
+      await prisma.notification.count({ where: { kind: "RENTAL_OVERDUE" } })
+    ).toBe(0);
+
+    // One goes to the office, one to the renter, under distinct dedupe keys.
+    expect(new Set(rows.map((r) => r.dedupeKey)).size).toBe(2);
+    expect(rows.map((r) => r.to)).toContain("office@zuriauto.ch");
+    expect(rows.map((r) => r.to)).toContain(resolved.customer.email);
+  });
+  it("still returns a payable link if the provider is unreachable", async () => {
+    // The extension is committed and the token spent by this point. Showing the
+    // renter an error would have them retry into a 410 and believe it failed.
+    const { token, rental } = await aRentalWithToken();
+    const payments = await import("@/lib/payments");
+    const spy = vi
+      .spyOn(payments, "getPaymentProvider")
+      .mockReturnValue({
+        name: "broken",
+        confirmsAutomatically: false,
+        createRequest: async () => {
+          throw new Error("provider down");
+        },
+      });
+
+    const result = await extendRental(prisma, {
+      tokenId: token.id,
+      rentalId: rental.id,
+      weeks: 1,
+      now: NOW,
+    });
+
+    spy.mockRestore();
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.paymentUrl).toContain("sumup");
+
+    // And the extension itself still stands.
+    const after = await prisma.rental.findUniqueOrThrow({
+      where: { id: rental.id },
+    });
+    expect(after.totalWeeks).toBe(5);
   });
 });

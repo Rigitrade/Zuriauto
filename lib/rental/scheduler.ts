@@ -215,11 +215,38 @@ export async function weeklyChargePass(deps: SchedulerDeps): Promise<number> {
     const { rental } = charge;
     const reference = `${rental.car.plate} W${charge.weekNumber}`;
 
-    const request = await getPaymentProvider().createRequest({
-      amountCents: charge.amountCents,
-      currency: charge.currency,
-      reference,
-      description: `${rental.car.model} — week ${charge.weekNumber}`,
+    // Claim the transition BEFORE talking to the provider. The provider call is
+    // the one step here that is not idempotent — a real processor would issue
+    // two invoices for two concurrent runs — so the conditional update has to
+    // be what gates it, not what records it afterwards.
+    const claimed = await client.charge.updateMany({
+      where: { id: charge.id, status: "SCHEDULED" },
+      data: { status: "REQUESTED", requestedAt: now },
+    });
+    if (claimed.count === 0) continue;
+
+    let request: { url: string; providerRef: string | null };
+    try {
+      request = await getPaymentProvider().createRequest({
+        amountCents: charge.amountCents,
+        currency: charge.currency,
+        reference,
+        description: `${rental.car.model} — week ${charge.weekNumber}`,
+      });
+    } catch (error) {
+      // The charge is already REQUESTED, which is true — it is owed. Fall back
+      // to the standing payment page so the renter can still pay, and let the
+      // office reconcile by reference.
+      console.error(
+        `[scheduler] payment request failed for charge ${charge.id}:`,
+        error
+      );
+      request = { url: PAYMENT_URL, providerRef: null };
+    }
+
+    await client.charge.update({
+      where: { id: charge.id },
+      data: { paymentUrl: request.url, providerRef: request.providerRef },
     });
 
     const sent = await sendOnce(
@@ -249,21 +276,11 @@ export async function weeklyChargePass(deps: SchedulerDeps): Promise<number> {
       }
     );
 
-    // The status moves whether or not the email landed. The charge is genuinely
-    // requested — the payment link exists and the office can quote it — and
-    // leaving it SCHEDULED would have the pass try again tomorrow while
-    // mailRetryPass is already retrying the message.
-    const updated = await client.charge.updateMany({
-      where: { id: charge.id, status: "SCHEDULED" },
-      data: {
-        status: "REQUESTED",
-        requestedAt: now,
-        paymentUrl: request.url,
-        providerRef: request.providerRef,
-      },
-    });
-
-    if (updated.count > 0 || sent) count += 1;
+    // Counted whether or not the email landed. The charge is genuinely
+    // requested — the link exists and the office can quote it — and
+    // mailRetryPass owns the undelivered message from here.
+    void sent;
+    count += 1;
   }
 
   return count;
@@ -474,9 +491,16 @@ export async function mailRetryPass(deps: SchedulerDeps): Promise<number> {
           `Bitte manuell nachfassen.`,
         ].join("\n"),
       });
+      // sentAt stops the retries, but the original message was never
+      // delivered — only the office was told. Say so on the row rather
+      // than leaving it claiming a delivery that did not happen.
       await client.notification.update({
         where: { id: row.id },
-        data: { sentAt: now, attempts: { increment: 1 } },
+        data: {
+          sentAt: now,
+          attempts: { increment: 1 },
+          error: `escalated to office; not delivered to ${row.to}`,
+        },
       });
       count += 1;
     } catch (error) {

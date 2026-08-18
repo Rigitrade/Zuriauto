@@ -8,6 +8,7 @@
  */
 
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
+import { PAYMENT_URL } from "@/lib/payment";
 import { getPaymentProvider } from "@/lib/payments";
 import { hashToken, tokenIsUsable } from "./actionToken";
 import { generateWeeklyCharges } from "./passes";
@@ -309,13 +310,28 @@ export async function extendRental(
   if (!outcome.ok) return outcome;
 
   // Outside the transaction: the provider is a network call, and holding a
-  // database connection open across it is the mistake persistPickup avoids too.
-  const request = await provider.createRequest({
-    amountCents: outcome.quote.amountCents,
-    currency: "chf",
-    reference: `${rentalId.slice(-6)} EXT`,
-    description: `Extension by ${weeks} week(s)`,
-  });
+  // database connection open across it is the mistake persistPickup avoids
+  // too.
+  //
+  // Guarded, because by this point the extension is committed and the token
+  // is spent. Letting a provider outage throw here would show the renter a
+  // failure for something that succeeded — and their retry would hit a 410,
+  // leaving them convinced they had not extended when they had.
+  let paymentUrl = PAYMENT_URL;
+  try {
+    const request = await provider.createRequest({
+      amountCents: outcome.quote.amountCents,
+      currency: "chf",
+      reference: `${rentalId.slice(-6)} EXT`,
+      description: `Extension by ${weeks} week(s)`,
+    });
+    paymentUrl = request.url;
+  } catch (error) {
+    console.error(
+      `[manage] payment request failed after extending ${rentalId}:`,
+      error
+    );
+  }
 
-  return { ok: true, quote: outcome.quote, paymentUrl: request.url };
+  return { ok: true, quote: outcome.quote, paymentUrl };
 }

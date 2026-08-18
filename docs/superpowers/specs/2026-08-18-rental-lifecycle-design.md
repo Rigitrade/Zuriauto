@@ -190,7 +190,7 @@ Run in this order by `runDailyPasses(now)`. Each returns a count.
 | `chargeReminder` | `REQUESTED`, unpaid, `CHARGE_REMIND_AFTER_HOURS` elapsed | Re-sends the link, moves to `REMINDED` | `week-<n>` |
 | `chargeOverdue` | `REMINDED`, unpaid, `CHARGE_ALERT_AFTER_HOURS` elapsed | Alerts the office, moves to `OVERDUE` | `week-<n>` |
 | `rentalOverdue` | `ACTIVE`, `endAt` in the past | Alerts the office | Zurich day of `endAt` |
-| `mailRetry` | `Notification` unsent, `attempts < 3` | Re-sends | — |
+| `mailRetry` | `Notification` unsent, `attempts < 3`, at least an hour old | Tells the office delivery failed | — |
 
 **The 24–48 hour window is a deliberate widening of the client's "24 hours",
 and needs confirming.** A daily cron running at 09:00 would otherwise miss a
@@ -202,6 +202,11 @@ cron, which needs a paid Vercel plan.
 `mailRetry` is the mitigation the Phase 1 and Phase 2 specs both promised for
 SMTP-from-serverless, finally implemented: send failures are recorded and
 retried rather than lost.
+
+The minimum age is deliberate. Without it the pass runs last in the same daily
+run that failed and escalates within milliseconds, so a transient SMTP blip —
+the common case on a serverless mailer — would bother the office instead of
+simply succeeding on the next run.
 
 ## The manage page
 

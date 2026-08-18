@@ -102,14 +102,17 @@ export async function notifyExtension(
     }
   );
 
-  // And the office copy. A different kind, so it has its own dedupe row.
+  // And the office copy. Same kind as the renter's — it is the same event —
+  // with an office-prefixed dedupe key so it gets its own row. Labelling it
+  // RENTAL_OVERDUE, as this once did, would have Phase 5 counting every
+  // extension as a late car.
   await sendOnce(
     prisma,
     {
       organisationId: rental.organisationId,
       rentalId: rental.id,
-      kind: "RENTAL_OVERDUE",
-      dedupeKey: `extension-${endAtDedupeKey(detail.newEndAt)}`,
+      kind: "EXTENSION_CONFIRMED",
+      dedupeKey: `office-${endAtDedupeKey(detail.newEndAt)}`,
       to: mail.office,
     },
     now,
