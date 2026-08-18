@@ -524,6 +524,8 @@ const en = {
         title: "3. Data We Collect",
         items: [
           "Identity & Contact Data (name, address, date of birth, driver’s license)",
+          "Photographs of your identity document and driving licence, a portrait photo and your signature, taken at handover",
+          "Photographs of the vehicle’s condition at handover and return",
           "Contract & Booking Data",
           "Payment & Financial Data",
           "Vehicle & Telematics Data (GPS, mileage, condition)",
@@ -549,7 +551,7 @@ const en = {
       retention: {
         title: "7. Data Retention",
         content:
-          "Data is only retained as long as necessary. Financial and contract data: 10 years. Vehicle GPS data: deleted/anonymized after rental ends.",
+          "Your data is stored on servers in the EU or Switzerland. Contract and financial data is kept for 10 years, as Swiss commercial law requires. Photographs of your identity document, driving licence and signature are kept only as long as they are needed to verify the handover and settle any dispute arising from it, and are then deleted. Vehicle GPS data is deleted or anonymised after the rental ends. You can ask us at any time what we hold about you, and ask for it to be deleted — see Your Rights below.",
       },
       security: {
         title: "8. Data Security",

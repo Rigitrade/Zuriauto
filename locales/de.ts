@@ -534,6 +534,8 @@ const de: TranslationKeys = {
         title: "3. Welche Daten wir erheben",
         items: [
           "Identitäts- & Kontaktdaten (Name, Adresse, Geburtsdatum, Führerschein)",
+          "Fotos Ihres Ausweises und Führerausweises, ein Personenfoto sowie Ihre Unterschrift, bei der Übernahme erfasst",
+          "Fotos des Fahrzeugzustands bei Übernahme und Rückgabe",
           "Vertrags- & Buchungsdaten",
           "Zahlungs- & Finanzdaten",
           "Fahrzeug- & Telematikdaten (GPS, Kilometerstand, Zustand)",
@@ -559,7 +561,7 @@ const de: TranslationKeys = {
       retention: {
         title: "7. Aufbewahrung",
         content:
-          "Daten werden nur so lange gespeichert, wie es für die Zwecke erforderlich ist. Finanz- und Vertragsdaten: 10 Jahre. Fahrzeug-GPS-Daten: Löschung/Anonymisierung nach Mietende.",
+          "Ihre Daten werden auf Servern in der EU oder in der Schweiz gespeichert. Vertrags- und Finanzdaten werden 10 Jahre aufbewahrt, wie es das Schweizer Obligationenrecht verlangt. Fotos von Ausweis, Führerausweis und Unterschrift werden nur so lange aufbewahrt, wie sie zur Überprüfung der Übernahme und zur Klärung allfälliger Streitigkeiten erforderlich sind, und danach gelöscht. Fahrzeug-GPS-Daten werden nach Mietende gelöscht oder anonymisiert. Sie können jederzeit erfahren, welche Daten wir über Sie halten, und deren Löschung verlangen — siehe Ihre Rechte.",
       },
       security: {
         title: "8. Datensicherheit",
