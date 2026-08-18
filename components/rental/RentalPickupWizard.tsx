@@ -22,8 +22,8 @@ import { PAYMENT_URL } from "@/lib/payment";
 import { GTC_DATE, type GtcLanguage } from "@/locales/gtc";
 import {
   availableFleet,
-  findVehicle,
   FUEL_LEVELS,
+  type FleetVehicle,
   type FuelLevel,
 } from "@/lib/rental/fleet";
 import { asRentalLanguage, labelsFor } from "@/lib/rental/labels";
@@ -175,6 +175,16 @@ export default function RentalPickupWizard() {
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [terms, setTerms] = useState<TermsFormState>(EMPTY_TERMS);
+  /**
+   * The picker options, from the database.
+   *
+   * Seeded with the compiled-in fleet so the form is usable on first paint and
+   * still works if the request fails — a car at the kerb with a customer
+   * beside it is not the moment to discover the fleet endpoint is down. The
+   * response, when it arrives, is authoritative: it reflects what is actually
+   * available.
+   */
+  const [vehicles, setVehicles] = useState<FleetVehicle[]>(availableFleet);
   const [documents, setDocuments] = useState<DocumentImages>(EMPTY_DOCUMENTS);
   const [conditionPhotos, setConditionPhotos] = useState<
     (CompressedImage | null)[]
@@ -196,7 +206,27 @@ export default function RentalPickupWizard() {
     contractNumber: string;
   } | null>(null);
 
-  const vehicle = useMemo(() => findVehicle(form.vehicleId), [form.vehicleId]);
+  const vehicle = useMemo(
+    () => vehicles.find((candidate) => candidate.id === form.vehicleId),
+    [vehicles, form.vehicleId]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/fleet/")
+      .then((response) => (response.ok ? response.json() : null))
+      .then((payload) => {
+        if (cancelled || !payload?.vehicles?.length) return;
+        setVehicles(payload.vehicles as FleetVehicle[]);
+      })
+      .catch(() => {
+        // Keep the compiled-in list. Logged, not surfaced: the form works.
+        console.warn("[apply] fleet endpoint unavailable, using the bundled list");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // The stamp shown next to the place. Ticks so a form left open for ten
   // minutes does not display a time that disagrees with the one the PDF
@@ -713,7 +743,7 @@ export default function RentalPickupWizard() {
                   className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 md:text-sm"
                 >
                   <option value="">{L.vehicle.selectPlaceholder}</option>
-                  {availableFleet.map((entry) => (
+                  {vehicles.map((entry) => (
                     <option key={entry.id} value={entry.id}>
                       {entry.model} — {entry.plate}
                     </option>
