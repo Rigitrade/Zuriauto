@@ -18,7 +18,9 @@ import {
 import gtc, { GTC_DATE, GTC_ENTITY, type GtcLanguage } from "@/locales/gtc";
 import { fuelLevelToFraction, type FleetVehicle } from "./fleet";
 import { labelsFor, type RentalLanguage } from "./labels";
+import { formatChf } from "./money";
 import type { ContractDetails } from "./schema";
+import { resolveEndAt } from "./terms";
 
 const A4 = { width: 595.28, height: 841.89 };
 const MARGIN = 48;
@@ -367,6 +369,32 @@ export async function buildContractPdf(
   if (vehicle.vin) w.field(L.vin, vehicle.vin);
   w.field(L.mileage, `${formatMileage(details.mileageKm)} ${L.km}`);
   w.field(L.fuel, fuelLevelToFraction(details.fuelLevel));
+
+  // --- Terms -----------------------------------------------------------
+  // Directly under the vehicle and above the renter, because what is being
+  // agreed is a car for a period at a price. Splitting the price away from the
+  // car would put the two halves of the bargain on different pages of a long
+  // contract.
+  const terms = details.terms;
+  w.sectionTitle(L.termsSection);
+  w.field(
+    L.rentalType,
+    terms.type === "WEEKLY" ? L.rentalTypeWeekly : L.rentalTypeFixed
+  );
+  w.field(L.rentalStart, formatDateTime(new Date(terms.startAt)));
+  w.field(L.rentalEnd, formatDateTime(resolveEndAt(terms)));
+
+  if (terms.type === "WEEKLY") {
+    w.field(L.rentalWeeks, String(terms.totalWeeks));
+    w.field(
+      L.weeklyAmount,
+      `${L.currency} ${formatChf(terms.weeklyAmountCents)}`
+    );
+  } else {
+    w.field(L.totalAmount, `${L.currency} ${formatChf(terms.totalAmountCents)}`);
+  }
+
+  w.field(L.deposit, `${L.currency} ${formatChf(terms.depositCents)}`);
 
   // --- Renter ----------------------------------------------------------
   w.sectionTitle(L.customerSection);

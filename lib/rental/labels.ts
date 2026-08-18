@@ -27,6 +27,7 @@ const de = {
 
   steps: {
     vehicle: "Fahrzeug",
+    terms: "Mietdauer",
     details: "Ihre Daten",
     documents: "Dokumente",
     sign: "Unterschrift",
@@ -49,6 +50,27 @@ const de = {
     damageNone: "Keine sichtbaren Schäden",
     conditionPhotos: "Zustandsfotos (optional)",
     conditionPhotosHint: "Bis zu 4 Fotos des Fahrzeugs",
+  },
+
+  terms: {
+    heading: "Mietdauer und Preis",
+    type: "Mietart",
+    typeWeekly: "Wochenmiete",
+    typeWeeklyHint: "Laufende Miete, wöchentlich abgerechnet.",
+    typeFixed: "Feste Dauer",
+    typeFixedHint: "Fester Zeitraum, einmalig bezahlt.",
+    start: "Beginn",
+    startDate: "Datum",
+    startTime: "Uhrzeit",
+    totalWeeks: "Anzahl Wochen",
+    end: "Ende",
+    endDate: "Datum",
+    endTime: "Uhrzeit",
+    weeklyAmount: "Wochenpreis (CHF)",
+    totalAmount: "Gesamtpreis (CHF)",
+    deposit: "Kaution (CHF)",
+    depositHint: "0 eingeben, wenn keine Kaution erhoben wird.",
+    computedEnd: "Rückgabe berechnet auf",
   },
 
   details: {
@@ -163,6 +185,12 @@ const de = {
       "Die Fotos sind zu gross. Bitte nehmen Sie sie mit weniger Detail erneut auf.",
     sendFailed:
       "Der Vertrag konnte nicht gesendet werden. Bitte laden Sie ihn herunter.",
+    amount: "Bitte geben Sie einen gültigen Betrag ein.",
+    deposit: "Bitte geben Sie eine gültige Kaution ein, oder 0.",
+    totalWeeks: "Bitte geben Sie die Anzahl Wochen an (1 bis 104).",
+    startAt: "Bitte geben Sie einen gültigen Beginn an.",
+    endAt: "Bitte geben Sie ein gültiges Ende an.",
+    endBeforeStart: "Das Ende muss nach dem Beginn liegen.",
   },
 
   pdf: {
@@ -176,6 +204,17 @@ const de = {
     vin: "Fahrgestell-Nr.",
     mileage: "Kilometerstand bei Übernahme",
     fuel: "Tankfüllung",
+    termsSection: "Mietdauer und Preis",
+    rentalType: "Mietart",
+    rentalTypeWeekly: "Wochenmiete",
+    rentalTypeFixed: "Feste Dauer",
+    rentalStart: "Beginn der Miete",
+    rentalEnd: "Vereinbarte Rückgabe",
+    rentalWeeks: "Anzahl Wochen",
+    weeklyAmount: "Wochenpreis",
+    totalAmount: "Gesamtpreis",
+    deposit: "Kaution",
+    currency: "CHF",
     customerSection: "Mieter",
     lastName: "Name",
     firstName: "Vorname",
@@ -227,6 +266,7 @@ const en: typeof de = {
 
   steps: {
     vehicle: "Vehicle",
+    terms: "Rental period",
     details: "Your details",
     documents: "Documents",
     sign: "Signature",
@@ -249,6 +289,27 @@ const en: typeof de = {
     damageNone: "No visible damage",
     conditionPhotos: "Condition photos (optional)",
     conditionPhotosHint: "Up to 4 photos of the vehicle",
+  },
+
+  terms: {
+    heading: "Rental period and price",
+    type: "Rental type",
+    typeWeekly: "Weekly",
+    typeWeeklyHint: "Ongoing rental, billed each week.",
+    typeFixed: "Fixed term",
+    typeFixedHint: "A set period, paid once.",
+    start: "Start",
+    startDate: "Date",
+    startTime: "Time",
+    totalWeeks: "Number of weeks",
+    end: "End",
+    endDate: "Date",
+    endTime: "Time",
+    weeklyAmount: "Weekly price (CHF)",
+    totalAmount: "Total price (CHF)",
+    deposit: "Deposit (CHF)",
+    depositHint: "Enter 0 if no deposit is taken.",
+    computedEnd: "Return calculated for",
   },
 
   details: {
@@ -356,6 +417,12 @@ const en: typeof de = {
     tooLarge:
       "The photos are too large. Please retake them with less detail.",
     sendFailed: "The contract could not be sent. Please download it.",
+    amount: "Please enter a valid amount.",
+    deposit: "Please enter a valid deposit, or 0.",
+    totalWeeks: "Please give the number of weeks (1 to 104).",
+    startAt: "Please give a valid start.",
+    endAt: "Please give a valid end.",
+    endBeforeStart: "The end must be after the start.",
   },
 
   pdf: {
@@ -369,6 +436,17 @@ const en: typeof de = {
     vin: "Chassis no.",
     mileage: "Mileage at handover",
     fuel: "Fuel level",
+    termsSection: "Rental period and price",
+    rentalType: "Rental type",
+    rentalTypeWeekly: "Weekly",
+    rentalTypeFixed: "Fixed term",
+    rentalStart: "Start of rental",
+    rentalEnd: "Agreed return",
+    rentalWeeks: "Number of weeks",
+    weeklyAmount: "Weekly price",
+    totalAmount: "Total price",
+    deposit: "Deposit",
+    currency: "CHF",
     customerSection: "Renter",
     lastName: "Family name",
     firstName: "First name",

@@ -48,6 +48,12 @@ import {
   parseTypedDate,
   toTypedDate,
 } from "@/lib/rental/dateInput";
+import RentalTermsStep, {
+  EMPTY_TERMS,
+  toRentalTerms,
+  type TermsFormState,
+} from "./RentalTermsStep";
+import { rentalTermsSchema } from "@/lib/rental/terms";
 import GtcAcceptance from "./GtcAcceptance";
 import PhotoCapture from "./PhotoCapture";
 import SignaturePad from "./SignaturePad";
@@ -61,7 +67,7 @@ import SignaturePad from "./SignaturePad";
  * two document photos to a mail error is the worst outcome available here.
  */
 
-const TOTAL_STEPS = 4;
+const TOTAL_STEPS = 5;
 
 /** Vercel caps a serverless request body near 4.5 MB; leave room for headers. */
 const SOFT_LIMIT = 3.5 * 1024 * 1024;
@@ -168,6 +174,7 @@ export default function RentalPickupWizard() {
 
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  const [terms, setTerms] = useState<TermsFormState>(EMPTY_TERMS);
   const [documents, setDocuments] = useState<DocumentImages>(EMPTY_DOCUMENTS);
   const [conditionPhotos, setConditionPhotos] = useState<
     (CompressedImage | null)[]
@@ -196,7 +203,20 @@ export default function RentalPickupWizard() {
   // records at submit.
   const [now, setNow] = useState<Date | null>(null);
   useEffect(() => {
-    setNow(new Date());
+    const at = new Date();
+    setNow(at);
+    // Defaulted here rather than in EMPTY_TERMS: the page is statically
+    // prerendered, so a start time computed at module scope would differ
+    // between server and browser and hydration would complain.
+    setTerms((current) =>
+      current.startDate
+        ? current
+        : {
+            ...current,
+            startDate: `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}`,
+            startTime: `${pad(at.getHours())}:${pad(at.getMinutes())}`,
+          }
+    );
     const timer = setInterval(() => setNow(new Date()), 30_000);
     return () => clearInterval(timer);
   }, []);
@@ -291,6 +311,27 @@ export default function RentalPickupWizard() {
     }
 
     if (target === 2) {
+      const parsed = rentalTermsSchema.safeParse(toRentalTerms(terms));
+      if (!parsed.success) {
+        for (const issue of parsed.error.issues) {
+          const key = String(issue.path[0] ?? "form");
+          // Both amount fields share one input, so both land on `amount`.
+          const field =
+            key === "weeklyAmountCents" || key === "totalAmountCents"
+              ? "amount"
+              : key === "depositCents"
+                ? "deposit"
+                : key;
+          const message = issue.message as keyof typeof L.errors;
+          found[field] =
+            L.errors[message] ??
+            L.errors[field as keyof typeof L.errors] ??
+            L.errors.required;
+        }
+      }
+    }
+
+    if (target === 3) {
       for (const key of [
         "lastName",
         "firstName",
@@ -318,17 +359,17 @@ export default function RentalPickupWizard() {
       }
     }
 
-    if (target === 2 && !form.country.trim()) {
+    if (target === 3 && !form.country.trim()) {
       found.country = L.errors.country;
     }
 
-    if (target === 3) {
+    if (target === 4) {
       for (const slot of DOCUMENT_SLOTS) {
         if (!documents[slot.key]) found[slot.key] = L.errors[slot.error];
       }
     }
 
-    if (target === 4) {
+    if (target === 5) {
       if (!gtcAccepted) found.gtc = L.errors.gtc;
       if (!signature) found.signature = L.errors.signature;
     }
@@ -380,7 +421,7 @@ export default function RentalPickupWizard() {
 
   async function submit() {
     const allDocuments = DOCUMENT_SLOTS.every((slot) => documents[slot.key]);
-    if (!validateStep(4) || !vehicle || !signature || !allDocuments) {
+    if (!validateStep(5) || !vehicle || !signature || !allDocuments) {
       return;
     }
 
@@ -389,6 +430,7 @@ export default function RentalPickupWizard() {
       mileageKm: Number(form.mileageKm.replace(/[\s'.]/g, "")),
       fuelLevel: form.fuelLevel,
       existingDamage: form.existingDamage,
+      terms: toRentalTerms(terms),
       lastName: form.lastName,
       firstName: form.firstName,
       // The field holds DD.MM.YYYY; the schema and the PDF work in ISO.
@@ -420,8 +462,15 @@ export default function RentalPickupWizard() {
         vehicleId: 1,
         mileageKm: 1,
         fuelLevel: 1,
+        terms: 2,
+        amount: 2,
+        deposit: 2,
+        totalWeeks: 2,
+        startAt: 2,
+        endAt: 2,
       };
-      setStep(ownerOfField[Object.keys(found)[0]] ?? 2);
+      // Fallback is 3, not 2: the customer-details step moved down one.
+      setStep(ownerOfField[Object.keys(found)[0]] ?? 3);
       return;
     }
 
@@ -781,6 +830,15 @@ export default function RentalPickupWizard() {
           )}
 
           {step === 2 && (
+            <RentalTermsStep
+              value={terms}
+              onChange={setTerms}
+              errors={errors}
+              L={L}
+            />
+          )}
+
+          {step === 3 && (
             <div className="space-y-5">
               <h2 className="text-lg font-semibold text-slate-900">
                 {L.details.heading}
@@ -955,7 +1013,7 @@ export default function RentalPickupWizard() {
             </div>
           )}
 
-          {step === 3 && (
+          {step === 4 && (
             <div className="space-y-5">
               <div>
                 <h2 className="text-lg font-semibold text-slate-900">
@@ -1000,7 +1058,7 @@ export default function RentalPickupWizard() {
             </div>
           )}
 
-          {step === 4 && (
+          {step === 5 && (
             <div className="space-y-6">
               <GtcAcceptance
                 language={language}
