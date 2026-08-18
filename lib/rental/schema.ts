@@ -9,6 +9,7 @@
 import { z } from "zod";
 import { isKnownCountry } from "./countries";
 import { FUEL_LEVELS } from "./fleet";
+import { rentalTermsSchema } from "./terms";
 
 const required = (message: string) => z.string().trim().min(1, message);
 
@@ -23,6 +24,16 @@ export const contractDetailsSchema = z.object({
     .max(2_000_000, "mileage"),
   fuelLevel: z.enum(FUEL_LEVELS),
   existingDamage: z.string().trim().max(2000).default(""),
+
+  /**
+   * The commercial terms, entered at handover.
+   *
+   * Nested rather than flattened, so the discriminated union survives: a
+   * fixed-term rental carrying a weekly amount has to be unrepresentable, and
+   * flattening the two shapes into sibling optional fields would make it
+   * merely discouraged.
+   */
+  terms: rentalTermsSchema,
 
   lastName: required("required").max(100),
   firstName: required("required").max(100),
@@ -82,12 +93,15 @@ export const contractMetaSchema = z.object({
 export type ContractMeta = z.infer<typeof contractMetaSchema>;
 
 /**
- * Builds the reference printed on the contract.
+ * Builds the reference printed on the contract when the database cannot be
+ * reached.
  *
- * Nothing is stored in Phase 1, so there is no sequence to draw from and no
- * way to check for collisions. Date plus plate digits plus a random suffix
- * makes a repeat vanishingly unlikely; Phase 2 replaces this with a real
- * sequence backed by the rentals table.
+ * From Phase 2 the number normally comes from `allocateContractNumber` in
+ * `lib/rental/contractNumber.ts`, backed by a real sequence. This remains as
+ * the offline fallback the wizard uses when the write path is unavailable and
+ * the office falls back to downloading the PDF and mailing it by hand: the
+ * random suffix makes a collision with a sequenced number vanishingly
+ * unlikely, and its longer shape marks it as unsequenced at a glance.
  */
 export function buildContractNumber(plate: string, now: Date = new Date()): string {
   const stamp = [

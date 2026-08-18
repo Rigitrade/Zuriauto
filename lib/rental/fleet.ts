@@ -115,3 +115,42 @@ export function fuelLevelToFraction(level: FuelLevel): string {
   if (level === "full") return "4/4";
   return level;
 }
+
+/**
+ * How a level is stored.
+ *
+ * A Prisma enum cannot contain a slash, so the database spells out what the
+ * dashboard prints as a fraction. This is a rename, not a redefinition — and
+ * the mapping lives here, beside `fuelLevelToFraction`, so the two
+ * representations cannot drift apart in separate files.
+ */
+export type DbFuelLevel =
+  | "empty"
+  | "quarter"
+  | "half"
+  | "three_quarter"
+  | "full";
+
+const TO_DB: Record<FuelLevel, DbFuelLevel> = {
+  empty: "empty",
+  "1/4": "quarter",
+  "1/2": "half",
+  "3/4": "three_quarter",
+  full: "full",
+};
+
+const FROM_DB: Record<DbFuelLevel, FuelLevel> = {
+  empty: "empty",
+  quarter: "1/4",
+  half: "1/2",
+  three_quarter: "3/4",
+  full: "full",
+};
+
+export function fuelLevelToDb(level: FuelLevel): DbFuelLevel {
+  return TO_DB[level];
+}
+
+export function dbToFuelLevel(value: DbFuelLevel): FuelLevel {
+  return FROM_DB[value];
+}
