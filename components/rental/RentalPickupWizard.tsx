@@ -70,9 +70,16 @@ import SignaturePad from "./SignaturePad";
 
 const TOTAL_STEPS = 5;
 
-/** Vercel caps a serverless request body near 4.5 MB; leave room for headers. */
-const SOFT_LIMIT = 3.5 * 1024 * 1024;
-const HARD_LIMIT = 4.0 * 1024 * 1024;
+/**
+ * Vercel caps a serverless request body near 4.5 MB.
+ *
+ * Halved in Phase 2, because the images now travel twice — embedded in the PDF
+ * and again as loose files so they can be stored under their own keys. The
+ * recompress-and-retry path has to trigger at roughly half the old threshold
+ * to leave room for both copies.
+ */
+const SOFT_LIMIT = 1.8 * 1024 * 1024;
+const HARD_LIMIT = 2.1 * 1024 * 1024;
 
 const MAX_CONDITION_PHOTOS = 4;
 
@@ -80,7 +87,12 @@ type Status =
   | { kind: "editing" }
   | { kind: "building" }
   | { kind: "sending" }
-  | { kind: "done"; outcome: "both" | "office" | "offline" | "failed" };
+  | {
+      kind: "done";
+      // "stored" is new in Phase 2: the contract is recorded but no email went
+      // out. Distinct from "failed", where nothing was recorded at all.
+      outcome: "both" | "office" | "stored" | "offline" | "failed";
+    };
 
 interface FormState {
   vehicleId: string;
@@ -120,6 +132,15 @@ const DOCUMENT_SLOTS = [
 ] as const;
 
 type DocumentKey = (typeof DOCUMENT_SLOTS)[number]["key"];
+
+/** Wizard slot to database asset kind. */
+const SLOT_TO_KIND: Record<DocumentKey, string> = {
+  portrait: "PORTRAIT",
+  idFront: "ID_FRONT",
+  idBack: "ID_BACK",
+  licenceFront: "LICENCE_FRONT",
+  licenceBack: "LICENCE_BACK",
+};
 
 type DocumentImages = Record<DocumentKey, CompressedImage | null>;
 
@@ -589,6 +610,23 @@ export default function RentalPickupWizard() {
           plate: vehicle.plate,
           mileageKm: parsed.data.mileageKm,
           language,
+          details: parsed.data,
+        })
+      );
+
+      // The images again, loose. They are already inside the PDF, but a PDF is
+      // not something to look one up from — the Phase 4 return wizard compares
+      // against these, so they need their own keys.
+      for (const slot of DOCUMENT_SLOTS) {
+        body.append(`asset:${SLOT_TO_KIND[slot.key]}`, docs[slot.key]!.blob);
+      }
+      for (const photo of condition) {
+        body.append("asset:CONDITION_PHOTO", photo.blob);
+      }
+      body.append(
+        "asset:SIGNATURE",
+        new Blob([dataUrlToBytes(signature) as unknown as BlobPart], {
+          type: "image/png",
         })
       );
       // Honeypot: a real customer never fills a field they cannot see.
@@ -605,11 +643,16 @@ export default function RentalPickupWizard() {
 
       if (response.ok) {
         const payload = (await response.json()) as {
-          delivered?: "both" | "office";
+          delivered?: "both" | "office" | "none";
         };
         setStatus({
           kind: "done",
-          outcome: payload.delivered === "office" ? "office" : "both",
+          outcome:
+            payload.delivered === "both"
+              ? "both"
+              : payload.delivered === "office"
+                ? "office"
+                : "stored",
         });
         return;
       }
@@ -617,7 +660,12 @@ export default function RentalPickupWizard() {
       const payload = await response.json().catch(() => ({}));
       setStatus({
         kind: "done",
-        outcome: payload?.code === "mail-not-configured" ? "offline" : "failed",
+        outcome:
+          payload?.code === "mail-not-configured" ||
+          payload?.code === "not-recorded" ||
+          payload?.code === "not-configured"
+            ? "offline"
+            : "failed",
       });
     } catch (error) {
       console.error("Contract submission failed", error);
@@ -670,6 +718,8 @@ export default function RentalPickupWizard() {
         ? L.result.successTitle
         : outcome === "office"
         ? L.result.partialTitle
+        : outcome === "stored"
+        ? L.result.storedTitle
         : outcome === "offline"
         ? L.result.offlineTitle
         : L.errors.sendFailed;
@@ -679,6 +729,8 @@ export default function RentalPickupWizard() {
         ? L.result.successBody
         : outcome === "office"
         ? L.result.partialBody
+        : outcome === "stored"
+        ? L.result.storedBody
         : outcome === "offline"
         ? L.result.offlineBody
         : (errors.form ?? L.result.offlineBody);

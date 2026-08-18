@@ -1,31 +1,32 @@
 import { NextResponse } from "next/server";
-import nodemailer from "nodemailer";
-import { PAYMENT_URL } from "@/lib/payment";
-import { labelsFor } from "@/lib/rental/labels";
-import { contractMetaSchema } from "@/lib/rental/schema";
-import { prisma } from "@/lib/db";
-import { rateLimited } from "@/lib/rental/rateLimit";
 import { APPLY_KEY_HEADER, applyKeyValid } from "@/lib/applyKey";
+import { prisma } from "@/lib/db";
+import type { AssetKind } from "@/generated/prisma/client";
+import { sendContractMails } from "@/lib/rental/mail";
+import { persistPickup, type PickupUpload } from "@/lib/rental/persistPickup";
+import { rateLimited } from "@/lib/rental/rateLimit";
+import { contractMetaSchema } from "@/lib/rental/schema";
+import { getAssetStore } from "@/lib/storage";
 
 /**
- * Emails a signed pickup contract to the office and to the customer.
+ * Records a signed pickup contract and emails it.
  *
- * Stateless by design: nothing is written down in Phase 1. The endpoint is
- * public and unauthenticated, which makes it a spam-relay target, so it is
- * fenced with a size cap, an origin check, a honeypot and a per-IP limiter.
- * The limiter is backed by the database, so it survives a cold start and is
- * shared across instances.
+ * The write is the point. Assets go to object storage, then one transaction
+ * commits the customer, rental, contract and asset rows, and only then is mail
+ * sent — so a mail failure leaves a contract that exists and an email to
+ * retry, rather than the Phase 1 failure mode where it existed nowhere.
+ *
+ * The endpoint is fenced with a shared secret, an origin check, a honeypot, a
+ * size cap and a per-IP limiter backed by the database, which therefore
+ * survives a cold start and is shared across instances.
  */
 
-// SMTP needs a socket, so this cannot run on the Edge runtime.
+// SMTP needs a socket and Prisma needs Node APIs, so not the Edge runtime.
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
 /** Vercel rejects bodies past ~4.5 MB; refuse just under so the error is ours. */
 const MAX_PDF_BYTES = 4.4 * 1024 * 1024;
-
-/** Keeps the no-archive warning to once per cold start rather than per send. */
-let warnedAboutArchive = false;
 
 function clientIp(request: Request): string {
   const forwarded = request.headers.get("x-forwarded-for");
@@ -41,69 +42,6 @@ function sameOrigin(request: Request): boolean {
   } catch {
     return false;
   }
-}
-
-interface MailConfig {
-  host: string;
-  port: number;
-  user: string;
-  pass: string;
-  from: string;
-  /** Comma-separated list is allowed, so several people can be notified. */
-  office: string;
-  /**
-   * Blind copy kept as the archive. Phase 1 writes nothing to disk, so this
-   * mailbox is the only durable record of a signed contract — if it is unset,
-   * a deleted office mail is gone for good.
-   */
-  archive?: string;
-}
-
-function readMailConfig(): MailConfig | null {
-  const {
-    SMTP_HOST,
-    SMTP_PORT,
-    SMTP_USER,
-    SMTP_PASS,
-    MAIL_FROM,
-    MAIL_OFFICE,
-    MAIL_ARCHIVE,
-  } = process.env;
-
-  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS || !MAIL_OFFICE) {
-    // Named in the server log, never in the response: telling a public
-    // endpoint's caller which secret is missing is its own mistake.
-    console.error(
-      "[rental-contract] SMTP is not configured. Missing:",
-      [
-        !SMTP_HOST && "SMTP_HOST",
-        !SMTP_USER && "SMTP_USER",
-        !SMTP_PASS && "SMTP_PASS",
-        !MAIL_OFFICE && "MAIL_OFFICE",
-      ]
-        .filter(Boolean)
-        .join(", ")
-    );
-    return null;
-  }
-
-  if (!MAIL_ARCHIVE && !warnedAboutArchive) {
-    warnedAboutArchive = true;
-    console.warn(
-      "[rental-contract] MAIL_ARCHIVE is not set. Nothing is stored server-side " +
-        "in Phase 1, so a contract deleted from the office mailbox is unrecoverable."
-    );
-  }
-
-  return {
-    host: SMTP_HOST,
-    port: Number(SMTP_PORT ?? 587),
-    user: SMTP_USER,
-    pass: SMTP_PASS,
-    from: MAIL_FROM || SMTP_USER,
-    office: MAIL_OFFICE,
-    archive: MAIL_ARCHIVE || undefined,
-  };
 }
 
 export async function POST(request: Request) {
@@ -148,76 +86,62 @@ export async function POST(request: Request) {
     return NextResponse.json({ code: "bad-request" }, { status: 400 });
   }
 
-  const config = readMailConfig();
-  if (!config) {
-    // The browser falls back to download and share on this code.
-    return NextResponse.json({ code: "mail-not-configured" }, { status: 503 });
+  // The images travel alongside the PDF so they can be stored under their own
+  // keys. They are already inside the document, but a PDF is not a place to
+  // look one up from — Phase 4's return wizard compares against these.
+  const uploads: PickupUpload[] = [];
+  for (const [field, value] of form.entries()) {
+    if (!field.startsWith("asset:") || !(value instanceof File)) continue;
+    uploads.push({
+      kind: field.slice("asset:".length) as AssetKind,
+      body: new Uint8Array(await value.arrayBuffer()),
+      contentType: value.type || "application/octet-stream",
+    });
   }
 
-  const L = labelsFor(meta.language);
-  const attachment = {
-    filename: `${meta.contractNumber}.pdf`,
-    content: Buffer.from(await file.arrayBuffer()),
-    contentType: "application/pdf",
-  };
+  const organisation = await prisma.organisation.findFirst({
+    select: { id: true },
+  });
+  if (!organisation) {
+    console.error("[rental-contract] no organisation row — run pnpm db:seed");
+    return NextResponse.json({ code: "not-configured" }, { status: 503 });
+  }
 
-  const transport = nodemailer.createTransport({
-    host: config.host,
-    port: config.port,
-    secure: config.port === 465,
-    auth: { user: config.user, pass: config.pass },
-    connectionTimeout: 10_000,
-    greetingTimeout: 10_000,
-    socketTimeout: 20_000,
+  const pdfBytes = new Uint8Array(await file.arrayBuffer());
+
+  let saved;
+  try {
+    saved = await persistPickup({
+      organisationId: organisation.id,
+      details: meta.details,
+      vehicleSlug: meta.details.vehicleId,
+      uploads,
+      pdf: { body: pdfBytes },
+      store: getAssetStore(),
+    });
+  } catch (error) {
+    console.error("[rental-contract] could not record the contract:", error);
+    // The wizard falls back to the Phase 1 path on this code: download the PDF
+    // and mail it by hand. Nothing is lost that the customer is not holding.
+    return NextResponse.json({ code: "not-recorded" }, { status: 503 });
+  }
+
+  // Committed. From here, mail is best-effort.
+  const outcome = await sendContractMails(
+    { ...meta, contractNumber: saved.contractNumber },
+    Buffer.from(pdfBytes)
+  );
+
+  await prisma.contract.update({
+    where: { id: saved.contractId },
+    data:
+      outcome.delivered === "none"
+        ? { mailError: outcome.error?.slice(0, 500) ?? "unknown" }
+        : { mailSentAt: new Date(), mailError: outcome.error?.slice(0, 500) },
   });
 
-  const officeSummary = [
-    `${L.pdf.contractNumber}: ${meta.contractNumber}`,
-    `${L.pdf.customerSection}: ${meta.customerName}`,
-    `${L.pdf.email}: ${meta.customerEmail}`,
-    `${L.pdf.model}: ${meta.vehicleLabel}`,
-    `${L.pdf.plate}: ${meta.plate}`,
-    `${L.pdf.mileage}: ${meta.mileageKm} ${L.pdf.km}`,
-  ].join("\n");
-
-  // The office copy is the one that matters: if it fails, the request failed.
-  try {
-    await transport.sendMail({
-      from: config.from,
-      to: config.office,
-      // Blind, so the customer's copy never exposes the archive address.
-      bcc: config.archive,
-      replyTo: meta.customerEmail,
-      subject: `${L.email.officeSubject} – ${meta.plate} – ${meta.customerName}`,
-      text: officeSummary,
-      attachments: [attachment],
-    });
-  } catch (error) {
-    console.error("[rental-contract] office mail failed:", error);
-    return NextResponse.json({ code: "send-failed" }, { status: 502 });
-  }
-
-  try {
-    await transport.sendMail({
-      from: config.from,
-      to: meta.customerEmail,
-      subject: `${L.email.customerSubject} – ${meta.contractNumber}`,
-      // Plain text with a bare URL: mail clients linkify it, and a text part
-      // reaches every client without an HTML fallback to maintain.
-      text: [
-        L.email.customerGreeting,
-        "",
-        `${L.email.customerPayment}`,
-        PAYMENT_URL,
-        "",
-        L.email.customerSignature,
-      ].join("\n"),
-      attachments: [attachment],
-    });
-  } catch (error) {
-    console.error("[rental-contract] customer copy failed:", error);
-    return NextResponse.json({ delivered: "office" });
-  }
-
-  return NextResponse.json({ delivered: "both" });
+  return NextResponse.json({
+    delivered: outcome.delivered,
+    contractNumber: saved.contractNumber,
+  });
 }

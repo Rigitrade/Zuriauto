@@ -88,6 +88,15 @@ export const contractMetaSchema = z.object({
   plate: z.string().trim().min(1).max(40),
   mileageKm: z.number().int().min(0).max(2_000_000),
   language: z.enum(["de", "en"]),
+
+  /**
+   * The full validated detail, not a summary.
+   *
+   * Phase 1 sent a summary because the handler only had to address an email.
+   * It now writes the system of record, and re-validating what the browser
+   * claims is the whole reason this schema runs on both sides.
+   */
+  details: contractDetailsSchema,
 });
 
 export type ContractMeta = z.infer<typeof contractMetaSchema>;

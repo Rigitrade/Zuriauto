@@ -153,6 +153,9 @@ const de = {
     partialTitle: "Vertrag an ZURIAUTO gesendet",
     partialBody:
       "Ihre Kopie konnte nicht zugestellt werden. Bitte laden Sie den Vertrag hier herunter.",
+    storedTitle: "Vertrag erfasst",
+    storedBody:
+      "Der Vertrag ist bei ZURIAUTO hinterlegt. Der E-Mail-Versand hat nicht geklappt — bitte laden Sie ihn hier herunter.",
     offlineTitle: "Vertrag erstellt",
     offlineBody:
       "Der Versand per E-Mail ist derzeit nicht möglich. Bitte laden Sie den Vertrag herunter und senden Sie ihn an ZURIAUTO.",
@@ -393,6 +396,9 @@ const en: typeof de = {
     partialTitle: "Contract sent to ZURIAUTO",
     partialBody:
       "Your copy could not be delivered. Please download the contract here.",
+    storedTitle: "Contract recorded",
+    storedBody:
+      "The contract is on file with ZURIAUTO. The email did not go out — please download it here.",
     offlineTitle: "Contract created",
     offlineBody:
       "Email delivery is currently unavailable. Please download the contract and send it to ZURIAUTO.",
