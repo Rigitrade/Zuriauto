@@ -35,7 +35,7 @@ import {
 import {
   recompress,
   toUint8Array,
-  type CompressedImage,
+  type CapturedDocument,
 } from "@/lib/rental/imageCompress";
 import {
   ageOn,
@@ -99,22 +99,33 @@ interface FormState {
  * the oversize retry can iterate them instead of repeating themselves.
  */
 const DOCUMENT_SLOTS = [
-  // Front camera: this one is a photo of the customer, not of a document.
+  // Front camera: this one is a photo of the customer, not of a document —
+  // which is also why it is the one slot that does not accept a PDF.
   {
     key: "portrait",
     label: "portrait",
     error: "portraitPhoto",
     facing: "user",
   },
-  { key: "idFront", label: "idFront", error: "idFrontPhoto" },
-  { key: "idBack", label: "idBack", error: "idBackPhoto" },
-  { key: "licenceFront", label: "licenceFront", error: "licenceFrontPhoto" },
-  { key: "licenceBack", label: "licenceBack", error: "licenceBackPhoto" },
+  { key: "idFront", label: "idFront", error: "idFrontPhoto", pdf: true },
+  { key: "idBack", label: "idBack", error: "idBackPhoto", pdf: true },
+  {
+    key: "licenceFront",
+    label: "licenceFront",
+    error: "licenceFrontPhoto",
+    pdf: true,
+  },
+  {
+    key: "licenceBack",
+    label: "licenceBack",
+    error: "licenceBackPhoto",
+    pdf: true,
+  },
 ] as const;
 
 type DocumentKey = (typeof DOCUMENT_SLOTS)[number]["key"];
 
-type DocumentImages = Record<DocumentKey, CompressedImage | null>;
+type DocumentImages = Record<DocumentKey, CapturedDocument | null>;
 
 const EMPTY_DOCUMENTS: DocumentImages = {
   portrait: null,
@@ -170,7 +181,7 @@ export default function RentalPickupWizard() {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [documents, setDocuments] = useState<DocumentImages>(EMPTY_DOCUMENTS);
   const [conditionPhotos, setConditionPhotos] = useState<
-    (CompressedImage | null)[]
+    (CapturedDocument | null)[]
   >([null]);
   const [signature, setSignature] = useState<string | null>(null);
   const [gtcAccepted, setGtcAccepted] = useState(false);
@@ -351,7 +362,7 @@ export default function RentalPickupWizard() {
 
   async function assemble(
     details: ContractDetails,
-    photos: { docs: DocumentImages; condition: CompressedImage[] },
+    photos: { docs: DocumentImages; condition: CapturedDocument[] },
     contractNumber: string,
     issuedAt: Date
   ): Promise<Blob> {
@@ -430,7 +441,7 @@ export default function RentalPickupWizard() {
     try {
       const contractNumber = buildContractNumber(vehicle.plate);
       const issuedAt = new Date();
-      let condition = conditionPhotos.filter(Boolean) as CompressedImage[];
+      let condition = conditionPhotos.filter(Boolean) as CapturedDocument[];
 
       let docs = documents;
 
@@ -444,7 +455,8 @@ export default function RentalPickupWizard() {
       // One retry at lower quality before giving up. Six photos of a phone
       // camera's output vary enough that a first pass can still land over the
       // request limit — and with front and back of both documents there are
-      // now twice as many as before.
+      // now twice as many as before. Uploaded PDFs pass through `recompress`
+      // unchanged; their size is capped at selection time instead.
       if (pdf.size > SOFT_LIMIT) {
         const harder = { maxEdge: 1200, quality: 0.55 };
 
@@ -981,6 +993,7 @@ export default function RentalPickupWizard() {
                       label={L.documents[slot.label]}
                       language={language}
                       facing={"facing" in slot ? slot.facing : "environment"}
+                      allowPdf={"pdf" in slot && slot.pdf}
                       value={documents[slot.key]}
                       onChange={(image) => {
                         setDocuments((prev) => ({ ...prev, [slot.key]: image }));

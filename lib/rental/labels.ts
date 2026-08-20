@@ -72,7 +72,7 @@ const de = {
   documents: {
     heading: "Ausweisdokumente",
     intro:
-      "Fotografieren Sie Vorder- und Rückseite beider Dokumente gut lesbar und vollständig im Bild.",
+      "Fotografieren Sie Vorder- und Rückseite beider Dokumente gut lesbar und vollständig im Bild. Sie können auch eine vorhandene Datei hochladen (Foto oder PDF).",
     portrait: "Personenfoto",
     portraitHint:
       "Ein Foto von Ihnen, damit wir es mit Ihrem Ausweis abgleichen können.",
@@ -159,6 +159,10 @@ const de = {
     signature: "Bitte unterschreiben Sie.",
     gtc: "Bitte akzeptieren Sie die AGB.",
     imageRead: "Das Bild konnte nicht gelesen werden. Bitte erneut aufnehmen.",
+    fileRead:
+      "Die Datei konnte nicht gelesen werden. Bitte wählen Sie eine andere Datei oder nehmen Sie ein Foto auf.",
+    fileTooLarge:
+      "Die Datei ist zu gross oder hat zu viele Seiten. Bitte wählen Sie eine kleinere Datei oder ein Foto.",
     tooLarge:
       "Die Fotos sind zu gross. Bitte nehmen Sie sie mit weniger Detail erneut auf.",
     sendFailed:
@@ -271,7 +275,7 @@ const en: typeof de = {
   documents: {
     heading: "Identity documents",
     intro:
-      "Photograph the front and back of both documents fully in frame and clearly legible.",
+      "Photograph the front and back of both documents fully in frame and clearly legible. You can also upload an existing file (photo or PDF).",
     portrait: "Personal photo",
     portraitHint: "A photo of you, so we can match it against your ID.",
     idFront: "ID card or passport – front",
@@ -353,6 +357,10 @@ const en: typeof de = {
     signature: "Please sign.",
     gtc: "Please accept the GTC.",
     imageRead: "The image could not be read. Please take it again.",
+    fileRead:
+      "The file could not be read. Please choose a different file or take a photo.",
+    fileTooLarge:
+      "The file is too large or has too many pages. Please choose a smaller file or a photo.",
     tooLarge:
       "The photos are too large. Please retake them with less detail.",
     sendFailed: "The contract could not be sent. Please download it.",

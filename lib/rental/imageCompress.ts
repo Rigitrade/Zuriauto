@@ -12,12 +12,28 @@
  */
 
 export interface CompressedImage {
+  kind: "image";
   blob: Blob;
   /** Object URL for preview. Callers must revoke it when done. */
   previewUrl: string;
   width: number;
   height: number;
 }
+
+/**
+ * A document the customer already holds as a PDF (a scan from an authority,
+ * an exported copy). Carried through byte-for-byte: a PDF cannot go through
+ * the canvas pipeline, and re-encoding a vector scan would only lose quality.
+ */
+export interface PdfDocument {
+  kind: "pdf";
+  blob: Blob;
+  fileName: string;
+  pageCount: number;
+}
+
+/** What a document slot can hold: a compressed photo or an uploaded PDF. */
+export type CapturedDocument = CompressedImage | PdfDocument;
 
 export interface CompressOptions {
   /** Longest edge in pixels after scaling. */
@@ -105,16 +121,26 @@ export async function compressImage(
   );
   if (!blob) throw new Error("encode-failed");
 
-  return { blob, previewUrl: URL.createObjectURL(blob), width, height };
+  return {
+    kind: "image",
+    blob,
+    previewUrl: URL.createObjectURL(blob),
+    width,
+    height,
+  };
 }
 
-/** Re-encodes an already-compressed image harder, for the oversize retry. */
+/**
+ * Re-encodes an already-compressed image harder, for the oversize retry.
+ * PDFs pass through untouched: there is nothing lossy to re-encode.
+ */
 export async function recompress(
-  image: CompressedImage,
+  document: CapturedDocument,
   options: CompressOptions
-): Promise<CompressedImage> {
-  URL.revokeObjectURL(image.previewUrl);
-  return compressImage(image.blob, options);
+): Promise<CapturedDocument> {
+  if (document.kind === "pdf") return document;
+  URL.revokeObjectURL(document.previewUrl);
+  return compressImage(document.blob, options);
 }
 
 export async function toUint8Array(blob: Blob): Promise<Uint8Array> {
