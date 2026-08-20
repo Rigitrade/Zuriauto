@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
-import { PAYMENT_URL } from "@/lib/payment";
+import { PAYMENT_URL, TWINT_URL } from "@/lib/payment";
 import { labelsFor } from "@/lib/rental/labels";
 import { contractMetaSchema } from "@/lib/rental/schema";
 
@@ -230,6 +230,9 @@ export async function POST(request: Request) {
         "",
         `${L.email.customerPayment}`,
         PAYMENT_URL,
+        "",
+        `${L.email.customerPaymentTwint}`,
+        TWINT_URL,
         "",
         L.email.customerSignature,
       ].join("\n"),

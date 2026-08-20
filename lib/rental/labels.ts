@@ -138,7 +138,10 @@ const de = {
     share: "Teilen",
     contractNumber: "Vertrags-Nr.",
     payNow: "Jetzt bezahlen",
-    payHint: "Sie können die Miete direkt und sicher per Karte bezahlen.",
+    payHint:
+      "Sie können die Miete direkt und sicher per Kreditkarte oder TWINT bezahlen.",
+    payWithCard: "Kreditkarte",
+    payWithTwint: "TWINT",
   },
 
   errors: {
@@ -219,7 +222,8 @@ const de = {
     // after it, which reads as an afterthought.
     customerGreeting:
       "Guten Tag\n\nIm Anhang finden Sie Ihren unterschriebenen Mietvertrag.",
-    customerPayment: "Zahlung per Karte:",
+    customerPayment: "Zahlung per Kreditkarte:",
+    customerPaymentTwint: "Zahlung per TWINT:",
     customerSignature: "Freundliche Grüsse\nZURIAUTO",
   },
 };
@@ -338,7 +342,10 @@ const en: typeof de = {
     share: "Share",
     contractNumber: "Contract no.",
     payNow: "Pay now",
-    payHint: "You can pay the rental securely by card right away.",
+    payHint:
+      "You can pay the rental securely by credit card or TWINT right away.",
+    payWithCard: "Credit card",
+    payWithTwint: "TWINT",
   },
 
   errors: {
@@ -414,7 +421,8 @@ const en: typeof de = {
     customerSubject: "Your rental contract – ZURIAUTO",
     customerGreeting:
       "Hello\n\nPlease find your signed rental contract attached.",
-    customerPayment: "Pay by card:",
+    customerPayment: "Pay by credit card:",
+    customerPaymentTwint: "Pay by TWINT:",
     customerSignature: "Kind regards\nZURIAUTO",
   },
 };
