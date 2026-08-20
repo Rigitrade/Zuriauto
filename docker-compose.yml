@@ -29,5 +29,24 @@ services:
       timeout: 3s
       retries: 15
 
+  # Development mail catcher. Accepts SMTP on 1025 and shows what would
+  # have been sent at http://localhost:8025 — nothing leaves the machine.
+  #
+  # This exists because MAIL_OFFICE in .env.local is the real office
+  # address. Creating a rental locally and triggering the cron would
+  # otherwise email the real office address for real.
+  #
+  # Not part of `pnpm db:up`, which names the db service explicitly.
+  # Start it with `pnpm mail:up`.
+  mail:
+    image: axllent/mailpit:latest
+    container_name: zuriauto-site-mail
+    ports:
+      - '1025:1025'
+      - '8025:8025'
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+
 volumes:
   zuriauto-site-pgdata:
