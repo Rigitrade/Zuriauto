@@ -53,9 +53,16 @@ contracts.**
 Both stores must be in the EU or Switzerland. Neither is verifiable from the
 code, so both are checked at deploy time and recorded here:
 
-- [ ] **Neon project region** — must be an EU region (`eu-central-1`, Frankfurt,
+- [x] **Neon project region** — must be an EU region (`eu-central-1`, Frankfurt,
   is the usual choice). A project created in a US region cannot be moved and
   must be recreated *before* any production data exists.
+
+  **Verified 22 August 2026.** The project host is
+  `ep-snowy-heart-b2cj4kl9.c-6.eu-central-1.aws.neon.tech` — `eu-central-1`,
+  Frankfurt. Running PostgreSQL 18.6, which is also the local version, so the
+  database tests exercise the same major the production server runs. Both
+  migrations are applied and the seed has written one organisation and the
+  eight fleet vehicles, all `available`.
 - [ ] **R2 bucket jurisdiction** — create with
   `wrangler r2 bucket create zuriauto-assets --jurisdiction eu`, and verify with
   `wrangler r2 bucket list`.
