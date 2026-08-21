@@ -1,9 +1,9 @@
 # Rental pickup contract — setup
 
-The pickup contract lives at **`/apply/`** — the former `/rental/pickup/` path
-redirects there, since links to it had already been sent to customers. The
-route is marked `noindex`, because a form that invites identity documents
-should be reachable only by someone the office sent the link to.
+The pickup contract lives at **`/pickup/`** — the former `/rental/pickup/` and
+`/apply/` paths redirect there, since links to both had already been sent to
+customers. The route is marked `noindex`, because a form that invites identity
+documents should be reachable only by someone the office sent the link to.
 
 Everything up to the PDF
 runs in the browser; the only server call is `/api/rental-contract`, which
@@ -179,5 +179,5 @@ pnpm test:all
 npm run dev
 ```
 
-Then open `http://localhost:3000/apply/`. Camera capture needs a real
+Then open `http://localhost:3000/pickup/`. Camera capture needs a real
 phone; on desktop the photo fields fall back to a file picker.

@@ -11,6 +11,7 @@ import {
   Download,
   Loader2,
   Share2,
+  Smartphone,
   TriangleAlert,
 } from "lucide-react";
 import StepIndicator from "@/components/car-rental/booking/StepIndicator";
@@ -18,7 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useI18n } from "@/lib/hooks/use-i18n";
-import { PAYMENT_URL } from "@/lib/payment";
+import { PAYMENT_URL, TWINT_URL } from "@/lib/payment";
 import { GTC_DATE, type GtcLanguage } from "@/locales/gtc";
 import {
   availableFleet,
@@ -35,7 +36,7 @@ import {
 import {
   recompress,
   toUint8Array,
-  type CompressedImage,
+  type CapturedDocument,
 } from "@/lib/rental/imageCompress";
 import {
   ageOn,
@@ -118,17 +119,28 @@ interface FormState {
  * the oversize retry can iterate them instead of repeating themselves.
  */
 const DOCUMENT_SLOTS = [
-  // Front camera: this one is a photo of the customer, not of a document.
+  // Front camera: this one is a photo of the customer, not of a document —
+  // which is also why it is the one slot that does not accept a PDF.
   {
     key: "portrait",
     label: "portrait",
     error: "portraitPhoto",
     facing: "user",
   },
-  { key: "idFront", label: "idFront", error: "idFrontPhoto" },
-  { key: "idBack", label: "idBack", error: "idBackPhoto" },
-  { key: "licenceFront", label: "licenceFront", error: "licenceFrontPhoto" },
-  { key: "licenceBack", label: "licenceBack", error: "licenceBackPhoto" },
+  { key: "idFront", label: "idFront", error: "idFrontPhoto", pdf: true },
+  { key: "idBack", label: "idBack", error: "idBackPhoto", pdf: true },
+  {
+    key: "licenceFront",
+    label: "licenceFront",
+    error: "licenceFrontPhoto",
+    pdf: true,
+  },
+  {
+    key: "licenceBack",
+    label: "licenceBack",
+    error: "licenceBackPhoto",
+    pdf: true,
+  },
 ] as const;
 
 type DocumentKey = (typeof DOCUMENT_SLOTS)[number]["key"];
@@ -142,7 +154,8 @@ const SLOT_TO_KIND: Record<DocumentKey, string> = {
   licenceBack: "LICENCE_BACK",
 };
 
-type DocumentImages = Record<DocumentKey, CompressedImage | null>;
+/** A photo or, for the document sides, an uploaded PDF carried through as-is. */
+type DocumentImages = Record<DocumentKey, CapturedDocument | null>;
 
 const EMPTY_DOCUMENTS: DocumentImages = {
   portrait: null,
@@ -223,7 +236,7 @@ export default function RentalPickupWizard() {
   }, []);
   const [documents, setDocuments] = useState<DocumentImages>(EMPTY_DOCUMENTS);
   const [conditionPhotos, setConditionPhotos] = useState<
-    (CompressedImage | null)[]
+    (CapturedDocument | null)[]
   >([null]);
   const [signature, setSignature] = useState<string | null>(null);
   const [gtcAccepted, setGtcAccepted] = useState(false);
@@ -241,6 +254,8 @@ export default function RentalPickupWizard() {
     fileName: string;
     contractNumber: string;
   } | null>(null);
+  // Whether "Pay now" has been clicked and the method choice is showing.
+  const [payChoiceOpen, setPayChoiceOpen] = useState(false);
 
   const vehicle = useMemo(
     () => vehicles.find((candidate) => candidate.id === form.vehicleId),
@@ -458,7 +473,7 @@ export default function RentalPickupWizard() {
 
   async function assemble(
     details: ContractDetails,
-    photos: { docs: DocumentImages; condition: CompressedImage[] },
+    photos: { docs: DocumentImages; condition: CapturedDocument[] },
     contractNumber: string,
     issuedAt: Date
   ): Promise<Blob> {
@@ -545,7 +560,7 @@ export default function RentalPickupWizard() {
     try {
       const contractNumber = buildContractNumber(vehicle.plate);
       const issuedAt = new Date();
-      let condition = conditionPhotos.filter(Boolean) as CompressedImage[];
+      let condition = conditionPhotos.filter(Boolean) as CapturedDocument[];
 
       let docs = documents;
 
@@ -559,7 +574,8 @@ export default function RentalPickupWizard() {
       // One retry at lower quality before giving up. Six photos of a phone
       // camera's output vary enough that a first pass can still land over the
       // request limit — and with front and back of both documents there are
-      // now twice as many as before.
+      // now twice as many as before. Uploaded PDFs pass through `recompress`
+      // unchanged; their size is capped at selection time instead.
       if (pdf.size > SOFT_LIMIT) {
         const harder = { maxEdge: 1200, quality: 0.55 };
 
@@ -785,15 +801,40 @@ export default function RentalPickupWizard() {
             <div className="mt-7 border-t border-slate-100 pt-6">
               <p className="text-sm text-slate-600">{L.result.payHint}</p>
 
-              <a
-                href={PAYMENT_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-3 inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700"
-              >
-                <CreditCard className="h-4 w-4" />
-                {L.result.payNow}
-              </a>
+              {payChoiceOpen ? (
+                /* The method choice appears in place of the button rather than
+                   in a dialog: two options do not warrant a modal, and staying
+                   inline keeps the download and share actions in view. */
+                <div className="mt-3 flex flex-col justify-center gap-2 sm:flex-row">
+                  <a
+                    href={PAYMENT_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700"
+                  >
+                    <CreditCard className="h-4 w-4" />
+                    {L.result.payWithCard}
+                  </a>
+                  <a
+                    href={TWINT_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-700"
+                  >
+                    <Smartphone className="h-4 w-4" />
+                    {L.result.payWithTwint}
+                  </a>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setPayChoiceOpen(true)}
+                  className="mt-3 inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700"
+                >
+                  <CreditCard className="h-4 w-4" />
+                  {L.result.payNow}
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -1157,6 +1198,7 @@ export default function RentalPickupWizard() {
                       label={L.documents[slot.label]}
                       language={language}
                       facing={"facing" in slot ? slot.facing : "environment"}
+                      allowPdf={"pdf" in slot && slot.pdf}
                       value={documents[slot.key]}
                       onChange={(image) => {
                         setDocuments((prev) => ({ ...prev, [slot.key]: image }));

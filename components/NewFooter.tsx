@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Building2,
   CreditCard,
@@ -8,12 +9,16 @@ import {
   Linkedin,
   MapPin,
   Phone,
+  Smartphone,
   Twitter,
 } from "lucide-react";
 import Link from "next/link";
-import { PAYMENT_URL } from "@/lib/payment";
+import { PAYMENT_URL, TWINT_URL } from "@/lib/payment";
 
 export default function Footer() {
+  // Whether "Pay now" has been clicked and the method choice is showing.
+  const [payChoiceOpen, setPayChoiceOpen] = useState(false);
+
   return (
     <footer
       dir="ltr"
@@ -142,15 +147,39 @@ export default function Footer() {
             {/* Outlined rather than a solid white block: at footer scale a
                 filled button drew more attention than the bank details it sits
                 beside. Still obviously a button, just proportionate. */}
-            <a
-              href={PAYMENT_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-4 inline-flex items-center gap-1.5 rounded-md border border-white/25 bg-white/5 px-3 py-1.5 text-[11px] uppercase tracking-widest transition-colors hover:border-white/50 hover:bg-white/15"
-            >
-              <CreditCard className="h-3.5 w-3.5" />
-              Pay now
-            </a>
+            {payChoiceOpen ? (
+              /* The choice replaces the button in place: at footer scale a
+                 dropdown or dialog would be heavier than the two links. */
+              <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                <a
+                  href={PAYMENT_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-md border border-white/25 bg-white/5 px-3 py-1.5 text-[11px] uppercase tracking-widest transition-colors hover:border-white/50 hover:bg-white/15"
+                >
+                  <CreditCard className="h-3.5 w-3.5" />
+                  Credit card
+                </a>
+                <a
+                  href={TWINT_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-md border border-white/25 bg-white/5 px-3 py-1.5 text-[11px] uppercase tracking-widest transition-colors hover:border-white/50 hover:bg-white/15"
+                >
+                  <Smartphone className="h-3.5 w-3.5" />
+                  TWINT
+                </a>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setPayChoiceOpen(true)}
+                className="mt-4 inline-flex items-center gap-1.5 rounded-md border border-white/25 bg-white/5 px-3 py-1.5 text-[11px] uppercase tracking-widest transition-colors hover:border-white/50 hover:bg-white/15"
+              >
+                <CreditCard className="h-3.5 w-3.5" />
+                Pay now
+              </button>
+            )}
 
             {/* Social Media Icons */}
             <div className="flex justify-center space-x-3 sm:space-x-4 mt-4 sm:mt-6">

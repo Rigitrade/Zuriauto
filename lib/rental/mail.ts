@@ -8,7 +8,7 @@
  */
 
 import nodemailer from "nodemailer";
-import { PAYMENT_URL } from "@/lib/payment";
+import { buildCustomerEmail } from "./customerEmail";
 import { labelsFor } from "./labels";
 import type { ContractMeta } from "./schema";
 
@@ -140,20 +140,24 @@ export async function sendContractMails(
   }
 
   try {
+    // Branded HTML with a plain-text part carrying the same content, so
+    // clients that refuse HTML still get everything. Shared with the return
+    // confirmation, so the two cannot drift apart.
+    const customerEmail = buildCustomerEmail({
+      language: meta.language,
+      customerName: meta.customerName,
+      referenceLabel: L.pdf.contractNumber,
+      referenceNumber: meta.contractNumber,
+      hello: L.email.customerHello,
+      body: L.email.customerBody,
+    });
+
     await transport.sendMail({
       from: config.from,
       to: meta.customerEmail,
       subject: `${L.email.customerSubject} – ${meta.contractNumber}`,
-      // Plain text with a bare URL: mail clients linkify it, and a text part
-      // reaches every client without an HTML fallback to maintain.
-      text: [
-        L.email.customerGreeting,
-        "",
-        `${L.email.customerPayment}`,
-        PAYMENT_URL,
-        "",
-        L.email.customerSignature,
-      ].join("\n"),
+      text: customerEmail.text,
+      html: customerEmail.html,
       attachments: [attachment],
     });
   } catch (error) {

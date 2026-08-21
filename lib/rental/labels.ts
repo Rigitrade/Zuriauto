@@ -94,7 +94,7 @@ const de = {
   documents: {
     heading: "Ausweisdokumente",
     intro:
-      "Fotografieren Sie Vorder- und Rückseite beider Dokumente gut lesbar und vollständig im Bild.",
+      "Fotografieren Sie Vorder- und Rückseite beider Dokumente gut lesbar und vollständig im Bild. Sie können auch eine vorhandene Datei hochladen (Foto oder PDF).",
     portrait: "Personenfoto",
     portraitHint:
       "Ein Foto von Ihnen, damit wir es mit Ihrem Ausweis abgleichen können.",
@@ -163,7 +163,113 @@ const de = {
     share: "Teilen",
     contractNumber: "Vertrags-Nr.",
     payNow: "Jetzt bezahlen",
-    payHint: "Sie können die Miete direkt und sicher per Karte bezahlen.",
+    payHint:
+      "Sie können die Miete direkt und sicher per Kreditkarte oder TWINT bezahlen.",
+    payWithCard: "Kreditkarte",
+    payWithTwint: "TWINT",
+  },
+
+  /**
+   * The vehicle return form and its document. Field labels the return shares
+   * with the pickup flow (vehicle picker, name fields, signature block,
+   * result-screen buttons) are reused from the sections above rather than
+   * duplicated here.
+   */
+  ret: {
+    pageTitle: "Fahrzeugrückgabe",
+    pageIntro:
+      "Bitte füllen Sie das Formular bei der Rückgabe aus und unterschreiben Sie direkt auf dem Bildschirm. Sie erhalten die Bestätigung per E-Mail.",
+
+    conditionHeading: "Zustand bei Rückgabe",
+    paymentHeading: "Zahlung",
+    renterHeading: "Ihre Daten",
+
+    mileageReturn: "Kilometerstand bei Rückgabe (km)",
+    mileagePickup: "Kilometerstand bei Übernahme (km)",
+    mileagePickupHint:
+      "Optional — steht auf Ihrem Mietvertrag. Das Büro kann ihn sonst nachschlagen.",
+
+    papers: "Fahrzeugpapiere im Fahrzeug?",
+    key: "Autoschlüssel zurückgegeben?",
+    clean: "Ist das Fahrzeug sauber?",
+    cleanYes: "Sauber",
+    cleanNeedsWash: "Muss gewaschen werden",
+    damages: "Neue Schäden am Fahrzeug?",
+    damagesHint:
+      "Beschreiben Sie neue Schäden. Ohne Eintrag gilt das Fahrzeug als ohne neue Schäden zurückgegeben.",
+    damagesNone: "Keine neuen Schäden",
+
+    tickets: "Radar- oder Parkbussen, von denen Sie wissen?",
+    ticketsNote: "Angaben zur Busse (optional)",
+    fullyPaid: "Ist die Miete bis heute vollständig bezahlt?",
+    methods: "Verwendete Zahlungsmethoden",
+    methodCash: "Bar",
+    methodTwint: "TWINT",
+    methodCard: "Kreditkarte",
+    methodBank: "Banküberweisung",
+    paidAmount: "Bezahlter Betrag (CHF)",
+    paidOn: "Bezahlt am",
+    duePayment: "Gibt es noch offene oder verspätete Zahlungen?",
+    dueAmount: "Offener Betrag (CHF)",
+    dueDate: "Wird bezahlt am",
+    dueMethod: "Zahlungsmethode",
+    deposit: "Soll Ihnen ein Depot zurückgezahlt werden?",
+
+    yes: "Ja",
+    no: "Nein",
+    optional: "(optional)",
+    renterSignature: "Unterschrift Mieter",
+    ownerSignature: "Unterschrift Eigentümer",
+    emailHint: "An diese Adresse senden wir Ihre Bestätigung.",
+    submit: "Rückgabe abschliessen",
+
+    result: {
+      successTitle: "Rückgabe übermittelt",
+      successBody:
+        "Das unterschriebene Rückgabeprotokoll wurde an Sie und an ZURIAUTO gesendet.",
+      partialTitle: "Protokoll an ZURIAUTO gesendet",
+      partialBody:
+        "Ihre Kopie konnte nicht zugestellt werden. Bitte laden Sie das Protokoll hier herunter.",
+      offlineTitle: "Protokoll erstellt",
+      offlineBody:
+        "Der Versand per E-Mail ist derzeit nicht möglich. Bitte laden Sie das Protokoll herunter und senden Sie es an ZURIAUTO.",
+      referenceNumber: "Rückgabe-Nr.",
+    },
+
+    pdf: {
+      title: "RÜCKGABEPROTOKOLL – FAHRZEUGRÜCKGABE",
+      returnNumber: "Rückgabe-Nr.",
+      mileage: "Kilometerstand bei Rückgabe",
+      mileagePickup: "Kilometerstand bei Übernahme",
+      papers: "Fahrzeugpapiere im Fahrzeug",
+      key: "Autoschlüssel zurückgegeben",
+      clean: "Sauberkeit",
+      damages: "Neue Schäden",
+      damagesNone: "Keine neuen Schäden gemeldet",
+      tickets: "Bekannte Radar-/Parkbussen",
+      ticketsNote: "Angaben zur Busse",
+      fullyPaid: "Miete bis heute vollständig bezahlt",
+      methods: "Zahlungsmethoden",
+      paidAmount: "Bezahlter Betrag",
+      paidOn: "Bezahlt am",
+      duePayment: "Offene Zahlung vorhanden",
+      dueAmount: "Offener Betrag",
+      dueDate: "Wird bezahlt am",
+      dueMethod: "Zahlungsmethode",
+      deposit: "Depot zurückzuzahlen",
+      signatureSection: "Unterschriften",
+      renterSignature: "Unterschrift Mieter",
+      ownerSignature: "Unterschrift Eigentümer",
+    },
+
+    email: {
+      officeSubject: "Fahrzeugrückgabe",
+      customerSubject: "Ihre Rückgabebestätigung – ZURIAUTO",
+      /** The renter's name is appended: "Guten Tag Max Muster". */
+      customerHello: "Guten Tag",
+      customerBody:
+        "Im Anhang finden Sie Ihr unterschriebenes Rückgabeprotokoll.",
+    },
   },
 
   gate: {
@@ -213,7 +319,18 @@ const de = {
       "Bitte fotografieren Sie die Rückseite Ihres Führerausweises.",
     signature: "Bitte unterschreiben Sie.",
     gtc: "Bitte akzeptieren Sie die AGB.",
+    paymentMethod: "Bitte wählen Sie mindestens eine Zahlungsmethode.",
+    dueDate: "Bitte wählen Sie ein Datum.",
+    amount: "Bitte geben Sie einen gültigen Betrag ein.",
+    mileageBelowPickup:
+      "Der Kilometerstand bei Rückgabe kann nicht kleiner sein als bei der Übernahme. Bitte prüfen Sie beide Werte.",
+    dateNotFuture: "Das Datum kann nicht in der Zukunft liegen.",
+    dateNotPast: "Das Datum kann nicht in der Vergangenheit liegen.",
     imageRead: "Das Bild konnte nicht gelesen werden. Bitte erneut aufnehmen.",
+    fileRead:
+      "Die Datei konnte nicht gelesen werden. Bitte wählen Sie eine andere Datei oder nehmen Sie ein Foto auf.",
+    fileTooLarge:
+      "Die Datei ist zu gross oder hat zu viele Seiten. Bitte wählen Sie eine kleinere Datei oder ein Foto.",
     tooLarge:
       "Die Fotos sind zu gross. Bitte nehmen Sie sie mit weniger Detail erneut auf.",
     sendFailed:
@@ -285,9 +402,12 @@ const de = {
     customerSubject: "Ihr Mietvertrag – ZURIAUTO",
     // Split so the payment link lands before the sign-off rather than trailing
     // after it, which reads as an afterthought.
-    customerGreeting:
-      "Guten Tag\n\nIm Anhang finden Sie Ihren unterschriebenen Mietvertrag.",
-    customerPayment: "Zahlung per Karte:",
+    /** The renter's name is appended: "Guten Tag Max Muster". */
+    customerHello: "Guten Tag",
+    customerBody:
+      "Im Anhang finden Sie Ihren unterschriebenen Mietvertrag.",
+    customerPayment: "Zahlung per Kreditkarte:",
+    customerPaymentTwint: "Zahlung per TWINT:",
     customerSignature: "Freundliche Grüsse\nZURIAUTO",
   },
 };
@@ -365,7 +485,7 @@ const en: typeof de = {
   documents: {
     heading: "Identity documents",
     intro:
-      "Photograph the front and back of both documents fully in frame and clearly legible.",
+      "Photograph the front and back of both documents fully in frame and clearly legible. You can also upload an existing file (photo or PDF).",
     portrait: "Personal photo",
     portraitHint: "A photo of you, so we can match it against your ID.",
     idFront: "ID card or passport – front",
@@ -431,7 +551,105 @@ const en: typeof de = {
     share: "Share",
     contractNumber: "Contract no.",
     payNow: "Pay now",
-    payHint: "You can pay the rental securely by card right away.",
+    payHint:
+      "You can pay the rental securely by credit card or TWINT right away.",
+    payWithCard: "Credit card",
+    payWithTwint: "TWINT",
+  },
+
+  ret: {
+    pageTitle: "Vehicle return",
+    pageIntro:
+      "Please complete this form when returning the vehicle and sign on screen. You will receive the confirmation by email.",
+
+    conditionHeading: "Condition at return",
+    paymentHeading: "Payment",
+    renterHeading: "Your details",
+
+    mileageReturn: "Mileage at return (km)",
+    mileagePickup: "Mileage at handover (km)",
+    mileagePickupHint:
+      "Optional — it is on your rental contract. The office can look it up otherwise.",
+
+    papers: "Car papers inside the vehicle?",
+    key: "Car key returned?",
+    clean: "Is the vehicle clean?",
+    cleanYes: "Clean",
+    cleanNeedsWash: "Needs to be washed",
+    damages: "New damage to the vehicle?",
+    damagesHint:
+      "Describe any new damage. If left empty, the vehicle is taken as returned without new damage.",
+    damagesNone: "No new damage",
+
+    tickets: "Radar or parking tickets you know of?",
+    ticketsNote: "Details of the ticket (optional)",
+    fullyPaid: "Is the rental fully paid up to today?",
+    methods: "Payment methods used",
+    methodCash: "Cash",
+    methodTwint: "TWINT",
+    methodCard: "Credit card",
+    methodBank: "Bank transfer",
+    paidAmount: "Amount paid (CHF)",
+    paidOn: "Paid on",
+    duePayment: "Any due or delayed payment still open?",
+    dueAmount: "Open amount (CHF)",
+    dueDate: "Will be paid on",
+    dueMethod: "Payment method",
+    deposit: "Deposit to be paid back to you?",
+
+    yes: "Yes",
+    no: "No",
+    optional: "(optional)",
+    renterSignature: "Renter's signature",
+    ownerSignature: "Owner's signature",
+    emailHint: "We will send your confirmation to this address.",
+    submit: "Complete return",
+
+    result: {
+      successTitle: "Return submitted",
+      successBody:
+        "The signed return report has been sent to you and to ZURIAUTO.",
+      partialTitle: "Report sent to ZURIAUTO",
+      partialBody:
+        "Your copy could not be delivered. Please download the report here.",
+      offlineTitle: "Report created",
+      offlineBody:
+        "Email delivery is currently unavailable. Please download the report and send it to ZURIAUTO.",
+      referenceNumber: "Return no.",
+    },
+
+    pdf: {
+      title: "RETURN REPORT – VEHICLE RETURN",
+      returnNumber: "Return no.",
+      mileage: "Mileage at return",
+      mileagePickup: "Mileage at handover",
+      papers: "Car papers inside the vehicle",
+      key: "Car key returned",
+      clean: "Cleanliness",
+      damages: "New damage",
+      damagesNone: "No new damage reported",
+      tickets: "Known radar/parking tickets",
+      ticketsNote: "Ticket details",
+      fullyPaid: "Rental fully paid up to today",
+      methods: "Payment methods",
+      paidAmount: "Amount paid",
+      paidOn: "Paid on",
+      duePayment: "Outstanding payment",
+      dueAmount: "Open amount",
+      dueDate: "Will be paid on",
+      dueMethod: "Payment method",
+      deposit: "Deposit to be paid back",
+      signatureSection: "Signatures",
+      renterSignature: "Renter's signature",
+      ownerSignature: "Owner's signature",
+    },
+
+    email: {
+      officeSubject: "Vehicle return",
+      customerSubject: "Your return confirmation – ZURIAUTO",
+      customerHello: "Hello",
+      customerBody: "Please find your signed return report attached.",
+    },
   },
 
   gate: {
@@ -479,7 +697,18 @@ const en: typeof de = {
     licenceBackPhoto: "Please photograph the back of your driving licence.",
     signature: "Please sign.",
     gtc: "Please accept the GTC.",
+    paymentMethod: "Please select at least one payment method.",
+    dueDate: "Please choose a date.",
+    amount: "Please enter a valid amount.",
+    mileageBelowPickup:
+      "The mileage at return cannot be lower than at handover. Please check both readings.",
+    dateNotFuture: "The date cannot be in the future.",
+    dateNotPast: "The date cannot be in the past.",
     imageRead: "The image could not be read. Please take it again.",
+    fileRead:
+      "The file could not be read. Please choose a different file or take a photo.",
+    fileTooLarge:
+      "The file is too large or has too many pages. Please choose a smaller file or a photo.",
     tooLarge:
       "The photos are too large. Please retake them with less detail.",
     sendFailed: "The contract could not be sent. Please download it.",
@@ -548,9 +777,10 @@ const en: typeof de = {
   email: {
     officeSubject: "New rental contract",
     customerSubject: "Your rental contract – ZURIAUTO",
-    customerGreeting:
-      "Hello\n\nPlease find your signed rental contract attached.",
-    customerPayment: "Pay by card:",
+    customerHello: "Hello",
+    customerBody: "Please find your signed rental contract attached.",
+    customerPayment: "Pay by credit card:",
+    customerPaymentTwint: "Pay by TWINT:",
     customerSignature: "Kind regards\nZURIAUTO",
   },
 };
