@@ -57,12 +57,28 @@ const EXPECTED = {
  * configuration is the kind of convenience that outlives its usefulness.
  */
 function describe(error: unknown): string {
-  const code =
-    typeof error === "object" && error !== null && "code" in error
-      ? String((error as { code?: unknown }).code)
-      : "";
+  const record = typeof error === "object" && error !== null ? error : {};
+  const code = "code" in record ? String((record as { code?: unknown }).code) : "";
   const message = error instanceof Error ? error.message : String(error);
-  return `${code ? code + ": " : ""}${message.split("\n")[0].slice(0, 160)}`;
+  const first = message.split("\n").filter(Boolean)[0] ?? "";
+
+  // Prisma's wrapper codes carry the useful part in `meta` — P2010 in
+  // particular arrives with an empty message, which says nothing at all.
+  let detail = "";
+  if (!first && "meta" in record) {
+    try {
+      detail = JSON.stringify((record as { meta?: unknown }).meta).slice(0, 200);
+    } catch {
+      detail = "";
+    }
+  }
+
+  const cause =
+    error instanceof Error && error.cause instanceof Error
+      ? ` cause: ${error.cause.message.split("\n")[0].slice(0, 120)}`
+      : "";
+
+  return `${code ? code + ": " : ""}${first.slice(0, 200)}${detail}${cause}`.trim();
 }
 
 export async function GET() {
@@ -76,12 +92,32 @@ export async function GET() {
   // The variables can all be present and the database still unreachable, so
   // this probes rather than infers. `select 1` touches no table, so it works
   // before the migrations have run and says so distinctly from a bad password.
-  let database: { reachable: boolean; cars?: number; error?: string };
-  try {
-    await prisma.$queryRaw`select 1`;
-    database = { reachable: true, cars: await prisma.car.count() };
-  } catch (error) {
-    database = { reachable: false, error: describe(error) };
+  let database: {
+    reachable: boolean;
+    cars?: number;
+    attempts?: number;
+    error?: string;
+  };
+  /**
+   * Two attempts, because Neon's free plan suspends a compute after five
+   * minutes idle and the connection that wakes it can fail while it starts.
+   * A health check that reports a cold start as a broken database would send
+   * someone rewriting a connection string that was correct all along.
+   */
+  let lastError: unknown;
+  database = { reachable: false };
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    try {
+      await prisma.$queryRaw`select 1`;
+      database = { reachable: true, attempts: attempt, cars: await prisma.car.count() };
+      break;
+    } catch (error) {
+      lastError = error;
+      if (attempt === 1) await new Promise((r) => setTimeout(r, 2500));
+    }
+  }
+  if (!database.reachable) {
+    database = { reachable: false, attempts: 2, error: describe(lastError) };
   }
 
   const missing = Object.values(env)
@@ -109,6 +145,15 @@ export async function GET() {
       branch: process.env.VERCEL_GIT_COMMIT_REF ?? null,
       message: process.env.VERCEL_GIT_COMMIT_MESSAGE?.split("\n")[0] ?? null,
       url: process.env.VERCEL_URL ?? null,
+      /**
+       * The project's own production domain.
+       *
+       * One repository turned out to be wired to more than one Vercel
+       * project, each holding half the configuration. Since only one of them
+       * serves zuriauto.ch, this is the field that says whether the project
+       * being configured is the one customers actually reach.
+       */
+      productionUrl: process.env.VERCEL_PROJECT_PRODUCTION_URL ?? null,
     },
     database,
     missing,
