@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
-import { PAYMENT_URL, TWINT_URL } from "@/lib/payment";
+import { buildCustomerEmail } from "@/lib/rental/customerEmail";
 import { labelsFor } from "@/lib/rental/labels";
 import { contractMetaSchema } from "@/lib/rental/schema";
 
@@ -219,25 +219,23 @@ export async function POST(request: Request) {
   }
 
   try {
+    // Branded HTML with a plain-text part carrying the same content, so
+    // clients that refuse HTML still get everything.
+    const customerEmail = buildCustomerEmail({
+      language: meta.language,
+      customerName: meta.customerName,
+      referenceLabel: L.pdf.contractNumber,
+      referenceNumber: meta.contractNumber,
+      hello: L.email.customerHello,
+      body: L.email.customerBody,
+    });
+
     await transport.sendMail({
       from: config.from,
       to: meta.customerEmail,
       subject: `${L.email.customerSubject} – ${meta.contractNumber}`,
-      // Plain text with a bare URL: mail clients linkify it, and a text part
-      // reaches every client without an HTML fallback to maintain.
-      text: [
-        `${L.email.customerHello} ${meta.customerName}`,
-        "",
-        L.email.customerBody,
-        "",
-        `${L.email.customerPayment}`,
-        PAYMENT_URL,
-        "",
-        `${L.email.customerPaymentTwint}`,
-        TWINT_URL,
-        "",
-        L.email.customerSignature,
-      ].join("\n"),
+      text: customerEmail.text,
+      html: customerEmail.html,
       attachments: [attachment],
     });
   } catch (error) {

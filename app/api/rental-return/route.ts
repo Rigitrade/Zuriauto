@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
-import { PAYMENT_URL, TWINT_URL } from "@/lib/payment";
+import { buildCustomerEmail } from "@/lib/rental/customerEmail";
 import { labelsFor } from "@/lib/rental/labels";
 import { returnMetaSchema } from "@/lib/rental/returnSchema";
 
@@ -195,25 +195,23 @@ export async function POST(request: Request) {
   }
 
   try {
+    // Payment links stay in the return confirmation too: an open balance
+    // noted on the report can be settled straight from this email.
+    const customerEmail = buildCustomerEmail({
+      language: meta.language,
+      customerName: meta.customerName,
+      referenceLabel: L.ret.pdf.returnNumber,
+      referenceNumber: meta.returnNumber,
+      hello: L.ret.email.customerHello,
+      body: L.ret.email.customerBody,
+    });
+
     await transport.sendMail({
       from: config.from,
       to: meta.customerEmail,
       subject: `${L.ret.email.customerSubject} – ${meta.returnNumber}`,
-      // Payment links stay in the return confirmation too: an open balance
-      // noted on the report can be settled straight from this email.
-      text: [
-        `${L.ret.email.customerHello} ${meta.customerName}`,
-        "",
-        L.ret.email.customerBody,
-        "",
-        `${L.email.customerPayment}`,
-        PAYMENT_URL,
-        "",
-        `${L.email.customerPaymentTwint}`,
-        TWINT_URL,
-        "",
-        L.email.customerSignature,
-      ].join("\n"),
+      text: customerEmail.text,
+      html: customerEmail.html,
       attachments: [attachment],
     });
   } catch (error) {
