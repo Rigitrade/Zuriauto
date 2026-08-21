@@ -335,7 +335,6 @@ const de = {
       "Die Fotos sind zu gross. Bitte nehmen Sie sie mit weniger Detail erneut auf.",
     sendFailed:
       "Der Vertrag konnte nicht gesendet werden. Bitte laden Sie ihn herunter.",
-    amount: "Bitte geben Sie einen gültigen Betrag ein.",
     deposit: "Bitte geben Sie eine gültige Kaution ein, oder 0.",
     totalWeeks: "Bitte geben Sie die Anzahl Wochen an (1 bis 104).",
     startAt: "Bitte geben Sie einen gültigen Beginn an.",
@@ -712,7 +711,6 @@ const en: typeof de = {
     tooLarge:
       "The photos are too large. Please retake them with less detail.",
     sendFailed: "The contract could not be sent. Please download it.",
-    amount: "Please enter a valid amount.",
     deposit: "Please enter a valid deposit, or 0.",
     totalWeeks: "Please give the number of weeks (1 to 104).",
     startAt: "Please give a valid start.",
