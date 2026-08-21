@@ -1,7 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "_comment": "Vercel cron schedules are UTC, not Zurich. 0 7 * * * is 09:00 Zurich in summer and 08:00 in winter; the 48-hour reminder window absorbs the drift, which also covers the free plan's +-59 minute imprecision. See docs/DEPLOY-PHASE-2-3.md.",
-  "_comment_regions": "Frankfurt, not the iad1 default. Every new Vercel project executes functions in Washington DC unless told otherwise, which would put the function that receives an identity document — and decrypts, resizes and forwards it — in the United States, while the bucket and the database sit in the EU. The storage jurisdiction was chosen to satisfy the revised Swiss DSG and GDPR; processing it elsewhere would defeat that. fra1 is also the closest region to a Neon project in eu-central-1, so the write path stops crossing an ocean twice.",
   "regions": ["fra1"],
   "crons": [
     {

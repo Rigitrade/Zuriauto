@@ -228,11 +228,27 @@ and tokens; set the car back to `available`; delete its objects from R2.
 
 ## 6. Turn the cron on
 
-`vercel.json` already declares it:
+`vercel.json` already declares it, along with the execution region:
 
 ```json
-{ "crons": [{ "path": "/api/cron/daily/", "schedule": "0 7 * * *" }] }
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "regions": ["fra1"],
+  "crons": [{ "path": "/api/cron/daily/", "schedule": "0 7 * * *" }]
+}
 ```
+
+**Keep that file free of commentary.** Vercel validates it against a schema
+that rejects unknown properties, so a `_comment` key — a common way to annotate
+JSON — fails the build outright with *"should NOT have additional property"*.
+The explanations that used to live in the file are below instead.
+
+**`regions: ["fra1"]` is Frankfurt, and it is load bearing.** Vercel executes
+functions in Washington DC for every new project unless told otherwise. The
+bucket's jurisdiction and the database region were both chosen to keep identity
+documents in the EU; without this line the function that *receives* the upload
+would run in the United States, which defeats the reason for choosing them.
+Frankfurt is also nearest the Neon project in `eu-central-1`.
 
 **Vercel cron schedules are UTC, not Zurich.** `0 7 * * *` is 09:00 Zurich in
 summer and 08:00 in winter. That drift is harmless here — the 48-hour reminder
