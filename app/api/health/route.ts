@@ -93,6 +93,23 @@ export async function GET() {
     ok: database.reachable && missing.length === 0,
     region: process.env.VERCEL_REGION ?? null,
     environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? null,
+    /**
+     * Which build is answering.
+     *
+     * Variables are baked in when a deployment is created, so "I added the
+     * variable and it is still missing" has two very different causes: the
+     * variable is on another project, or the request is being served by a
+     * deployment built before it existed. The branch alias hides the
+     * difference — it keeps serving the last good build. These fields are
+     * Vercel's own, and they make the two cases distinguishable without
+     * reading anything from the dashboard.
+     */
+    deployment: {
+      commit: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? null,
+      branch: process.env.VERCEL_GIT_COMMIT_REF ?? null,
+      message: process.env.VERCEL_GIT_COMMIT_MESSAGE?.split("\n")[0] ?? null,
+      url: process.env.VERCEL_URL ?? null,
+    },
     database,
     missing,
     env,
