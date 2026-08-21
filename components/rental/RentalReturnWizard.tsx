@@ -61,6 +61,7 @@ type YesNo = "" | "yes" | "no";
 interface FormState {
   vehicleId: string;
   mileageKm: string;
+  mileagePickupKm: string;
   papersInside: YesNo;
   keyReturned: YesNo;
   fuelLevel: FuelLevel;
@@ -70,7 +71,10 @@ interface FormState {
   ticketsNote: string;
   fullyPaid: YesNo;
   paymentMethods: PaymentMethod[];
+  paidAmountChf: string;
+  paidOn: string;
   hasDuePayment: YesNo;
+  dueAmountChf: string;
   dueDate: string;
   dueMethod: "" | PaymentMethod;
   depositBack: YesNo;
@@ -83,6 +87,7 @@ interface FormState {
 const EMPTY_FORM: FormState = {
   vehicleId: availableFleet.length === 1 ? availableFleet[0].id : "",
   mileageKm: "",
+  mileagePickupKm: "",
   papersInside: "",
   keyReturned: "",
   fuelLevel: "full",
@@ -92,7 +97,10 @@ const EMPTY_FORM: FormState = {
   ticketsNote: "",
   fullyPaid: "",
   paymentMethods: [],
+  paidAmountChf: "",
+  paidOn: "",
   hasDuePayment: "",
+  dueAmountChf: "",
   dueDate: "",
   dueMethod: "",
   depositBack: "",
@@ -109,6 +117,7 @@ const EMPTY_FORM: FormState = {
 const OWNER_OF_FIELD: Record<string, number> = {
   vehicleId: 1,
   mileageKm: 1,
+  mileagePickupKm: 1,
   fuelLevel: 1,
   papersInside: 2,
   keyReturned: 2,
@@ -118,7 +127,10 @@ const OWNER_OF_FIELD: Record<string, number> = {
   ticketsNote: 3,
   fullyPaid: 3,
   paymentMethods: 3,
+  paidAmountChf: 3,
+  paidOn: 3,
   hasDuePayment: 3,
+  dueAmountChf: 3,
   dueDate: 3,
   dueMethod: 3,
   depositBack: 3,
@@ -139,6 +151,15 @@ function formatDatePart(date: Date): string {
 /** `HH:MM`, 24-hour, as Switzerland writes it. */
 function formatTimePart(date: Date): string {
   return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+/**
+ * "350", "350.50" and "1'350,50" all become francs; empty stays undefined.
+ * NaN falls through to the schema, which reports it as a bad amount.
+ */
+function parseAmount(text: string): number | undefined {
+  const cleaned = text.trim().replace(/[\s']/g, "").replace(",", ".");
+  return cleaned === "" ? undefined : Number(cleaned);
 }
 
 function dataUrlToBytes(dataUrl: string): Uint8Array {
@@ -165,6 +186,8 @@ export default function RentalReturnWizard() {
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [signature, setSignature] = useState<string | null>(null);
+  // The counter-signature; optional, for when staff is present at the return.
+  const [ownerSignature, setOwnerSignature] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<Status>({ kind: "editing" });
   const [result, setResult] = useState<{
@@ -219,6 +242,13 @@ export default function RentalReturnWizard() {
       if (!/^\d{1,7}$/.test(form.mileageKm.replace(/[\s'.]/g, ""))) {
         found.mileageKm = L.errors.mileage;
       }
+      // Optional, so only a non-empty value is checked.
+      if (
+        form.mileagePickupKm.trim() &&
+        !/^\d{1,7}$/.test(form.mileagePickupKm.replace(/[\s'.]/g, ""))
+      ) {
+        found.mileagePickupKm = L.errors.mileage;
+      }
     }
 
     if (target === 2) {
@@ -235,8 +265,17 @@ export default function RentalReturnWizard() {
       if (form.fullyPaid === "yes" && form.paymentMethods.length === 0) {
         found.paymentMethods = L.errors.paymentMethod;
       }
+      // The amounts are optional; a filled value must still be a number.
+      const paid = parseAmount(form.paidAmountChf);
+      if (paid !== undefined && !(paid >= 0 && paid <= 1_000_000)) {
+        found.paidAmountChf = L.errors.amount;
+      }
       if (!form.hasDuePayment) found.hasDuePayment = L.errors.required;
       if (form.hasDuePayment === "yes") {
+        const due = parseAmount(form.dueAmountChf);
+        if (due !== undefined && !(due >= 0 && due <= 1_000_000)) {
+          found.dueAmountChf = L.errors.amount;
+        }
         if (!/^\d{4}-\d{2}-\d{2}$/.test(form.dueDate)) {
           found.dueDate = L.errors.dueDate;
         }
@@ -276,6 +315,9 @@ export default function RentalReturnWizard() {
     const parsed = returnDetailsSchema.safeParse({
       vehicleId: form.vehicleId,
       mileageKm: Number(form.mileageKm.replace(/[\s'.]/g, "")),
+      mileagePickupKm: form.mileagePickupKm.trim()
+        ? Number(form.mileagePickupKm.replace(/[\s'.]/g, ""))
+        : undefined,
       papersInside: form.papersInside,
       keyReturned: form.keyReturned,
       fuelLevel: form.fuelLevel,
@@ -285,7 +327,10 @@ export default function RentalReturnWizard() {
       ticketsNote: form.ticketsNote,
       fullyPaid: form.fullyPaid,
       paymentMethods: form.paymentMethods,
+      paidAmountChf: parseAmount(form.paidAmountChf),
+      paidOn: form.paidOn,
       hasDuePayment: form.hasDuePayment,
+      dueAmountChf: parseAmount(form.dueAmountChf),
       dueDate: form.dueDate,
       dueMethod: form.dueMethod || undefined,
       depositBack: form.depositBack,
@@ -324,6 +369,9 @@ export default function RentalReturnWizard() {
         issuedAt,
         language,
         signaturePng: dataUrlToBytes(signature),
+        ownerSignaturePng: ownerSignature
+          ? dataUrlToBytes(ownerSignature)
+          : undefined,
       });
       const pdf = new Blob([bytes as unknown as BlobPart], {
         type: "application/pdf",
@@ -542,7 +590,7 @@ export default function RentalReturnWizard() {
               </Field>
 
               <Field
-                label={L.vehicle.mileage}
+                label={R.mileageReturn}
                 hint={L.vehicle.mileageHint}
                 error={errors.mileageKm}
                 required
@@ -552,6 +600,19 @@ export default function RentalReturnWizard() {
                   value={form.mileageKm}
                   onChange={(e) => set("mileageKm", e.target.value)}
                   placeholder="66000"
+                />
+              </Field>
+
+              <Field
+                label={R.mileagePickup}
+                hint={R.mileagePickupHint}
+                error={errors.mileagePickupKm}
+              >
+                <Input
+                  inputMode="numeric"
+                  value={form.mileagePickupKm}
+                  onChange={(e) => set("mileagePickupKm", e.target.value)}
+                  placeholder="65500"
                 />
               </Field>
 
@@ -698,6 +759,28 @@ export default function RentalReturnWizard() {
                 </div>
               </Field>
 
+              {/* The Abrechnung figures from the paper protocol. Optional:
+                  the office holds the invoice, so a customer without the
+                  numbers to hand is not blocked. */}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field label={R.paidAmount} error={errors.paidAmountChf}>
+                  <Input
+                    inputMode="decimal"
+                    value={form.paidAmountChf}
+                    onChange={(e) => set("paidAmountChf", e.target.value)}
+                    placeholder="350"
+                  />
+                </Field>
+
+                <Field label={R.paidOn} error={errors.paidOn}>
+                  <Input
+                    type="date"
+                    value={form.paidOn}
+                    onChange={(e) => set("paidOn", e.target.value)}
+                  />
+                </Field>
+              </div>
+
               <ChoiceField
                 label={R.duePayment}
                 value={form.hasDuePayment}
@@ -711,7 +794,16 @@ export default function RentalReturnWizard() {
               />
 
               {form.hasDuePayment === "yes" && (
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                  <Field label={R.dueAmount} error={errors.dueAmountChf}>
+                    <Input
+                      inputMode="decimal"
+                      value={form.dueAmountChf}
+                      onChange={(e) => set("dueAmountChf", e.target.value)}
+                      placeholder="500"
+                    />
+                  </Field>
+
                   <Field label={R.dueDate} error={errors.dueDate} required>
                     <Input
                       type="date"
@@ -807,7 +899,7 @@ export default function RentalReturnWizard() {
 
               <div className="space-y-2">
                 <h3 className="text-lg font-semibold text-slate-900">
-                  {L.signature.heading}
+                  {R.renterSignature}
                 </h3>
                 <SignaturePad
                   language={language}
@@ -821,6 +913,19 @@ export default function RentalReturnWizard() {
                 {errors.signature && (
                   <p className="text-sm text-rose-600">{errors.signature}</p>
                 )}
+              </div>
+
+              {/* Optional counter-signature for when a ZURIAUTO person is
+                  present at the return; a key-drop return skips it and the
+                  PDF prints an empty signature line instead. */}
+              <div className="space-y-2">
+                <h3 className="text-lg font-semibold text-slate-900">
+                  {R.ownerSignature}{" "}
+                  <span className="text-sm font-normal text-slate-500">
+                    {R.optional}
+                  </span>
+                </h3>
+                <SignaturePad language={language} onChange={setOwnerSignature} />
               </div>
 
               <div className="space-y-2">

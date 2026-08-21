@@ -159,6 +159,11 @@ const de = {
     paymentHeading: "Zahlung",
     renterHeading: "Ihre Daten",
 
+    mileageReturn: "Kilometerstand bei Rückgabe (km)",
+    mileagePickup: "Kilometerstand bei Übernahme (km)",
+    mileagePickupHint:
+      "Optional — steht auf Ihrem Mietvertrag. Das Büro kann ihn sonst nachschlagen.",
+
     papers: "Fahrzeugpapiere im Fahrzeug?",
     key: "Autoschlüssel zurückgegeben?",
     clean: "Ist das Fahrzeug sauber?",
@@ -177,13 +182,19 @@ const de = {
     methodTwint: "TWINT",
     methodCard: "Kreditkarte",
     methodBank: "Banküberweisung",
+    paidAmount: "Bezahlter Betrag (CHF)",
+    paidOn: "Bezahlt am",
     duePayment: "Gibt es noch offene oder verspätete Zahlungen?",
+    dueAmount: "Offener Betrag (CHF)",
     dueDate: "Wird bezahlt am",
     dueMethod: "Zahlungsmethode",
     deposit: "Soll Ihnen ein Depot zurückgezahlt werden?",
 
     yes: "Ja",
     no: "Nein",
+    optional: "(optional)",
+    renterSignature: "Unterschrift Mieter",
+    ownerSignature: "Unterschrift Eigentümer",
     emailHint: "An diese Adresse senden wir Ihre Bestätigung.",
     submit: "Rückgabe abschliessen",
 
@@ -204,6 +215,7 @@ const de = {
       title: "RÜCKGABEPROTOKOLL – FAHRZEUGRÜCKGABE",
       returnNumber: "Rückgabe-Nr.",
       mileage: "Kilometerstand bei Rückgabe",
+      mileagePickup: "Kilometerstand bei Übernahme",
       papers: "Fahrzeugpapiere im Fahrzeug",
       key: "Autoschlüssel zurückgegeben",
       clean: "Sauberkeit",
@@ -213,10 +225,15 @@ const de = {
       ticketsNote: "Angaben zur Busse",
       fullyPaid: "Miete bis heute vollständig bezahlt",
       methods: "Zahlungsmethoden",
+      paidAmount: "Bezahlter Betrag",
+      paidOn: "Bezahlt am",
       duePayment: "Offene Zahlung vorhanden",
+      dueAmount: "Offener Betrag",
       dueDate: "Wird bezahlt am",
       dueMethod: "Zahlungsmethode",
       deposit: "Depot zurückzuzahlen",
+      renterSignature: "Unterschrift Mieter",
+      ownerSignature: "Unterschrift Eigentümer",
     },
 
     email: {
@@ -246,6 +263,7 @@ const de = {
     gtc: "Bitte akzeptieren Sie die AGB.",
     paymentMethod: "Bitte wählen Sie mindestens eine Zahlungsmethode.",
     dueDate: "Bitte wählen Sie ein Datum.",
+    amount: "Bitte geben Sie einen gültigen Betrag ein.",
     imageRead: "Das Bild konnte nicht gelesen werden. Bitte erneut aufnehmen.",
     fileRead:
       "Die Datei konnte nicht gelesen werden. Bitte wählen Sie eine andere Datei oder nehmen Sie ein Foto auf.",
@@ -442,6 +460,11 @@ const en: typeof de = {
     paymentHeading: "Payment",
     renterHeading: "Your details",
 
+    mileageReturn: "Mileage at return (km)",
+    mileagePickup: "Mileage at handover (km)",
+    mileagePickupHint:
+      "Optional — it is on your rental contract. The office can look it up otherwise.",
+
     papers: "Car papers inside the vehicle?",
     key: "Car key returned?",
     clean: "Is the vehicle clean?",
@@ -460,13 +483,19 @@ const en: typeof de = {
     methodTwint: "TWINT",
     methodCard: "Credit card",
     methodBank: "Bank transfer",
+    paidAmount: "Amount paid (CHF)",
+    paidOn: "Paid on",
     duePayment: "Any due or delayed payment still open?",
+    dueAmount: "Open amount (CHF)",
     dueDate: "Will be paid on",
     dueMethod: "Payment method",
     deposit: "Deposit to be paid back to you?",
 
     yes: "Yes",
     no: "No",
+    optional: "(optional)",
+    renterSignature: "Renter's signature",
+    ownerSignature: "Owner's signature",
     emailHint: "We will send your confirmation to this address.",
     submit: "Complete return",
 
@@ -487,6 +516,7 @@ const en: typeof de = {
       title: "RETURN REPORT – VEHICLE RETURN",
       returnNumber: "Return no.",
       mileage: "Mileage at return",
+      mileagePickup: "Mileage at handover",
       papers: "Car papers inside the vehicle",
       key: "Car key returned",
       clean: "Cleanliness",
@@ -496,10 +526,15 @@ const en: typeof de = {
       ticketsNote: "Ticket details",
       fullyPaid: "Rental fully paid up to today",
       methods: "Payment methods",
+      paidAmount: "Amount paid",
+      paidOn: "Paid on",
       duePayment: "Outstanding payment",
+      dueAmount: "Open amount",
       dueDate: "Will be paid on",
       dueMethod: "Payment method",
       deposit: "Deposit to be paid back",
+      renterSignature: "Renter's signature",
+      ownerSignature: "Owner's signature",
     },
 
     email: {
@@ -527,6 +562,7 @@ const en: typeof de = {
     gtc: "Please accept the GTC.",
     paymentMethod: "Please select at least one payment method.",
     dueDate: "Please choose a date.",
+    amount: "Please enter a valid amount.",
     imageRead: "The image could not be read. Please take it again.",
     fileRead:
       "The file could not be read. Please choose a different file or take a photo.",

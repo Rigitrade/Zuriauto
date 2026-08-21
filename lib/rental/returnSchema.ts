@@ -33,6 +33,17 @@ export const returnDetailsSchema = z
       .int("mileage")
       .min(0, "mileage")
       .max(2_000_000, "mileage"),
+    /**
+     * Mileage at handover, as on the paper protocol, so the document shows
+     * the distance driven. Optional until Phase 2 can read it from the
+     * pickup contract in the database; the office can cross-check meanwhile.
+     */
+    mileagePickupKm: z
+      .number({ message: "mileage" })
+      .int("mileage")
+      .min(0, "mileage")
+      .max(2_000_000, "mileage")
+      .optional(),
     papersInside: yesNo,
     keyReturned: yesNo,
     fuelLevel: z.enum(FUEL_LEVELS),
@@ -44,7 +55,28 @@ export const returnDetailsSchema = z
 
     fullyPaid: yesNo,
     paymentMethods: z.array(z.enum(PAYMENT_METHODS)).max(4).default([]),
+    /**
+     * The settled amount in francs and when it was paid — the Abrechnung row
+     * of the paper protocol. Optional: the customer may not have the figure
+     * to hand, and the office holds the invoice either way.
+     */
+    paidAmountChf: z
+      .number({ message: "amount" })
+      .min(0, "amount")
+      .max(1_000_000, "amount")
+      .optional(),
+    paidOn: z
+      .string()
+      .trim()
+      .regex(/^(\d{4}-\d{2}-\d{2})?$/, "dueDate")
+      .default(""),
     hasDuePayment: yesNo,
+    /** The open amount in francs, again as on the paper protocol. */
+    dueAmountChf: z
+      .number({ message: "amount" })
+      .min(0, "amount")
+      .max(1_000_000, "amount")
+      .optional(),
     /** ISO date the outstanding amount will be paid on. */
     dueDate: z.string().trim().default(""),
     dueMethod: z.enum(PAYMENT_METHODS).optional(),

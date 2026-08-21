@@ -32,8 +32,26 @@ export interface ReturnPdfInput {
   returnNumber: string;
   issuedAt: Date;
   language: RentalLanguage;
-  /** PNG bytes from the signature canvas. */
+  /** PNG bytes from the renter's signature canvas. */
   signaturePng: Uint8Array;
+  /**
+   * The owner's counter-signature, when a ZURIAUTO person is present at the
+   * return. Absent it, the document prints an empty signature line — the
+   * paper protocol has both columns, and an unreturned key-drop return
+   * should not look like a defect in the document.
+   */
+  ownerSignaturePng?: Uint8Array;
+}
+
+/** `350.50 CHF`, Swiss grouping, always two decimals — money on paper. */
+function formatChf(amount: number): string {
+  const formatted = amount
+    .toLocaleString("de-CH", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })
+    .replace(/’/g, "'");
+  return `${formatted} CHF`;
 }
 
 export async function buildReturnPdf(input: ReturnPdfInput): Promise<Uint8Array> {
@@ -82,6 +100,14 @@ export async function buildReturnPdf(input: ReturnPdfInput): Promise<Uint8Array>
   w.field(P.model, vehicle.model);
   w.field(P.plate, vehicle.plate);
   if (vehicle.vin) w.field(P.vin, vehicle.vin);
+  // Handover first, then return, as on the paper protocol — so the distance
+  // driven reads straight off the document. Omitted when not supplied.
+  if (details.mileagePickupKm !== undefined) {
+    w.field(
+      R.pdf.mileagePickup,
+      `${formatMileage(details.mileagePickupKm)} ${P.km}`
+    );
+  }
   w.field(R.pdf.mileage, `${formatMileage(details.mileageKm)} ${P.km}`);
   w.field(P.fuel, fuelLevelToFraction(details.fuelLevel));
 
@@ -108,8 +134,17 @@ export async function buildReturnPdf(input: ReturnPdfInput): Promise<Uint8Array>
       details.paymentMethods.map((method) => methodName[method]).join(", ")
     );
   }
+  if (details.paidAmountChf !== undefined) {
+    w.field(R.pdf.paidAmount, formatChf(details.paidAmountChf));
+  }
+  if (details.paidOn) {
+    w.field(R.pdf.paidOn, formatDate(details.paidOn));
+  }
   w.field(R.pdf.duePayment, yesNo(details.hasDuePayment));
   if (details.hasDuePayment === "yes") {
+    if (details.dueAmountChf !== undefined) {
+      w.field(R.pdf.dueAmount, formatChf(details.dueAmountChf));
+    }
     w.field(R.pdf.dueDate, formatDate(details.dueDate));
     if (details.dueMethod) {
       w.field(R.pdf.dueMethod, methodName[details.dueMethod]);
@@ -123,31 +158,68 @@ export async function buildReturnPdf(input: ReturnPdfInput): Promise<Uint8Array>
   w.field(P.firstName, details.firstName);
   w.field(P.email, details.email);
 
-  // --- Signature -------------------------------------------------------
-  const signature = await doc.embedPng(input.signaturePng);
-  const signatureWidth = Math.min(220, CONTENT_WIDTH / 2);
-  const signatureHeight =
-    (signature.height / signature.width) * signatureWidth;
+  // --- Signatures ------------------------------------------------------
+  // Two columns, owner then renter, as the paper protocol lays them out.
+  // The owner column keeps its line and caption even unsigned, so a
+  // key-drop return reads as "not counter-signed" rather than as a gap.
+  const renterSignature = await doc.embedPng(input.signaturePng);
+  const ownerSignature = input.ownerSignaturePng
+    ? await doc.embedPng(input.ownerSignaturePng)
+    : null;
+
+  const columnGap = 24;
+  const columnWidth = (CONTENT_WIDTH - columnGap) / 2;
+  const signatureWidth = Math.min(200, columnWidth);
+  const renterHeight =
+    (renterSignature.height / renterSignature.width) * signatureWidth;
+  const ownerHeight = ownerSignature
+    ? (ownerSignature.height / ownerSignature.width) * signatureWidth
+    : 0;
+  const inkHeight = Math.max(renterHeight, ownerHeight, 40);
 
   w.sectionTitle(P.signatureSection);
-  w.ensure(signatureHeight + 56);
+  w.ensure(inkHeight + 70);
 
   const signatureTop = w.cursor;
-  w.page.drawImage(signature, {
-    x: MARGIN,
-    y: signatureTop - signatureHeight,
-    width: signatureWidth,
-    height: signatureHeight,
-  });
-  w.gap(signatureHeight + 6);
+  const ownerX = MARGIN;
+  const renterX = MARGIN + columnWidth + columnGap;
 
-  w.page.drawLine({
-    start: { x: MARGIN, y: w.cursor },
-    end: { x: MARGIN + signatureWidth, y: w.cursor },
-    thickness: 0.75,
-    color: RULE,
+  if (ownerSignature) {
+    w.page.drawImage(ownerSignature, {
+      x: ownerX,
+      y: signatureTop - ownerHeight,
+      width: signatureWidth,
+      height: ownerHeight,
+    });
+  }
+  w.page.drawImage(renterSignature, {
+    x: renterX,
+    y: signatureTop - renterHeight,
+    width: signatureWidth,
+    height: renterHeight,
   });
-  w.gap(12);
+
+  const lineY = signatureTop - inkHeight - 6;
+  for (const [x, caption] of [
+    [ownerX, R.pdf.ownerSignature],
+    [renterX, R.pdf.renterSignature],
+  ] as const) {
+    w.page.drawLine({
+      start: { x, y: lineY },
+      end: { x: x + signatureWidth, y: lineY },
+      thickness: 0.75,
+      color: RULE,
+    });
+    w.page.drawText(toWinAnsi(caption.toUpperCase()), {
+      x,
+      y: lineY - 12,
+      size: 8,
+      font,
+      color: MUTED,
+    });
+  }
+  w.gap(inkHeight + 6 + 26);
+
   w.text(
     `${P.signedBy}: ${details.firstName} ${details.lastName}`.toUpperCase(),
     { size: 9, color: MUTED }
