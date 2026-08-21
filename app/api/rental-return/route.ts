@@ -202,7 +202,9 @@ export async function POST(request: Request) {
       // Payment links stay in the return confirmation too: an open balance
       // noted on the report can be settled straight from this email.
       text: [
-        L.ret.email.customerGreeting,
+        `${L.ret.email.customerHello} ${meta.customerName}`,
+        "",
+        L.ret.email.customerBody,
         "",
         `${L.email.customerPayment}`,
         PAYMENT_URL,

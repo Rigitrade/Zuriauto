@@ -240,8 +240,10 @@ const de = {
     email: {
       officeSubject: "Fahrzeugrückgabe",
       customerSubject: "Ihre Rückgabebestätigung – ZURIAUTO",
-      customerGreeting:
-        "Guten Tag\n\nIm Anhang finden Sie Ihr unterschriebenes Rückgabeprotokoll.",
+      /** The renter's name is appended: "Guten Tag Max Muster". */
+      customerHello: "Guten Tag",
+      customerBody:
+        "Im Anhang finden Sie Ihr unterschriebenes Rückgabeprotokoll.",
     },
   },
 
@@ -324,8 +326,10 @@ const de = {
     customerSubject: "Ihr Mietvertrag – ZURIAUTO",
     // Split so the payment link lands before the sign-off rather than trailing
     // after it, which reads as an afterthought.
-    customerGreeting:
-      "Guten Tag\n\nIm Anhang finden Sie Ihren unterschriebenen Mietvertrag.",
+    /** The renter's name is appended: "Guten Tag Max Muster". */
+    customerHello: "Guten Tag",
+    customerBody:
+      "Im Anhang finden Sie Ihren unterschriebenen Mietvertrag.",
     customerPayment: "Zahlung per Kreditkarte:",
     customerPaymentTwint: "Zahlung per TWINT:",
     customerSignature: "Freundliche Grüsse\nZURIAUTO",
@@ -542,8 +546,8 @@ const en: typeof de = {
     email: {
       officeSubject: "Vehicle return",
       customerSubject: "Your return confirmation – ZURIAUTO",
-      customerGreeting:
-        "Hello\n\nPlease find your signed return report attached.",
+      customerHello: "Hello",
+      customerBody: "Please find your signed return report attached.",
     },
   },
 
@@ -621,8 +625,8 @@ const en: typeof de = {
   email: {
     officeSubject: "New rental contract",
     customerSubject: "Your rental contract – ZURIAUTO",
-    customerGreeting:
-      "Hello\n\nPlease find your signed rental contract attached.",
+    customerHello: "Hello",
+    customerBody: "Please find your signed rental contract attached.",
     customerPayment: "Pay by credit card:",
     customerPaymentTwint: "Pay by TWINT:",
     customerSignature: "Kind regards\nZURIAUTO",

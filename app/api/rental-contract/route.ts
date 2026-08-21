@@ -226,7 +226,9 @@ export async function POST(request: Request) {
       // Plain text with a bare URL: mail clients linkify it, and a text part
       // reaches every client without an HTML fallback to maintain.
       text: [
-        L.email.customerGreeting,
+        `${L.email.customerHello} ${meta.customerName}`,
+        "",
+        L.email.customerBody,
         "",
         `${L.email.customerPayment}`,
         PAYMENT_URL,
