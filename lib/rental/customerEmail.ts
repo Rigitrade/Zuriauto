@@ -65,10 +65,16 @@ export function buildCustomerEmail(input: CustomerEmailInput): {
 
   // Deliberately plain: a white page, one wordmark, one rule, text, two
   // buttons. A rental confirmation should read like a letter, not a campaign.
-  const html = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#ffffff;padding:32px 16px;">
+  //
+  // Flush left rather than centred. The attachment chip the client draws
+  // below the body is anchored to the window edge, so a centred column left
+  // the message and its own PDF visibly out of line with each other. The
+  // width is still capped, so the text does not run the full width of a
+  // desktop window.
+  const html = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#ffffff;padding:28px 20px;">
   <tr>
-    <td align="center">
-      <table role="presentation" cellpadding="0" cellspacing="0" style="max-width:540px;width:100%;">
+    <td align="left">
+      <table role="presentation" align="left" cellpadding="0" cellspacing="0" style="max-width:540px;width:100%;text-align:left;">
         <tr>
           <td style="padding:0 0 16px;border-bottom:2px solid #0f172a;">
             <span style="font-family:${FONT};font-size:17px;letter-spacing:5px;font-weight:bold;color:#0f172a;">ZURIAUTO</span>
