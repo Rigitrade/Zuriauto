@@ -11,7 +11,15 @@
 # at once, and neither can corrupt the other.
 services:
   db:
-    image: postgres:16
+    # Matches the production Neon project. Neon defaults new projects to 18,
+    # and the local version has to agree with it: the database tests are the
+    # only place the migrations and the concurrency behaviour are exercised, so
+    # testing against a different major than production runs would defeat them.
+    #
+    # Changing this major version needs the volume deleted — a Postgres data
+    # directory is not readable by a different major. Nothing of value lives
+    # here; the test harness truncates every table between tests anyway.
+    image: postgres:18
     container_name: zuriauto-site-db
     environment:
       POSTGRES_USER: zuriauto
@@ -20,7 +28,12 @@ services:
     ports:
       - '5434:5432'
     volumes:
-      - zuriauto-site-pgdata:/var/lib/postgresql/data
+      # `/var/lib/postgresql`, not `/var/lib/postgresql/data`. The 18 images
+      # store data in major-version-specific subdirectories, and refuse to
+      # start if they find a cluster at the old path — so a volume written by
+      # the 16 image cannot simply be remounted. It was deleted rather than
+      # pg_upgrade'd; this is a development database.
+      - zuriauto-site-pgdata:/var/lib/postgresql
     # So `docker compose up -d db` can be followed straight away by a migration
     # rather than by a guess about whether the server is accepting connections.
     healthcheck:
