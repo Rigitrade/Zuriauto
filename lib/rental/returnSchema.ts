@@ -25,6 +25,20 @@ const yesNo = z.enum(["yes", "no"], { message: "required" });
 
 const required = (message: string) => z.string().trim().min(1, message);
 
+/**
+ * Today as YYYY-MM-DD in local time, for comparing against the form's date
+ * inputs — which are local calendar dates, not instants. Comparing the
+ * strings directly is safe: ISO dates sort chronologically.
+ *
+ * Local rather than UTC on purpose. In Zurich a date picked late in the
+ * evening is already tomorrow in UTC, which would reject a payment dated
+ * today as being in the future.
+ */
+export function todayIso(now: Date = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
 export const returnDetailsSchema = z
   .object({
     vehicleId: required("vehicle"),
@@ -89,6 +103,36 @@ export const returnDetailsSchema = z
     place: z.string().trim().max(100).default(""),
   })
   .superRefine((value, context) => {
+    /**
+     * A car cannot come back with fewer kilometres than it left with, so a
+     * lower reading is a typo — and it would otherwise be printed on a signed
+     * document showing the vehicle driving backwards.
+     *
+     * Only checked when the handover figure is present, which today means the
+     * customer typed it. Equal readings are allowed on purpose: a car booked
+     * and never driven is unusual but real, and the identical figures are
+     * visible to whoever reads the protocol.
+     */
+    if (
+      value.mileagePickupKm !== undefined &&
+      value.mileageKm < value.mileagePickupKm
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["mileageKm"],
+        message: "mileageBelowPickup",
+      });
+    }
+
+    // Dates that contradict their own tense are typos, most often in the year.
+    if (value.paidOn && value.paidOn > todayIso()) {
+      context.addIssue({
+        code: "custom",
+        path: ["paidOn"],
+        message: "dateNotFuture",
+      });
+    }
+
     // A "paid in full" without a method says nothing the office can act on.
     if (value.fullyPaid === "yes" && value.paymentMethods.length === 0) {
       context.addIssue({
@@ -104,6 +148,14 @@ export const returnDetailsSchema = z
           code: "custom",
           path: ["dueDate"],
           message: "dueDate",
+        });
+      } else if (value.dueDate < todayIso()) {
+        // "Will be paid on" a date already past says nothing the office can
+        // chase. Today is allowed: paying on the way out is normal.
+        context.addIssue({
+          code: "custom",
+          path: ["dueDate"],
+          message: "dateNotPast",
         });
       }
       if (!value.dueMethod) {

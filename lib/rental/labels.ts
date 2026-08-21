@@ -267,6 +267,10 @@ const de = {
     paymentMethod: "Bitte wählen Sie mindestens eine Zahlungsmethode.",
     dueDate: "Bitte wählen Sie ein Datum.",
     amount: "Bitte geben Sie einen gültigen Betrag ein.",
+    mileageBelowPickup:
+      "Der Kilometerstand bei Rückgabe kann nicht kleiner sein als bei der Übernahme. Bitte prüfen Sie beide Werte.",
+    dateNotFuture: "Das Datum kann nicht in der Zukunft liegen.",
+    dateNotPast: "Das Datum kann nicht in der Vergangenheit liegen.",
     imageRead: "Das Bild konnte nicht gelesen werden. Bitte erneut aufnehmen.",
     fileRead:
       "Die Datei konnte nicht gelesen werden. Bitte wählen Sie eine andere Datei oder nehmen Sie ein Foto auf.",
@@ -569,6 +573,10 @@ const en: typeof de = {
     paymentMethod: "Please select at least one payment method.",
     dueDate: "Please choose a date.",
     amount: "Please enter a valid amount.",
+    mileageBelowPickup:
+      "The mileage at return cannot be lower than at handover. Please check both readings.",
+    dateNotFuture: "The date cannot be in the future.",
+    dateNotPast: "The date cannot be in the past.",
     imageRead: "The image could not be read. Please take it again.",
     fileRead:
       "The file could not be read. Please choose a different file or take a photo.",

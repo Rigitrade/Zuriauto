@@ -31,6 +31,7 @@ import {
   buildReturnNumber,
   PAYMENT_METHODS,
   returnDetailsSchema,
+  todayIso,
   type PaymentMethod,
 } from "@/lib/rental/returnSchema";
 import SignaturePad from "./SignaturePad";
@@ -249,6 +250,16 @@ export default function RentalReturnWizard() {
       ) {
         found.mileagePickupKm = L.errors.mileage;
       }
+      // A car cannot return with fewer kilometres than it left with. Checked
+      // only once both readings parse, so the message is about the comparison
+      // rather than about a half-typed number.
+      if (!found.mileageKm && !found.mileagePickupKm && form.mileagePickupKm.trim()) {
+        const returned = Number(form.mileageKm.replace(/[\s'.]/g, ""));
+        const collected = Number(form.mileagePickupKm.replace(/[\s'.]/g, ""));
+        if (returned < collected) {
+          found.mileageKm = L.errors.mileageBelowPickup;
+        }
+      }
     }
 
     if (target === 2) {
@@ -270,6 +281,10 @@ export default function RentalReturnWizard() {
       if (paid !== undefined && !(paid >= 0 && paid <= 1_000_000)) {
         found.paidAmountChf = L.errors.amount;
       }
+      // Money cannot have been paid on a day that has not happened.
+      if (form.paidOn && form.paidOn > todayIso()) {
+        found.paidOn = L.errors.dateNotFuture;
+      }
       if (!form.hasDuePayment) found.hasDuePayment = L.errors.required;
       if (form.hasDuePayment === "yes") {
         const due = parseAmount(form.dueAmountChf);
@@ -278,6 +293,9 @@ export default function RentalReturnWizard() {
         }
         if (!/^\d{4}-\d{2}-\d{2}$/.test(form.dueDate)) {
           found.dueDate = L.errors.dueDate;
+        } else if (form.dueDate < todayIso()) {
+          // "Will be paid on" a past date gives the office nothing to chase.
+          found.dueDate = L.errors.dateNotPast;
         }
         if (!form.dueMethod) found.dueMethod = L.errors.required;
       }
@@ -773,9 +791,14 @@ export default function RentalReturnWizard() {
                 </Field>
 
                 <Field label={R.paidOn} error={errors.paidOn}>
+                  {/* Bounded at today, so the picker itself cannot offer a
+                      date on which nothing can have been paid yet. Set only
+                      after mount: this page is prerendered, and a date
+                      computed at build time would not match the browser's. */}
                   <Input
                     type="date"
                     value={form.paidOn}
+                    max={now ? todayIso(now) : undefined}
                     onChange={(e) => set("paidOn", e.target.value)}
                   />
                 </Field>
@@ -805,9 +828,11 @@ export default function RentalReturnWizard() {
                   </Field>
 
                   <Field label={R.dueDate} error={errors.dueDate} required>
+                    {/* Today or later: a promise to pay cannot point back. */}
                     <Input
                       type="date"
                       value={form.dueDate}
+                      min={now ? todayIso(now) : undefined}
                       onChange={(e) => set("dueDate", e.target.value)}
                     />
                   </Field>
