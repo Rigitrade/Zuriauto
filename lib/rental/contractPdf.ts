@@ -9,6 +9,7 @@
 
 import {
   PDFDocument,
+  PDFEmbeddedPage,
   PDFFont,
   PDFImage,
   PDFPage,
@@ -20,14 +21,15 @@ import { fuelLevelToFraction, type FleetVehicle } from "./fleet";
 import { labelsFor, type RentalLanguage } from "./labels";
 import type { ContractDetails } from "./schema";
 
-const A4 = { width: 595.28, height: 841.89 };
-const MARGIN = 48;
-const CONTENT_WIDTH = A4.width - MARGIN * 2;
+// Shared with `returnPdf.ts`, so both documents share one page geometry.
+export const A4 = { width: 595.28, height: 841.89 };
+export const MARGIN = 48;
+export const CONTENT_WIDTH = A4.width - MARGIN * 2;
 const FOOTER_SPACE = 42;
 
-const INK = rgb(0.09, 0.11, 0.15);
-const MUTED = rgb(0.42, 0.45, 0.5);
-const RULE = rgb(0.85, 0.87, 0.9);
+export const INK = rgb(0.09, 0.11, 0.15);
+export const MUTED = rgb(0.42, 0.45, 0.5);
+export const RULE = rgb(0.85, 0.87, 0.9);
 
 /**
  * pdf-lib's standard fonts encode WinAnsi, which throws on anything outside
@@ -106,8 +108,12 @@ function wrap(text: string, font: PDFFont, size: number, width: number): string[
   return lines;
 }
 
-/** Cursor over a growing document, adding pages as content runs off the bottom. */
-class Writer {
+/**
+ * Cursor over a growing document, adding pages as content runs off the bottom.
+ * Exported for `returnPdf.ts`, so the return report is typeset by the same
+ * rules as the contract instead of by a diverging copy.
+ */
+export class Writer {
   page: PDFPage;
   private y: number;
 
@@ -264,29 +270,65 @@ class Writer {
     });
     this.y -= height + 12;
   }
+
+  /** Like `imagePage`, but for a page lifted out of an uploaded PDF. */
+  embeddedPdfPage(embedded: PDFEmbeddedPage, caption: string): void {
+    this.newPage();
+    this.sectionTitle(caption);
+
+    const maxHeight = this.y - MARGIN - FOOTER_SPACE;
+    const scale = Math.min(
+      CONTENT_WIDTH / embedded.width,
+      maxHeight / embedded.height
+    );
+    const width = embedded.width * scale;
+    const height = embedded.height * scale;
+
+    this.page.drawPage(embedded, {
+      x: MARGIN + (CONTENT_WIDTH - width) / 2,
+      y: this.y - height,
+      xScale: scale,
+      yScale: scale,
+    });
+    this.y -= height + 12;
+  }
 }
 
-function formatDate(value: string): string {
+/**
+ * Tells an uploaded PDF apart from a compressed JPEG. The spec requires the
+ * `%PDF-` marker but allows junk ahead of it, so the first kilobyte is
+ * scanned rather than just position zero.
+ */
+function isPdfBytes(bytes: Uint8Array): boolean {
+  const MARKER = [0x25, 0x50, 0x44, 0x46, 0x2d]; // %PDF-
+  const limit = Math.min(bytes.length - MARKER.length, 1024);
+  for (let start = 0; start <= limit; start += 1) {
+    if (MARKER.every((byte, i) => bytes[start + i] === byte)) return true;
+  }
+  return false;
+}
+
+export function formatDate(value: string): string {
   const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   return match ? `${match[3]}.${match[2]}.${match[1]}` : value;
 }
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
-function formatDateTime(date: Date): string {
+export function formatDateTime(date: Date): string {
   return `${formatDate(toIsoDate(date))} ${formatTime(date)}`;
 }
 
 /** Local calendar date as YYYY-MM-DD, so `formatDate` is the single formatter. */
-function toIsoDate(date: Date): string {
+export function toIsoDate(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-function formatTime(date: Date): string {
+export function formatTime(date: Date): string {
   return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-function formatMileage(km: number): string {
+export function formatMileage(km: number): string {
   return km.toLocaleString("de-CH").replace(/’/g, "'");
 }
 
@@ -297,9 +339,10 @@ export interface ContractPdfInput {
   issuedAt: Date;
   language: RentalLanguage;
   /**
-   * JPEG bytes, already downscaled by `imageCompress`. Both sides of each
-   * document: a Swiss ID card carries the issuing data and validity on the
-   * reverse, so a front-only copy is incomplete.
+   * JPEG bytes downscaled by `imageCompress`, or — for the document sides —
+   * an uploaded PDF carried through as-is; the two are told apart by their
+   * bytes. Both sides of each document: a Swiss ID card carries the issuing
+   * data and validity on the reverse, so a front-only copy is incomplete.
    */
   /** A photo of the renter, for comparison against the identity document. */
   portraitPhoto: Uint8Array;
@@ -441,7 +484,19 @@ export async function buildContractPdf(
   ];
 
   for (const [bytes, caption] of documentPages) {
-    w.imagePage(await doc.embedJpg(bytes), caption);
+    if (isPdfBytes(bytes)) {
+      // Every page of the upload, in case the scan spreads the document over
+      // several; each keeps the caption, numbered when there is more than one.
+      const source = await PDFDocument.load(bytes);
+      const embedded = await doc.embedPdf(source, source.getPageIndices());
+      embedded.forEach((page, index) => {
+        const suffix =
+          embedded.length > 1 ? ` (${index + 1}/${embedded.length})` : "";
+        w.embeddedPdfPage(page, `${caption}${suffix}`);
+      });
+    } else {
+      w.imagePage(await doc.embedJpg(bytes), caption);
+    }
   }
 
   for (const [index, photo] of input.conditionPhotos.entries()) {

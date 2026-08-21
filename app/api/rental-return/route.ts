@@ -2,16 +2,16 @@ import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import { PAYMENT_URL, TWINT_URL } from "@/lib/payment";
 import { labelsFor } from "@/lib/rental/labels";
-import { contractMetaSchema } from "@/lib/rental/schema";
+import { returnMetaSchema } from "@/lib/rental/returnSchema";
 
 /**
- * Emails a signed pickup contract to the office and to the customer.
+ * Emails a signed vehicle return report to the office and to the customer.
  *
- * Stateless by design: nothing is written down in Phase 1. The endpoint is
- * public and unauthenticated, which makes it a spam-relay target, so it is
- * fenced with a size cap, an origin check, a honeypot and a per-IP limiter.
- * Those are mitigations rather than a solution — real rate limiting arrives
- * with the Phase 2 datastore.
+ * A sibling of `app/api/rental-contract/route.ts` with the same posture:
+ * stateless, public, and fenced with a size cap, an origin check, a honeypot
+ * and a per-IP limiter. The limiter state is deliberately this route's own —
+ * sharing a budget with the pickup route would let a burst of one starve the
+ * other.
  */
 
 // SMTP needs a socket, so this cannot run on the Edge runtime.
@@ -23,15 +23,9 @@ const MAX_PDF_BYTES = 4.4 * 1024 * 1024;
 
 const RATE_LIMIT = { max: 5, windowMs: 10 * 60 * 1000 };
 
-/**
- * Held in module scope, so it resets on every cold start and is not shared
- * between concurrent instances. Good enough to blunt a naive script; it is
- * explicitly not a real rate limiter.
- */
+/** Module scope: resets on cold start, unshared across instances. See the
+ * pickup route for why that is accepted in Phase 1. */
 const recentByIp = new Map<string, number[]>();
-
-/** Keeps the no-archive warning to once per cold start rather than per send. */
-let warnedAboutArchive = false;
 
 function rateLimited(ip: string): boolean {
   const now = Date.now();
@@ -41,7 +35,6 @@ function rateLimited(ip: string): boolean {
   hits.push(now);
   recentByIp.set(ip, hits);
 
-  // Keep the map from growing without bound across a warm instance's life.
   if (recentByIp.size > 500) {
     for (const [key, times] of recentByIp) {
       if (times.every((at) => now - at >= RATE_LIMIT.windowMs)) {
@@ -75,13 +68,7 @@ interface MailConfig {
   user: string;
   pass: string;
   from: string;
-  /** Comma-separated list is allowed, so several people can be notified. */
   office: string;
-  /**
-   * Blind copy kept as the archive. Phase 1 writes nothing to disk, so this
-   * mailbox is the only durable record of a signed contract — if it is unset,
-   * a deleted office mail is gone for good.
-   */
   archive?: string;
 }
 
@@ -97,10 +84,8 @@ function readMailConfig(): MailConfig | null {
   } = process.env;
 
   if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS || !MAIL_OFFICE) {
-    // Named in the server log, never in the response: telling a public
-    // endpoint's caller which secret is missing is its own mistake.
     console.error(
-      "[rental-contract] SMTP is not configured. Missing:",
+      "[rental-return] SMTP is not configured. Missing:",
       [
         !SMTP_HOST && "SMTP_HOST",
         !SMTP_USER && "SMTP_USER",
@@ -111,14 +96,6 @@ function readMailConfig(): MailConfig | null {
         .join(", ")
     );
     return null;
-  }
-
-  if (!MAIL_ARCHIVE && !warnedAboutArchive) {
-    warnedAboutArchive = true;
-    console.warn(
-      "[rental-contract] MAIL_ARCHIVE is not set. Nothing is stored server-side " +
-        "in Phase 1, so a contract deleted from the office mailbox is unrecoverable."
-    );
   }
 
   return {
@@ -164,7 +141,7 @@ export async function POST(request: Request) {
 
   let meta;
   try {
-    meta = contractMetaSchema.parse(JSON.parse(String(form.get("meta") ?? "")));
+    meta = returnMetaSchema.parse(JSON.parse(String(form.get("meta") ?? "")));
   } catch {
     return NextResponse.json({ code: "bad-request" }, { status: 400 });
   }
@@ -177,7 +154,7 @@ export async function POST(request: Request) {
 
   const L = labelsFor(meta.language);
   const attachment = {
-    filename: `${meta.contractNumber}.pdf`,
+    filename: `${meta.returnNumber}.pdf`,
     content: Buffer.from(await file.arrayBuffer()),
     contentType: "application/pdf",
   };
@@ -193,12 +170,12 @@ export async function POST(request: Request) {
   });
 
   const officeSummary = [
-    `${L.pdf.contractNumber}: ${meta.contractNumber}`,
+    `${L.ret.pdf.returnNumber}: ${meta.returnNumber}`,
     `${L.pdf.customerSection}: ${meta.customerName}`,
     `${L.pdf.email}: ${meta.customerEmail}`,
     `${L.pdf.model}: ${meta.vehicleLabel}`,
     `${L.pdf.plate}: ${meta.plate}`,
-    `${L.pdf.mileage}: ${meta.mileageKm} ${L.pdf.km}`,
+    `${L.ret.pdf.mileage}: ${meta.mileageKm} ${L.pdf.km}`,
   ].join("\n");
 
   // The office copy is the one that matters: if it fails, the request failed.
@@ -206,15 +183,14 @@ export async function POST(request: Request) {
     await transport.sendMail({
       from: config.from,
       to: config.office,
-      // Blind, so the customer's copy never exposes the archive address.
       bcc: config.archive,
       replyTo: meta.customerEmail,
-      subject: `${L.email.officeSubject} – ${meta.plate} – ${meta.customerName}`,
+      subject: `${L.ret.email.officeSubject} – ${meta.plate} – ${meta.customerName}`,
       text: officeSummary,
       attachments: [attachment],
     });
   } catch (error) {
-    console.error("[rental-contract] office mail failed:", error);
+    console.error("[rental-return] office mail failed:", error);
     return NextResponse.json({ code: "send-failed" }, { status: 502 });
   }
 
@@ -222,11 +198,11 @@ export async function POST(request: Request) {
     await transport.sendMail({
       from: config.from,
       to: meta.customerEmail,
-      subject: `${L.email.customerSubject} – ${meta.contractNumber}`,
-      // Plain text with a bare URL: mail clients linkify it, and a text part
-      // reaches every client without an HTML fallback to maintain.
+      subject: `${L.ret.email.customerSubject} – ${meta.returnNumber}`,
+      // Payment links stay in the return confirmation too: an open balance
+      // noted on the report can be settled straight from this email.
       text: [
-        L.email.customerGreeting,
+        L.ret.email.customerGreeting,
         "",
         `${L.email.customerPayment}`,
         PAYMENT_URL,
@@ -239,7 +215,7 @@ export async function POST(request: Request) {
       attachments: [attachment],
     });
   } catch (error) {
-    console.error("[rental-contract] customer copy failed:", error);
+    console.error("[rental-return] customer copy failed:", error);
     return NextResponse.json({ delivered: "office" });
   }
 
