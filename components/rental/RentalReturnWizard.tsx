@@ -38,7 +38,7 @@ import SignaturePad from "./SignaturePad";
 /**
  * The vehicle return flow, the pickup contract's counterpart.
  *
- * Stepped like /apply — vehicle, condition, payment, signature — so the two
+ * Stepped like /pickup — vehicle, condition, payment, signature — so the two
  * flows feel like one product and each screen stays short enough to fill in
  * while standing next to the car.
  *
