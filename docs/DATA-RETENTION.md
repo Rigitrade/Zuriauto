@@ -63,9 +63,22 @@ code, so both are checked at deploy time and recorded here:
   database tests exercise the same major the production server runs. Both
   migrations are applied and the seed has written one organisation and the
   eight fleet vehicles, all `available`.
-- [ ] **R2 bucket jurisdiction** — create with
+- [x] **R2 bucket jurisdiction** — create with
   `wrangler r2 bucket create zuriauto-assets --jurisdiction eu`, and verify with
-  `wrangler r2 bucket list`.
+  `wrangler r2 bucket list`. The dashboard can do it too: Create bucket →
+  Location → Specify jurisdiction → European Union.
+
+  **Verified 22 August 2026.** Bucket `zuriauto-assets`, jurisdiction European
+  Union. The evidence is the bucket's own S3 endpoint, which reads
+  `https://<account>.eu.r2.cloudflarestorage.com/zuriauto-assets` — a
+  jurisdiction-pinned bucket answers only on that `.eu.` host, so the presence
+  of the label *is* the verification. A bucket created without a jurisdiction
+  would have no label and would have to be deleted and recreated, since the
+  setting is fixed at creation.
+
+  This is also why `lib/storage/r2.ts` builds the host from
+  `R2_JURISDICTION` rather than the account's plain hostname — see
+  `lib/storage/r2.test.ts`, which pins the default to `eu`.
 
 If either is wrong, fix it **before** the first production submission. After
 that it is a data migration with a notification obligation attached.
