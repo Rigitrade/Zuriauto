@@ -11,9 +11,37 @@ import type { AssetStore } from "./types";
  *
  * `region: "auto"` is what R2 expects; the SDK insists the field is present.
  */
+
+/**
+ * The S3 endpoint for the bucket.
+ *
+ * A jurisdiction-restricted bucket does not answer on the account's ordinary
+ * host: it has its own, `<account>.<jurisdiction>.r2.cloudflarestorage.com`.
+ * Pointing the plain host at an EU bucket fails with NoSuchBucket, which
+ * surfaces here as a 503 and a contract that was signed and not recorded — so
+ * the default is `eu`, matching the only bucket this project is allowed to
+ * use. Set `R2_JURISDICTION=none` for a bucket created without one.
+ *
+ * Separated from the client so it can be tested without a network or
+ * credentials; getting this wrong is silent until a real upload.
+ */
+export function r2Endpoint(accountId: string, jurisdiction?: string): string {
+  const value = (jurisdiction ?? "eu").trim().toLowerCase();
+  const host =
+    value === "none" || value === ""
+      ? `${accountId}.r2.cloudflarestorage.com`
+      : `${accountId}.${value}.r2.cloudflarestorage.com`;
+  return `https://${host}`;
+}
+
 export function createR2Store(): AssetStore {
-  const { R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET } =
-    process.env;
+  const {
+    R2_ACCOUNT_ID,
+    R2_ACCESS_KEY_ID,
+    R2_SECRET_ACCESS_KEY,
+    R2_BUCKET,
+    R2_JURISDICTION,
+  } = process.env;
 
   if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !R2_BUCKET) {
     throw new Error("R2 is not fully configured");
@@ -21,7 +49,7 @@ export function createR2Store(): AssetStore {
 
   const client = new S3Client({
     region: "auto",
-    endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+    endpoint: r2Endpoint(R2_ACCOUNT_ID, R2_JURISDICTION),
     credentials: {
       accessKeyId: R2_ACCESS_KEY_ID,
       secretAccessKey: R2_SECRET_ACCESS_KEY,
