@@ -23,7 +23,7 @@ export const metadata: Metadata = {
   },
 };
 
-export default function ApplyLayout({
+export default function PickupLayout({
   children,
 }: {
   children: React.ReactNode;
