@@ -3,12 +3,22 @@
 **Status:** not yet deployed. Everything below is prepared and untested against
 production, because it touches external accounts and real customer email.
 
-Two phases sit on `feat/rental-contract-revisions` and have never run outside a
-laptop. Until this runbook is followed, the office is still using the Phase 1
-stateless form: contracts are emailed and nothing is recorded.
+Two phases now sit on `integrate/backend-plus-return`, which is
+`feat/rental-contract-revisions` with `main` merged into it — so it carries the
+return form, the TWINT option, the PDF document uploads and the branded
+customer email alongside the persistence and lifecycle work. Until this runbook
+is followed, the office is still using the Phase 1 stateless form: contracts are
+emailed and nothing is recorded.
 
 Read the whole thing before starting. Steps 1 and 2 are irreversible in ways
 that matter.
+
+**Free plan is enough to deploy and test this.** Every technical limit is far
+away at this fleet size; what the free plan costs you is cron precision (once a
+day, fired within the hour — see step 6) and one hour of runtime logs instead of
+a day. The one thing it does not cover is Vercel's own terms, which restrict
+Hobby to non-commercial use — a decision for the owner, not a blocker on
+following these steps.
 
 ---
 
@@ -110,11 +120,41 @@ than misbehaving quietly:
 
 ## 4. Merge and deploy
 
-- [ ] Open a PR from `feat/rental-contract-revisions` to `main` and read the
-      diff. It is large — 10 commits across two phases.
+**Set the environment variables in step 3 first.** Two of them change what the
+live site does the moment this merges, and neither failure is loud:
+
+- Without `APPLY_SECRET`, every submission is refused with 401. The customer
+  still gets their PDF — the wizard falls back to the Phase 1 download — but
+  nothing is recorded, and the office finds out only from a missing row.
+- Without `DATABASE_URL` or `R2_BUCKET`, the write path answers 503 and the
+  same fallback happens. `/api/fleet` degrades quietly too: the picker keeps
+  the compiled-in list from `lib/rental/fleet.ts`, so the form still works and
+  the failure is invisible on screen.
+
+- [ ] **Test on a Preview deployment before merging.** Vercel builds every
+      branch, so set the same variables in the Preview environment, push, and
+      run the whole of step 5 against the preview URL. That exercises the real
+      database and the real bucket without the office's link changing.
+- [ ] Open a PR to `main` and read the diff. It is large — two phases, plus the
+      return form and the customer email that arrived on `main` meanwhile.
 - [ ] Merge. Vercel builds `main`.
 - [ ] `pnpm build` runs `prisma generate` first, so the generated client is
       rebuilt on the deploy. `postinstall` does the same for installs.
+
+### The office's link changes — warn them before you merge
+
+Phase 1 had no gate: `https://zuriauto.ch/apply/` opened the form for anybody.
+From Phase 2 the page needs `?k=<APPLY_SECRET>`, and without it a browser shows
+"Link nicht gültig" and no form.
+
+So **every bare link already sent to a customer stops working at the merge.**
+Old links that carry the key keep working: `/apply/` now redirects to
+`/pickup/`, and the redirect preserves the query string, so
+`/apply/?k=<secret>` lands on `/pickup/?k=<secret>`. Verified, not assumed.
+
+- [ ] Tell the office the new link before merging, not after.
+- [ ] Check whether anyone is mid-handover with a bare link open. They should
+      submit before the deploy or be re-sent the new one.
 
 ---
 
@@ -134,9 +174,18 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST https://zuriauto.ch/api/rental-
 ```
 Expect `401`.
 
-**c. `/apply` refuses without the key.** Open `https://zuriauto.ch/apply/` —
+**c. The gate holds.** Open `https://zuriauto.ch/pickup/` in a *browser* —
 expect "Link nicht gültig" and no form. Then open
-`https://zuriauto.ch/apply/?k=<APPLY_SECRET>` and expect the five-step wizard.
+`https://zuriauto.ch/pickup/?k=<APPLY_SECRET>` and expect the five-step wizard.
+
+Use a browser, not curl. The gate is a client-side decision, so the
+server-rendered HTML contains the form either way and `curl` will appear to
+show it. That is not a hole — the fence that matters is the `APPLY_SECRET`
+check on the write endpoint, tested in **b** — but it does make curl the wrong
+tool for this step.
+
+- [ ] `https://zuriauto.ch/apply/?k=<APPLY_SECRET>` still reaches the form, so
+      keys already circulated keep working.
 
 **d. One real contract, end to end.** Use a car you can take out of service
 afterwards, and your own email as the renter.
@@ -189,23 +238,45 @@ and tokens; set the car back to `available`; delete its objects from R2.
 summer and 08:00 in winter. That drift is harmless here — the 48-hour reminder
 window absorbs it — but do not read the expression as a local time.
 
-If a tighter window is wanted later, point any external pinger at the same URL
-with the same bearer token. GitHub Actions, cron-job.org and Upstash QStash all
-work, and nothing in the code changes.
+**On the free plan the trigger is also imprecise.** Hobby allows one run per
+day and fires it anywhere inside the hour, so `0 7 * * *` means "somewhere
+between 07:00 and 07:59 UTC". The 48-hour window covers that too. What the free
+plan will not do is a tighter schedule: a cron expression that would run more
+than once a day fails at deployment rather than being silently downgraded.
 
-- [ ] Confirm the first scheduled run in Vercel's cron log.
+If an exact 24-hour reminder is wanted without upgrading, point any external
+scheduler at the same URL with the same bearer token — GitHub Actions,
+cron-job.org and Upstash QStash all work, the endpoint accepts POST as well as
+GET for exactly this reason, and nothing in the code changes. Remove the
+`crons` block from `vercel.json` if you do, so the run does not happen twice.
+
+- [ ] Confirm the first scheduled run in Vercel's cron log. Note that cron only
+      fires on production deployments of the default branch, so a preview
+      deployment never triggers it — trigger those by hand with the bearer.
 
 ---
 
 ## 7. Hand over to the office
 
-- [ ] Give them `https://zuriauto.ch/apply/?k=<APPLY_SECRET>` and explain that
+- [ ] Give them `https://zuriauto.ch/pickup/?k=<APPLY_SECRET>` and explain that
       the link *is* the credential: anyone who has it can create a rental, so it
       should not be forwarded outside the office.
+- [ ] The return form at `https://zuriauto.ch/return/` is **not** fenced by this
+      key, because it is filled in by the renter. It emails a signed return
+      report and does not yet write to the database or free the car — that is
+      Phase 4. Until then a return still needs the SQL below.
 - [ ] Show them how to take a car off the road:
       `UPDATE "Car" SET status = 'maintenance' WHERE plate = '…';`
 - [ ] Show them the traffic-fine lookup — see `docs/RENTAL-CONTRACT-SETUP.md`.
 - [ ] Tell them marking a charge paid is a SQL statement until Phase 5.
+- [ ] Tell them **closing a rental is also SQL** until Phase 4. Nothing in the
+      code sets a rental to `COMPLETED` or a car back to `available`, so a car
+      that has come back stays `rented` and disappears from the picker until
+      somebody runs:
+      `UPDATE "Rental" SET status = 'COMPLETED' WHERE id = '…';`
+      `UPDATE "Car" SET status = 'available' WHERE plate = '…';`
+      This is the first thing they will hit in real use, so say it out loud
+      rather than leaving it in a document.
 
 ---
 
