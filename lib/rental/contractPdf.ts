@@ -21,14 +21,15 @@ import { fuelLevelToFraction, type FleetVehicle } from "./fleet";
 import { labelsFor, type RentalLanguage } from "./labels";
 import type { ContractDetails } from "./schema";
 
-const A4 = { width: 595.28, height: 841.89 };
-const MARGIN = 48;
-const CONTENT_WIDTH = A4.width - MARGIN * 2;
+// Shared with `returnPdf.ts`, so both documents share one page geometry.
+export const A4 = { width: 595.28, height: 841.89 };
+export const MARGIN = 48;
+export const CONTENT_WIDTH = A4.width - MARGIN * 2;
 const FOOTER_SPACE = 42;
 
-const INK = rgb(0.09, 0.11, 0.15);
-const MUTED = rgb(0.42, 0.45, 0.5);
-const RULE = rgb(0.85, 0.87, 0.9);
+export const INK = rgb(0.09, 0.11, 0.15);
+export const MUTED = rgb(0.42, 0.45, 0.5);
+export const RULE = rgb(0.85, 0.87, 0.9);
 
 /**
  * pdf-lib's standard fonts encode WinAnsi, which throws on anything outside
@@ -107,8 +108,12 @@ function wrap(text: string, font: PDFFont, size: number, width: number): string[
   return lines;
 }
 
-/** Cursor over a growing document, adding pages as content runs off the bottom. */
-class Writer {
+/**
+ * Cursor over a growing document, adding pages as content runs off the bottom.
+ * Exported for `returnPdf.ts`, so the return report is typeset by the same
+ * rules as the contract instead of by a diverging copy.
+ */
+export class Writer {
   page: PDFPage;
   private y: number;
 
@@ -303,27 +308,27 @@ function isPdfBytes(bytes: Uint8Array): boolean {
   return false;
 }
 
-function formatDate(value: string): string {
+export function formatDate(value: string): string {
   const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   return match ? `${match[3]}.${match[2]}.${match[1]}` : value;
 }
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
-function formatDateTime(date: Date): string {
+export function formatDateTime(date: Date): string {
   return `${formatDate(toIsoDate(date))} ${formatTime(date)}`;
 }
 
 /** Local calendar date as YYYY-MM-DD, so `formatDate` is the single formatter. */
-function toIsoDate(date: Date): string {
+export function toIsoDate(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-function formatTime(date: Date): string {
+export function formatTime(date: Date): string {
   return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-function formatMileage(km: number): string {
+export function formatMileage(km: number): string {
   return km.toLocaleString("de-CH").replace(/’/g, "'");
 }
 

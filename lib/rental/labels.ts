@@ -144,6 +144,89 @@ const de = {
     payWithTwint: "TWINT",
   },
 
+  /**
+   * The vehicle return form and its document. Field labels the return shares
+   * with the pickup flow (vehicle picker, name fields, signature block,
+   * result-screen buttons) are reused from the sections above rather than
+   * duplicated here.
+   */
+  ret: {
+    pageTitle: "Fahrzeugrückgabe",
+    pageIntro:
+      "Bitte füllen Sie das Formular bei der Rückgabe aus und unterschreiben Sie direkt auf dem Bildschirm. Sie erhalten die Bestätigung per E-Mail.",
+
+    conditionHeading: "Zustand bei Rückgabe",
+    paymentHeading: "Zahlung",
+    renterHeading: "Ihre Daten",
+
+    papers: "Fahrzeugpapiere im Fahrzeug?",
+    key: "Autoschlüssel zurückgegeben?",
+    clean: "Ist das Fahrzeug sauber?",
+    cleanYes: "Sauber",
+    cleanNeedsWash: "Muss gewaschen werden",
+    damages: "Neue Schäden am Fahrzeug?",
+    damagesHint:
+      "Beschreiben Sie neue Schäden. Ohne Eintrag gilt das Fahrzeug als ohne neue Schäden zurückgegeben.",
+    damagesNone: "Keine neuen Schäden",
+
+    tickets: "Radar- oder Parkbussen, von denen Sie wissen?",
+    ticketsNote: "Angaben zur Busse (optional)",
+    fullyPaid: "Ist die Miete bis heute vollständig bezahlt?",
+    methods: "Verwendete Zahlungsmethoden",
+    methodCash: "Bar",
+    methodTwint: "TWINT",
+    methodCard: "Kreditkarte",
+    methodBank: "Banküberweisung",
+    duePayment: "Gibt es noch offene oder verspätete Zahlungen?",
+    dueDate: "Wird bezahlt am",
+    dueMethod: "Zahlungsmethode",
+    deposit: "Soll Ihnen ein Depot zurückgezahlt werden?",
+
+    yes: "Ja",
+    no: "Nein",
+    emailHint: "An diese Adresse senden wir Ihre Bestätigung.",
+    submit: "Rückgabe abschliessen",
+
+    result: {
+      successTitle: "Rückgabe übermittelt",
+      successBody:
+        "Das unterschriebene Rückgabeprotokoll wurde an Sie und an ZURIAUTO gesendet.",
+      partialTitle: "Protokoll an ZURIAUTO gesendet",
+      partialBody:
+        "Ihre Kopie konnte nicht zugestellt werden. Bitte laden Sie das Protokoll hier herunter.",
+      offlineTitle: "Protokoll erstellt",
+      offlineBody:
+        "Der Versand per E-Mail ist derzeit nicht möglich. Bitte laden Sie das Protokoll herunter und senden Sie es an ZURIAUTO.",
+      referenceNumber: "Rückgabe-Nr.",
+    },
+
+    pdf: {
+      title: "RÜCKGABEPROTOKOLL – FAHRZEUGRÜCKGABE",
+      returnNumber: "Rückgabe-Nr.",
+      mileage: "Kilometerstand bei Rückgabe",
+      papers: "Fahrzeugpapiere im Fahrzeug",
+      key: "Autoschlüssel zurückgegeben",
+      clean: "Sauberkeit",
+      damages: "Neue Schäden",
+      damagesNone: "Keine neuen Schäden gemeldet",
+      tickets: "Bekannte Radar-/Parkbussen",
+      ticketsNote: "Angaben zur Busse",
+      fullyPaid: "Miete bis heute vollständig bezahlt",
+      methods: "Zahlungsmethoden",
+      duePayment: "Offene Zahlung vorhanden",
+      dueDate: "Wird bezahlt am",
+      dueMethod: "Zahlungsmethode",
+      deposit: "Depot zurückzuzahlen",
+    },
+
+    email: {
+      officeSubject: "Fahrzeugrückgabe",
+      customerSubject: "Ihre Rückgabebestätigung – ZURIAUTO",
+      customerGreeting:
+        "Guten Tag\n\nIm Anhang finden Sie Ihr unterschriebenes Rückgabeprotokoll.",
+    },
+  },
+
   errors: {
     required: "Pflichtfeld",
     email: "Bitte geben Sie eine gültige E-Mail-Adresse ein.",
@@ -161,6 +244,8 @@ const de = {
       "Bitte fotografieren Sie die Rückseite Ihres Führerausweises.",
     signature: "Bitte unterschreiben Sie.",
     gtc: "Bitte akzeptieren Sie die AGB.",
+    paymentMethod: "Bitte wählen Sie mindestens eine Zahlungsmethode.",
+    dueDate: "Bitte wählen Sie ein Datum.",
     imageRead: "Das Bild konnte nicht gelesen werden. Bitte erneut aufnehmen.",
     fileRead:
       "Die Datei konnte nicht gelesen werden. Bitte wählen Sie eine andere Datei oder nehmen Sie ein Foto auf.",
@@ -348,6 +433,83 @@ const en: typeof de = {
     payWithTwint: "TWINT",
   },
 
+  ret: {
+    pageTitle: "Vehicle return",
+    pageIntro:
+      "Please complete this form when returning the vehicle and sign on screen. You will receive the confirmation by email.",
+
+    conditionHeading: "Condition at return",
+    paymentHeading: "Payment",
+    renterHeading: "Your details",
+
+    papers: "Car papers inside the vehicle?",
+    key: "Car key returned?",
+    clean: "Is the vehicle clean?",
+    cleanYes: "Clean",
+    cleanNeedsWash: "Needs to be washed",
+    damages: "New damage to the vehicle?",
+    damagesHint:
+      "Describe any new damage. If left empty, the vehicle is taken as returned without new damage.",
+    damagesNone: "No new damage",
+
+    tickets: "Radar or parking tickets you know of?",
+    ticketsNote: "Details of the ticket (optional)",
+    fullyPaid: "Is the rental fully paid up to today?",
+    methods: "Payment methods used",
+    methodCash: "Cash",
+    methodTwint: "TWINT",
+    methodCard: "Credit card",
+    methodBank: "Bank transfer",
+    duePayment: "Any due or delayed payment still open?",
+    dueDate: "Will be paid on",
+    dueMethod: "Payment method",
+    deposit: "Deposit to be paid back to you?",
+
+    yes: "Yes",
+    no: "No",
+    emailHint: "We will send your confirmation to this address.",
+    submit: "Complete return",
+
+    result: {
+      successTitle: "Return submitted",
+      successBody:
+        "The signed return report has been sent to you and to ZURIAUTO.",
+      partialTitle: "Report sent to ZURIAUTO",
+      partialBody:
+        "Your copy could not be delivered. Please download the report here.",
+      offlineTitle: "Report created",
+      offlineBody:
+        "Email delivery is currently unavailable. Please download the report and send it to ZURIAUTO.",
+      referenceNumber: "Return no.",
+    },
+
+    pdf: {
+      title: "RETURN REPORT – VEHICLE RETURN",
+      returnNumber: "Return no.",
+      mileage: "Mileage at return",
+      papers: "Car papers inside the vehicle",
+      key: "Car key returned",
+      clean: "Cleanliness",
+      damages: "New damage",
+      damagesNone: "No new damage reported",
+      tickets: "Known radar/parking tickets",
+      ticketsNote: "Ticket details",
+      fullyPaid: "Rental fully paid up to today",
+      methods: "Payment methods",
+      duePayment: "Outstanding payment",
+      dueDate: "Will be paid on",
+      dueMethod: "Payment method",
+      deposit: "Deposit to be paid back",
+    },
+
+    email: {
+      officeSubject: "Vehicle return",
+      customerSubject: "Your return confirmation – ZURIAUTO",
+      customerGreeting:
+        "Hello\n\nPlease find your signed return report attached.",
+    },
+  },
+
   errors: {
     required: "Required",
     email: "Please enter a valid email address.",
@@ -363,6 +525,8 @@ const en: typeof de = {
     licenceBackPhoto: "Please photograph the back of your driving licence.",
     signature: "Please sign.",
     gtc: "Please accept the GTC.",
+    paymentMethod: "Please select at least one payment method.",
+    dueDate: "Please choose a date.",
     imageRead: "The image could not be read. Please take it again.",
     fileRead:
       "The file could not be read. Please choose a different file or take a photo.",
