@@ -35,6 +35,41 @@ function createClient(): PrismaClient {
   });
 }
 
-export const prisma = globalForPrisma.prisma ?? createClient();
+/** Production keeps its single client here; development keeps it on
+ * `globalThis` so a hot reload reuses the pool rather than opening another. */
+let cached: PrismaClient | undefined;
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+function client(): PrismaClient {
+  const existing = globalForPrisma.prisma ?? cached;
+  if (existing) return existing;
+
+  const created = createClient();
+  if (process.env.NODE_ENV === "production") cached = created;
+  else globalForPrisma.prisma = created;
+  return created;
+}
+
+/**
+ * The client, created on first use rather than on import.
+ *
+ * This has to be lazy. `next build` evaluates every route module to collect
+ * its metadata, so a client constructed at module scope made `DATABASE_URL` a
+ * *build* requirement: the build failed at "Collecting page data" for
+ * `/api/cron/daily` with "DATABASE_URL is not set", long before any request
+ * could arrive. A build should not need production credentials to produce an
+ * artifact, and a deployment should not be able to fail for a reason that has
+ * nothing to do with the code being deployed.
+ *
+ * The proxy defers construction to the first property access — the first
+ * query, in practice — so the missing-variable error still surfaces, but as a
+ * request failure the route already handles rather than a broken build.
+ * Methods are bound to the real client so `prisma.$transaction(...)` and the
+ * model delegates behave exactly as before.
+ */
+export const prisma = new Proxy({} as PrismaClient, {
+  get(_target, property) {
+    const instance = client();
+    const value = Reflect.get(instance, property, instance);
+    return typeof value === "function" ? value.bind(instance) : value;
+  },
+});
