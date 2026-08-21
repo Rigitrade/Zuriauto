@@ -36,6 +36,13 @@ export interface ClaimedSend {
  *
  * Null means somebody else already claimed it — a previous run, or a
  * simultaneous one. It is a normal outcome, not an error.
+ *
+ * `now` is written to `createdAt` rather than left to the column default.
+ * The default is the database clock, which is the one clock the scheduler
+ * cannot control: `mailRetryPass` waits `RETRY_MIN_AGE_HOURS` by comparing
+ * `createdAt` against its injected `now`, so a row stamped by the server
+ * made that comparison untestable — and any test working from fixed dates
+ * silently stopped exercising the retry once real time moved past them.
  */
 export async function claimSend(
   client: PrismaClient,
@@ -45,11 +52,12 @@ export async function claimSend(
     kind: NotificationKind;
     dedupeKey: string;
     to: string;
-  }
+  },
+  now?: Date
 ): Promise<ClaimedSend | null> {
   try {
     const row = await client.notification.create({
-      data: input,
+      data: now ? { ...input, createdAt: now } : input,
       select: { id: true, to: true },
     });
     return row;
@@ -112,7 +120,7 @@ export async function sendOnce(
   now: Date,
   send: () => Promise<void>
 ): Promise<boolean> {
-  const claim = await claimSend(client, input);
+  const claim = await claimSend(client, input, now);
   if (!claim) return false;
 
   try {
