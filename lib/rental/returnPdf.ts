@@ -177,7 +177,7 @@ export async function buildReturnPdf(input: ReturnPdfInput): Promise<Uint8Array>
     : 0;
   const inkHeight = Math.max(renterHeight, ownerHeight, 40);
 
-  w.sectionTitle(P.signatureSection);
+  w.sectionTitle(R.pdf.signatureSection);
   w.ensure(inkHeight + 70);
 
   const signatureTop = w.cursor;
