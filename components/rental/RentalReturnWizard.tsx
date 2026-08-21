@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  ArrowLeft,
+  ArrowRight,
   CalendarDays,
   CheckCircle2,
   Clock,
@@ -12,6 +14,7 @@ import {
   Smartphone,
   TriangleAlert,
 } from "lucide-react";
+import StepIndicator from "@/components/car-rental/booking/StepIndicator";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -33,16 +36,18 @@ import {
 import SignaturePad from "./SignaturePad";
 
 /**
- * The vehicle return form, the pickup contract's counterpart.
+ * The vehicle return flow, the pickup contract's counterpart.
  *
- * One page rather than four steps: the return is a checklist filled in while
- * standing next to the car, with no document photos and no terms to read, so
- * splitting it into steps would only put taps between the customer and done.
+ * Stepped like /apply — vehicle, condition, payment, signature — so the two
+ * flows feel like one product and each screen stays short enough to fill in
+ * while standing next to the car.
  *
  * The same offline posture as pickup: the PDF is built in the browser, the
  * only server call emails it, and a failed send still hands the customer
  * their signed document.
  */
+
+const TOTAL_STEPS = 4;
 
 type Status =
   | { kind: "editing" }
@@ -97,6 +102,33 @@ const EMPTY_FORM: FormState = {
   place: "Zurich",
 };
 
+/**
+ * Which step owns each field, so a schema error found at submit can send the
+ * customer back to the screen where the bad value lives.
+ */
+const OWNER_OF_FIELD: Record<string, number> = {
+  vehicleId: 1,
+  mileageKm: 1,
+  fuelLevel: 1,
+  papersInside: 2,
+  keyReturned: 2,
+  cleanliness: 2,
+  damages: 2,
+  tickets: 3,
+  ticketsNote: 3,
+  fullyPaid: 3,
+  paymentMethods: 3,
+  hasDuePayment: 3,
+  dueDate: 3,
+  dueMethod: 3,
+  depositBack: 3,
+  lastName: 4,
+  firstName: 4,
+  email: 4,
+  place: 4,
+  signature: 4,
+};
+
 const pad = (n: number) => String(n).padStart(2, "0");
 
 /** `DD.MM.YYYY` — the same shape the PDF prints. */
@@ -130,6 +162,7 @@ export default function RentalReturnWizard() {
     bank: R.methodBank,
   };
 
+  const [step, setStep] = useState(1);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [signature, setSignature] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -178,7 +211,68 @@ export default function RentalReturnWizard() {
     );
   }
 
+  function validateStep(target: number): boolean {
+    const found: Record<string, string> = {};
+
+    if (target === 1) {
+      if (!vehicle) found.vehicleId = L.errors.vehicle;
+      if (!/^\d{1,7}$/.test(form.mileageKm.replace(/[\s'.]/g, ""))) {
+        found.mileageKm = L.errors.mileage;
+      }
+    }
+
+    if (target === 2) {
+      if (!form.papersInside) found.papersInside = L.errors.required;
+      if (!form.keyReturned) found.keyReturned = L.errors.required;
+      if (!form.cleanliness) found.cleanliness = L.errors.required;
+    }
+
+    if (target === 3) {
+      if (!form.tickets) found.tickets = L.errors.required;
+      if (!form.fullyPaid) found.fullyPaid = L.errors.required;
+      // The same cross-field rules the schema enforces at submit, checked
+      // here so the customer is stopped on the screen that owns the field.
+      if (form.fullyPaid === "yes" && form.paymentMethods.length === 0) {
+        found.paymentMethods = L.errors.paymentMethod;
+      }
+      if (!form.hasDuePayment) found.hasDuePayment = L.errors.required;
+      if (form.hasDuePayment === "yes") {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(form.dueDate)) {
+          found.dueDate = L.errors.dueDate;
+        }
+        if (!form.dueMethod) found.dueMethod = L.errors.required;
+      }
+      if (!form.depositBack) found.depositBack = L.errors.required;
+    }
+
+    if (target === 4) {
+      if (!form.lastName.trim()) found.lastName = L.errors.required;
+      if (!form.firstName.trim()) found.firstName = L.errors.required;
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim())) {
+        found.email = L.errors.email;
+      }
+      if (!signature) found.signature = L.errors.signature;
+    }
+
+    setErrors(found);
+    return Object.keys(found).length === 0;
+  }
+
+  function next() {
+    if (!validateStep(step)) return;
+    setStep((s) => Math.min(TOTAL_STEPS, s + 1));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function back() {
+    setErrors({});
+    setStep((s) => Math.max(1, s - 1));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   async function submit() {
+    if (!validateStep(4) || !vehicle || !signature) return;
+
     const parsed = returnDetailsSchema.safeParse({
       vehicleId: form.vehicleId,
       mileageKm: Number(form.mileageKm.replace(/[\s'.]/g, "")),
@@ -201,23 +295,18 @@ export default function RentalReturnWizard() {
       place: form.place,
     });
 
-    const found: Record<string, string> = {};
     if (!parsed.success) {
+      const found: Record<string, string> = {};
       for (const issue of parsed.error.issues) {
         const key = String(issue.path[0] ?? "form");
         const message = issue.message as keyof typeof L.errors;
         found[key] = L.errors[message] ?? L.errors.required;
       }
+      setErrors(found);
+      // Send them back to the step that owns the first bad field.
+      setStep(OWNER_OF_FIELD[Object.keys(found)[0]] ?? 1);
+      return;
     }
-    // Not part of the schema: the mileage regex mirrors the pickup form, and
-    // the signature lives outside the parsed object.
-    if (!/^\d{1,7}$/.test(form.mileageKm.replace(/[\s'.]/g, ""))) {
-      found.mileageKm = L.errors.mileage;
-    }
-    if (!signature) found.signature = L.errors.signature;
-
-    setErrors(found);
-    if (!parsed.success || Object.keys(found).length > 0 || !vehicle) return;
 
     setStatus({ kind: "building" });
 
@@ -234,7 +323,7 @@ export default function RentalReturnWizard() {
         returnNumber,
         issuedAt,
         language,
-        signaturePng: dataUrlToBytes(signature!),
+        signaturePng: dataUrlToBytes(signature),
       });
       const pdf = new Blob([bytes as unknown as BlobPart], {
         type: "application/pdf",
@@ -427,346 +516,391 @@ export default function RentalReturnWizard() {
           </p>
         </header>
 
-        <div className="space-y-6">
-          {/* --- Vehicle ------------------------------------------------ */}
-          <Card heading={L.vehicle.heading}>
-            <Field label={L.vehicle.select} error={errors.vehicleId} required>
-              <select
-                value={form.vehicleId}
-                onChange={(e) => set("vehicleId", e.target.value)}
-                className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 md:text-sm"
-              >
-                <option value="">{L.vehicle.selectPlaceholder}</option>
-                {availableFleet.map((entry) => (
-                  <option key={entry.id} value={entry.id}>
-                    {entry.model} — {entry.plate}
-                  </option>
-                ))}
-              </select>
-            </Field>
+        <StepIndicator currentStep={step} totalSteps={TOTAL_STEPS} />
 
-            <Field
-              label={L.vehicle.mileage}
-              hint={L.vehicle.mileageHint}
-              error={errors.mileageKm}
-              required
-            >
-              <Input
-                inputMode="numeric"
-                value={form.mileageKm}
-                onChange={(e) => set("mileageKm", e.target.value)}
-                placeholder="66000"
-              />
-            </Field>
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
+          {/* --- Step 1: Vehicle ---------------------------------------- */}
+          {step === 1 && (
+            <div className="space-y-5">
+              <h2 className="text-lg font-semibold text-slate-900">
+                {L.vehicle.heading}
+              </h2>
 
-            <Field label={L.vehicle.fuel} required>
-              <div className="grid grid-cols-5 gap-1.5">
-                {FUEL_LEVELS.map((level) => (
-                  <button
-                    key={level}
-                    type="button"
-                    onClick={() => set("fuelLevel", level)}
-                    className={`rounded-md border px-1 py-2 text-xs transition-colors sm:text-sm ${
-                      form.fuelLevel === level
-                        ? "border-slate-800 bg-slate-800 text-white"
-                        : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-                    }`}
-                  >
-                    {level === "empty"
-                      ? L.vehicle.fuelEmpty
-                      : level === "full"
-                      ? L.vehicle.fuelFull
-                      : level}
-                  </button>
-                ))}
-              </div>
-            </Field>
-          </Card>
-
-          {/* --- Condition ---------------------------------------------- */}
-          <Card heading={R.conditionHeading}>
-            <ChoiceField
-              label={R.papers}
-              value={form.papersInside}
-              onChange={(value) => set("papersInside", value)}
-              options={[
-                { value: "yes", label: R.yes },
-                { value: "no", label: R.no },
-              ]}
-              error={errors.papersInside}
-              required
-            />
-
-            <ChoiceField
-              label={R.key}
-              value={form.keyReturned}
-              onChange={(value) => set("keyReturned", value)}
-              options={[
-                { value: "yes", label: R.yes },
-                { value: "no", label: R.no },
-              ]}
-              error={errors.keyReturned}
-              required
-            />
-
-            <ChoiceField
-              label={R.clean}
-              value={form.cleanliness}
-              onChange={(value) => set("cleanliness", value)}
-              options={[
-                { value: "clean", label: R.cleanYes },
-                { value: "needsWash", label: R.cleanNeedsWash },
-              ]}
-              error={errors.cleanliness}
-              required
-            />
-
-            <Field label={R.damages} hint={R.damagesHint}>
-              <Textarea
-                value={form.damages}
-                onChange={(e) => set("damages", e.target.value)}
-                placeholder={R.damagesNone}
-                rows={3}
-              />
-            </Field>
-          </Card>
-
-          {/* --- Payment ------------------------------------------------ */}
-          <Card heading={R.paymentHeading}>
-            <ChoiceField
-              label={R.tickets}
-              value={form.tickets}
-              onChange={(value) => set("tickets", value)}
-              options={[
-                { value: "yes", label: R.yes },
-                { value: "no", label: R.no },
-              ]}
-              error={errors.tickets}
-              required
-            />
-
-            {form.tickets === "yes" && (
-              <Field label={R.ticketsNote}>
-                <Textarea
-                  value={form.ticketsNote}
-                  onChange={(e) => set("ticketsNote", e.target.value)}
-                  rows={2}
-                />
-              </Field>
-            )}
-
-            <ChoiceField
-              label={R.fullyPaid}
-              value={form.fullyPaid}
-              onChange={(value) => set("fullyPaid", value)}
-              options={[
-                { value: "yes", label: R.yes },
-                { value: "no", label: R.no },
-              ]}
-              error={errors.fullyPaid}
-              required
-            />
-
-            <Field label={R.methods} error={errors.paymentMethods}>
-              <div className="grid grid-cols-2 gap-2">
-                {PAYMENT_METHODS.map((method) => (
-                  <label
-                    key={method}
-                    className={`flex cursor-pointer items-center gap-2.5 rounded-md border px-3 py-2.5 text-sm transition-colors ${
-                      form.paymentMethods.includes(method)
-                        ? "border-slate-800 bg-slate-50 text-slate-900"
-                        : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={form.paymentMethods.includes(method)}
-                      onChange={() => toggleMethod(method)}
-                      className="h-4 w-4 accent-slate-800"
-                    />
-                    {methodName[method]}
-                  </label>
-                ))}
-              </div>
-            </Field>
-
-            <ChoiceField
-              label={R.duePayment}
-              value={form.hasDuePayment}
-              onChange={(value) => set("hasDuePayment", value)}
-              options={[
-                { value: "yes", label: R.yes },
-                { value: "no", label: R.no },
-              ]}
-              error={errors.hasDuePayment}
-              required
-            />
-
-            {form.hasDuePayment === "yes" && (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label={R.dueDate} error={errors.dueDate} required>
-                  <Input
-                    type="date"
-                    value={form.dueDate}
-                    onChange={(e) => set("dueDate", e.target.value)}
-                  />
-                </Field>
-
-                <Field label={R.dueMethod} error={errors.dueMethod} required>
-                  <select
-                    value={form.dueMethod}
-                    onChange={(e) =>
-                      set("dueMethod", e.target.value as FormState["dueMethod"])
-                    }
-                    className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 md:text-sm"
-                  >
-                    <option value="">{L.vehicle.selectPlaceholder}</option>
-                    {PAYMENT_METHODS.map((method) => (
-                      <option key={method} value={method}>
-                        {methodName[method]}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-              </div>
-            )}
-
-            <ChoiceField
-              label={R.deposit}
-              value={form.depositBack}
-              onChange={(value) => set("depositBack", value)}
-              options={[
-                { value: "yes", label: R.yes },
-                { value: "no", label: R.no },
-              ]}
-              error={errors.depositBack}
-              required
-            />
-          </Card>
-
-          {/* --- Renter -------------------------------------------------- */}
-          <Card heading={R.renterHeading}>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label={L.details.lastName} error={errors.lastName} required>
-                <Input
-                  value={form.lastName}
-                  onChange={(e) => set("lastName", e.target.value)}
-                  autoComplete="family-name"
-                />
+              <Field label={L.vehicle.select} error={errors.vehicleId} required>
+                <select
+                  value={form.vehicleId}
+                  onChange={(e) => set("vehicleId", e.target.value)}
+                  className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 md:text-sm"
+                >
+                  <option value="">{L.vehicle.selectPlaceholder}</option>
+                  {availableFleet.map((entry) => (
+                    <option key={entry.id} value={entry.id}>
+                      {entry.model} — {entry.plate}
+                    </option>
+                  ))}
+                </select>
               </Field>
 
               <Field
-                label={L.details.firstName}
-                error={errors.firstName}
+                label={L.vehicle.mileage}
+                hint={L.vehicle.mileageHint}
+                error={errors.mileageKm}
                 required
               >
                 <Input
-                  value={form.firstName}
-                  onChange={(e) => set("firstName", e.target.value)}
-                  autoComplete="given-name"
+                  inputMode="numeric"
+                  value={form.mileageKm}
+                  onChange={(e) => set("mileageKm", e.target.value)}
+                  placeholder="66000"
+                />
+              </Field>
+
+              <Field label={L.vehicle.fuel} required>
+                <div className="grid grid-cols-5 gap-1.5">
+                  {FUEL_LEVELS.map((level) => (
+                    <button
+                      key={level}
+                      type="button"
+                      onClick={() => set("fuelLevel", level)}
+                      className={`rounded-md border px-1 py-2 text-xs transition-colors sm:text-sm ${
+                        form.fuelLevel === level
+                          ? "border-slate-800 bg-slate-800 text-white"
+                          : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      {level === "empty"
+                        ? L.vehicle.fuelEmpty
+                        : level === "full"
+                        ? L.vehicle.fuelFull
+                        : level}
+                    </button>
+                  ))}
+                </div>
+              </Field>
+            </div>
+          )}
+
+          {/* --- Step 2: Condition -------------------------------------- */}
+          {step === 2 && (
+            <div className="space-y-5">
+              <h2 className="text-lg font-semibold text-slate-900">
+                {R.conditionHeading}
+              </h2>
+
+              <ChoiceField
+                label={R.papers}
+                value={form.papersInside}
+                onChange={(value) => set("papersInside", value)}
+                options={[
+                  { value: "yes", label: R.yes },
+                  { value: "no", label: R.no },
+                ]}
+                error={errors.papersInside}
+                required
+              />
+
+              <ChoiceField
+                label={R.key}
+                value={form.keyReturned}
+                onChange={(value) => set("keyReturned", value)}
+                options={[
+                  { value: "yes", label: R.yes },
+                  { value: "no", label: R.no },
+                ]}
+                error={errors.keyReturned}
+                required
+              />
+
+              <ChoiceField
+                label={R.clean}
+                value={form.cleanliness}
+                onChange={(value) => set("cleanliness", value)}
+                options={[
+                  { value: "clean", label: R.cleanYes },
+                  { value: "needsWash", label: R.cleanNeedsWash },
+                ]}
+                error={errors.cleanliness}
+                required
+              />
+
+              <Field label={R.damages} hint={R.damagesHint}>
+                <Textarea
+                  value={form.damages}
+                  onChange={(e) => set("damages", e.target.value)}
+                  placeholder={R.damagesNone}
+                  rows={3}
                 />
               </Field>
             </div>
+          )}
 
-            <Field
-              label={L.details.email}
-              hint={R.emailHint}
-              error={errors.email}
-              required
-            >
-              <Input
-                type="email"
-                value={form.email}
-                onChange={(e) => set("email", e.target.value)}
-                autoComplete="email"
+          {/* --- Step 3: Payment ---------------------------------------- */}
+          {step === 3 && (
+            <div className="space-y-5">
+              <h2 className="text-lg font-semibold text-slate-900">
+                {R.paymentHeading}
+              </h2>
+
+              <ChoiceField
+                label={R.tickets}
+                value={form.tickets}
+                onChange={(value) => set("tickets", value)}
+                options={[
+                  { value: "yes", label: R.yes },
+                  { value: "no", label: R.no },
+                ]}
+                error={errors.tickets}
+                required
               />
-            </Field>
-          </Card>
 
-          {/* --- Signature ------------------------------------------------ */}
-          <Card heading={L.signature.heading}>
-            <SignaturePad
-              language={language}
-              onChange={(dataUrl) => {
-                setSignature(dataUrl);
-                if (dataUrl) {
-                  setErrors((prev) => ({ ...prev, signature: "" }));
-                }
-              }}
-            />
-            {errors.signature && (
-              <p className="text-sm text-rose-600">{errors.signature}</p>
-            )}
+              {form.tickets === "yes" && (
+                <Field label={R.ticketsNote}>
+                  <Textarea
+                    value={form.ticketsNote}
+                    onChange={(e) => set("ticketsNote", e.target.value)}
+                    rows={2}
+                  />
+                </Field>
+              )}
 
-            <div className="space-y-2">
-              <Label className="text-slate-700">{L.signature.place}</Label>
+              <ChoiceField
+                label={R.fullyPaid}
+                value={form.fullyPaid}
+                onChange={(value) => set("fullyPaid", value)}
+                options={[
+                  { value: "yes", label: R.yes },
+                  { value: "no", label: R.no },
+                ]}
+                error={errors.fullyPaid}
+                required
+              />
 
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                <div className="col-span-2 space-y-1 sm:col-span-1">
-                  <span className="block text-xs text-slate-500">
-                    {L.signature.placeOnly}
-                  </span>
+              <Field label={R.methods} error={errors.paymentMethods}>
+                <div className="grid grid-cols-2 gap-2">
+                  {PAYMENT_METHODS.map((method) => (
+                    <label
+                      key={method}
+                      className={`flex cursor-pointer items-center gap-2.5 rounded-md border px-3 py-2.5 text-sm transition-colors ${
+                        form.paymentMethods.includes(method)
+                          ? "border-slate-800 bg-slate-50 text-slate-900"
+                          : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={form.paymentMethods.includes(method)}
+                        onChange={() => toggleMethod(method)}
+                        className="h-4 w-4 accent-slate-800"
+                      />
+                      {methodName[method]}
+                    </label>
+                  ))}
+                </div>
+              </Field>
+
+              <ChoiceField
+                label={R.duePayment}
+                value={form.hasDuePayment}
+                onChange={(value) => set("hasDuePayment", value)}
+                options={[
+                  { value: "yes", label: R.yes },
+                  { value: "no", label: R.no },
+                ]}
+                error={errors.hasDuePayment}
+                required
+              />
+
+              {form.hasDuePayment === "yes" && (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field label={R.dueDate} error={errors.dueDate} required>
+                    <Input
+                      type="date"
+                      value={form.dueDate}
+                      onChange={(e) => set("dueDate", e.target.value)}
+                    />
+                  </Field>
+
+                  <Field label={R.dueMethod} error={errors.dueMethod} required>
+                    <select
+                      value={form.dueMethod}
+                      onChange={(e) =>
+                        set(
+                          "dueMethod",
+                          e.target.value as FormState["dueMethod"]
+                        )
+                      }
+                      className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 md:text-sm"
+                    >
+                      <option value="">{L.vehicle.selectPlaceholder}</option>
+                      {PAYMENT_METHODS.map((method) => (
+                        <option key={method} value={method}>
+                          {methodName[method]}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
+              )}
+
+              <ChoiceField
+                label={R.deposit}
+                value={form.depositBack}
+                onChange={(value) => set("depositBack", value)}
+                options={[
+                  { value: "yes", label: R.yes },
+                  { value: "no", label: R.no },
+                ]}
+                error={errors.depositBack}
+                required
+              />
+            </div>
+          )}
+
+          {/* --- Step 4: Renter and signature ---------------------------- */}
+          {step === 4 && (
+            <div className="space-y-6">
+              <div className="space-y-5">
+                <h2 className="text-lg font-semibold text-slate-900">
+                  {R.renterHeading}
+                </h2>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field
+                    label={L.details.lastName}
+                    error={errors.lastName}
+                    required
+                  >
+                    <Input
+                      value={form.lastName}
+                      onChange={(e) => set("lastName", e.target.value)}
+                      autoComplete="family-name"
+                    />
+                  </Field>
+
+                  <Field
+                    label={L.details.firstName}
+                    error={errors.firstName}
+                    required
+                  >
+                    <Input
+                      value={form.firstName}
+                      onChange={(e) => set("firstName", e.target.value)}
+                      autoComplete="given-name"
+                    />
+                  </Field>
+                </div>
+
+                <Field
+                  label={L.details.email}
+                  hint={R.emailHint}
+                  error={errors.email}
+                  required
+                >
                   <Input
-                    className="h-10"
-                    value={form.place}
-                    onChange={(e) => set("place", e.target.value)}
-                    placeholder={L.signature.placeOnly}
-                    aria-label={L.signature.placeOnly}
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => set("email", e.target.value)}
+                    autoComplete="email"
+                  />
+                </Field>
+              </div>
+
+              <div className="space-y-2">
+                <h3 className="text-lg font-semibold text-slate-900">
+                  {L.signature.heading}
+                </h3>
+                <SignaturePad
+                  language={language}
+                  onChange={(dataUrl) => {
+                    setSignature(dataUrl);
+                    if (dataUrl) {
+                      setErrors((prev) => ({ ...prev, signature: "" }));
+                    }
+                  }}
+                />
+                {errors.signature && (
+                  <p className="text-sm text-rose-600">{errors.signature}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-slate-700">{L.signature.place}</Label>
+
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  <div className="col-span-2 space-y-1 sm:col-span-1">
+                    <span className="block text-xs text-slate-500">
+                      {L.signature.placeOnly}
+                    </span>
+                    <Input
+                      className="h-10"
+                      value={form.place}
+                      onChange={(e) => set("place", e.target.value)}
+                      placeholder={L.signature.placeOnly}
+                      aria-label={L.signature.placeOnly}
+                    />
+                  </div>
+
+                  {/* Read-only, as at pickup: the authoritative timestamp is
+                      taken at submit. */}
+                  <Stamp
+                    caption={L.signature.dateOnly}
+                    icon={<CalendarDays className="h-4 w-4 text-slate-400" />}
+                    value={now ? formatDatePart(now) : "—"}
+                  />
+                  <Stamp
+                    caption={L.signature.timeOnly}
+                    icon={<Clock className="h-4 w-4 text-slate-400" />}
+                    value={now ? formatTimePart(now) : "—"}
                   />
                 </div>
 
-                {/* Read-only, as at pickup: the authoritative timestamp is
-                    taken at submit. */}
-                <Stamp
-                  caption={L.signature.dateOnly}
-                  icon={<CalendarDays className="h-4 w-4 text-slate-400" />}
-                  value={now ? formatDatePart(now) : "—"}
-                />
-                <Stamp
-                  caption={L.signature.timeOnly}
-                  icon={<Clock className="h-4 w-4 text-slate-400" />}
-                  value={now ? formatTimePart(now) : "—"}
-                />
+                <p className="text-xs text-slate-500">
+                  {L.signature.stampedNote}
+                </p>
               </div>
-
-              <p className="text-xs text-slate-500">{L.signature.stampedNote}</p>
             </div>
-          </Card>
+          )}
 
-          <div className="flex justify-end">
+          {/* --- Navigation --- */}
+          <div className="mt-8 flex items-center justify-between gap-3 border-t border-slate-100 pt-6">
             <button
               type="button"
-              onClick={submit}
-              disabled={busy}
-              className="inline-flex items-center gap-2 rounded-lg bg-slate-800 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-900 disabled:opacity-60"
+              onClick={back}
+              disabled={step === 1 || busy}
+              className="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 disabled:invisible"
             >
-              {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-              {status.kind === "building"
-                ? L.submit.working
-                : status.kind === "sending"
-                ? L.submit.sending
-                : R.submit}
+              <ArrowLeft className="h-4 w-4" />
+              {language === "de" ? "Zurück" : "Back"}
             </button>
+
+            {step < TOTAL_STEPS ? (
+              <button
+                type="button"
+                onClick={next}
+                className="inline-flex items-center gap-2 rounded-lg bg-slate-800 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-900"
+              >
+                {language === "de" ? "Weiter" : "Next"}
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={submit}
+                disabled={busy}
+                className="inline-flex items-center gap-2 rounded-lg bg-slate-800 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-900 disabled:opacity-60"
+              >
+                {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+                {status.kind === "building"
+                  ? L.submit.working
+                  : status.kind === "sending"
+                  ? L.submit.sending
+                  : R.submit}
+              </button>
+            )}
           </div>
         </div>
       </div>
     </section>
-  );
-}
-
-/** A form section: same card the pickup steps render inside. */
-function Card({
-  heading,
-  children,
-}: {
-  heading: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="space-y-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
-      <h2 className="text-lg font-semibold text-slate-900">{heading}</h2>
-      {children}
-    </div>
   );
 }
 
