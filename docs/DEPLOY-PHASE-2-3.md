@@ -100,6 +100,7 @@ documents every one.
 | `R2_SECRET_ACCESS_KEY` | from the scoped token |
 | `R2_BUCKET` | `zuriauto-assets` |
 | `CRON_SECRET` | a third random string |
+| `ADMIN_SECRET` | a fourth random string — **must differ from `APPLY_SECRET`** |
 | `SITE_URL` | `https://zuriauto.ch` — no trailing slash |
 
 Already set, unchanged: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`,
@@ -112,6 +113,25 @@ than misbehaving quietly:
   silently discarded every ID scan while reporting success is the worse failure.
 - **No `CRON_SECRET` and the cron endpoint returns 401 to everyone**, including
   Vercel. It sends email to real customers; an open trigger is not acceptable.
+- **No `ADMIN_SECRET` and `/admin` cannot be signed into at all.** Every admin
+  endpoint refuses, so the fleet page is unusable rather than open.
+
+### The fleet page
+
+`/admin` is where the office adds, edits and retires cars, sees what is out on
+rental, and closes a rental that has come back. It is unlinked and `noindex` —
+nothing in the site points at it — but the secret is what actually protects it.
+
+**`ADMIN_SECRET` must not be the same value as `APPLY_SECRET`.** The pickup key
+is pasted into WhatsApp by staff and leaks the moment a link is forwarded; the
+admin key can rewrite the fleet. Sharing one value would put fleet management
+behind a semi-public string. See the warning in `lib/applyKey.ts`.
+
+Sign-in exchanges the secret for an httpOnly cookie lasting twelve hours, so the
+office signs in once a morning and the secret never travels in a URL. Rotating
+the variable signs everyone out, which is the intended way to revoke access —
+there are no individual accounts until Phase 5, so there is also no per-person
+revocation and no attribution of who changed what.
 
 - [ ] `MAIL_ARCHIVE` is still set. It runs in parallel through this phase and is
       the only *proven* durable record. Do not switch it off yet.

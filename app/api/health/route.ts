@@ -29,7 +29,7 @@ export const dynamic = "force-dynamic";
 /** Every variable the application reads, grouped as the runbook lists them. */
 const EXPECTED = {
   database: ["DATABASE_URL", "ORGANISATION_NAME"],
-  fence: ["APPLY_SECRET", "RATE_LIMIT_SALT", "CRON_SECRET"],
+  fence: ["APPLY_SECRET", "RATE_LIMIT_SALT", "CRON_SECRET", "ADMIN_SECRET"],
   storage: [
     "R2_ACCOUNT_ID",
     "R2_ACCESS_KEY_ID",
