@@ -97,6 +97,28 @@ export const contractMetaSchema = z.object({
    * claims is the whole reason this schema runs on both sides.
    */
   details: contractDetailsSchema,
+
+  /**
+   * Permission to carry an earlier contract's identity documents forward,
+   * issued by the lookup endpoint. Verified in the route — the schema only
+   * establishes that a string arrived.
+   */
+  reuseToken: z.string().trim().min(1).max(512).optional(),
+  /** The staff member's confirmation that they saw the original documents. */
+  identityChecked: z.boolean().optional(),
+}).superRefine((value, context) => {
+  // Enforced here as well as in the form, for the reason stated at the top of
+  // this file: the schema runs on both sides so a crafted request cannot skip a
+  // check the wizard makes. This is the same kind of rule as gtcAccepted's
+  // z.literal(true) — a claim about what a person did, which has to stand
+  // behind the contract afterwards.
+  if (value.reuseToken && value.identityChecked !== true) {
+    context.addIssue({
+      code: "custom",
+      path: ["identityChecked"],
+      message: "identityCheck",
+    });
+  }
 });
 
 export type ContractMeta = z.infer<typeof contractMetaSchema>;

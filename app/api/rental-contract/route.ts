@@ -5,6 +5,7 @@ import type { AssetKind } from "@/generated/prisma/client";
 import { sendContractMails } from "@/lib/rental/mail";
 import { persistPickup, type PickupUpload } from "@/lib/rental/persistPickup";
 import { rateLimited } from "@/lib/rental/rateLimit";
+import { readReuseToken } from "@/lib/rental/reuseToken";
 import { contractMetaSchema } from "@/lib/rental/schema";
 import { getAssetStore } from "@/lib/storage";
 
@@ -86,6 +87,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ code: "bad-request" }, { status: 400 });
   }
 
+  // Verified before anything is uploaded, so a stale token costs nothing. The
+  // schema has already refused a token without the attestation.
+  let reuseFromContractId: string | undefined;
+  if (meta.reuseToken) {
+    const contractId = readReuseToken(meta.reuseToken);
+    if (!contractId) {
+      // Expired, forged, or signed with a since-rotated secret. The wizard
+      // sends the operator back to capture fresh photographs rather than
+      // guessing which of the three it was.
+      return NextResponse.json({ code: "reuse-expired" }, { status: 400 });
+    }
+    reuseFromContractId = contractId;
+  }
+
   // The images travel alongside the PDF so they can be stored under their own
   // keys. They are already inside the document, but a PDF is not a place to
   // look one up from — Phase 4's return wizard compares against these.
@@ -118,6 +133,8 @@ export async function POST(request: Request) {
       uploads,
       pdf: { body: pdfBytes },
       store: getAssetStore(),
+      reuseFromContractId,
+      identityCheckedAt: reuseFromContractId ? new Date() : undefined,
     });
   } catch (error) {
     console.error("[rental-contract] could not record the contract:", error);
