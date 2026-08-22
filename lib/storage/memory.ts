@@ -17,5 +17,13 @@ export function createMemoryStore(): MemoryStore {
     async put(key, body, contentType) {
       objects.set(key, { body, contentType });
     },
+
+    async copy(fromKey, toKey, contentType) {
+      const source = objects.get(fromKey);
+      // Loud, because the alternative is a contract recorded as carrying
+      // documents that are not in the bucket.
+      if (!source) throw new Error(`No such object: ${fromKey}`);
+      objects.set(toKey, { body: source.body, contentType });
+    },
   };
 }

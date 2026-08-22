@@ -1,4 +1,4 @@
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { CopyObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import type { AssetStore } from "./types";
 
 /**
@@ -34,6 +34,21 @@ export function r2Endpoint(accountId: string, jurisdiction?: string): string {
   return `https://${host}`;
 }
 
+/**
+ * The `CopySource` value CopyObject wants: `bucket/key`, URI-encoded.
+ *
+ * Encoded per segment, not as a whole: the slashes are meaningful separators,
+ * so `encodeURIComponent` over the entire string would address one object whose
+ * name happens to contain slashes. Any other reserved character inside a
+ * segment must still be encoded or the source is misread.
+ *
+ * Separated from the client so it can be tested without a network — the same
+ * reason r2Endpoint is separate, and it fails the same silent way.
+ */
+export function copySource(bucket: string, key: string): string {
+  return `${bucket}/${key}`.split("/").map(encodeURIComponent).join("/");
+}
+
 export function createR2Store(): AssetStore {
   const {
     R2_ACCOUNT_ID,
@@ -64,6 +79,21 @@ export function createR2Store(): AssetStore {
           Key: key,
           Body: body,
           ContentType: contentType,
+        })
+      );
+    },
+
+    async copy(fromKey, toKey, contentType) {
+      await client.send(
+        new CopyObjectCommand({
+          Bucket: R2_BUCKET,
+          Key: toKey,
+          CopySource: copySource(R2_BUCKET, fromKey),
+          // REPLACE because ContentType is being set; under the default COPY
+          // directive it would be silently ignored and the source's metadata
+          // kept instead.
+          ContentType: contentType,
+          MetadataDirective: "REPLACE",
         })
       );
     },

@@ -9,4 +9,14 @@
  */
 export interface AssetStore {
   put(key: string, body: Uint8Array, contentType: string): Promise<void>;
+  /**
+   * Copies an existing object to a new key, server-side.
+   *
+   * For carrying a returning customer's identity documents onto a new
+   * contract. The bytes never pass through a function — which is the whole
+   * reason the reuse design does not send them to the browser — and the source
+   * is left in place, because each contract owns its own set on its own
+   * retention clock.
+   */
+  copy(fromKey: string, toKey: string, contentType: string): Promise<void>;
 }
