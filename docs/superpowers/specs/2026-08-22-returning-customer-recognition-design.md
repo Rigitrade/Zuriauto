@@ -63,7 +63,10 @@ behind a contract signed today.
    whose documents may be reused. The client never sends a contract id.**
 
    An HMAC over `{contractId, exp}` keyed with `APPLY_SECRET`, valid 30 minutes,
-   following the construction in `lib/rental/actionToken.ts`.
+   in a new `lib/rental/reuseToken.ts`. There is no existing HMAC signer to
+   reuse: `lib/rental/actionToken.ts` is a *database-row* token — random bytes
+   whose hash is stored — and `lib/applyKey.ts` is a fixed shared secret. This
+   is a third thing and needs its own module.
 
    This is the authorisation for the copy. Without it, the submit path would
    have to trust a client-supplied contract id and then prove the caller was
@@ -109,6 +112,11 @@ behind a contract signed today.
    passport scans R2 → browser → function → R2 on every repeat pickup, adds a
    PII read surface, and pushes the request back toward Vercel's 4.4 MB body
    cap that the current payload already approaches.
+
+   The page's strings go in `RENTAL_LABELS.pdf`, **German and English only**.
+   `contractMetaSchema` types `language` as `"de" | "en"` and `RENTAL_LABELS` has
+   exactly those two keys; the GTC appendix is the one trilingual part of the
+   document, and this page is not part of it.
 
    **Guard:** neither images nor `documentsOnFile` must throw. A contract with
    no identity evidence at all has to be unbuildable, not merely discouraged.
