@@ -20,6 +20,7 @@ tourists, under the GDPR.
 | Vehicle condition photographs | R2 (EU jurisdiction) | Condition at handover, compared on return |
 | Contract PDF | R2 (EU jurisdiction) | The document itself |
 | Hashed client IP | Postgres | Abuse limiting; row deleted after 10 minutes |
+| Lookup audit: salted hash of a phone number, match count | Postgres | Recording who was looked up at the desk, without the log becoming a second copy of the customer list |
 
 Raw IP addresses are never written — `lib/rental/rateLimit.ts` stores a salted
 SHA-256 so the limiter does not itself become a store of personal data.
@@ -29,24 +30,44 @@ Object keys are deliberately meaningless (`pickup/<uuid>/ID_FRONT-<random>.jpg`)
 so that a key appearing in a log, a storage console or a support ticket does
 not reveal whose document it is. See `lib/storage/keys.ts`.
 
+When a returning customer's documents are carried forward, the objects are
+**copied** server-side into the new contract's prefix rather than shared. Every
+contract therefore owns its own set under its own key, and deletion stays a
+per-contract sweep instead of reference counting. See
+`lib/rental/reuseDocuments.ts`.
+
 ## Retention
 
-**OPEN — requires the owner's sign-off. Do not deploy to production without a
-number here.** This is open question 1 in both the persistence spec and the
-roadmap. Recommended starting position, to be confirmed:
+**Agreed by the owner, 2026-08-22.** This closes open question 1 in both the
+persistence spec and the roadmap.
 
-- **Identity and licence images: 90 days after the rental ends.** They serve
-  verification at handover and any dispute that follows immediately; they are
-  not needed for the ten-year retention that applies to the contract itself.
-- **Contract PDF and rental records: 10 years**, matching the Swiss commercial
-  record-keeping obligation under OR 958f.
-- **Condition photographs: 2 years**, long enough for a damage claim.
+- **Everything about the person: five years** after the rental ends. The
+  `Customer` row, the identity and licence photographs, the portrait, the
+  signature image and the condition photographs.
+- **The contract PDF and the rental records: ten years**, matching the Swiss
+  commercial record-keeping obligation under OR 958f. This is a floor, not a
+  preference, and it overrides the five-year rule for these two.
 
-No deletion job exists yet. It belongs with the Phase 3 scheduler, which is the
-first thing in this system that runs on a timer. Until then deletion is manual
-and the retention clock is documented rather than enforced. **That is precisely
-why the period has to be agreed now rather than after the first hundred
-contracts.**
+This replaces the earlier proposal of 90 days for identity images and two years
+for condition photographs. One clock is enforceable in a way that three are not,
+and the condition photographs are not the sensitive part.
+
+Two consequences, recorded because they are easy to discover late:
+
+- **Passport and licence scans are held for five years.** This is the
+  highest-risk data in the system, and "it saves typing at the desk" is a weak
+  proportionality argument under the revised DSG. It was chosen deliberately,
+  with the trade-off named, to make returning-customer document reuse possible.
+  See `docs/superpowers/specs/2026-08-22-returning-customer-recognition-design.md`.
+- **A regular customer's documents live five years past their _last_ rental,
+  not their first.** Reuse copies rather than shares, so each new contract
+  starts a fresh clock on its own copy. For someone who rents every summer the
+  effective retention is indefinite. The privacy notice must not imply
+  otherwise.
+
+No deletion job exists yet. Until one ships, deletion is manual and the clock is
+documented rather than enforced — which is why the periods had to be agreed
+before the first hundred contracts rather than after.
 
 ## Region
 

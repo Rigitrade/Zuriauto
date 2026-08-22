@@ -551,7 +551,7 @@ const en = {
       retention: {
         title: "7. Data Retention",
         content:
-          "Your data is stored on servers in the EU or Switzerland. Contract and financial data is kept for 10 years, as Swiss commercial law requires. Photographs of your identity document, driving licence and signature are kept only as long as they are needed to verify the handover and settle any dispute arising from it, and are then deleted. Vehicle GPS data is deleted or anonymised after the rental ends. You can ask us at any time what we hold about you, and ask for it to be deleted — see Your Rights below.",
+          "Your data is stored on servers in the European Union or Switzerland. The signed contract and the financial records are kept for 10 years, as Swiss commercial law requires. Everything else we hold about you — your name and address, your date of birth, and the photographs of your identity document, driving licence, portrait and signature — is kept for five years after your rental ends. If you rent from us again within that time, we may use the identity documents we already hold instead of photographing them again; each contract keeps its own copy, so the five years run from your most recent rental rather than your first. Vehicle GPS data is deleted or anonymised after the rental ends. You can ask us at any time what we hold about you, and ask for it to be deleted — see Your Rights below.",
       },
       security: {
         title: "8. Data Security",

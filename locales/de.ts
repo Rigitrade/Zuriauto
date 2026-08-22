@@ -561,7 +561,7 @@ const de: TranslationKeys = {
       retention: {
         title: "7. Aufbewahrung",
         content:
-          "Ihre Daten werden auf Servern in der EU oder in der Schweiz gespeichert. Vertrags- und Finanzdaten werden 10 Jahre aufbewahrt, wie es das Schweizer Obligationenrecht verlangt. Fotos von Ausweis, Führerausweis und Unterschrift werden nur so lange aufbewahrt, wie sie zur Überprüfung der Übernahme und zur Klärung allfälliger Streitigkeiten erforderlich sind, und danach gelöscht. Fahrzeug-GPS-Daten werden nach Mietende gelöscht oder anonymisiert. Sie können jederzeit erfahren, welche Daten wir über Sie halten, und deren Löschung verlangen — siehe Ihre Rechte.",
+          "Ihre Daten werden auf Servern in der Europäischen Union oder in der Schweiz gespeichert. Der unterzeichnete Vertrag und die Finanzunterlagen werden 10 Jahre aufbewahrt, wie es das Schweizer Obligationenrecht verlangt. Alle übrigen Daten über Sie — Name und Adresse, Geburtsdatum sowie die Fotos von Ausweis, Führerausweis, Personenfoto und Unterschrift — werden fünf Jahre nach Mietende aufbewahrt. Mieten Sie innerhalb dieser Zeit erneut bei uns, können wir die bereits vorhandenen Ausweisdokumente verwenden, anstatt sie neu zu fotografieren; jeder Vertrag behält seine eigene Kopie, weshalb die fünf Jahre ab Ihrer letzten und nicht ab Ihrer ersten Miete laufen. Fahrzeug-GPS-Daten werden nach Mietende gelöscht oder anonymisiert. Sie können jederzeit erfahren, welche Daten wir über Sie halten, und deren Löschung verlangen — siehe Ihre Rechte.",
       },
       security: {
         title: "8. Datensicherheit",
