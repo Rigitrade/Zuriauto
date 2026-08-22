@@ -16,6 +16,7 @@ import { allocateContractNumber } from "./contractNumber";
 import { upsertCustomer } from "./customers";
 import { fuelLevelToDb } from "./fleet";
 import { generateWeeklyCharges } from "./passes";
+import { copyDocumentsForward } from "./reuseDocuments";
 import type { ContractDetails } from "./schema";
 import { billingWeekdayOf, resolveEndAt } from "./terms";
 
@@ -34,6 +35,15 @@ export interface PersistPickupInput {
   pdf: { body: Uint8Array };
   store: AssetStore;
   now?: Date;
+  /**
+   * The contract whose identity documents this handover carries forward.
+   *
+   * Already authorised by the caller — the route verifies a signed reuse token
+   * rather than trusting a client-supplied id. See lib/rental/reuseToken.ts.
+   */
+  reuseFromContractId?: string;
+  /** When the staff member confirmed they saw the originals. Reuse path only. */
+  identityCheckedAt?: Date;
 }
 
 export interface PersistPickupResult {
@@ -46,6 +56,7 @@ export async function persistPickup(
   input: PersistPickupInput
 ): Promise<PersistPickupResult> {
   const { organisationId, details, vehicleSlug, uploads, store } = input;
+  const reuseFrom = input.reuseFromContractId;
   const now = input.now ?? new Date();
   const terms = details.terms;
 
@@ -58,6 +69,14 @@ export async function persistPickup(
   // single prefix, which is sweepable; a failure the other way round would
   // leave a contract row pointing at images that do not exist.
   const stored = await uploadAssets(store, submissionId, uploads);
+
+  // Copied in the same phase as the uploads and for the same reason: a storage
+  // failure must abort before anything is written, leaving sweepable orphans
+  // under one prefix rather than a contract pointing at objects that are not
+  // there.
+  const carried = reuseFrom
+    ? await copyDocumentsForward(prisma, store, submissionId, reuseFrom)
+    : [];
 
   const pdfKey = assetKey(submissionId, "CONTRACT_PDF", "pdf");
   await store.put(pdfKey, input.pdf.body, "application/pdf");
@@ -126,6 +145,8 @@ export async function persistPickup(
           place: details.place,
           signedAt: now,
           pdfKey,
+          documentsReusedFromId: reuseFrom ?? null,
+          identityCheckedAt: input.identityCheckedAt ?? null,
         },
         select: { id: true },
       });
@@ -133,8 +154,9 @@ export async function persistPickup(
       await tx.asset.createMany({
         // `uploadAssets` deals in plain strings so the storage layer stays free
         // of the schema; the narrowing happens here, where the enum matters.
-        // Safe because `uploads` arrived typed as AssetKind.
-        data: stored.map((asset) => ({
+        // Safe because `uploads` arrived typed as AssetKind, and the carried
+        // rows were read back out of the column.
+        data: [...stored, ...carried].map((asset) => ({
           ...asset,
           kind: asset.kind as AssetKind,
           contractId: contract.id,
