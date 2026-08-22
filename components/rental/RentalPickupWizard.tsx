@@ -154,6 +154,27 @@ const SLOT_TO_KIND: Record<DocumentKey, string> = {
   licenceBack: "LICENCE_BACK",
 };
 
+/** One row from POST /api/customers/lookup. */
+interface LookupMatch {
+  firstName: string;
+  lastName: string;
+  /** ISO. The birth-date field holds DD.MM.YYYY, so this is converted on apply. */
+  birthDate: string;
+  street: string;
+  postalCode: string;
+  city: string;
+  country: string;
+  phone: string;
+  email: string;
+  rentalCount: number;
+  firstRentalAt: string | null;
+  documentsOnFile: {
+    contractNumber: string;
+    signedAt: string;
+    reuseToken: string;
+  } | null;
+}
+
 /** A photo or, for the document sides, an uploaded PDF carried through as-is. */
 type DocumentImages = Record<DocumentKey, CapturedDocument | null>;
 
@@ -235,6 +256,28 @@ export default function RentalPickupWizard() {
     setApplyKey(new URLSearchParams(window.location.search).get(APPLY_KEY_PARAM));
   }, []);
   const [documents, setDocuments] = useState<DocumentImages>(EMPTY_DOCUMENTS);
+
+  /**
+   * The documents a returning customer already has on file, once the operator
+   * has pressed Check and a match was found.
+   *
+   * `null` covers three cases deliberately not distinguished here — not looked
+   * up, nothing found, and found but with no complete document set — because
+   * all three lead to the same thing: photograph them now.
+   */
+  const [onFile, setOnFile] = useState<{
+    contractNumber: string;
+    signedAt: string;
+    reuseToken: string;
+  } | null>(null);
+  /** The attestation that the originals were seen. Reuse path only. */
+  const [identityChecked, setIdentityChecked] = useState(false);
+  const [lookupState, setLookupState] = useState<
+    "idle" | "checking" | "none" | "failed"
+  >("idle");
+  /** Set only when one number matched more than one person. */
+  const [candidates, setCandidates] = useState<LookupMatch[] | null>(null);
+
   const [conditionPhotos, setConditionPhotos] = useState<
     (CapturedDocument | null)[]
   >([null]);
@@ -445,8 +488,14 @@ export default function RentalPickupWizard() {
     }
 
     if (target === 4) {
-      for (const slot of DOCUMENT_SLOTS) {
-        if (!documents[slot.key]) found[slot.key] = L.errors[slot.error];
+      if (onFile) {
+        // The photographs are not required, but the attestation that stands in
+        // their place is — and the server enforces the same rule.
+        if (!identityChecked) found.identityChecked = L.errors.identityCheck;
+      } else {
+        for (const slot of DOCUMENT_SLOTS) {
+          if (!documents[slot.key]) found[slot.key] = L.errors[slot.error];
+        }
       }
     }
 
@@ -471,6 +520,68 @@ export default function RentalPickupWizard() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
+  /**
+   * Looks the number up and fills what we already know.
+   *
+   * On a button rather than on every complete-looking number: a lookup reads
+   * personal data and is audited, so it should be one deliberate act per
+   * customer instead of one per typo.
+   */
+  async function checkPhone() {
+    setLookupState("checking");
+    setCandidates(null);
+    try {
+      const response = await fetch("/api/customers/lookup/", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          ...(applyKey ? { [APPLY_KEY_HEADER]: applyKey } : {}),
+        },
+        body: JSON.stringify({ phone: form.mobile }),
+      });
+      if (!response.ok) throw new Error(String(response.status));
+
+      const matches: LookupMatch[] = (await response.json()).matches;
+      if (matches.length === 0) {
+        setLookupState("none");
+        return;
+      }
+      if (matches.length > 1) {
+        // Rare, and the person is standing right there — so the operator
+        // chooses rather than the form guessing.
+        setCandidates(matches);
+        setLookupState("idle");
+        return;
+      }
+      applyMatch(matches[0]);
+    } catch {
+      // A failed lookup must never block a handover. The form stays usable and
+      // the operator types the details, exactly as before this feature existed.
+      setLookupState("failed");
+    }
+  }
+
+  function applyMatch(match: LookupMatch) {
+    setForm((previous) => ({
+      ...previous,
+      lastName: match.lastName,
+      firstName: match.firstName,
+      // The field is DD.MM.YYYY and the API is ISO.
+      birthDate: toTypedDate(match.birthDate),
+      street: match.street,
+      postalCode: match.postalCode,
+      city: match.city,
+      country: match.country,
+      email: match.email,
+    }));
+    setOnFile(match.documentsOnFile);
+    setIdentityChecked(false);
+    setCandidates(null);
+    setLookupState("idle");
+    // Prefilled fields clear whatever the operator was told about them before.
+    setErrors({});
+  }
+
   async function assemble(
     details: ContractDetails,
     photos: { docs: DocumentImages; condition: CapturedDocument[] },
@@ -487,11 +598,28 @@ export default function RentalPickupWizard() {
       contractNumber,
       issuedAt,
       language,
-      portraitPhoto: await toUint8Array(photos.docs.portrait!.blob),
-      idFrontPhoto: await toUint8Array(photos.docs.idFront!.blob),
-      idBackPhoto: await toUint8Array(photos.docs.idBack!.blob),
-      licenceFrontPhoto: await toUint8Array(photos.docs.licenceFront!.blob),
-      licenceBackPhoto: await toUint8Array(photos.docs.licenceBack!.blob),
+      // One or the other. A returning customer's documents stay on the server
+      // and the contract names them instead, so nothing here has to fetch a
+      // passport scan into the browser to put it back where it came from.
+      ...(onFile
+        ? {
+            documentsOnFile: {
+              contractNumber: onFile.contractNumber,
+              signedAt: onFile.signedAt,
+              // DD.MM.YYYY, matching how every other date on the contract
+              // reads. The reference page prints this string as given.
+              checkedAt: toTypedDate(issuedAt.toISOString().slice(0, 10)),
+            },
+          }
+        : {
+            portraitPhoto: await toUint8Array(photos.docs.portrait!.blob),
+            idFrontPhoto: await toUint8Array(photos.docs.idFront!.blob),
+            idBackPhoto: await toUint8Array(photos.docs.idBack!.blob),
+            licenceFrontPhoto: await toUint8Array(
+              photos.docs.licenceFront!.blob
+            ),
+            licenceBackPhoto: await toUint8Array(photos.docs.licenceBack!.blob),
+          }),
       conditionPhotos: await Promise.all(
         photos.condition.map((photo) => toUint8Array(photo.blob))
       ),
@@ -501,8 +629,12 @@ export default function RentalPickupWizard() {
   }
 
   async function submit() {
-    const allDocuments = DOCUMENT_SLOTS.every((slot) => documents[slot.key]);
-    if (!validateStep(5) || !vehicle || !signature || !allDocuments) {
+    // Documents are required unless they are being carried forward, in which
+    // case the attestation stands in their place.
+    const documentsReady = onFile
+      ? identityChecked
+      : DOCUMENT_SLOTS.every((slot) => documents[slot.key]);
+    if (!validateStep(5) || !vehicle || !signature || !documentsReady) {
       return;
     }
 
@@ -579,13 +711,18 @@ export default function RentalPickupWizard() {
       if (pdf.size > SOFT_LIMIT) {
         const harder = { maxEdge: 1200, quality: 0.55 };
 
-        const shrunkDocuments = await Promise.all(
-          DOCUMENT_SLOTS.map(async (slot) => [
-            slot.key,
-            await recompress(documents[slot.key]!, harder),
-          ] as const)
-        );
-        docs = Object.fromEntries(shrunkDocuments) as DocumentImages;
+        // Nothing to shrink on the reuse path: the document slots are empty and
+        // the reference page is text.
+        if (!onFile) {
+          const shrunkDocuments = await Promise.all(
+            DOCUMENT_SLOTS.map(async (slot) => [
+              slot.key,
+              await recompress(documents[slot.key]!, harder),
+            ] as const)
+          );
+          docs = Object.fromEntries(shrunkDocuments) as DocumentImages;
+          setDocuments(docs);
+        }
 
         condition = await Promise.all(
           condition.map((photo) => recompress(photo, harder))
@@ -627,14 +764,22 @@ export default function RentalPickupWizard() {
           mileageKm: parsed.data.mileageKm,
           language,
           details: parsed.data,
+          // Permission to carry the documents forward, and the claim that
+          // justifies it. The server re-checks both.
+          reuseToken: onFile?.reuseToken,
+          identityChecked: onFile ? identityChecked : undefined,
         })
       );
 
       // The images again, loose. They are already inside the PDF, but a PDF is
       // not something to look one up from — the Phase 4 return wizard compares
       // against these, so they need their own keys.
-      for (const slot of DOCUMENT_SLOTS) {
-        body.append(`asset:${SLOT_TO_KIND[slot.key]}`, docs[slot.key]!.blob);
+      // Skipped entirely when reusing: the server copies them from the earlier
+      // contract server-side, so they never make the round trip.
+      if (!onFile) {
+        for (const slot of DOCUMENT_SLOTS) {
+          body.append(`asset:${SLOT_TO_KIND[slot.key]}`, docs[slot.key]!.blob);
+        }
       }
       for (const photo of condition) {
         body.append("asset:CONDITION_PHOTO", photo.blob);
@@ -1146,15 +1291,75 @@ export default function RentalPickupWizard() {
                 </select>
               </Field>
 
-              <Field label={L.details.mobile} error={errors.mobile} required>
-                <Input
-                  type="tel"
-                  value={form.mobile}
-                  onChange={(e) => set("mobile", e.target.value)}
-                  placeholder="+41 79 222 22 22"
-                  autoComplete="tel"
-                />
-              </Field>
+              {/* The number leads the step, because it is what identifies a
+                  returning customer — everything below it can be filled in
+                  from one press of Check. */}
+              <div className="flex items-start gap-2">
+                <div className="grow">
+                  <Field label={L.details.mobile} error={errors.mobile} required>
+                    <Input
+                      type="tel"
+                      value={form.mobile}
+                      onChange={(e) => {
+                        set("mobile", e.target.value);
+                        // A changed number invalidates whatever the last one
+                        // found, including permission to reuse its documents.
+                        setOnFile(null);
+                        setIdentityChecked(false);
+                        setCandidates(null);
+                        setLookupState("idle");
+                      }}
+                      placeholder="+41 79 222 22 22"
+                      autoComplete="tel"
+                    />
+                  </Field>
+                </div>
+                <button
+                  type="button"
+                  onClick={checkPhone}
+                  disabled={lookupState === "checking" || !form.mobile.trim()}
+                  className="mt-7 h-10 shrink-0 rounded-md border border-slate-300 bg-white px-4 text-sm text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
+                >
+                  {lookupState === "checking"
+                    ? L.details.lookupChecking
+                    : L.details.lookup}
+                </button>
+              </div>
+
+              {onFile && (
+                <p className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900">
+                  {L.documents.onFile
+                    .replace("{contract}", onFile.contractNumber)
+                    .replace("{signed}", onFile.signedAt)}
+                </p>
+              )}
+              {lookupState === "none" && (
+                <p className="text-sm text-slate-500">{L.details.lookupNone}</p>
+              )}
+              {lookupState === "failed" && (
+                <p className="text-sm text-amber-700">
+                  {L.details.lookupFailed}
+                </p>
+              )}
+
+              {candidates && (
+                <div className="space-y-2 rounded-lg border border-slate-200 p-3">
+                  <p className="text-sm text-slate-700">
+                    {L.details.lookupPick}
+                  </p>
+                  {candidates.map((match) => (
+                    <button
+                      key={match.email}
+                      type="button"
+                      onClick={() => applyMatch(match)}
+                      className="block w-full rounded-md border border-slate-200 px-3 py-2 text-left text-sm transition-colors hover:bg-slate-50"
+                    >
+                      {match.firstName} {match.lastName} ·{" "}
+                      {toTypedDate(match.birthDate)}
+                    </button>
+                  ))}
+                </div>
+              )}
 
               <Field
                 label={L.details.email}
@@ -1178,11 +1383,53 @@ export default function RentalPickupWizard() {
                 <h2 className="text-lg font-semibold text-slate-900">
                   {L.documents.heading}
                 </h2>
-                <p className="mt-1 text-sm text-slate-500">
-                  {L.documents.intro}
-                </p>
+                {!onFile && (
+                  <p className="mt-1 text-sm text-slate-500">
+                    {L.documents.intro}
+                  </p>
+                )}
               </div>
 
+              {onFile ? (
+                <div className="space-y-3 rounded-lg bg-slate-50 p-4">
+                  <p className="text-sm text-slate-700">
+                    {L.documents.onFile
+                      .replace("{contract}", onFile.contractNumber)
+                      .replace("{signed}", onFile.signedAt)}
+                  </p>
+
+                  {/* The claim that turns an old scan into a check performed
+                      today. Required here and re-checked on the server. */}
+                  <label className="flex items-start gap-2 text-sm text-slate-800">
+                    <input
+                      type="checkbox"
+                      checked={identityChecked}
+                      onChange={(e) => {
+                        setIdentityChecked(e.target.checked);
+                        setErrors((prev) => ({ ...prev, identityChecked: "" }));
+                      }}
+                      className="mt-1"
+                    />
+                    <span>{L.documents.onFileAttest}</span>
+                  </label>
+                  {errors.identityChecked && (
+                    <p className="text-sm text-red-600">
+                      {errors.identityChecked}
+                    </p>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOnFile(null);
+                      setIdentityChecked(false);
+                    }}
+                    className="text-sm text-slate-600 underline"
+                  >
+                    {L.documents.onFileFresh}
+                  </button>
+                </div>
+              ) : (
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                 {DOCUMENT_SLOTS.map((slot) => (
                   <div
@@ -1215,6 +1462,7 @@ export default function RentalPickupWizard() {
                   </div>
                 ))}
               </div>
+              )}
             </div>
           )}
 

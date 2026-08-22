@@ -89,9 +89,20 @@ const de = {
     mobile: "Mobil-Nr.",
     email: "E-Mail",
     emailHint: "An diese Adresse senden wir Ihren Vertrag.",
+    lookup: "Prüfen",
+    lookupChecking: "Wird geprüft …",
+    lookupFound: "Bestandskunde — {count} Mietverträge seit {since}",
+    lookupNone: "Kein Eintrag zu dieser Nummer. Bitte neu erfassen.",
+    lookupFailed: "Prüfung nicht möglich. Bitte Daten von Hand erfassen.",
+    lookupPick: "Mehrere Einträge zu dieser Nummer — bitte auswählen:",
   },
 
   documents: {
+    onFile:
+      "Dokumente aus Vertrag {contract} vom {signed} werden übernommen.",
+    onFileFresh: "Stattdessen neu aufnehmen",
+    onFileAttest:
+      "Ich habe Ausweis und Führerschein im Original gesehen; beide sind gültig.",
     heading: "Ausweisdokumente",
     intro:
       "Fotografieren Sie Vorder- und Rückseite beider Dokumente gut lesbar und vollständig im Bild. Sie können auch eine vorhandene Datei hochladen (Foto oder PDF).",
@@ -303,6 +314,7 @@ const de = {
     tooManyWeeks: "Für eine längere Verlängerung rufen Sie uns bitte an.",
   },
   errors: {
+    identityCheck: "Bitte bestätigen, dass die Originale geprüft wurden.",
     required: "Pflichtfeld",
     email: "Bitte geben Sie eine gültige E-Mail-Adresse ein.",
     mileage: "Bitte geben Sie den Kilometerstand als Zahl ein.",
@@ -484,9 +496,19 @@ const en: typeof de = {
     mobile: "Mobile no.",
     email: "Email",
     emailHint: "We will send your contract to this address.",
+    lookup: "Check",
+    lookupChecking: "Checking …",
+    lookupFound: "Returning customer — {count} rentals since {since}",
+    lookupNone: "No record for this number. Please enter the details.",
+    lookupFailed: "Could not check. Please enter the details by hand.",
+    lookupPick: "More than one record for this number — please choose:",
   },
 
   documents: {
+    onFile: "Documents from contract {contract} of {signed} will be reused.",
+    onFileFresh: "Use fresh photos instead",
+    onFileAttest:
+      "I have seen the original ID and driving licence today and they are valid.",
     heading: "Identity documents",
     intro:
       "Photograph the front and back of both documents fully in frame and clearly legible. You can also upload an existing file (photo or PDF).",
@@ -687,6 +709,7 @@ const en: typeof de = {
     tooManyWeeks: "For a longer extension, please give us a call.",
   },
   errors: {
+    identityCheck: "Please confirm the originals were checked.",
     required: "Required",
     email: "Please enter a valid email address.",
     mileage: "Please enter the mileage as a number.",
