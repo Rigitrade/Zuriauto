@@ -94,3 +94,28 @@ export function adminSessionValid(
   const expiresAt = Number(expiry);
   return Number.isFinite(expiresAt) && expiresAt > now.getTime();
 }
+
+/**
+ * Reads the session cookie off a request.
+ *
+ * The Cookie header is parsed rather than reaching for Next's `cookies()`, so
+ * every admin route can be driven by a plain `Request` in a test without a
+ * request context to fake.
+ */
+export function adminCookieFrom(request: Request): string | undefined {
+  const header = request.headers.get("cookie");
+  if (!header) return undefined;
+
+  for (const part of header.split(";")) {
+    const separator = part.indexOf("=");
+    if (separator < 0) continue;
+    if (part.slice(0, separator).trim() !== ADMIN_COOKIE) continue;
+    return decodeURIComponent(part.slice(separator + 1).trim());
+  }
+  return undefined;
+}
+
+/** The one check every admin endpoint makes first. */
+export function requestIsAdmin(request: Request, now: Date = new Date()): boolean {
+  return adminSessionValid(adminCookieFrom(request), now);
+}
