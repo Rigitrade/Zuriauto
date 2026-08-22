@@ -343,6 +343,11 @@ const de = {
   },
 
   pdf: {
+    documentsOnFileTitle: "Identitätsdokumente",
+    documentsOnFileBody:
+      "Ausweis- und Führerscheinkopien liegen aus Vertrag {contract} vom {signed} vor.",
+    documentsOnFileChecked:
+      "Die Originale wurden bei der Übergabe geprüft: Büro, {checked}.",
     title: "MIETVERTRAG – FAHRZEUGÜBERNAHME",
     lessor: "Vermieter",
     contractNumber: "Vertrags-Nr.",
@@ -719,6 +724,11 @@ const en: typeof de = {
   },
 
   pdf: {
+    documentsOnFileTitle: "Identity documents",
+    documentsOnFileBody:
+      "ID and driving licence copies are on file from contract {contract} of {signed}.",
+    documentsOnFileChecked:
+      "The originals were checked at handover: office, {checked}.",
     title: "RENTAL CONTRACT – VEHICLE HANDOVER",
     lessor: "Lessor",
     contractNumber: "Contract no.",

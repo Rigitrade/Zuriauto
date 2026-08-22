@@ -346,12 +346,29 @@ export interface ContractPdfInput {
    * bytes. Both sides of each document: a Swiss ID card carries the issuing
    * data and validity on the reverse, so a front-only copy is incomplete.
    */
-  /** A photo of the renter, for comparison against the identity document. */
-  portraitPhoto: Uint8Array;
-  idFrontPhoto: Uint8Array;
-  idBackPhoto: Uint8Array;
-  licenceFrontPhoto: Uint8Array;
-  licenceBackPhoto: Uint8Array;
+  /**
+   * A photo of the renter, for comparison against the identity document.
+   *
+   * These five are optional because a returning customer's documents are
+   * carried forward instead of photographed — see `documentsOnFile`. Exactly
+   * one of the two must be present, and the guard in buildContractPdf enforces
+   * it rather than leaving a contract with no identity evidence possible.
+   */
+  portraitPhoto?: Uint8Array;
+  idFrontPhoto?: Uint8Array;
+  idBackPhoto?: Uint8Array;
+  licenceFrontPhoto?: Uint8Array;
+  licenceBackPhoto?: Uint8Array;
+  /**
+   * Set instead of the five images when the documents were carried forward
+   * from an earlier contract. All three are display strings, already
+   * formatted — this module does not decide what the dates mean.
+   */
+  documentsOnFile?: {
+    contractNumber: string;
+    signedAt: string;
+    checkedAt: string;
+  };
   conditionPhotos: Uint8Array[];
   /** PNG bytes from the signature canvas. */
   signaturePng: Uint8Array;
@@ -501,15 +518,44 @@ export async function buildContractPdf(
   );
 
   // --- Photo pages -----------------------------------------------------
-  const documentPages: [Uint8Array, string][] = [
-    // The portrait leads, so whoever checks the contract sees the person
-    // before the documents they are being compared against.
-    [input.portraitPhoto, L.portraitPhoto],
-    [input.idFrontPhoto, L.idFrontPhoto],
-    [input.idBackPhoto, L.idBackPhoto],
-    [input.licenceFrontPhoto, L.licenceFrontPhoto],
-    [input.licenceBackPhoto, L.licenceBackPhoto],
-  ];
+  const documentPages = (
+    [
+      // The portrait leads, so whoever checks the contract sees the person
+      // before the documents they are being compared against.
+      [input.portraitPhoto, L.portraitPhoto],
+      [input.idFrontPhoto, L.idFrontPhoto],
+      [input.idBackPhoto, L.idBackPhoto],
+      [input.licenceFrontPhoto, L.licenceFrontPhoto],
+      [input.licenceBackPhoto, L.licenceBackPhoto],
+    ] as [Uint8Array | undefined, string][]
+  ).filter((entry): entry is [Uint8Array, string] => Boolean(entry[0]));
+
+  // One or the other, never neither. A contract carrying no identity evidence
+  // at all has to be impossible to produce rather than merely unusual.
+  if (documentPages.length === 0 && !input.documentsOnFile) {
+    throw new Error(
+      "No identity evidence: pass the document images or documentsOnFile."
+    );
+  }
+
+  if (input.documentsOnFile) {
+    const { contractNumber: source, signedAt, checkedAt } =
+      input.documentsOnFile;
+    w.newPage();
+    w.sectionTitle(L.documentsOnFileTitle);
+    w.gap(4);
+    w.text(
+      L.documentsOnFileBody
+        .replace("{contract}", source)
+        .replace("{signed}", signedAt),
+      { size: 10 }
+    );
+    w.gap(6);
+    w.text(L.documentsOnFileChecked.replace("{checked}", checkedAt), {
+      size: 9,
+      color: MUTED,
+    });
+  }
 
   for (const [bytes, caption] of documentPages) {
     if (isPdfBytes(bytes)) {
