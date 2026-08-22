@@ -105,6 +105,18 @@ model Customer {
   /// Always stored lowercased and trimmed. See lib/rental/customers.ts.
   email          String
   phone          String
+  /// E.164, written by normalisePhone(). The desk lookup's key.
+  ///
+  /// Deliberately not unique: one mobile can belong to a couple, and a UNIQUE
+  /// migration is one that can fail on data already in the table. A lookup
+  /// returns several matches and the staff member picks.
+  ///
+  /// Nullable because the backfill script populates it, not the migration —
+  /// the normaliser is TypeScript, and reimplementing it as SQL regex would
+  /// give one rule two implementations that drift. Null also means "this
+  /// number could not be normalised", which is a real state and correctly
+  /// unfindable.
+  phoneKey       String?
   birthDate      DateTime @db.Date
   street         String
   postalCode     String
@@ -116,6 +128,7 @@ model Customer {
   rentals      Rental[]
 
   @@unique([organisationId, email])
+  @@index([organisationId, phoneKey])
 }
 
 model Rental {
@@ -191,9 +204,20 @@ model Contract {
   mailSentAt DateTime?
   mailError  String?
 
+  /// Set when identity documents were carried forward from an earlier contract
+  /// instead of photographed at this handover.
+  documentsReusedFromId String?
+  /// When the staff member confirmed they had seen the original ID and licence.
+  /// Required whenever documentsReusedFromId is set; null on a first rental,
+  /// where the fresh photograph is itself the evidence someone looked.
+  identityCheckedAt     DateTime?
+
   organisation Organisation @relation(fields: [organisationId], references: [id])
   rental       Rental       @relation(fields: [rentalId], references: [id])
   assets       Asset[]
+
+  documentsReusedFrom Contract?  @relation("DocumentReuse", fields: [documentsReusedFromId], references: [id])
+  documentsReusedBy   Contract[] @relation("DocumentReuse")
 
   @@unique([organisationId, contractNumber])
   @@index([rentalId])
@@ -237,6 +261,19 @@ model SubmissionAttempt {
   createdAt DateTime @default(now())
 
   @@index([ipHash, createdAt])
+}
+
+/// One row per desk lookup, so "who looked up whom" is answerable without the
+/// audit log becoming a second copy of the customer list. The number is salted
+/// and hashed exactly as an IP is in lib/rental/rateLimit.ts.
+model CustomerLookup {
+  id String @id @default(cuid())
+
+  phoneHash String
+  matches   Int
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
 }
 
 /// The sequence behind ZA-YYYYMMDD-NNNN.

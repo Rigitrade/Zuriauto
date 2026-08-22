@@ -7,6 +7,7 @@
  */
 
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
+import { normalisePhone } from "./phone";
 import type { ContractDetails } from "./schema";
 
 /**
@@ -38,6 +39,9 @@ export async function upsertCustomer(
     firstName: details.firstName,
     lastName: details.lastName,
     phone: details.mobile,
+    // Both, on purpose: `phone` is what the customer gave and what the contract
+    // prints; `phoneKey` is the single spelling the desk lookup matches on.
+    phoneKey: normalisePhone(details.mobile),
     // `@db.Date` drops the time, but the value must still be a Date. Building
     // it as UTC midnight keeps the stored day equal to the day that was typed,
     // which a local-midnight Date would not west of Greenwich.
