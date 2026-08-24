@@ -33,6 +33,13 @@ export default function SignaturePad({
   const padRef = useRef<SignaturePadLib | null>(null);
   const [hasInk, setHasInk] = useState(false);
 
+  /** The box the backing store was last built for; see `resize` below. */
+  const metricsRef = useRef<{
+    width: number;
+    height: number;
+    ratio: number;
+  } | null>(null);
+
   // Kept in a ref so resizing does not need `onChange` in its dependencies,
   // which would re-run the whole setup on every parent render.
   const onChangeRef = useRef(onChange);
@@ -40,11 +47,31 @@ export default function SignaturePad({
     onChangeRef.current = onChange;
   }, [onChange]);
 
+  /** Reports the pad's current state to the parent. */
+  const emit = useCallback((pad: SignaturePadLib) => {
+    // Deliberately not `pad.isEmpty()`: that flag stays true after a
+    // `fromData` restore, which would report a signature that is plainly on
+    // screen as no signature at all.
+    const inked = pad.toData().length > 0;
+    setHasInk(inked);
+    onChangeRef.current(inked ? pad.toDataURL("image/png") : null);
+  }, []);
+
   /**
    * Matches the backing store to the CSS size times the device pixel ratio.
-   * Without this the signature is blurry on every phone, and on a redraw the
-   * stored strokes would be scaled wrongly — so the pad is cleared here and
-   * the parent told the signature is gone rather than silently distorted.
+   * Without this the signature is blurry on every phone.
+   *
+   * It rebuilds the backing store only when the canvas box or the pixel ratio
+   * really changed. Phones fire a window `resize` on every scroll that
+   * collapses or restores the address bar, while this canvas — full width, a
+   * fixed height — does not move a pixel. Rebuilding on those threw away a
+   * signature the customer had already given, and the last step of the return
+   * form then refused to submit. It does not reproduce on a desktop browser,
+   * where scrolling fires no resize at all.
+   *
+   * On a real change — turning the phone — the strokes are captured and drawn
+   * back: `signature_pad` keeps its points in CSS pixels, so they survive the
+   * rescale.
    */
   const resize = useCallback(() => {
     const canvas = canvasRef.current;
@@ -55,14 +82,27 @@ export default function SignaturePad({
     const { width, height } = canvas.getBoundingClientRect();
     if (!width || !height) return;
 
+    const previous = metricsRef.current;
+    if (
+      previous &&
+      previous.ratio === ratio &&
+      Math.round(previous.width) === Math.round(width) &&
+      Math.round(previous.height) === Math.round(height)
+    ) {
+      return;
+    }
+    metricsRef.current = { width, height, ratio };
+
+    const strokes = pad.toData();
+
     canvas.width = width * ratio;
     canvas.height = height * ratio;
     canvas.getContext("2d")?.scale(ratio, ratio);
 
     pad.clear();
-    setHasInk(false);
-    onChangeRef.current(null);
-  }, []);
+    if (strokes.length > 0) pad.fromData(strokes);
+    emit(pad);
+  }, [emit]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -78,10 +118,7 @@ export default function SignaturePad({
     });
     padRef.current = pad;
 
-    const handleEnd = () => {
-      setHasInk(!pad.isEmpty());
-      onChangeRef.current(pad.isEmpty() ? null : pad.toDataURL("image/png"));
-    };
+    const handleEnd = () => emit(pad);
     pad.addEventListener("endStroke", handleEnd);
 
     resize();
@@ -95,7 +132,7 @@ export default function SignaturePad({
       pad.off();
       padRef.current = null;
     };
-  }, [resize]);
+  }, [emit, resize]);
 
   useEffect(() => {
     const pad = padRef.current;
