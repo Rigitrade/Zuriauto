@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="description" content="Where the Zuriauto rental backend stands after the console work, what was found broken along the way, and what is worth doing next.">
+<title>Zuriauto — Where We Stand</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+  html { -webkit-text-size-adjust: 100%; }
+  :root {
+    --ground: #F1F4F6; --surface: #FFFFFF; --surface-sunk: #E7ECEF;
+    --ink: #13181C; --ink-soft: #56626C; --ink-faint: #8A959E;
+    --rule: #D6DDE2; --rule-strong: #B9C4CB;
+    --accent: #2C3E5C;
+    --ok: #2C6A4E; --ok-soft: #DDEBE3;
+    --warn: #855F0D; --warn-soft: #F3E9D2;
+    --gap: #97292A; --gap-soft: #F2DDDD;
+    --measure: 68ch;
+    --step--1: .8125rem; --step-0: 1rem; --step-1: 1.1875rem;
+    --step-2: 1.5rem; --step-3: 2rem; --step-4: 2.9rem;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0E1216; --surface: #161C21; --surface-sunk: #1D242A;
+      --ink: #E3E9ED; --ink-soft: #97A3AD; --ink-faint: #6C7883;
+      --rule: #252D35; --rule-strong: #37424B;
+      --accent: #93B2DA;
+      --ok: #6DB48D; --ok-soft: #16251D;
+      --warn: #D2A250; --warn-soft: #262013;
+      --gap: #E08787; --gap-soft: #2A1A1A;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0E1216; --surface: #161C21; --surface-sunk: #1D242A;
+    --ink: #E3E9ED; --ink-soft: #97A3AD; --ink-faint: #6C7883;
+    --rule: #252D35; --rule-strong: #37424B;
+    --accent: #93B2DA;
+    --ok: #6DB48D; --ok-soft: #16251D;
+    --warn: #D2A250; --warn-soft: #262013;
+    --gap: #E08787; --gap-soft: #2A1A1A;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  body {
+    background: var(--ground); color: var(--ink);
+    font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+    font-size: var(--step-0); line-height: 1.62; margin: 0;
+    -webkit-font-smoothing: antialiased; padding: 0 1.25rem 6rem;
+  }
+  .wrap { max-width: 62rem; margin: 0 auto; display: flex; flex-direction: column; gap: 3.5rem; }
+  code, .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: .875em; }
+  p code, li code, td code, dd code { background: var(--surface-sunk); border-radius: 3px; padding: .1em .34em; }
+
+  .masthead { padding-top: 4rem; display: flex; flex-direction: column; gap: 1.2rem; }
+  .eyebrow {
+    font-family: "IBM Plex Mono", monospace; font-size: var(--step--1);
+    letter-spacing: .11em; text-transform: uppercase; color: var(--ink-faint);
+    display: flex; flex-wrap: wrap; gap: .55rem;
+  }
+  .eyebrow .bar { color: var(--rule-strong); }
+  h1 {
+    font-family: Newsreader, ui-serif, Georgia, serif; font-weight: 500;
+    font-size: var(--step-4); line-height: 1.06; letter-spacing: -.017em;
+    margin: 0; text-wrap: balance; max-width: 18ch;
+  }
+  .standfirst {
+    font-family: Newsreader, ui-serif, Georgia, serif; font-size: var(--step-2);
+    line-height: 1.44; color: var(--ink-soft); margin: 0; max-width: 52ch; text-wrap: pretty;
+  }
+  .standfirst strong { color: var(--ink); font-weight: 600; }
+
+  section { display: flex; flex-direction: column; gap: 1.4rem; }
+  .sec-head { border-top: 2px solid var(--ink); padding-top: 1rem; display: flex; flex-direction: column; gap: .5rem; }
+  h2 {
+    font-family: Newsreader, ui-serif, Georgia, serif; font-weight: 500;
+    font-size: var(--step-3); line-height: 1.14; letter-spacing: -.012em; margin: 0; text-wrap: balance;
+  }
+  .sec-head p, section > p { margin: 0; color: var(--ink-soft); max-width: var(--measure); text-wrap: pretty; }
+  h3 { font-family: Newsreader, ui-serif, Georgia, serif; font-weight: 600; font-size: var(--step-1); margin: 0; }
+
+  .tablewrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 6px; background: var(--surface); }
+  table { width: 100%; font-size: .9375rem; border-collapse: collapse; }
+  th, td { text-align: left; padding: .7rem .9rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  thead th {
+    font-family: "IBM Plex Mono", monospace; font-size: .6875rem; letter-spacing: .09em;
+    text-transform: uppercase; color: var(--ink-faint); font-weight: 500; background: var(--surface-sunk);
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  .item {
+    display: grid; grid-template-columns: 2.2rem 1fr; gap: 0 1.1rem;
+    padding: 1.35rem 0; border-top: 1px solid var(--rule); align-items: start;
+  }
+  .item:first-of-type { border-top: 1px solid var(--rule-strong); }
+  .item > .n {
+    font-family: "IBM Plex Mono", monospace; font-size: var(--step--1);
+    font-variant-numeric: tabular-nums; color: var(--accent); padding-top: .28rem;
+  }
+  .item > .body { display: flex; flex-direction: column; gap: .6rem; min-width: 0; }
+  .item p { margin: 0; max-width: var(--measure); text-wrap: pretty; }
+  .item p.why { color: var(--ink-soft); font-size: .9375rem; }
+
+  .tags { display: flex; flex-wrap: wrap; gap: .4rem; }
+  .tag {
+    font-family: "IBM Plex Mono", monospace; font-size: .625rem; letter-spacing: .08em;
+    text-transform: uppercase; padding: .18rem .5rem; border-radius: 3px; font-weight: 500;
+  }
+  .tag.money { background: var(--gap-soft); color: var(--gap); }
+  .tag.legal { background: var(--gap-soft); color: var(--gap); }
+  .tag.ops   { background: var(--warn-soft); color: var(--warn); }
+  .tag.small { background: var(--ok-soft); color: var(--ok); }
+  .tag.big   { background: var(--surface-sunk); color: var(--ink-soft); }
+
+  .note, .danger, .good {
+    border-left: 2px solid; padding: .8rem 1rem; border-radius: 0 4px 4px 0;
+    font-size: .9375rem; max-width: var(--measure);
+  }
+  .note { border-color: var(--warn); background: var(--warn-soft); }
+  .danger { border-color: var(--gap); background: var(--gap-soft); }
+  .good { border-color: var(--ok); background: var(--ok-soft); }
+  .note b, .danger b, .good b {
+    display: block; font-family: "IBM Plex Mono", monospace; font-size: .6875rem;
+    letter-spacing: .09em; text-transform: uppercase; margin-bottom: .25rem;
+  }
+  .note b { color: var(--warn); } .danger b { color: var(--gap); } .good b { color: var(--ok); }
+  .note p, .danger p, .good p { margin: .4rem 0 0; }
+  .note p:first-of-type, .danger p:first-of-type, .good p:first-of-type { margin-top: 0; }
+  .note ul, .danger ul, .good ul { margin: .35rem 0 0; padding-left: 1.1rem; }
+
+  footer {
+    border-top: 1px solid var(--rule); padding-top: 1.3rem; color: var(--ink-faint);
+    font-size: var(--step--1); display: flex; flex-direction: column; gap: .4rem;
+  }
+  @media (max-width: 760px) {
+    :root { --step-4: 2.2rem; --step-3: 1.6rem; --step-2: 1.25rem; }
+    .item { grid-template-columns: 1.8rem 1fr; gap: 0 .8rem; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="eyebrow">
+      <span>ZURIAUTO</span><span class="bar">/</span>
+      <span>integrate/backend-plus-return</span><span class="bar">/</span>
+      <span>29 August 2026</span>
+    </div>
+    <h1>Where We Stand</h1>
+    <p class="standfirst">
+      Nine commits, 71 files, <strong>384 tests</strong>. The fleet console is
+      built. Three things turned out to be <strong>actually broken</strong> along
+      the way, and the worst of them was losing money quietly.
+    </p>
+  </header>
+
+  <section>
+    <div class="sec-head">
+      <h2>The three that were broken</h2>
+      <p>
+        None of these were on the list. All three were found by checking a claim
+        rather than trusting it, and all three are fixed.
+      </p>
+    </div>
+
+    <div>
+      <div class="item">
+        <span class="n">1</span>
+        <div class="body">
+          <h3>No car added through /admin could ever be returned</h3>
+          <p>
+            The return form rendered the hard-coded list of nine cars in
+            <code>lib/rental/fleet.ts</code> and never called <code>/api/fleet</code>.
+            Because <code>persistReturn</code> finds the rental <em>from the car</em>,
+            a car that could not be picked could not be returned — the rental had no
+            reachable way to end.
+          </p>
+          <p class="why">
+            Reported as "I don't see the Mercedes I added". It was not a display
+            bug. Nine static entries hid it: with the seeded fleet the picker
+            looked plausible. <code>/api/fleet?scope=return</code> now answers with
+            the cars that are actually out.
+          </p>
+        </div>
+      </div>
+
+      <div class="item">
+        <span class="n">2</span>
+        <div class="body">
+          <h3>The office confirmed returns blind — and most answers were never stored</h3>
+          <p>
+            Cleanliness, papers, key, fines, payment method, amount paid, the
+            outstanding balance and the deposit had been collected and validated
+            since the return form existed, and written <strong>only into the
+            PDF</strong>. The office was asked to press the button that frees the
+            car without being able to read any of it.
+          </p>
+          <p class="why">
+            Fifteen columns now exist, and a submitted return opens a review modal
+            instead of a plain confirm button.
+          </p>
+        </div>
+      </div>
+
+      <div class="item">
+        <span class="n">3</span>
+        <div class="body">
+          <h3>Money a customer admitted owing was never chased</h3>
+          <p>
+            Charges were raised by pickup and by extensions — never by a return. So
+            <em>"I still owe CHF 200, due the 30th"</em> was a sentence inside a
+            document in a bucket. No <code>Charge</code> row, so the scheduler never
+            reminded anybody and the office never got an alert. The money depended
+            on somebody remembering.
+          </p>
+          <p class="why">
+            Confirming a return now raises a charge the existing scheduler chases.
+            On confirmation rather than submission, so nobody is chased over a
+            number a customer typed and no one checked.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="good">
+      <b>Also fixed, on request</b>
+      <ul>
+        <li>The pickup link lost its shared key — <code>zuriauto.ch/pickup/</code>, nothing to paste after it.</li>
+        <li>A reveal toggle on every password field, including when setting somebody else's.</li>
+        <li>The 1,017-line dashboard is a routed console: sidebar, mobile bar, dialogs, readable tables.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>What the console does today</h2>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>Screen</th><th>What it does</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>Overview</strong></td><td>What needs a person — returns to confirm, rentals ending or overdue, contracts whose mail failed with a resend button. Today's returns as a timeline. Four counters.</td></tr>
+          <tr><td><strong>Rentals</strong></td><td>Every open rental. A returned one opens the review modal: distance driven, fuel, cleanliness, papers, key, damage, fines, the settlement — then the button that frees the car.</td></tr>
+          <tr><td><strong>Vehicles</strong></td><td>Every car in every status. Add behind a dialog, edit behind a dialog, retire and un-retire, delete when there is no history.</td></tr>
+          <tr><td><strong>Accounts</strong></td><td>Owner only. Add a person, set a password, disable. Your own row marked; the last owner keeps their password field and loses only the disable button, with the reason shown.</td></tr>
+          <tr><td><strong>My password</strong></td><td>Everyone, including staff who never see Accounts.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>What is worth doing next</h2>
+      <p>
+        Ranked by what it costs the business to leave alone, not by how hard it is.
+      </p>
+    </div>
+
+    <div>
+      <div class="item">
+        <span class="n">1</span>
+        <div class="body">
+          <div class="tags"><span class="tag legal">legal exposure</span><span class="tag big">bigger</span></div>
+          <h3>Nothing enforces the retention rules</h3>
+          <p>
+            <code>docs/DATA-RETENTION.md</code> sets 90 days for ID and licence
+            images, ten years for contracts under OR 958f, two years for condition
+            photographs. Nothing implements any of it. <code>AssetStore</code> has
+            no <code>delete</code> at all, so every passport scan ever uploaded is
+            still in the bucket.
+          </p>
+          <p class="why">
+            This is the only item on the list that is a compliance problem rather
+            than an inconvenience, and it gets worse every day the system runs.
+            Needs a delete method, a scheduled sweep, and a record of what was
+            deleted and when.
+          </p>
+        </div>
+      </div>
+
+      <div class="item">
+        <span class="n">2</span>
+        <div class="body">
+          <div class="tags"><span class="tag ops">daily friction</span><span class="tag big">bigger</span></div>
+          <h3>No documents anywhere in the dashboard</h3>
+          <p>
+            The signed contracts, ID scans, licences, condition photos and
+            signatures are reachable <strong>only through the Cloudflare
+            console</strong>. When a traffic fine arrives and you need the contract
+            plus the driver's licence for that date, that is where you go.
+          </p>
+          <p class="why">
+            Short-lived signed URLs, owner and staff gated, and audited —
+            <code>CustomerLookup</code> already sets the precedent of logging every
+            phone search including the misses. Opening somebody's passport deserves
+            at least that.
+          </p>
+        </div>
+      </div>
+
+      <div class="item">
+        <span class="n">3</span>
+        <div class="body">
+          <div class="tags"><span class="tag money">money</span><span class="tag small">smaller</span></div>
+          <h3>The office cannot see what is owed</h3>
+          <p>
+            Charges exist, the scheduler chases them, reminders go out — and there
+            is no screen anywhere showing the total outstanding, who owes it, or
+            what is overdue. The system knows; the office does not.
+          </p>
+        </div>
+      </div>
+
+      <div class="item">
+        <span class="n">4</span>
+        <div class="body">
+          <div class="tags"><span class="tag money">money</span><span class="tag small">smaller</span></div>
+          <h3>Damage notes have no photographs</h3>
+          <p>
+            <code>DAMAGE_PHOTO</code> is in the schema enum and nothing has ever
+            written it. The return form takes a damage <em>note</em> and no picture.
+          </p>
+          <p class="why">
+            A sentence is not evidence when a customer disputes a charge. The
+            pickup form already photographs condition; the return is the half that
+            matters for billing.
+          </p>
+        </div>
+      </div>
+
+      <div class="item">
+        <span class="n">5</span>
+        <div class="body">
+          <div class="tags"><span class="tag ops">daily friction</span><span class="tag small">smaller</span></div>
+          <h3>Extension requests arrive nowhere</h3>
+          <p>
+            A customer can request an extension from the link in their reminder
+            email. <code>EXTENSION_REQUESTED</code> is a real rental status. No
+            admin screen shows the request or lets anybody accept it.
+          </p>
+        </div>
+      </div>
+
+      <div class="item">
+        <span class="n">6</span>
+        <div class="body">
+          <div class="tags"><span class="tag ops">daily friction</span><span class="tag big">bigger</span></div>
+          <h3>The customer side of the recall feature</h3>
+          <p>
+            Recognising a returning customer by phone number works — it fills the
+            pickup form and carries their documents forward. But the office cannot
+            search it: no way to ask <em>is this person a customer, how many
+            rentals, any damage history, do we hold their ID?</em>
+          </p>
+          <p class="why">
+            The phone key is already indexed. Open question from the spec: a
+            Customers list, or just a search box? A ringing phone wants search.
+          </p>
+        </div>
+      </div>
+
+      <div class="item">
+        <span class="n">7</span>
+        <div class="body">
+          <div class="tags"><span class="tag ops">security</span><span class="tag small">smaller</span></div>
+          <h3>Per-rental pickup links</h3>
+          <p>
+            The shared key is gone, which is what was asked for. The stronger
+            version costs less friction, not more: the office presses
+            <em>New rental</em> and gets a single-use expiring link for that
+            customer. The machinery exists — <code>ActionToken</code> already does
+            this for reminder emails.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Before production</h2>
+      <p>Separate from the list above. These are not features.</p>
+    </div>
+
+    <div class="danger">
+      <b>Must happen first</b>
+      <ul>
+        <li><strong>Generate fresh secrets.</strong> The four in <code>.env.preview.template</code> are committed in git. Preview-only by design; production needs new ones.</li>
+        <li><strong>Rotate the <code>chef</code> password.</strong> It was generated during setup and written into a chat transcript.</li>
+        <li><strong>Add <code>ADMIN_OWNER_USERNAME</code> and <code>ADMIN_OWNER_PASSWORD</code></strong> to <code>.env.preview.template</code> and <code>scripts/set-preview-env.sh</code>. Without them the next fresh database seeds no owner and refuses every sign-in with no explanation on screen.</li>
+        <li><strong>Follow <code>docs/DEPLOY-PHASE-2-3.md</code>.</strong> Production has never been deployed; <code>neondb</code> is empty. Steps 1 and 2 are irreversible.</li>
+      </ul>
+    </div>
+
+    <div class="note">
+      <b>The schema window is open, and closing</b>
+      <p>
+        Because production has no data, a migration today costs one command. The
+        return protocol columns were added now for exactly that reason. Anything
+        else structural — retention fields, damage photos, a customers index — is
+        cheapest before the office starts using it for real.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Decisions waiting</h2>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Question</th><th>Why it matters</th></tr></thead>
+        <tbody>
+          <tr><td>Customers: a list, or a search box?</td><td>Changes what the endpoint is. A ringing phone wants search.</td></tr>
+          <tr><td>Should resending a contract be owner-only?</td><td>It sends mail on the company's behalf. Currently staff can.</td></tr>
+          <tr><td>Is the Today timeline earning its place?</td><td>The one part of Overview that is context, not a problem. Cheap to remove.</td></tr>
+          <tr><td>Who may open an ID scan — owner, or staff too?</td><td>Decides the shape of the documents work, item 2 above.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    <div>Zuriauto · status at <span class="mono">4054ebc</span> on <span class="mono">integrate/backend-plus-return</span></div>
+    <div>Sibling documents: <span class="mono">release-test-run.html</span> (the happy path), <span class="mono">failure-drills.html</span> (47 refusals), <span class="mono">admin-dashboard-options.html</span> (the three directions).</div>
+    <div>Nothing here has been deployed to production. Everything described runs on the preview.</div>
+  </footer>
+
+</div>
+</body>
+</html>
