@@ -123,6 +123,31 @@ export async function DELETE(
     return NextResponse.json({ code: "has-history" }, { status: 409 });
   }
 
-  await prisma.car.delete({ where: { id: car.id } });
-  return NextResponse.json({ ok: true });
+  try {
+    await prisma.car.delete({ where: { id: car.id } });
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    // The count and delete are separate statements. If a rental is created
+    // between them, the foreign key rejects the delete. Catch it to return
+    // the correct 409 instead of a 500 — the foreign key is the backstop that
+    // makes it a status-code issue, not a data-loss one.
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      (error as { code?: unknown }).code === "P2003"
+    ) {
+      return NextResponse.json({ code: "has-history" }, { status: 409 });
+    }
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      (error as { code?: unknown }).code === "P2025"
+    ) {
+      return NextResponse.json({ code: "not-found" }, { status: 404 });
+    }
+    console.error("[admin] could not delete the car:", error);
+    return NextResponse.json({ code: "failed" }, { status: 500 });
+  }
 }

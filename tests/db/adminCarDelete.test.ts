@@ -109,6 +109,43 @@ describe("DELETE /api/admin/cars/[id]", () => {
     expect(await prisma.car.count({ where: { id: car.id } })).toBe(1);
   });
 
+  it("refuses a car whose only rental is finished", async () => {
+    const request = await signedIn();
+    const org = await prisma.organisation.findFirstOrThrow();
+    await seedFleet(prisma, org.id);
+    await persistPickup({
+      organisationId: org.id,
+      details,
+      vehicleSlug: details.vehicleId,
+      uploads,
+      pdf: { body: new Uint8Array([2]) },
+      store: createMemoryStore(),
+    });
+
+    const car = await prisma.car.findFirstOrThrow({
+      where: { slug: details.vehicleId },
+    });
+    const rental = await prisma.rental.findFirstOrThrow({
+      where: { carId: car.id },
+    });
+
+    // Mark the rental as completed, then try to delete the car.
+    // The _count check passes (rentals exist), but no ACTIVE ones.
+    // If someone later "optimised" the count with `where: { status: "ACTIVE" }`,
+    // this test would fail — catching the bug of deleting a car named by a
+    // signed contract under ten-year retention.
+    await prisma.rental.update({
+      where: { id: rental.id },
+      data: { status: "COMPLETED" },
+    });
+
+    const response = await DELETE(request, params(car.id));
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ code: "has-history" });
+    // Still there: the traffic-fine lookup and the signed contract need it.
+    expect(await prisma.car.count({ where: { id: car.id } })).toBe(1);
+  });
+
   it("answers 404 for an unknown id", async () => {
     const request = await signedIn();
     const response = await DELETE(request, params("clxnope00000000000000000"));
