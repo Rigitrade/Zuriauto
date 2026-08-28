@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { statusChangeAllowed, updateCarSchema } from "@/lib/admin/cars";
-import { requestIsAdmin } from "@/lib/admin/session";
+import { requireAdmin } from "@/lib/admin/session";
 
 /**
  * Editing a car, or taking it off the road.
@@ -19,7 +19,8 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!requestIsAdmin(request)) {
+  const user = await requireAdmin(request);
+  if (!user) {
     return NextResponse.json({ code: "unauthorised" }, { status: 401 });
   }
 

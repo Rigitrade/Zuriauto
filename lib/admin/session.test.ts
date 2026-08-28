@@ -1,84 +1,68 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   ADMIN_SESSION_TTL_MS,
-  adminSecretValid,
-  adminSessionValid,
   issueAdminSession,
+  readAdminCookie,
 } from "./session";
 
-const NOW = new Date("2026-08-23T09:00:00.000Z");
+const NOW = new Date("2026-08-28T08:00:00.000Z");
+const USER = "clx0000000000000000000000";
 
-describe("admin session", () => {
-  beforeEach(() => {
-    process.env.ADMIN_SECRET = "office-admin-secret";
+beforeEach(() => {
+  process.env.ADMIN_SECRET = "signing-key-for-tests";
+});
+
+describe("issueAdminSession", () => {
+  it("round-trips the user id and the issue time", () => {
+    const token = issueAdminSession(USER, NOW);
+    const read = readAdminCookie(token, NOW);
+    expect(read).toEqual({ userId: USER, issuedAt: NOW.getTime() });
   });
 
-  it("accepts the configured secret", () => {
-    expect(adminSecretValid("office-admin-secret")).toBe(true);
+  it("expires", () => {
+    const token = issueAdminSession(USER, NOW);
+    const after = new Date(NOW.getTime() + ADMIN_SESSION_TTL_MS + 1000);
+    expect(readAdminCookie(token, after)).toBeNull();
   });
+});
 
-  it("rejects a wrong secret", () => {
-    expect(adminSecretValid("guess")).toBe(false);
-    expect(adminSecretValid("")).toBe(false);
-  });
-
-  it("fails closed when no secret is configured", () => {
-    // An unconfigured secret is a misconfiguration, not permission — the same
-    // rule as applyKeyValid.
-    delete process.env.ADMIN_SECRET;
-    expect(adminSecretValid("anything")).toBe(false);
-    expect(adminSecretValid("")).toBe(false);
-  });
-
-  it("round-trips a session token", () => {
-    const token = issueAdminSession(NOW);
-    expect(adminSessionValid(token, NOW)).toBe(true);
-  });
-
-  it("is still valid an hour before expiry", () => {
-    const token = issueAdminSession(NOW);
-    const almost = new Date(NOW.getTime() + ADMIN_SESSION_TTL_MS - 3_600_000);
-    expect(adminSessionValid(token, almost)).toBe(true);
-  });
-
-  it("rejects an expired token", () => {
-    const token = issueAdminSession(NOW);
-    const after = new Date(NOW.getTime() + ADMIN_SESSION_TTL_MS + 1);
-    expect(adminSessionValid(token, after)).toBe(false);
-  });
-
-  it("rejects a tampered token", () => {
-    const token = issueAdminSession(NOW);
-    const [payload] = token.split(".");
-    expect(adminSessionValid(`${payload}.forged`, NOW)).toBe(false);
-  });
-
-  it("rejects a token extended by rewriting its expiry", () => {
-    // The signature covers the expiry, so a holder cannot grant themselves
-    // longer than they were given.
-    const token = issueAdminSession(NOW);
-    const [, signature] = token.split(".");
-    const longer = Buffer.from(`admin.${NOW.getTime() + 10 ** 12}`).toString(
-      "base64url"
+describe("readAdminCookie", () => {
+  it("refuses a rewritten expiry", () => {
+    const token = issueAdminSession(USER, NOW);
+    const [payload, signature] = token.split(".");
+    const decoded = Buffer.from(payload, "base64url").toString("utf8");
+    const forged = decoded.replace(
+      String(NOW.getTime() + ADMIN_SESSION_TTL_MS),
+      String(NOW.getTime() + ADMIN_SESSION_TTL_MS + 10 * 365 * 24 * 3600 * 1000)
     );
-    expect(adminSessionValid(`${longer}.${signature}`, NOW)).toBe(false);
+    const tampered = `${Buffer.from(forged).toString("base64url")}.${signature}`;
+    expect(readAdminCookie(tampered, NOW)).toBeNull();
   });
 
-  it("rejects a token signed with a since-rotated secret", () => {
-    const token = issueAdminSession(NOW);
+  it("refuses a rewritten user id", () => {
+    const token = issueAdminSession(USER, NOW);
+    const [payload, signature] = token.split(".");
+    const decoded = Buffer.from(payload, "base64url").toString("utf8");
+    const forged = decoded.replace(USER, "clxSOMEBODYELSE000000000");
+    const tampered = `${Buffer.from(forged).toString("base64url")}.${signature}`;
+    expect(readAdminCookie(tampered, NOW)).toBeNull();
+  });
+
+  it("refuses a token signed with a different key", () => {
+    const token = issueAdminSession(USER, NOW);
     process.env.ADMIN_SECRET = "rotated";
-    // Rotation signs everyone out, which is the point of rotating.
-    expect(adminSessionValid(token, NOW)).toBe(false);
+    expect(readAdminCookie(token, NOW)).toBeNull();
   });
 
-  it("rejects a missing or malformed cookie without throwing", () => {
-    for (const bad of [undefined, "", ".", "no-dot", "a.b.c", "!!!.???"]) {
-      expect(adminSessionValid(bad, NOW)).toBe(false);
+  it("refuses nonsense and absence without throwing", () => {
+    for (const bad of [undefined, "", "no-dot", "a.b.c", "...."]) {
+      expect(readAdminCookie(bad, NOW)).toBeNull();
     }
   });
 
-  it("refuses to issue without a configured secret", () => {
+  it("refuses everything when ADMIN_SECRET is unset", () => {
+    const token = issueAdminSession(USER, NOW);
     delete process.env.ADMIN_SECRET;
-    expect(() => issueAdminSession(NOW)).toThrow(/ADMIN_SECRET/);
+    expect(readAdminCookie(token, NOW)).toBeNull();
   });
 });

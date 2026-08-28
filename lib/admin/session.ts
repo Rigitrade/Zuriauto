@@ -1,33 +1,40 @@
 /**
  * The fence around the fleet admin page.
  *
- * A shared secret exchanged once for a signed, expiring cookie. Not a login:
- * named accounts arrive in Phase 5 with the dashboard proper, where they are
- * needed anyway to fill in the `createdBy` columns that have said "office"
- * since Phase 2.
+ * `ADMIN_SECRET` is no longer the password. From Phase 5 it signs sessions:
+ * people sign in with their own username and password against `AdminUser`,
+ * and this key is what makes the resulting cookie unforgeable. It keeps its
+ * name because four deployed environments already set it, and renaming it
+ * would break every one of them for no gain.
  *
- * IMPORTANT: this is deliberately NOT `APPLY_SECRET`. That one is pasted into
+ * IMPORTANT: still deliberately NOT `APPLY_SECRET`. That one is pasted into
  * WhatsApp by staff and leaks the moment a link is forwarded — see the warning
- * in lib/applyKey.ts. A page that can rewrite the fleet must not sit behind a
- * semi-public credential, so it gets its own variable.
- *
- * Accepted limitation, stated so it is not discovered later: one shared secret
- * means no attribution and no per-person revocation. Rotate by changing the
- * environment variable, which signs everyone out.
+ * in lib/applyKey.ts.
  *
  * A cookie rather than `?k=` in the URL, which is what the pickup form uses:
- * that link is opened once from a message, while this page is opened daily, and
- * a secret in a URL accumulates in history, bookmarks and referrer headers. The
- * cookie carries an HMAC over the expiry rather than the secret itself, so the
- * stored value is not the credential and goes stale on its own.
+ * that link is opened once from a message, while this page is opened daily,
+ * and a secret in a URL accumulates in history, bookmarks and referrer
+ * headers.
+ *
+ * Rotating `ADMIN_SECRET` invalidates every cookie, which stays the way to
+ * sign everybody out at once. Per-person revocation is `disabledAt`, checked
+ * below on every request.
  */
 
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { prisma } from "@/lib/db";
 
 export const ADMIN_COOKIE = "zuriauto_admin";
 
 /** One working day, so the office signs in once each morning. */
 export const ADMIN_SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+
+export interface AdminIdentity {
+  id: string;
+  username: string;
+  displayName: string;
+  role: "owner" | "staff";
+}
 
 function secret(): string {
   const value = process.env.ADMIN_SECRET;
@@ -47,52 +54,67 @@ function constantTimeEqual(a: string, b: string): boolean {
   return timingSafeEqual(left, right);
 }
 
-/** Whether the value typed into the sign-in form is the office secret. */
-export function adminSecretValid(supplied: string): boolean {
-  const expected = process.env.ADMIN_SECRET;
-  // Fail closed: an unconfigured secret is a misconfiguration, not permission.
-  if (!expected || !supplied) return false;
-  return constantTimeEqual(supplied, expected);
-}
-
 function sign(payload: string): string {
   return createHmac("sha256", secret()).update(payload).digest("base64url");
 }
 
-export function issueAdminSession(now: Date = new Date()): string {
-  const payload = `admin.${now.getTime() + ADMIN_SESSION_TTL_MS}`;
-  return `${Buffer.from(payload).toString("base64url")}.${sign(payload)}`;
+/**
+ * `admin.<userId>.<issuedAt>.<expiresAt>`, signed.
+ *
+ * `issuedAt` is in the payload because it is what `credentialsChangedAt` is
+ * compared against: changing a password has to invalidate cookies handed out
+ * before the change, and only the cookie knows when it was handed out.
+ */
+export function issueAdminSession(userId: string, now: Date = new Date()): string {
+  const issuedAt = now.getTime();
+  const payload = `admin.${userId}.${issuedAt}.${issuedAt + ADMIN_SESSION_TTL_MS}`;
+  const encoded = Buffer.from(payload, "utf8").toString("base64url");
+  return `${encoded}.${sign(payload)}`;
 }
 
-export function adminSessionValid(
+/**
+ * Verifies the seal and the expiry, and reports what the cookie claims.
+ *
+ * Says nothing about whether the user still exists or is still enabled — that
+ * needs the database, and lives in `requireAdmin`. Split so the signing half
+ * can be tested without one.
+ */
+export function readAdminCookie(
   token: string | undefined,
   now: Date = new Date()
-): boolean {
-  if (!token) return false;
+): { userId: string; issuedAt: number } | null {
+  if (!token) return null;
 
   const parts = token.split(".");
   // base64url contains no dot, so a well-formed token has exactly two parts.
-  if (parts.length !== 2) return false;
+  if (parts.length !== 2) return null;
   const [encoded, signature] = parts;
-  if (!encoded || !signature) return false;
+  if (!encoded || !signature) return null;
 
   const payload = Buffer.from(encoded, "base64url").toString("utf8");
 
-  // Verified before anything is read out of it, so a rewritten expiry never
-  // reaches the comparison below.
+  // Verified before anything is read out of it, so a rewritten payload never
+  // reaches the parsing below.
   let expected: string;
   try {
     expected = sign(payload);
   } catch {
-    return false;
+    // ADMIN_SECRET is unset: nothing can be verified, so nobody is signed in.
+    return null;
   }
-  if (!constantTimeEqual(signature, expected)) return false;
+  if (!constantTimeEqual(signature, expected)) return null;
 
-  const [marker, expiry] = payload.split(".");
-  if (marker !== "admin") return false;
+  const fields = payload.split(".");
+  if (fields.length !== 4) return null;
+  const [marker, userId, issuedAtRaw, expiresAtRaw] = fields;
+  if (marker !== "admin" || !userId) return null;
 
-  const expiresAt = Number(expiry);
-  return Number.isFinite(expiresAt) && expiresAt > now.getTime();
+  const issuedAt = Number(issuedAtRaw);
+  const expiresAt = Number(expiresAtRaw);
+  if (!Number.isFinite(issuedAt) || !Number.isFinite(expiresAt)) return null;
+  if (expiresAt <= now.getTime()) return null;
+
+  return { userId, issuedAt };
 }
 
 /**
@@ -105,17 +127,56 @@ export function adminSessionValid(
 export function adminCookieFrom(request: Request): string | undefined {
   const header = request.headers.get("cookie");
   if (!header) return undefined;
-
-  for (const part of header.split(";")) {
-    const separator = part.indexOf("=");
-    if (separator < 0) continue;
-    if (part.slice(0, separator).trim() !== ADMIN_COOKIE) continue;
-    return decodeURIComponent(part.slice(separator + 1).trim());
+  for (const pair of header.split(";")) {
+    const [name, ...rest] = pair.trim().split("=");
+    if (name === ADMIN_COOKIE) return rest.join("=");
   }
   return undefined;
 }
 
-/** The one check every admin endpoint makes first. */
-export function requestIsAdmin(request: Request, now: Date = new Date()): boolean {
-  return adminSessionValid(adminCookieFrom(request), now);
+/**
+ * The signed-in user, or null.
+ *
+ * Reads the row on every request, which is what buys revocation a stateless
+ * cookie cannot have: `disabledAt` takes effect on the next click, and a
+ * password change invalidates that person's other sessions. One indexed read,
+ * against a dashboard serving a handful of requests a day.
+ */
+export async function requireAdmin(
+  request: Request,
+  now: Date = new Date()
+): Promise<AdminIdentity | null> {
+  const claim = readAdminCookie(adminCookieFrom(request), now);
+  if (!claim) return null;
+
+  const user = await prisma.adminUser.findUnique({
+    where: { id: claim.userId },
+    select: {
+      id: true,
+      username: true,
+      displayName: true,
+      role: true,
+      disabledAt: true,
+      credentialsChangedAt: true,
+    },
+  });
+  if (!user || user.disabledAt) return null;
+  // Issued before the password last changed: a stale session.
+  if (user.credentialsChangedAt.getTime() > claim.issuedAt) return null;
+
+  return {
+    id: user.id,
+    username: user.username,
+    displayName: user.displayName,
+    role: user.role,
+  };
+}
+
+/** As `requireAdmin`, and null unless the user is an owner. */
+export async function requireOwner(
+  request: Request,
+  now: Date = new Date()
+): Promise<AdminIdentity | null> {
+  const user = await requireAdmin(request, now);
+  return user?.role === "owner" ? user : null;
 }

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { carSlug, newCarSchema } from "@/lib/admin/cars";
-import { requestIsAdmin } from "@/lib/admin/session";
+import { requireAdmin } from "@/lib/admin/session";
 
 /**
  * Adding a car to the fleet.
@@ -16,7 +16,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
-  if (!requestIsAdmin(request)) {
+  const user = await requireAdmin(request);
+  if (!user) {
     return NextResponse.json({ code: "unauthorised" }, { status: 401 });
   }
 

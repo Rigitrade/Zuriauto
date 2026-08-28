@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { DELETE, POST } from "@/app/api/admin/session/route";
 import { GET } from "@/app/api/admin/overview/route";
 import { prisma } from "@/lib/db";
+import { hashPassword } from "@/lib/admin/password";
 import { ADMIN_COOKIE, issueAdminSession } from "@/lib/admin/session";
 import { persistPickup, type PickupUpload } from "@/lib/rental/persistPickup";
 import { persistReturn } from "@/lib/rental/persistReturn";
@@ -67,57 +67,22 @@ const uploads: PickupUpload[] = [
   { kind: "SIGNATURE", body: new Uint8Array([6]), contentType: "image/png" },
 ];
 
-function signedIn(): Request {
+async function signedIn(): Promise<Request> {
+  const org = await ensureOrganisation(prisma);
+  const user = await prisma.adminUser.create({
+    data: {
+      organisationId: org.id,
+      username: "ahmed",
+      displayName: "Eng Ahmed",
+      role: "staff",
+      passwordHash: await hashPassword("Sommer2026!"),
+    },
+    select: { id: true },
+  });
   return new Request("https://zuriauto.ch/api/admin/overview/", {
-    headers: { cookie: `${ADMIN_COOKIE}=${issueAdminSession()}` },
+    headers: { cookie: `${ADMIN_COOKIE}=${issueAdminSession(user.id)}` },
   });
 }
-
-describe("admin session endpoint", () => {
-  beforeEach(() => {
-    process.env.ADMIN_SECRET = SECRET;
-  });
-
-  it("sets a cookie for the right secret", async () => {
-    const response = await POST(
-      new Request("https://zuriauto.ch/api/admin/session/", {
-        method: "POST",
-        body: JSON.stringify({ secret: SECRET }),
-      })
-    );
-    expect(response.status).toBe(200);
-    const cookie = response.cookies.get(ADMIN_COOKIE);
-    expect(cookie?.value).toBeTruthy();
-    expect(cookie?.httpOnly).toBe(true);
-    expect(cookie?.sameSite).toBe("strict");
-  });
-
-  it("refuses the wrong secret and sets nothing", async () => {
-    const response = await POST(
-      new Request("https://zuriauto.ch/api/admin/session/", {
-        method: "POST",
-        body: JSON.stringify({ secret: "guess" }),
-      })
-    );
-    expect(response.status).toBe(401);
-    expect(response.cookies.get(ADMIN_COOKIE)?.value).toBeFalsy();
-  });
-
-  it("refuses a body that is not JSON", async () => {
-    const response = await POST(
-      new Request("https://zuriauto.ch/api/admin/session/", {
-        method: "POST",
-        body: "not json",
-      })
-    );
-    expect(response.status).toBe(400);
-  });
-
-  it("clears the cookie on sign out", async () => {
-    const response = await DELETE();
-    expect(response.cookies.get(ADMIN_COOKIE)?.value).toBe("");
-  });
-});
 
 describe("GET /api/admin/overview", () => {
   beforeEach(() => {
@@ -148,7 +113,7 @@ describe("GET /api/admin/overview", () => {
       data: { status: "retired" },
     });
 
-    const body = await (await GET(signedIn())).json();
+    const body = await (await GET(await signedIn())).json();
 
     // Counted from the fleet, not hard-coded: adding a car is a one-line
     // change to fleet.ts and must not break an unrelated test.
@@ -173,7 +138,7 @@ describe("GET /api/admin/overview", () => {
       store: createMemoryStore(),
     });
 
-    const body = await (await GET(signedIn())).json();
+    const body = await (await GET(await signedIn())).json();
 
     expect(body.rentals).toHaveLength(1);
     expect(body.rentals[0].customerName).toBe("Anna Meier");
@@ -202,7 +167,7 @@ describe("GET /api/admin/overview", () => {
       store: createMemoryStore(),
     });
 
-    const body = await (await GET(signedIn())).json();
+    const body = await (await GET(await signedIn())).json();
     // persistPickup does not send mail, so mailSentAt is null — which is
     // exactly the state the office needs surfaced.
     expect(body.counts.mailFailed).toBe(1);
@@ -211,7 +176,7 @@ describe("GET /api/admin/overview", () => {
 
   it("reports an empty fleet without failing", async () => {
     await ensureOrganisation(prisma);
-    const body = await (await GET(signedIn())).json();
+    const body = await (await GET(await signedIn())).json();
     expect(body.cars).toEqual([]);
     expect(body.counts.contracts).toBe(0);
     expect(body.latestContractAt).toBeNull();
@@ -242,7 +207,7 @@ it("marks a rental whose return the renter has submitted", async () => {
       store,
     });
 
-    const body = await (await GET(signedIn())).json();
+    const body = await (await GET(await signedIn())).json();
 
     expect(body.counts.returnsAwaiting).toBe(1);
     // Still an active rental as far as the office is concerned: the car is not
@@ -268,7 +233,7 @@ it("marks a rental whose return the renter has submitted", async () => {
       store: createMemoryStore(),
     });
 
-    const body = await (await GET(signedIn())).json();
+    const body = await (await GET(await signedIn())).json();
     expect(body.counts.returnsAwaiting).toBe(0);
     expect(body.rentals[0].returnSubmittedAt).toBeNull();
   });

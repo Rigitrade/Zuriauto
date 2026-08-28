@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { POST } from "@/app/api/admin/rentals/[id]/close/route";
 import { GET as fleetGet } from "@/app/api/fleet/route";
 import { prisma } from "@/lib/db";
+import { hashPassword } from "@/lib/admin/password";
 import { ADMIN_COOKIE, issueAdminSession } from "@/lib/admin/session";
 import { persistPickup, type PickupUpload } from "@/lib/rental/persistPickup";
 import type { ContractDetails } from "@/lib/rental/schema";
@@ -42,10 +43,27 @@ const uploads: PickupUpload[] = [
   { kind: "SIGNATURE", body: new Uint8Array([6]), contentType: "image/png" },
 ];
 
-function request(signed = true): Request {
+async function signedInCookie(): Promise<string> {
+  const org = await ensureOrganisation(prisma);
+  const user = await prisma.adminUser.upsert({
+    where: { organisationId_username: { organisationId: org.id, username: "ahmed" } },
+    update: {},
+    create: {
+      organisationId: org.id,
+      username: "ahmed",
+      displayName: "Eng Ahmed",
+      role: "staff",
+      passwordHash: await hashPassword("Sommer2026!"),
+    },
+    select: { id: true },
+  });
+  return issueAdminSession(user.id);
+}
+
+async function request(signed = true): Promise<Request> {
   return new Request("https://zuriauto.ch/api/admin/rentals/x/close/", {
     method: "POST",
-    headers: signed ? { cookie: `${ADMIN_COOKIE}=${issueAdminSession()}` } : {},
+    headers: signed ? { cookie: `${ADMIN_COOKIE}=${await signedInCookie()}` } : {},
   });
 }
 
@@ -77,7 +95,7 @@ describe("POST /api/admin/rentals/[id]/close", () => {
 
   it("refuses an unfenced request", async () => {
     const saved = await activeRental();
-    const response = await POST(request(false), params(saved.rentalId));
+    const response = await POST(await request(false), params(saved.rentalId));
     expect(response.status).toBe(401);
     expect(
       (await prisma.rental.findUniqueOrThrow({ where: { id: saved.rentalId } }))
@@ -89,7 +107,7 @@ describe("POST /api/admin/rentals/[id]/close", () => {
     const saved = await activeRental();
     expect(await fleetSlugs()).not.toContain("prius-zh513925");
 
-    const response = await POST(request(), params(saved.rentalId));
+    const response = await POST(await request(), params(saved.rentalId));
     expect(response.status).toBe(200);
 
     const rental = await prisma.rental.findUniqueOrThrow({
@@ -103,7 +121,7 @@ describe("POST /api/admin/rentals/[id]/close", () => {
 
   it("records the close as an override, not a return", async () => {
     const saved = await activeRental();
-    await POST(request(), params(saved.rentalId));
+    await POST(await request(), params(saved.rentalId));
 
     const events = await prisma.rentalEvent.findMany({
       where: { rentalId: saved.rentalId },
@@ -116,21 +134,21 @@ describe("POST /api/admin/rentals/[id]/close", () => {
 
   it("refuses a second close", async () => {
     const saved = await activeRental();
-    await POST(request(), params(saved.rentalId));
-    const again = await POST(request(), params(saved.rentalId));
+    await POST(await request(), params(saved.rentalId));
+    const again = await POST(await request(), params(saved.rentalId));
     // Says so rather than reporting success for work it did not do.
     expect(again.status).toBe(409);
   });
 
   it("answers 404 for a rental that does not exist", async () => {
     await ensureOrganisation(prisma);
-    const response = await POST(request(), params("ckdoesnotexist"));
+    const response = await POST(await request(), params("ckdoesnotexist"));
     expect(response.status).toBe(404);
   });
 
   it("leaves the contract and its assets in place", async () => {
     const saved = await activeRental();
-    await POST(request(), params(saved.rentalId));
+    await POST(await request(), params(saved.rentalId));
 
     // Closing a rental is not deleting a record: the contract is a commercial
     // document with its own ten-year retention.

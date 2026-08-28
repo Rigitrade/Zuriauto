@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requestIsAdmin } from "@/lib/admin/session";
+import { requireAdmin } from "@/lib/admin/session";
 
 /**
  * Everything the fleet page shows, in one call.
@@ -53,7 +53,8 @@ export interface AdminOverview {
 }
 
 export async function GET(request: Request) {
-  if (!requestIsAdmin(request)) {
+  const user = await requireAdmin(request);
+  if (!user) {
     return NextResponse.json({ code: "unauthorised" }, { status: 401 });
   }
 

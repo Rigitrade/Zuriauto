@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requestIsAdmin } from "@/lib/admin/session";
+import { requireAdmin } from "@/lib/admin/session";
 
 /**
  * Marking a rental finished and returning its car to the fleet.
@@ -24,7 +24,8 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!requestIsAdmin(request)) {
+  const user = await requireAdmin(request);
+  if (!user) {
     return NextResponse.json({ code: "unauthorised" }, { status: 401 });
   }
 
@@ -61,7 +62,7 @@ export async function POST(
         // `manual` on purpose: a later reconciliation has to be able to tell an
         // override from a rental closed by the return flow.
         type: "rental.closed.manual",
-        payload: { closedBy: "office" },
+        payload: { closedBy: user.username, closedByName: user.displayName },
       },
     });
   });
