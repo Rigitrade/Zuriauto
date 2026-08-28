@@ -1,0 +1,1250 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Subsystem-by-subsystem account of the Zuriauto rental backend: what is built, why it is shaped that way, and what stands between it and a release.">
+<meta name="robots" content="noindex">
+<style>
+  /* Minimal reset — the artifact host provided one; a standalone file does not. */
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; }
+  img, svg { max-width: 100%; height: auto; }
+  table { border-collapse: collapse; }
+</style>
+<title>Zuriauto Backend Register</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+  /* ---- Light palette: the complete token set lives on bare :root ---- */
+  :root {
+    --ground: #F1F4F6;
+    --surface: #FFFFFF;
+    --surface-sunk: #E7ECEF;
+    --ink: #13181C;
+    --ink-soft: #56626C;
+    --ink-faint: #8A959E;
+    --rule: #D6DDE2;
+    --rule-strong: #B9C4CB;
+
+    --accent: #2C3E5C;
+    --accent-soft: #E2E8F0;
+
+    --ok: #2C6A4E;
+    --ok-soft: #DDEBE3;
+    --warn: #855F0D;
+    --warn-soft: #F3E9D2;
+    --gap: #97292A;
+    --gap-soft: #F2DDDD;
+
+    --shadow: 0 1px 2px rgba(19, 24, 28, .05), 0 8px 24px -16px rgba(19, 24, 28, .22);
+
+    --measure: 68ch;
+    --step--1: .8125rem;
+    --step-0: 1rem;
+    --step-1: 1.1875rem;
+    --step-2: 1.5rem;
+    --step-3: 2rem;
+    --step-4: 2.9rem;
+  }
+
+  /* System-dark (no stamp) — guarded so an explicit light choice still wins */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0E1216;
+      --surface: #161C21;
+      --surface-sunk: #1D242A;
+      --ink: #E3E9ED;
+      --ink-soft: #97A3AD;
+      --ink-faint: #6C7883;
+      --rule: #252D35;
+      --rule-strong: #37424B;
+
+      --accent: #93B2DA;
+      --accent-soft: #1D2733;
+
+      --ok: #6DB48D;
+      --ok-soft: #16251D;
+      --warn: #D2A250;
+      --warn-soft: #262013;
+      --gap: #E08787;
+      --gap-soft: #2A1A1A;
+
+      --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px -16px rgba(0, 0, 0, .8);
+    }
+  }
+
+  /* Explicit dark choice */
+  :root[data-theme="dark"] {
+    --ground: #0E1216;
+    --surface: #161C21;
+    --surface-sunk: #1D242A;
+    --ink: #E3E9ED;
+    --ink-soft: #97A3AD;
+    --ink-faint: #6C7883;
+    --rule: #252D35;
+    --rule-strong: #37424B;
+
+    --accent: #93B2DA;
+    --accent-soft: #1D2733;
+
+    --ok: #6DB48D;
+    --ok-soft: #16251D;
+    --warn: #D2A250;
+    --warn-soft: #262013;
+    --gap: #E08787;
+    --gap-soft: #2A1A1A;
+
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px -16px rgba(0, 0, 0, .8);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: var(--step-0);
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+    margin: 0;
+    padding: 0 1.25rem 6rem;
+  }
+
+  .wrap {
+    max-width: 63rem;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4.5rem;
+  }
+
+  a { color: var(--accent); text-underline-offset: .2em; text-decoration-thickness: 1px; }
+  a:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+
+  code, .mono {
+    font-family: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+    font-size: .875em;
+    font-variant-ligatures: none;
+  }
+
+  p code, li code, td code {
+    background: var(--surface-sunk);
+    border-radius: 3px;
+    padding: .1em .34em;
+    color: var(--ink);
+  }
+
+  /* ---------- masthead ---------- */
+
+  .masthead {
+    padding-top: 4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.4rem;
+  }
+
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: var(--step--1);
+    letter-spacing: .11em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    display: flex;
+    flex-wrap: wrap;
+    gap: .55rem;
+    align-items: center;
+  }
+  .eyebrow .bar { color: var(--rule-strong); }
+
+  h1 {
+    font-family: Newsreader, ui-serif, Georgia, serif;
+    font-weight: 500;
+    font-size: var(--step-4);
+    line-height: 1.06;
+    letter-spacing: -.017em;
+    margin: 0;
+    text-wrap: balance;
+    max-width: 18ch;
+  }
+
+  .standfirst {
+    font-family: Newsreader, ui-serif, Georgia, serif;
+    font-size: var(--step-2);
+    line-height: 1.44;
+    color: var(--ink-soft);
+    margin: 0;
+    max-width: 46ch;
+    text-wrap: pretty;
+  }
+  .standfirst strong { color: var(--ink); font-weight: 600; }
+
+  /* ---------- figures strip ---------- */
+
+  .figures {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .fig {
+    background: var(--surface);
+    padding: 1.05rem 1.15rem 1.15rem;
+    display: flex;
+    flex-direction: column;
+    gap: .28rem;
+  }
+  .fig .n {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 1.85rem;
+    font-weight: 500;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -.02em;
+  }
+  .fig .l {
+    font-size: var(--step--1);
+    color: var(--ink-soft);
+    line-height: 1.38;
+  }
+  .fig.alarm .n { color: var(--gap); }
+  .fig.caution .n { color: var(--warn); }
+
+  /* ---------- generic section ---------- */
+
+  section { display: flex; flex-direction: column; gap: 1.6rem; }
+
+  .sec-head {
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+    border-top: 2px solid var(--ink);
+    padding-top: 1rem;
+  }
+  h2 {
+    font-family: Newsreader, ui-serif, Georgia, serif;
+    font-weight: 500;
+    font-size: var(--step-3);
+    line-height: 1.14;
+    letter-spacing: -.012em;
+    margin: 0;
+    text-wrap: balance;
+  }
+  .sec-head p {
+    margin: 0;
+    color: var(--ink-soft);
+    max-width: var(--measure);
+    text-wrap: pretty;
+  }
+
+  h3 {
+    font-family: Newsreader, ui-serif, Georgia, serif;
+    font-weight: 600;
+    font-size: var(--step-1);
+    line-height: 1.25;
+    margin: 0;
+    letter-spacing: -.005em;
+    text-wrap: balance;
+  }
+
+  .prose p { margin: 0 0 .85rem; max-width: var(--measure); text-wrap: pretty; }
+  .prose p:last-child { margin-bottom: 0; }
+
+  /* ---------- status chips ---------- */
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: .42rem;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: .6875rem;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    font-weight: 500;
+    padding: .3rem .5rem;
+    border-radius: 3px;
+    white-space: nowrap;
+    border: 1px solid transparent;
+  }
+  .chip::before {
+    content: "";
+    width: .48rem; height: .48rem;
+    border-radius: 50%;
+    background: currentColor;
+    flex: none;
+  }
+  .chip.live { color: var(--ok); background: var(--ok-soft); border-color: color-mix(in srgb, var(--ok) 26%, transparent); }
+  .chip.unproven { color: var(--warn); background: var(--warn-soft); border-color: color-mix(in srgb, var(--warn) 26%, transparent); }
+  .chip.absent { color: var(--gap); background: var(--gap-soft); border-color: color-mix(in srgb, var(--gap) 26%, transparent); }
+  .chip.absent::before { background: transparent; box-shadow: inset 0 0 0 1.5px currentColor; }
+
+  /* ---------- legend ---------- */
+
+  .legend {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    gap: 1.1rem 1.6rem;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 1.35rem 1.4rem;
+  }
+  .legend div { display: flex; flex-direction: column; gap: .45rem; align-items: flex-start; }
+  .legend p { margin: 0; font-size: var(--step--1); color: var(--ink-soft); line-height: 1.5; }
+
+  /* ---------- the register ---------- */
+
+  .register { display: flex; flex-direction: column; }
+
+  .entry {
+    display: grid;
+    grid-template-columns: 13.5rem 1fr;
+    gap: 0 2.5rem;
+    padding: 1.7rem 0;
+    border-top: 1px solid var(--rule);
+    align-items: start;
+  }
+  .entry:first-child { border-top: 1px solid var(--rule-strong); }
+
+  .entry .meta {
+    display: flex;
+    flex-direction: column;
+    gap: .7rem;
+    align-items: flex-start;
+    position: sticky;
+    top: 1.5rem;
+  }
+  .paths {
+    display: flex;
+    flex-direction: column;
+    gap: .22rem;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: .75rem;
+    line-height: 1.45;
+    color: var(--ink-faint);
+    word-break: break-word;
+  }
+  .entry .body { display: flex; flex-direction: column; gap: .7rem; }
+
+  .note {
+    border-left: 2px solid var(--rule-strong);
+    padding: .1rem 0 .1rem .95rem;
+    color: var(--ink-soft);
+    font-size: .9375rem;
+    max-width: var(--measure);
+    text-wrap: pretty;
+  }
+  .note strong { color: var(--ink); font-weight: 600; }
+  .note.risk { border-left-color: var(--gap); }
+
+  /* ---------- phase ladder ---------- */
+
+  .phases { display: flex; flex-direction: column; }
+  .phase {
+    display: grid;
+    grid-template-columns: 3.2rem 1fr auto;
+    gap: 0 1.4rem;
+    align-items: baseline;
+    padding: 1.05rem .1rem;
+    border-top: 1px solid var(--rule);
+  }
+  .phase:first-child { border-top: 1px solid var(--rule-strong); }
+  .phase .num {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: var(--step--1);
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-faint);
+    letter-spacing: .04em;
+  }
+  .phase .what { display: flex; flex-direction: column; gap: .25rem; }
+  .phase .what b { font-weight: 600; }
+  .phase .what span { color: var(--ink-soft); font-size: .9375rem; text-wrap: pretty; }
+  .phase .chip { align-self: start; }
+
+  /* ---------- next steps ---------- */
+
+  .steps { display: flex; flex-direction: column; gap: 0; counter-reset: step; }
+  .step {
+    display: grid;
+    grid-template-columns: 2.6rem 1fr;
+    gap: 0 1rem;
+    padding: 1rem 0;
+    border-top: 1px solid var(--rule);
+    align-items: start;
+  }
+  .step:first-child { border-top: 1px solid var(--rule-strong); }
+  .step::before {
+    counter-increment: step;
+    content: counter(step, decimal-leading-zero);
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: var(--step--1);
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+    padding-top: .18rem;
+  }
+  .step div { display: flex; flex-direction: column; gap: .3rem; }
+  .step b { font-weight: 600; }
+  .step span { color: var(--ink-soft); font-size: .9375rem; max-width: var(--measure); text-wrap: pretty; }
+
+  /* ---------- code block ---------- */
+
+  .codeblock {
+    background: var(--surface-sunk);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: .95rem 1.1rem;
+    overflow-x: auto;
+    margin: 0;
+  }
+  .codeblock code {
+    font-size: .8125rem;
+    line-height: 1.7;
+    color: var(--ink);
+    white-space: pre;
+    display: block;
+    background: none;
+    padding: 0;
+  }
+
+  .callout {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--gap);
+    border-radius: 4px;
+    padding: 1.2rem 1.35rem;
+    display: flex;
+    flex-direction: column;
+    gap: .55rem;
+    box-shadow: var(--shadow);
+  }
+  .callout h3 { font-family: "IBM Plex Sans", sans-serif; font-size: var(--step-0); font-weight: 600; }
+  .callout p { margin: 0; color: var(--ink-soft); max-width: var(--measure); text-wrap: pretty; }
+  .callout p strong { color: var(--ink); }
+
+  footer {
+    border-top: 1px solid var(--rule);
+    padding-top: 1.3rem;
+    color: var(--ink-faint);
+    font-size: var(--step--1);
+    display: flex;
+    flex-direction: column;
+    gap: .4rem;
+  }
+
+  @media (max-width: 820px) {
+    :root { --step-4: 2.2rem; --step-3: 1.62rem; --step-2: 1.25rem; }
+    .entry { grid-template-columns: 1fr; gap: .9rem; }
+    .entry .meta { position: static; flex-direction: row; flex-wrap: wrap; align-items: center; gap: .55rem .9rem; }
+    .paths { flex-direction: row; flex-wrap: wrap; gap: .1rem .8rem; }
+    .phase { grid-template-columns: 2.6rem 1fr; }
+    .phase .chip { grid-column: 2; margin-top: .4rem; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="eyebrow">
+      <span>ZURIAUTO</span><span class="bar">/</span>
+      <span>integrate&#8203;/backend-plus-return</span><span class="bar">/</span>
+      <span>28 Aug 2026</span>
+    </div>
+    <h1>Zuriauto Backend Register</h1>
+    <p class="standfirst">
+      Fifty commits of rental infrastructure — persistence, an EU asset store, lifecycle
+      automation, returning-customer recognition and a fleet admin page.
+      <strong>None of it has ever run outside a laptop.</strong>
+    </p>
+  </header>
+
+  <section aria-label="Headline figures">
+    <div class="figures">
+      <div class="fig"><span class="n">50</span><span class="l">commits ahead of <code>main</code></span></div>
+      <div class="fig alarm"><span class="n">21</span><span class="l">of those never pushed to origin</span></div>
+      <div class="fig"><span class="n">119</span><span class="l">files changed</span></div>
+      <div class="fig"><span class="n">31</span><span class="l">test files, 14 unit &middot; 17 database</span></div>
+      <div class="fig alarm"><span class="n">0</span><span class="l">deployments, preview or production</span></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Where the work actually sits</h2>
+      <p>
+        The branch is a complete implementation of Phases&nbsp;2 and 3 plus two features that
+        arrived after them. What it is not is a tested one — Vercel has never built this code,
+        so no line of it has met a real database, a real bucket, or a real mail server.
+      </p>
+    </div>
+
+    <div class="prose">
+      <p>
+        The last commit Vercel has ever seen is <code class="mono">8fffd81</code>, from 22 August.
+        Everything after it — the whole of returning-customer recognition and the whole of the
+        <code>/admin</code> fleet dashboard — exists only on this machine. That single fact is
+        what separates &ldquo;the code is written&rdquo; from &ldquo;we can release.&rdquo;
+      </p>
+      <p>
+        Two pieces of good news from the same check: the merge into <code>main</code> is
+        <strong>clean</strong> — no conflicts, including in <code>lib/rental/fleet.ts</code>,
+        which both sides touched — and the design decisions below are documented in the source
+        itself, at a density that made this register possible to write without guessing.
+      </p>
+    </div>
+
+    <div class="legend">
+      <div>
+        <span class="chip live">Live</span>
+        <p>Running in production today. Phase&nbsp;1 only — the stateless pickup form that emails a PDF.</p>
+      </div>
+      <div>
+        <span class="chip unproven">Built, unproven</span>
+        <p>Written, unit-tested, reviewed. Never executed against production infrastructure.</p>
+      </div>
+      <div>
+        <span class="chip absent">Not built</span>
+        <p>Named in the roadmap, deliberately deferred. The office does it by hand meanwhile.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Foundation</h2>
+      <p>The two stores everything else writes into, and the reasons each is shaped the way it is.</p>
+    </div>
+
+    <div class="register">
+
+      <div class="entry">
+        <div class="meta">
+          <span class="chip unproven">Built, unproven</span>
+          <div class="paths"><span>prisma/schema.prisma</span><span>prisma/migrations/ &times;3</span><span>lib/db.ts</span></div>
+        </div>
+        <div class="body">
+          <h3>Postgres and the Prisma layer</h3>
+          <div class="prose">
+            <p>
+              Twelve models across three migrations: <code>Organisation</code>, <code>Car</code>,
+              <code>Customer</code>, <code>Rental</code>, <code>Contract</code>, <code>Asset</code>,
+              <code>RentalEvent</code>, <code>Charge</code>, <code>Notification</code>,
+              <code>ActionToken</code>, plus two audit tables. Every table carries an organisation
+              key from the first migration.
+            </p>
+          </div>
+          <p class="note">
+            The tenant key is there <strong>before</strong> there is a second tenant on purpose.
+            Retrofitting it later means rewriting every query and every access check; carrying an
+            unused column costs nothing.
+          </p>
+          <p class="note">
+            The client is created on first use, not at import. A Prisma client built at module scope
+            against a missing <code>DATABASE_URL</code> fails later, at the first query, with an error
+            describing the symptom rather than the cause — which is exactly the failure that wasted an
+            afternoon on a preview deploy.
+          </p>
+        </div>
+      </div>
+
+      <div class="entry">
+        <div class="meta">
+          <span class="chip unproven">Built, unproven</span>
+          <div class="paths"><span>lib/storage/r2.ts</span><span>lib/storage/keys.ts</span><span>lib/storage/memory.ts</span></div>
+        </div>
+        <div class="body">
+          <h3>The asset store, pinned to the EU</h3>
+          <div class="prose">
+            <p>
+              Cloudflare R2 over its S3-compatible API, holding ID scans, driving licences, portraits,
+              signatures, condition photographs and the contract PDF itself. R2 rather than Vercel Blob
+              for one reason: a bucket's jurisdiction can be fixed to the EU at creation, which the
+              revised Swiss DSG makes a requirement rather than a preference for this data.
+            </p>
+          </div>
+          <p class="note">
+            A jurisdiction-restricted bucket <strong>does not answer on the account's ordinary
+            host</strong> — it has its own, <code>&lt;account&gt;.eu.r2.cloudflarestorage.com</code>.
+            Address the plain one and every upload fails with <code>NoSuchBucket</code>, which surfaces
+            as a 503 and a contract that was signed and never recorded. The code defaults to the EU host
+            for that reason.
+          </p>
+          <p class="note">
+            Object keys are <strong>deliberately meaningless</strong>: <code>pickup/&lt;uuid&gt;/&lt;kind&gt;-&lt;random&gt;.jpg</code>,
+            carrying no name, email or contract number. A key ends up in server logs, in the storage
+            console, and in whatever support ticket somebody pastes it into — putting a name in one
+            leaks the link between a person and their passport scan to everywhere a string can travel.
+          </p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Pickup, recorded &mdash; Phase 2</h2>
+      <p>
+        What used to be a form that emailed a PDF is now a write to a system of record.
+        The email still goes; it is no longer the only copy.
+      </p>
+    </div>
+
+    <div class="register">
+
+      <div class="entry">
+        <div class="meta">
+          <span class="chip unproven">Built, unproven</span>
+          <div class="paths"><span>lib/rental/persistPickup.ts</span><span>app/api/rental-contract/route.ts</span></div>
+        </div>
+        <div class="body">
+          <h3>One handover, three ordered stages</h3>
+          <div class="prose">
+            <p>
+              Assets upload first, the database transaction opens second, the mail sends last —
+              the durable write sits in the middle, where it belongs. A storage failure aborts before
+              anything is written. A mail failure leaves the contract standing and records
+              <code>mailError</code> on the row.
+            </p>
+          </div>
+          <p class="note">
+            This inverts the Phase&nbsp;1 failure mode, where the email <em>was</em> the record, so a
+            failed send meant the contract existed nowhere at all.
+          </p>
+        </div>
+      </div>
+
+      <div class="entry">
+        <div class="meta">
+          <span class="chip unproven">Built, unproven</span>
+          <div class="paths"><span>lib/rental/contractNumber.ts</span></div>
+        </div>
+        <div class="body">
+          <h3>A real contract sequence</h3>
+          <div class="prose">
+            <p>
+              <code>ZA-YYYYMMDD-NNNN</code>, allocated from a counter row per organisation per day
+              with a single <code>ON CONFLICT DO UPDATE &hellip; RETURNING</code> statement, taken
+              inside the contract transaction. Two simultaneous handovers serialise on the counter row
+              instead of racing, and a contract that rolls back leaves no gap in the sequence.
+            </p>
+          </div>
+          <p class="note">
+            Replaces the Phase&nbsp;1 stopgap of date plus plate digits plus a random suffix. The shape
+            is unchanged, so numbers already quoted to customers stay recognisable. The day is
+            <strong>Zurich's day, not UTC's</strong>, and the counter pads rather than truncates — the
+            ten-thousandth contract makes the number longer, it does not start again at one.
+          </p>
+        </div>
+      </div>
+
+      <div class="entry">
+        <div class="meta">
+          <span class="chip unproven">Built, unproven</span>
+          <div class="paths"><span>lib/rental/terms.ts</span><span>components/rental/RentalTermsStep.tsx</span><span>lib/rental/money.ts</span></div>
+        </div>
+        <div class="body">
+          <h3>Rental terms, and money as integers</h3>
+          <div class="prose">
+            <p>
+              Two commercial shapes on one table. <code>WEEKLY</code> reproduces what the taxi and Uber
+              drivers already have — N weeks at a fixed weekly amount — and <code>FIXED_TERM</code>
+              serves tourists with an explicit end and a single price. Both write <code>endAt</code>,
+              so the reminder pass is one indexed range scan rather than two code paths that can drift.
+            </p>
+          </div>
+          <p class="note">
+            Every rental date is reasoned about in <code>Europe/Zurich</code>. Vercel's functions run in
+            UTC; a car handed over at 10:00 for two weeks across the March changeover must still be due
+            back at 10:00, and millisecond arithmetic would quietly make it 11:00.
+          </p>
+          <p class="note">
+            Money is integer cents everywhere, never a float — the amount printed on a signed contract
+            has to be the amount charged. The parser tolerates Swiss separators, including the
+            typographic apostrophe iOS substitutes for a straight one, and rejects three decimals as
+            not-an-amount.
+          </p>
+        </div>
+      </div>
+
+      <div class="entry">
+        <div class="meta">
+          <span class="chip unproven">Built, unproven</span>
+          <div class="paths"><span>lib/applyKey.ts</span><span>lib/rental/rateLimit.ts</span></div>
+        </div>
+        <div class="body">
+          <h3>The write fence</h3>
+          <div class="prose">
+            <p>
+              <code>APPLY_SECRET</code>, compared in constant time, failing closed when unset. An open
+              endpoint would let anyone create a rental against a real plate — and a fabricated rental
+              naming a real driver is far worse than a spam email, because the traffic-fine lookup
+              would answer with it.
+            </p>
+          </div>
+          <p class="note risk">
+            This is an <strong>office</strong> credential, and the module says so in capitals. It is
+            pasted into WhatsApp by staff and leaks the moment a link is forwarded. It must never fence
+            a renter-facing flow — mailing customers this secret would hand every past renter permanent
+            write access to the system of record.
+          </p>
+          <p class="note">
+            Rate limiting moved into the database: five submissions per ten minutes, IPs stored as
+            salted SHA-256 so the limiter is not itself a store of personal data, expired rows swept on
+            the way past. The module-scope <code>Map</code> it replaced reset on every cold start and
+            was shared between no instances at all.
+          </p>
+        </div>
+      </div>
+
+      <div class="entry">
+        <div class="meta">
+          <span class="chip unproven">Built, unproven</span>
+          <div class="paths"><span>app/api/fleet/route.ts</span><span>prisma/seed.ts</span><span>lib/rental/fleet.ts</span></div>
+        </div>
+        <div class="body">
+          <h3>The picker reads the database</h3>
+          <div class="prose">
+            <p>
+              <code>/api/fleet</code> returns only cars whose status is <code>available</code>, so taking
+              a car off the road becomes a status change rather than a deploy. Ownership is split, and
+              the split is the point: <strong>the fleet file owns identity</strong> — model, plate,
+              chassis number, the legal identifiers printed on a signed document, which belong somewhere
+              a mistyped update goes through code review — and <strong>the database owns status</strong>.
+            </p>
+          </div>
+          <p class="note">
+            The seed reconciles identity on every deploy and never writes status. Practical consequence
+            for the BMW 218d added yesterday: it is live on production right now, because today's picker
+            still uses the compiled list — and after this release it reaches the picker only once
+            <code>pnpm db:seed</code> has run.
+          </p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Lifecycle automation &mdash; Phase 3</h2>
+      <p>
+        One cron run a day, six passes, every one of them safe to run twice. This is the part
+        with the most careful thinking in it and the least production evidence behind it.
+      </p>
+    </div>
+
+    <div class="register">
+
+      <div class="entry">
+        <div class="meta">
+          <span class="chip unproven">Built, unproven</span>
+          <div class="paths"><span>lib/rental/scheduler.ts</span><span>lib/rental/notify.ts</span><span>lib/rental/passes.ts</span><span>app/api/cron/daily/route.ts</span></div>
+        </div>
+        <div class="body">
+          <h3>Idempotence by construction, not by flag</h3>
+          <div class="prose">
+            <p>
+              Two mechanisms do all the work. A send is <em>claimed</em> by inserting a
+              <code>Notification</code> row unique on <code>[rentalId, kind, dedupeKey]</code>
+              <strong>before</strong> anything is sent, so two concurrent runs race on the insert and
+              exactly one wins. A status change is a conditional <code>updateMany</code> whose
+              <code>WHERE</code> repeats the precondition the pure predicate just checked — the
+              predicate may be true twice, the update can only succeed once.
+            </p>
+          </div>
+          <p class="note">
+            The rejected alternative is named in the source: a <code>reminderSent: boolean</code> set
+            after the send. Both runs read <code>false</code>, both send, both then set it true.
+          </p>
+          <p class="note">
+            Because a claimed send that then fails to deliver must not be silently lost, delivery
+            outcome lives in separate columns — <code>sentAt</code>, <code>error</code>,
+            <code>attempts</code> — with a retry pass. The dedupe key guards the <em>decision</em>;
+            the columns record the <em>outcome</em>.
+          </p>
+          <p class="note">
+            <code>now</code> is threaded through every predicate rather than read from the clock, which
+            is what lets the tests drive a rental through three weeks in milliseconds.
+          </p>
+        </div>
+      </div>
+
+      <div class="entry">
+        <div class="meta">
+          <span class="chip unproven">Built, unproven</span>
+          <div class="paths"><span>lib/rental/passes.ts</span><span>vercel.json</span></div>
+        </div>
+        <div class="body">
+          <h3>Why the reminder window is 48 hours</h3>
+          <div class="prose">
+            <p>
+              The client asked for 24 hours' notice. A daily cron firing at 09:00 and looking only 24
+              hours ahead would never see a rental ending at 08:00 the next morning — that end falls in
+              the gap between two runs. Looking 48 hours ahead and deduping on the Zurich day of
+              <code>endAt</code> sends the notice between 24 and 48 hours before the end, always
+              exactly once.
+            </p>
+          </div>
+          <p class="note">
+            The window also absorbs two facts about the free Vercel plan: cron schedules are UTC, and
+            Hobby fires anywhere inside the hour. The alternative is an hourly cron on a paid plan, or
+            any external scheduler pointed at the same URL with the same bearer token — the endpoint
+            accepts POST for exactly that reason.
+          </p>
+        </div>
+      </div>
+
+      <div class="entry">
+        <div class="meta">
+          <span class="chip unproven">Built, unproven</span>
+          <div class="paths"><span>lib/rental/actionToken.ts</span><span>lib/rental/manage.ts</span><span>app/rental/manage/page.tsx</span></div>
+        </div>
+        <div class="body">
+          <h3>Manage links for a renter with no account</h3>
+          <div class="prose">
+            <p>
+              Thirty-two random bytes go in the email; only their SHA-256 hash goes in the database, so
+              a database dump does not hand over a set of live links into strangers' rental records.
+              Single use is a <code>usedAt</code> stamp, revocation is deleting the row, and the token
+              is base64url so it survives being pasted into WhatsApp. Fourteen-day life.
+            </p>
+          </div>
+          <p class="note">
+            Chosen over a signed stateless token — an HMAC or JWT — because single use and revocation
+            are the properties that matter here and both need a row anyway. A stateless token would buy
+            nothing and could not be withdrawn.
+          </p>
+          <p class="note">
+            Self-service extension is capped at four weeks, applied in one transaction so a new end date
+            and its new charges land together. A renter quietly extending a car for a year should be a
+            conversation, not a form submission.
+          </p>
+        </div>
+      </div>
+
+      <div class="entry">
+        <div class="meta">
+          <span class="chip unproven">Built, unproven</span>
+          <div class="paths"><span>lib/payments/index.ts</span><span>lib/payments/sumupLink.ts</span></div>
+        </div>
+        <div class="body">
+          <h3>Charges, and a payment provider that admits what it is</h3>
+          <div class="prose">
+            <p>
+              One <code>Charge</code> row per week, unique on <code>[rentalId, weekNumber]</code> so two
+              runs cannot create two week-three charges; extensions continue the sequence rather than
+              restarting it. Behind a <code>PaymentProvider</code> interface sits exactly one
+              implementation: the static SumUp link the site already uses.
+            </p>
+          </div>
+          <p class="note">
+            It carries no amount and cannot report that anything was paid. Both are stated as honest
+            limitations rather than hidden — the reminder email writes the amount in words beside the
+            link, and the office marks the charge paid. The module explicitly refuses to append a query
+            parameter SumUp does not read, which would make the page look parameterised when it is not.
+          </p>
+          <p class="note risk">
+            <strong>Still an open question for the office:</strong> whether that SumUp link already
+            offers TWINT. If it does, TWINT costs zero integration work and this is the whole payment
+            story for a while.
+          </p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Recognising a returning customer</h2>
+      <p>
+        Customers have been deduplicated on email since the first contract, so a repeat renter has
+        always been one row with a history. Nothing read it back. This is that path — and it is the
+        newest, least-exercised code on the branch.
+      </p>
+    </div>
+
+    <div class="register">
+
+      <div class="entry">
+        <div class="meta">
+          <span class="chip unproven">Built, unproven</span>
+          <div class="paths"><span>lib/rental/phone.ts</span><span>scripts/backfill-phone-keys.ts</span></div>
+        </div>
+        <div class="body">
+          <h3>One spelling per phone number</h3>
+          <div class="prose">
+            <p>
+              A single mobile reaches the database spelled four ways — <code>079 123 45 67</code>,
+              <code>+41 79 123 45 67</code>, <code>0041791234567</code>, <code>+41791234567</code>.
+              <code>phoneKey</code> is the E.164 normalisation, hand-rolled rather than pulling in 150 KB
+              of libphonenumber to serve an office typing Swiss numbers and the occasional German one.
+            </p>
+          </div>
+          <p class="note">
+            Deliberately <strong>not unique</strong>: one mobile can belong to a couple, and a UNIQUE
+            migration is one that can fail on data already in the table. A lookup returns up to five
+            matches and the staff member picks.
+          </p>
+          <p class="note risk">
+            The normaliser's output must stay stable for the life of the column. Change how an existing
+            input maps and every key already written silently stops matching — no error, just returning
+            customers who are never found again. A backfill script exists for when that has to happen.
+          </p>
+        </div>
+      </div>
+
+      <div class="entry">
+        <div class="meta">
+          <span class="chip unproven">Built, unproven</span>
+          <div class="paths"><span>lib/rental/findCustomers.ts</span><span>app/api/customers/lookup/route.ts</span><span>lib/rental/reuseToken.ts</span></div>
+        </div>
+        <div class="body">
+          <h3>The desk lookup, fenced and audited</h3>
+          <div class="prose">
+            <p>
+              The lookup returns no image bytes and no contract id to any client. Every call writes a
+              <code>CustomerLookup</code> row with the number salted and hashed, so &ldquo;who looked up
+              whom&rdquo; is answerable without the audit log quietly becoming a second copy of the
+              customer list.
+            </p>
+          </div>
+          <p class="note">
+            What the client gets instead is a short-lived HMAC — thirty minutes, keyed with
+            <code>APPLY_SECRET</code>, no database row — that authorises copying one specific contract's
+            documents. Holding it proves the caller already legitimately read that the customer exists.
+          </p>
+          <p class="note">
+            The obvious alternative, matching the submitted email against the stored one, refuses the
+            reuse precisely when a returning customer has changed their email — which is a normal thing
+            to have done.
+          </p>
+        </div>
+      </div>
+
+      <div class="entry">
+        <div class="meta">
+          <span class="chip unproven">Built, unproven</span>
+          <div class="paths"><span>lib/rental/reuseDocuments.ts</span><span>lib/rental/contractPdf.ts</span></div>
+        </div>
+        <div class="body">
+          <h3>Documents carried forward, by copy</h3>
+          <div class="prose">
+            <p>
+              Portrait, ID front and back, licence front and back move onto the new contract — not the
+              signature, which is signed today by definition, and not the condition photographs, which
+              describe the car rather than the person. The copy happens server-side in the bucket, so
+              the bytes never pass through a function and are never sent to a browser.
+            </p>
+          </div>
+          <p class="note">
+            <strong>Copies rather than shares.</strong> Hanging one asset row off two contracts is the
+            obvious way to reuse a file and the wrong one: it turns a per-contract deletion sweep into
+            reference counting, and makes every retention question a question about who else still
+            points at the object. Copying costs a few hundred kilobytes per rental and keeps each
+            contract owning its own set on its own clock.
+          </p>
+          <p class="note">
+            <code>identityCheckedAt</code> records the moment a staff member confirmed they had seen the
+            original ID and licence — required whenever documents are reused, null on a first rental
+            where the fresh photograph is itself the evidence someone looked. The PDF prints a reference
+            page saying which contract the documents came from.
+          </p>
+          <p class="note risk">
+            The trade-off is named in <code>docs/DATA-RETENTION.md</code> rather than buried: this
+            feature is why passport and licence scans are held for five years. &ldquo;It saves typing at
+            the desk&rdquo; is a weak proportionality argument under the revised DSG, and it was chosen
+            deliberately with that written down.
+          </p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>The fleet admin page</h2>
+      <p>
+        An early slice of Phase&nbsp;5, built because the alternative was asking the office to run SQL.
+        Unlinked, <code>noindex</code>, and behind its own secret.
+      </p>
+    </div>
+
+    <div class="register">
+
+      <div class="entry">
+        <div class="meta">
+          <span class="chip unproven">Built, unproven</span>
+          <div class="paths"><span>lib/admin/session.ts</span><span>app/api/admin/session/route.ts</span></div>
+        </div>
+        <div class="body">
+          <h3>A secret exchanged for a working day</h3>
+          <div class="prose">
+            <p>
+              <code>ADMIN_SECRET</code> is posted once and exchanged for an httpOnly cookie lasting
+              twelve hours, so the office signs in each morning and the secret never travels in a URL.
+              The cookie carries an HMAC over its own expiry, not the secret, so the stored value is not
+              the credential and goes stale on its own.
+            </p>
+          </div>
+          <p class="note risk">
+            <strong><code>ADMIN_SECRET</code> must not equal <code>APPLY_SECRET</code>.</strong> The
+            pickup key is pasted into WhatsApp and leaks on the first forward; the admin key can rewrite
+            the fleet. Sharing one value would put fleet management behind a semi-public string.
+          </p>
+          <p class="note">
+            A cookie here and <code>?k=</code> in the pickup URL is a deliberate difference: that link is
+            opened once from a message, this page is opened daily, and a secret in a URL accumulates in
+            history, bookmarks and referrer headers. Accepted limitation, written down rather than
+            discovered: one shared secret means no attribution and no per-person revocation. Rotating the
+            variable signs everyone out, and that is the intended way to revoke.
+          </p>
+        </div>
+      </div>
+
+      <div class="entry">
+        <div class="meta">
+          <span class="chip unproven">Built, unproven</span>
+          <div class="paths"><span>lib/admin/cars.ts</span><span>app/api/admin/cars/&hellip;</span><span>app/api/admin/rentals/[id]/close/route.ts</span><span>components/admin/AdminDashboard.tsx</span></div>
+        </div>
+        <div class="body">
+          <h3>Add, edit, retire &mdash; and close a rental</h3>
+          <div class="prose">
+            <p>
+              The office can add a car, edit it, take it off the road, see what is out on rental, and
+              mark a returned rental finished. Closing moves both rows in one transaction: half of it —
+              a completed rental whose car still reads <code>rented</code>, or a freed car whose rental
+              is still active — is worse than neither, because the second state is what lets the picker
+              offer a car somebody is driving.
+            </p>
+          </div>
+          <p class="note">
+            This is labelled in its own source as an administrative override, not the return protocol.
+            The return wizard still records mileage, fuel, damage and a signature and produces a
+            document; this exists because until now the only way to free a returned car was hand-written
+            SQL.
+          </p>
+          <p class="note risk">
+            Consequence for the handover notes: <strong>step 7 of the deploy runbook is now wrong.</strong>
+            It still tells the office that closing a rental is SQL until Phase&nbsp;4. Handing them that
+            version would be actively misleading.
+          </p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Deployment plumbing</h2>
+      <p>Three pieces that exist only because a deployment already went wrong once.</p>
+    </div>
+
+    <div class="register">
+
+      <div class="entry">
+        <div class="meta">
+          <span class="chip unproven">Built, unproven</span>
+          <div class="paths"><span>app/api/health/route.ts</span></div>
+        </div>
+        <div class="body">
+          <h3>Ask the function what it can see</h3>
+          <div class="prose">
+            <p>
+              A health endpoint reporting <strong>presence, never values</strong> — one boolean per
+              environment variable, grouped as the runbook lists them, plus a database round-trip that
+              retries a cold Neon instance.
+            </p>
+          </div>
+          <p class="note">
+            Written while diagnosing a preview where <code>/api/fleet</code> answered 500 in nine
+            milliseconds with no outgoing request — the signature of a missing <code>DATABASE_URL</code>
+            rather than a rejected password. Establishing that from the dashboard means reading eighteen
+            variables across two environments and trusting the list on screen is the list the function
+            received.
+          </p>
+          <p class="note">
+            Unfenced on purpose. Every secret it names fails closed when unset, so knowing which are
+            missing tells an attacker only that the doors are locked — and fencing it would have been
+            worse than useless, because the case it exists to diagnose is the one where the secret
+            guarding it is what has gone missing.
+          </p>
+        </div>
+      </div>
+
+      <div class="entry">
+        <div class="meta">
+          <span class="chip unproven">Built, unproven</span>
+          <div class="paths"><span>vercel.json</span></div>
+        </div>
+        <div class="body">
+          <h3>Frankfurt is load-bearing</h3>
+          <div class="prose">
+            <p>
+              Vercel executes functions in Washington DC for every new project unless told otherwise.
+              Without <code>regions: ["fra1"]</code>, the function that <em>receives</em> the passport
+              upload runs in the United States — which defeats the entire reason the bucket and the
+              database were pinned to the EU.
+            </p>
+          </div>
+          <div class="codeblock"><code>{
+  "regions": ["fra1"],
+  "crons": [{ "path": "/api/cron/daily/", "schedule": "0 7 * * *" }]
+}</code></div>
+          <p class="note">
+            Keep that file free of commentary: Vercel validates it against a schema that rejects unknown
+            properties, so a <code>_comment</code> key fails the build outright. That cost a deploy
+            already.
+          </p>
+        </div>
+      </div>
+
+      <div class="entry">
+        <div class="meta">
+          <span class="chip unproven">Built, unproven</span>
+          <div class="paths"><span>lib/storage/index.ts</span><span>app/api/cron/daily/route.ts</span><span>lib/admin/session.ts</span></div>
+        </div>
+        <div class="body">
+          <h3>Four deliberate ways to fail loudly</h3>
+          <div class="prose">
+            <p>
+              A half-configured deploy stops rather than misbehaving quietly. No <code>R2_BUCKET</code>
+              in production and the app refuses to start — a deploy that silently discarded every ID scan
+              while reporting success is the worse failure. No <code>CRON_SECRET</code> and the cron
+              endpoint 401s everyone, Vercel included, because it sends mail to real customers. No
+              <code>ADMIN_SECRET</code> and <code>/admin</code> cannot be signed into at all.
+            </p>
+          </div>
+          <p class="note risk">
+            The fourth is the quiet one. Without <code>APPLY_SECRET</code>, every submission is refused
+            with 401 — but <strong>the customer still gets their PDF</strong>, because the wizard falls
+            back to the Phase&nbsp;1 download. Nothing is recorded, and the office finds out from a
+            missing row rather than from an error on screen.
+          </p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>What is deliberately not built</h2>
+      <p>
+        The roadmap numbers these, and the numbering is real — each phase depends on the one before it.
+        Phase&nbsp;1 is what the office uses today.
+      </p>
+    </div>
+
+    <div class="phases">
+      <div class="phase">
+        <span class="num">01</span>
+        <span class="what"><b>Stateless pickup contract</b><span>The form that emails a signed PDF. In production since before this branch existed.</span></span>
+        <span class="chip live">Live</span>
+      </div>
+      <div class="phase">
+        <span class="num">02</span>
+        <span class="what"><b>Persistence foundation</b><span>Database, asset store, contract sequence, write fence, fleet from the table.</span></span>
+        <span class="chip unproven">Built, unproven</span>
+      </div>
+      <div class="phase">
+        <span class="num">03</span>
+        <span class="what"><b>Lifecycle automation</b><span>Daily scheduler, reminders, weekly charges, self-service extension.</span></span>
+        <span class="chip unproven">Built, unproven</span>
+      </div>
+      <div class="phase">
+        <span class="num">04</span>
+        <span class="what"><b>Return wizard writes to the database</b><span>The return form exists and emails a signed report, but does not record the return or free the car. The admin close button covers the gap by hand.</span></span>
+        <span class="chip absent">Not built</span>
+      </div>
+      <div class="phase">
+        <span class="num">05</span>
+        <span class="what"><b>Named accounts and analytics</b><span>Partly started — the fleet page shipped early. Still missing: real logins, so <code>createdBy</code> has read &ldquo;office&rdquo; since Phase&nbsp;2, and marking a charge paid is still a SQL statement.</span></span>
+        <span class="chip absent">Not built</span>
+      </div>
+      <div class="phase">
+        <span class="num">06</span>
+        <span class="what"><b>Flespi telematics</b><span>A <code>telematicsDeviceId</code> column exists so adding it later is additive. Nothing reads it.</span></span>
+        <span class="chip absent">Not built</span>
+      </div>
+    </div>
+
+    <div class="callout">
+      <h3>One gap that is not a phase</h3>
+      <p>
+        <strong>No deletion job exists.</strong> Retention was agreed by the owner on 22 August — five
+        years for everything about the person, ten years for contracts under OR&nbsp;958f — but until a
+        sweep ships, the clock is documented rather than enforced and deletion is manual. Worth
+        scheduling before the first hundred contracts rather than after.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Where to start</h2>
+      <p>In this order. The first item unblocks everything else and takes a minute.</p>
+    </div>
+
+    <div class="steps">
+      <div class="step"><div>
+        <b>Push the 21 local commits</b>
+        <span>Nothing can be previewed, reviewed or built by Vercel until origin has them. This is the single largest gap between the code and a release.</span>
+      </div></div>
+      <div class="step"><div>
+        <b>Run both suites locally</b>
+        <span><code>pnpm install</code>, then <code>pnpm test</code> for the 14 unit files, then <code>pnpm db:up &amp;&amp; pnpm test:db</code> for the 17 database files. The db project is not parallelised — the suites share one database and truncate between tests.</span>
+      </div></div>
+      <div class="step"><div>
+        <b>Fix three stale claims in the docs</b>
+        <span>The runbook asserts eight cars in three places and it is nine since yesterday; step 7 still tells the office that closing a rental is SQL; and <code>DATA-RETENTION.md</code> opens by saying retention is unsigned while its own body records the sign-off.</span>
+      </div></div>
+      <div class="step"><div>
+        <b>Set the Preview environment variables and deploy a preview</b>
+        <span>Eleven new keys. Then hit <code>/api/health</code> first — it exists precisely so this step ends sooner.</span>
+      </div></div>
+      <div class="step"><div>
+        <b>Run the smoke test against the preview, not production</b>
+        <span>Section 5 of <code>docs/DEPLOY-PHASE-2-3.md</code>: fleet endpoint, a 401 on the write fence, the browser gate, one real contract end to end, cron 401 and idempotency, then one real reminder email.</span>
+      </div></div>
+      <div class="step"><div>
+        <b>Warn the office before merging, not after</b>
+        <span>From the merge, <code>/apply/</code> needs <code>?k=</code>. Every bare link already sent to a customer stops working and shows &ldquo;Link nicht gültig&rdquo;. Links that carry the key keep working.</span>
+      </div></div>
+    </div>
+
+    <div class="callout">
+      <h3>The step most likely to go wrong</h3>
+      <p>
+        <strong>The real reminder email.</strong> It cannot be tested locally, SMTP from a serverless
+        function has failed in this project before, and a sent email is the one thing in the whole
+        runbook that does not roll back. It is last in the order for that reason, and it should go to
+        your own address.
+      </p>
+    </div>
+  </section>
+
+  <footer>
+    <div>Compiled from <code>integrate/backend-plus-return</code> at <code>e021293</code>, against <code>main</code> at <code>d95c565</code>.</div>
+    <div>Status marks reflect what the repository can prove. Infrastructure claims — Neon, R2, Vercel variables — come from the project's own docs and were not verified against those consoles.</div>
+  </footer>
+
+</div>
+</body>
+</html>

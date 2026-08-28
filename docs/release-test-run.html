@@ -1,0 +1,805 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Step-by-step manual test run for the Zuriauto rental backend, from a local suite to a preview deployment to the one email that cannot be rolled back.">
+<meta name="robots" content="noindex">
+<title>Zuriauto Release Test Run</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+  /* Minimal reset — this file is opened directly, not through a host page. */
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; }
+  img, svg { max-width: 100%; height: auto; }
+  table { border-collapse: collapse; }
+
+  :root {
+    --ground: #F1F4F6;
+    --surface: #FFFFFF;
+    --surface-sunk: #E7ECEF;
+    --ink: #13181C;
+    --ink-soft: #56626C;
+    --ink-faint: #8A959E;
+    --rule: #D6DDE2;
+    --rule-strong: #B9C4CB;
+
+    --accent: #2C3E5C;
+    --ok: #2C6A4E;
+    --ok-soft: #DDEBE3;
+    --warn: #855F0D;
+    --warn-soft: #F3E9D2;
+    --gap: #97292A;
+    --gap-soft: #F2DDDD;
+
+    --measure: 68ch;
+    --step--1: .8125rem;
+    --step-0: 1rem;
+    --step-1: 1.1875rem;
+    --step-2: 1.5rem;
+    --step-3: 2rem;
+    --step-4: 2.9rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0E1216;
+      --surface: #161C21;
+      --surface-sunk: #1D242A;
+      --ink: #E3E9ED;
+      --ink-soft: #97A3AD;
+      --ink-faint: #6C7883;
+      --rule: #252D35;
+      --rule-strong: #37424B;
+      --accent: #93B2DA;
+      --ok: #6DB48D;
+      --ok-soft: #16251D;
+      --warn: #D2A250;
+      --warn-soft: #262013;
+      --gap: #E08787;
+      --gap-soft: #2A1A1A;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #0E1216;
+    --surface: #161C21;
+    --surface-sunk: #1D242A;
+    --ink: #E3E9ED;
+    --ink-soft: #97A3AD;
+    --ink-faint: #6C7883;
+    --rule: #252D35;
+    --rule-strong: #37424B;
+    --accent: #93B2DA;
+    --ok: #6DB48D;
+    --ok-soft: #16251D;
+    --warn: #D2A250;
+    --warn-soft: #262013;
+    --gap: #E08787;
+    --gap-soft: #2A1A1A;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: var(--step-0);
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+    padding: 0 1.25rem 6rem;
+  }
+
+  .wrap { max-width: 60rem; margin: 0 auto; display: flex; flex-direction: column; gap: 4rem; }
+
+  code, .mono {
+    font-family: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+    font-size: .875em;
+    font-variant-ligatures: none;
+  }
+  p code, li code, td code, dd code {
+    background: var(--surface-sunk);
+    border-radius: 3px;
+    padding: .1em .34em;
+  }
+
+  .masthead { padding-top: 4rem; display: flex; flex-direction: column; gap: 1.3rem; }
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: var(--step--1);
+    letter-spacing: .11em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    display: flex; flex-wrap: wrap; gap: .55rem;
+  }
+  .eyebrow .bar { color: var(--rule-strong); }
+
+  h1 {
+    font-family: Newsreader, ui-serif, Georgia, serif;
+    font-weight: 500; font-size: var(--step-4); line-height: 1.06;
+    letter-spacing: -.017em; margin: 0; text-wrap: balance; max-width: 18ch;
+  }
+  .standfirst {
+    font-family: Newsreader, ui-serif, Georgia, serif;
+    font-size: var(--step-2); line-height: 1.44; color: var(--ink-soft);
+    margin: 0; max-width: 48ch; text-wrap: pretty;
+  }
+  .standfirst strong { color: var(--ink); font-weight: 600; }
+
+  section { display: flex; flex-direction: column; gap: 1.5rem; }
+  .sec-head { border-top: 2px solid var(--ink); padding-top: 1rem; display: flex; flex-direction: column; gap: .5rem; }
+  h2 {
+    font-family: Newsreader, ui-serif, Georgia, serif;
+    font-weight: 500; font-size: var(--step-3); line-height: 1.14;
+    letter-spacing: -.012em; margin: 0; text-wrap: balance;
+  }
+  .sec-head p { margin: 0; color: var(--ink-soft); max-width: var(--measure); text-wrap: pretty; }
+
+  h3 {
+    font-family: Newsreader, ui-serif, Georgia, serif;
+    font-weight: 600; font-size: var(--step-1); line-height: 1.3; margin: 0;
+    text-wrap: balance;
+  }
+
+  /* --- the run: a numbered sequence, because it genuinely is one --- */
+  .run { display: flex; flex-direction: column; counter-reset: none; }
+  .task {
+    display: grid; grid-template-columns: 3rem 1fr; gap: 0 1.4rem;
+    padding: 1.5rem 0; border-top: 1px solid var(--rule); align-items: start;
+  }
+  .task:first-child { border-top: 1px solid var(--rule-strong); }
+  .task > .n {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: var(--step--1); font-variant-numeric: tabular-nums;
+    color: var(--accent); padding-top: .3rem; letter-spacing: .03em;
+  }
+  .task > .body { display: flex; flex-direction: column; gap: .75rem; min-width: 0; }
+  .task p { margin: 0; max-width: var(--measure); text-wrap: pretty; }
+  .task p.why { color: var(--ink-soft); font-size: .9375rem; }
+
+  pre {
+    background: var(--surface-sunk); border: 1px solid var(--rule);
+    border-radius: 4px; padding: .9rem 1.05rem; overflow-x: auto; margin: 0;
+  }
+  pre code {
+    font-size: .8125rem; line-height: 1.65; color: var(--ink);
+    white-space: pre; display: block; background: none; padding: 0;
+  }
+
+  .expect {
+    border-left: 2px solid var(--ok); background: var(--ok-soft);
+    padding: .7rem .95rem; border-radius: 0 4px 4px 0;
+    font-size: .9375rem; max-width: var(--measure);
+  }
+  .expect b {
+    display: block; font-family: "IBM Plex Mono", monospace;
+    font-size: .6875rem; letter-spacing: .09em; text-transform: uppercase;
+    color: var(--ok); margin-bottom: .2rem;
+  }
+  .expect ul { margin: .3rem 0 0; padding-left: 1.1rem; }
+  .expect li { margin: .15rem 0; }
+
+  .danger {
+    border-left: 2px solid var(--gap); background: var(--gap-soft);
+    padding: .7rem .95rem; border-radius: 0 4px 4px 0;
+    font-size: .9375rem; max-width: var(--measure);
+  }
+  .danger b {
+    display: block; font-family: "IBM Plex Mono", monospace;
+    font-size: .6875rem; letter-spacing: .09em; text-transform: uppercase;
+    color: var(--gap); margin-bottom: .2rem;
+  }
+
+  .caution {
+    border-left: 2px solid var(--warn); background: var(--warn-soft);
+    padding: .7rem .95rem; border-radius: 0 4px 4px 0;
+    font-size: .9375rem; max-width: var(--measure);
+  }
+  .caution b {
+    display: block; font-family: "IBM Plex Mono", monospace;
+    font-size: .6875rem; letter-spacing: .09em; text-transform: uppercase;
+    color: var(--warn); margin-bottom: .2rem;
+  }
+
+  .tablewrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 4px; background: var(--surface); }
+  table { width: 100%; font-size: .9375rem; }
+  th, td { text-align: left; padding: .7rem .9rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  thead th {
+    font-family: "IBM Plex Mono", monospace; font-size: .6875rem;
+    letter-spacing: .09em; text-transform: uppercase; color: var(--ink-faint);
+    font-weight: 500; background: var(--surface-sunk);
+  }
+  tbody tr:last-child td { border-bottom: none; }
+
+  dl.kv { display: grid; grid-template-columns: auto 1fr; gap: .4rem 1.2rem; margin: 0; max-width: var(--measure); }
+  dl.kv dt { font-family: "IBM Plex Mono", monospace; font-size: .8125rem; color: var(--ink-soft); }
+  dl.kv dd { margin: 0; }
+
+  footer {
+    border-top: 1px solid var(--rule); padding-top: 1.3rem;
+    color: var(--ink-faint); font-size: var(--step--1);
+    display: flex; flex-direction: column; gap: .4rem;
+  }
+
+  @media (max-width: 760px) {
+    :root { --step-4: 2.2rem; --step-3: 1.6rem; --step-2: 1.25rem; }
+    .task { grid-template-columns: 2.2rem 1fr; gap: 0 .9rem; }
+    dl.kv { grid-template-columns: 1fr; gap: .1rem; }
+    dl.kv dd { margin-bottom: .5rem; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="eyebrow">
+      <span>ZURIAUTO</span><span class="bar">/</span>
+      <span>manual test run</span><span class="bar">/</span>
+      <span>28 Aug 2026</span>
+    </div>
+    <h1>Zuriauto Release Test Run</h1>
+    <p class="standfirst">
+      Every module, in the order that finds problems soonest and does the least
+      damage when it finds one. <strong>Run all of it against a preview
+      deployment, never against zuriauto.ch.</strong>
+    </p>
+  </header>
+
+  <section>
+    <div class="sec-head">
+      <h2>Before you start</h2>
+      <p>Five things to have open. If you cannot fill in all five, stop at Part&nbsp;1 — everything after it needs them.</p>
+    </div>
+    <dl class="kv">
+      <dt>PREVIEW_URL</dt><dd>The Vercel preview for <code>integrate/backend-plus-return</code>. Not the production domain.</dd>
+      <dt>APPLY_SECRET</dt><dd>The office key. Opens the pickup form and signs its writes.</dd>
+      <dt>ADMIN_SECRET</dt><dd>The fleet page key. <strong>Must be a different value</strong> from APPLY_SECRET.</dd>
+      <dt>CRON_SECRET</dt><dd>Bearer token for the daily run.</dd>
+      <dt>psql</dt><dd>A connection to the <em>preview</em> Neon branch, for the verification queries.</dd>
+    </dl>
+    <p class="why">
+      Use your own email address wherever a renter's address is asked for. Several
+      steps send real mail, and one of them cannot be undone.
+    </p>
+    <div class="caution">
+      <b>Set the Preview environment variables first</b>
+      All eleven keys, in Vercel's <em>Preview</em> environment, not just Production.
+      A preview missing <code>DATABASE_URL</code> fails in a way that looks like a
+      code bug — which is the exact confusion <code>/api/health</code> exists to end.
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Part 0 — On your machine</h2>
+      <p>Two minutes, no deployment involved. If this is red, nothing further is worth trying.</p>
+    </div>
+
+    <div class="run">
+      <div class="task">
+        <span class="n">0.1</span>
+        <div class="body">
+          <h3>The suites</h3>
+          <pre><code>pnpm install
+pnpm test                    # unit — no services needed
+pnpm db:up &amp;&amp; pnpm test:db   # needs Docker running
+pnpm build</code></pre>
+          <div class="expect">
+            <b>Expect</b>
+            32 test files, <strong>314 tests passing</strong>, and a clean build.
+            This was green as of the last commit on the branch.
+          </div>
+          <p class="why">
+            If <code>pnpm db:up</code> hangs, Docker Desktop is not running. The db
+            suite shares one database and truncates between tests, so it is not
+            parallelised and takes about 50 seconds.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Part 1 — Does the preview see anything?</h2>
+      <p>Before testing behaviour, establish that the deployment has a database, a bucket and its secrets. Every later failure is ambiguous until this passes.</p>
+    </div>
+
+    <div class="run">
+
+      <div class="task">
+        <span class="n">1.1</span>
+        <div class="body">
+          <h3>Ask the function what it can see</h3>
+          <pre><code>curl -s $PREVIEW_URL/api/health/ | jq</code></pre>
+          <div class="expect">
+            <b>Expect</b>
+            Every variable reporting <code>true</code>, and the database check
+            reporting a successful round trip. It reports presence only, never
+            values — nothing here is a secret.
+          </div>
+          <p class="why">
+            A <code>false</code> tells you exactly which variable is missing from
+            the Preview environment. Fix it and redeploy before going on; the next
+            eight steps will all fail confusingly otherwise.
+          </p>
+        </div>
+      </div>
+
+      <div class="task">
+        <span class="n">1.2</span>
+        <div class="body">
+          <h3>Seed the fleet</h3>
+          <pre><code>DATABASE_URL="&lt;preview neon url&gt;" pnpm exec prisma migrate deploy
+DATABASE_URL="&lt;preview neon url&gt;" pnpm db:seed</code></pre>
+          <div class="expect">
+            <b>Expect</b>
+            Three migrations applied, then <code>SELECT count(*) FROM "Car";</code>
+            returning <strong>9</strong> — including the BMW 218d, ZH 656 404.
+          </div>
+          <div class="danger">
+            <b>Never migrate dev</b>
+            <code>prisma migrate dev</code> can offer to reset the database. Against
+            anything with data in it that is unrecoverable. Always <code>migrate deploy</code>.
+          </div>
+        </div>
+      </div>
+
+      <div class="task">
+        <span class="n">1.3</span>
+        <div class="body">
+          <h3>The picker reads the table</h3>
+          <pre><code>curl -s $PREVIEW_URL/api/fleet/ | jq '.vehicles | length'</code></pre>
+          <div class="expect">
+            <b>Expect</b>
+            <code>9</code>. Now retire one in the database and call it again —
+            it should return 8 without a deploy. Put it back to
+            <code>available</code> afterwards.
+          </div>
+        </div>
+      </div>
+
+      <div class="task">
+        <span class="n">1.4</span>
+        <div class="body">
+          <h3>The write fence holds</h3>
+          <pre><code>curl -s -o /dev/null -w '%{http_code}\n' \
+  -X POST $PREVIEW_URL/api/rental-contract/</code></pre>
+          <div class="expect">
+            <b>Expect</b>
+            <code>401</code>. An unfenced pickup endpoint would let anyone create
+            a rental naming a real driver against a real plate.
+          </div>
+        </div>
+      </div>
+
+      <div class="task">
+        <span class="n">1.5</span>
+        <div class="body">
+          <h3>The gate, in a browser</h3>
+          <p>Open <code>$PREVIEW_URL/pickup/</code> with no key.</p>
+          <div class="expect">
+            <b>Expect</b>
+            &ldquo;Link nicht gültig&rdquo; and no form. Then open
+            <code>$PREVIEW_URL/pickup/?k=$APPLY_SECRET</code> and expect the
+            five-step wizard. Also check <code>/apply/?k=…</code> still lands on
+            the form, so keys already circulated keep working.
+          </div>
+          <div class="caution">
+            <b>Use a browser, not curl</b>
+            The gate is a client-side decision, so the server-rendered HTML
+            contains the form either way and curl will appear to show a hole.
+            The fence that matters is step 1.4.
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Part 2 — One rental, all the way through</h2>
+      <p>The core path. Pick a car you can take out of service afterwards and use your own email as the renter.</p>
+    </div>
+
+    <div class="run">
+
+      <div class="task">
+        <span class="n">2.1</span>
+        <div class="body">
+          <h3>Sign a pickup contract</h3>
+          <p>
+            Complete the wizard at <code>/pickup/?k=$APPLY_SECRET</code>: choose a
+            car, photograph an ID and a licence (any document will do on preview),
+            take a portrait, enter weekly terms, sign, submit.
+          </p>
+          <div class="expect">
+            <b>Expect</b>
+            <ul>
+              <li>The PDF arrives by email, with a correct terms block.</li>
+              <li>The number reads <code>ZA-YYYYMMDD-0001</code> — a real sequence, not a random suffix.</li>
+              <li>Seven objects plus the PDF sit under one <code>pickup/&lt;uuid&gt;/</code> prefix in R2.</li>
+            </ul>
+          </div>
+          <pre><code>SELECT "contractNumber", "mailSentAt", "mailError" FROM "Contract";
+SELECT status FROM "Car" WHERE plate = 'ZH …';   -- rented
+SELECT count(*) FROM "Charge";                    -- one per week</code></pre>
+        </div>
+      </div>
+
+      <div class="task">
+        <span class="n">2.2</span>
+        <div class="body">
+          <h3>The car leaves the picker</h3>
+          <pre><code>curl -s $PREVIEW_URL/api/fleet/ | jq '.vehicles[].plate'</code></pre>
+          <div class="expect">
+            <b>Expect</b>
+            The plate you just rented is <strong>gone</strong>. A customer must
+            never be able to sign a contract naming a car somebody is driving.
+          </div>
+        </div>
+      </div>
+
+      <div class="task">
+        <span class="n">2.3</span>
+        <div class="body">
+          <h3>Recognise the returning customer</h3>
+          <p>
+            Start a second pickup for a <em>different</em> car. At the desk step,
+            look the renter up by the phone number you used in 2.1 — try a
+            different spelling of it, for example <code>+41 79 …</code> against the
+            <code>079 …</code> you typed first.
+          </p>
+          <div class="expect">
+            <b>Expect</b>
+            The customer is found despite the different spelling, their documents
+            are offered, and taking them skips the photography steps. The PDF
+            prints a reference page naming the contract they came from.
+          </div>
+          <pre><code>SELECT "documentsReusedFromId", "identityCheckedAt" FROM "Contract"
+  WHERE kind = 'PICKUP' ORDER BY "signedAt" DESC LIMIT 1;
+-- both non-null on the second contract
+
+SELECT count(*) FROM "CustomerLookup";  -- the lookup is audited
+</code></pre>
+          <p class="why">
+            Documents are <em>copied</em>, not shared, so the second contract owns
+            its own set of objects on its own retention clock. Expect five new
+            objects in the bucket, not five references to the old ones.
+          </p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Part 3 — The return</h2>
+      <p>New in Phase 4, and the part with the least production history. The form is public: no key, opened by the renter.</p>
+    </div>
+
+    <div class="run">
+
+      <div class="task">
+        <span class="n">3.1</span>
+        <div class="body">
+          <h3>Submit a return</h3>
+          <p>
+            Open <code>$PREVIEW_URL/return/</code> — no key — and complete it for
+            the car from 2.1. Enter a mileage <em>higher</em> than the pickup
+            reading, answer the condition and payment questions, sign, submit.
+          </p>
+          <div class="expect">
+            <b>Expect</b>
+            The signed report arrives by email. The office copy ends with
+            <code>RECORDED — confirm it in /admin to free the car.</code> and the
+            distance driven.
+          </div>
+          <pre><code>SELECT kind, "contractNumber", "mileageKm", "fuelLevel"
+  FROM "Contract" WHERE kind = 'RETURN_ADDENDUM';
+
+SELECT status FROM "Rental";                     -- RETURN_SUBMITTED
+SELECT status FROM "Car" WHERE plate = 'ZH …';   -- still rented
+</code></pre>
+        </div>
+      </div>
+
+      <div class="task">
+        <span class="n">3.2</span>
+        <div class="body">
+          <h3>The car is still not bookable</h3>
+          <pre><code>curl -s $PREVIEW_URL/api/fleet/ | jq '.vehicles[].plate'</code></pre>
+          <div class="expect">
+            <b>Expect</b>
+            The plate is <strong>still absent</strong>. This is the point of the
+            design: an unfenced form must not be able to put a car somebody may
+            still be driving back into the picker.
+          </div>
+        </div>
+      </div>
+
+      <div class="task">
+        <span class="n">3.3</span>
+        <div class="body">
+          <h3>The three flags the office relies on</h3>
+          <p>Submit three more returns on other rentals and check the office email each time.</p>
+          <div class="tablewrap">
+            <table>
+              <thead><tr><th>Do this</th><th>The office copy should say</th></tr></thead>
+              <tbody>
+                <tr><td>A mileage <em>lower</em> than the pickup reading</td><td><code>CHECK: the reading is BELOW the pickup mileage</code> — recorded anyway, because the document is already signed</td></tr>
+                <tr><td>An email that differs from the one on file</td><td><code>CHECK: the submitted email does not match the customer on file</code> — still recorded, since a renter may simply have changed address</td></tr>
+                <tr><td>A car with no open rental</td><td><code>NOT RECORDED — no open rental was found for this car</code> — and the report still arrives</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="task">
+        <span class="n">3.4</span>
+        <div class="body">
+          <h3>A second return is refused, not duplicated</h3>
+          <p>Submit the return form again for the same car.</p>
+          <div class="expect">
+            <b>Expect</b>
+            <code>NOT RECORDED — a return is already on file for this rental.</code>
+            and exactly one <code>RETURN_ADDENDUM</code> row, not two.
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Part 4 — The fleet page</h2>
+      <p><code>/admin</code> is unlinked and <code>noindex</code>; the secret is what protects it.</p>
+    </div>
+
+    <div class="run">
+
+      <div class="task">
+        <span class="n">4.1</span>
+        <div class="body">
+          <h3>Everything refuses without the secret</h3>
+          <pre><code>curl -s -o /dev/null -w '%{http_code}\n' $PREVIEW_URL/api/admin/overview/
+curl -s -o /dev/null -w '%{http_code}\n' \
+  -X POST $PREVIEW_URL/api/admin/session/ \
+  -H 'content-type: application/json' -d '{"secret":"wrong"}'</code></pre>
+          <div class="expect">
+            <b>Expect</b>
+            <code>401</code> from both. A wrong secret, a missing one and an
+            unconfigured server all give the same answer on purpose.
+          </div>
+          <div class="danger">
+            <b>Check this by hand</b>
+            Confirm <code>ADMIN_SECRET</code> and <code>APPLY_SECRET</code> are
+            <strong>different values</strong> in Vercel. The pickup key is pasted
+            into WhatsApp and leaks on the first forward; the admin key can rewrite
+            the fleet.
+          </div>
+        </div>
+      </div>
+
+      <div class="task">
+        <span class="n">4.2</span>
+        <div class="body">
+          <h3>Sign in and read the board</h3>
+          <p>Open <code>$PREVIEW_URL/admin</code> in a browser and enter the admin secret.</p>
+          <div class="expect">
+            <b>Expect</b>
+            A twelve-hour session. The counters read: 9 cars, the rentals you
+            created, and <strong>Rückgabe offen: 1</strong> from Part&nbsp;3. The
+            returned rental sits at the top of the list badged
+            <strong>Zurückgegeben – bestätigen</strong>, showing the return date
+            and its <code>ZR-</code> number.
+          </div>
+        </div>
+      </div>
+
+      <div class="task">
+        <span class="n">4.3</span>
+        <div class="body">
+          <h3>Confirm the return — the one click</h3>
+          <p>Press the confirm button on that rental.</p>
+          <div class="expect">
+            <b>Expect</b>
+            <ul>
+              <li>The rental reads <code>COMPLETED</code>.</li>
+              <li>The car reads <code>available</code>.</li>
+              <li>The plate is back in <code>/api/fleet/</code>.</li>
+              <li><strong>Rückgabe offen</strong> falls to 0.</li>
+            </ul>
+          </div>
+          <p class="why">
+            Both rows move in one transaction. Half of it — a freed car whose
+            rental is still active — is the state that lets the picker offer a car
+            somebody is driving.
+          </p>
+        </div>
+      </div>
+
+      <div class="task">
+        <span class="n">4.4</span>
+        <div class="body">
+          <h3>Add, edit, retire</h3>
+          <p>
+            Add a car with a made-up plate. Edit its model. Retire it. Check
+            <code>/api/fleet/</code> after each.
+          </p>
+          <div class="expect">
+            <b>Expect</b>
+            The new car appears in the picker while <code>available</code> and
+            vanishes when retired — with no deploy. Its slug is derived from the
+            model and plate; check a name with an umlaut (Škoda) survives intact.
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Part 5 — The daily run</h2>
+      <p>This is where real email goes to real inboxes. It is last for that reason.</p>
+    </div>
+
+    <div class="run">
+
+      <div class="task">
+        <span class="n">5.1</span>
+        <div class="body">
+          <h3>The trigger is closed to everyone else</h3>
+          <pre><code>curl -s -o /dev/null -w '%{http_code}\n' $PREVIEW_URL/api/cron/daily/</code></pre>
+          <div class="expect">
+            <b>Expect</b>
+            <code>401</code>. This endpoint sends mail to real customers; an open
+            trigger is not acceptable.
+          </div>
+        </div>
+      </div>
+
+      <div class="task">
+        <span class="n">5.2</span>
+        <div class="body">
+          <h3>Run it, then run it again</h3>
+          <pre><code>curl -s -H "Authorization: Bearer $CRON_SECRET" \
+  $PREVIEW_URL/api/cron/daily/ | jq
+
+# immediately again
+curl -s -H "Authorization: Bearer $CRON_SECRET" \
+  $PREVIEW_URL/api/cron/daily/ | jq</code></pre>
+          <div class="expect">
+            <b>Expect</b>
+            <code>{"ok":true,…}</code> both times, and <strong>the second run all
+            zeros</strong>. Idempotence is claimed by inserting the notification
+            row before sending, so a second run finds the decision already made.
+          </div>
+        </div>
+      </div>
+
+      <div class="task">
+        <span class="n">5.3</span>
+        <div class="body">
+          <h3>One real reminder</h3>
+          <p>Move a test rental's end date to about 36 hours out, then trigger the cron.</p>
+          <pre><code>UPDATE "Rental" SET "endAt" = now() + interval '36 hours'
+  WHERE id = '…';</code></pre>
+          <div class="expect">
+            <b>Expect</b>
+            <code>reminded: 1</code>, and an email that arrives <strong>in the
+            language the contract was signed in</strong> — not the browser's
+            language — carrying a working manage link.
+          </div>
+          <div class="danger">
+            <b>The step most likely to fail, and the only one that cannot be undone</b>
+            SMTP from a serverless function has failed in this project before, and
+            a sent email does not roll back. Use your own address. If it fails,
+            the failure is recorded on the notification row rather than lost —
+            check <code>error</code> and <code>attempts</code>.
+          </div>
+        </div>
+      </div>
+
+      <div class="task">
+        <span class="n">5.4</span>
+        <div class="body">
+          <h3>Extend from the link</h3>
+          <p>Open the manage link from that email (<code>/rental/manage?t=…</code>) and take the extension.</p>
+          <div class="expect">
+            <b>Expect</b>
+            A confirmation email, an office copy, a new <code>endAt</code>, and new
+            <code>Charge</code> rows continuing the week numbering rather than
+            restarting it. Then open the same link again and expect the
+            &ldquo;link no longer valid&rdquo; page — the token is single use.
+          </div>
+          <pre><code>SELECT kind, "sentAt", error FROM "Notification";  -- all sent, no errors
+SELECT "weekNumber", status FROM "Charge" ORDER BY "weekNumber";</code></pre>
+        </div>
+      </div>
+
+      <div class="task">
+        <span class="n">5.5</span>
+        <div class="body">
+          <h3>A returned car still owes its money</h3>
+          <p>
+            On a rental sitting in <code>RETURN_SUBMITTED</code> with an unpaid
+            week, run the cron.
+          </p>
+          <div class="expect">
+            <b>Expect</b>
+            The charge is still requested. Submitting the return form must not
+            switch off a renter's own payment reminders — this was a real hole
+            found while building Phase 4 and is now covered by a test.
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Part 6 — Clean up</h2>
+      <p>Leave the preview database empty, so the next run starts from the same place this one did.</p>
+    </div>
+    <div class="run">
+      <div class="task">
+        <span class="n">6.1</span>
+        <div class="body">
+          <h3>Remove the test data</h3>
+          <p>
+            Delete the test rentals, their contracts, charges, notifications and
+            tokens; set the cars back to <code>available</code>; delete the
+            objects from R2 under the <code>pickup/</code> prefixes you created.
+          </p>
+          <div class="caution">
+            <b>Only on preview</b>
+            If any of this ever runs against the production database, the
+            contracts it deletes are commercial records with a ten-year retention
+            obligation under OR&nbsp;958f.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>When something fails</h2>
+      <p>The failures this system produces are mostly quiet by design, so the symptom rarely names the cause.</p>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Symptom</th><th>Almost always</th></tr></thead>
+        <tbody>
+          <tr><td>500 in a few milliseconds, no outgoing request</td><td><code>DATABASE_URL</code> missing — not a rejected password. Check <code>/api/health/</code>.</td></tr>
+          <tr><td>Uploads fail with <code>NoSuchBucket</code></td><td>The EU bucket addressed on the plain R2 host. A jurisdiction-pinned bucket answers only on <code>&lt;account&gt;.eu.r2.cloudflarestorage.com</code>.</td></tr>
+          <tr><td>The customer gets a PDF but no row appears</td><td><code>APPLY_SECRET</code> missing or wrong. The write is refused with 401 and the wizard falls back to the Phase 1 download — silently, by design.</td></tr>
+          <tr><td>Build fails on <code>vercel.json</code></td><td>A comment key. Vercel's schema rejects unknown properties outright.</td></tr>
+          <tr><td>Cron never fires on its own</td><td>Cron only runs on production deployments of the default branch. Trigger previews by hand with the bearer token.</td></tr>
+          <tr><td>The app refuses to start</td><td><code>R2_BUCKET</code> unset in production. Deliberate: discarding ID scans while reporting success is the worse failure.</td></tr>
+          <tr><td>A returning customer is never found</td><td>Their <code>phoneKey</code> predates the normaliser. Run <code>pnpm db:backfill-phone-keys</code>.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    <div>Branch <code>integrate/backend-plus-return</code>, commit <code>65d3f0b</code>. Local suite green: 32 files, 314 tests.</div>
+    <div>Steps 1.2 and 6.1 are destructive. Everything else is safe to repeat.</div>
+  </footer>
+
+</div>
+</body>
+</html>
