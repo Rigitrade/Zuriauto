@@ -21,8 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useI18n } from "@/lib/hooks/use-i18n";
 import { PAYMENT_URL, TWINT_URL } from "@/lib/payment";
 import {
-  availableFleet,
-  findVehicle,
+  type FleetVehicle,
   FUEL_LEVELS,
   type FuelLevel,
 } from "@/lib/rental/fleet";
@@ -86,7 +85,10 @@ interface FormState {
 }
 
 const EMPTY_FORM: FormState = {
-  vehicleId: availableFleet.length === 1 ? availableFleet[0].id : "",
+  // Empty rather than a guess: the returnable list is fetched, so nothing is
+  // known about it at module load. The effect below selects the only car when
+  // there is only one.
+  vehicleId: "",
   mileageKm: "",
   mileagePickupKm: "",
   papersInside: "",
@@ -199,7 +201,49 @@ export default function RentalReturnWizard() {
   // Whether "Pay now" has been clicked and the method choice is showing.
   const [payChoiceOpen, setPayChoiceOpen] = useState(false);
 
-  const vehicle = useMemo(() => findVehicle(form.vehicleId), [form.vehicleId]);
+  /**
+   * The cars that can be handed back — those the table says are `rented`.
+   *
+   * Fetched rather than read from lib/rental/fleet.ts, which is a hard-coded
+   * list of the nine cars the client started with. Rendering that list meant a
+   * car added through /admin could never be selected, and since persistReturn
+   * finds the rental *from the car*, it could never be returned either.
+   *
+   * Not `availableFleet` for a second reason: a car being returned is by
+   * definition not available, so that list is the exact complement of the
+   * right answer.
+   */
+  const [vehicles, setVehicles] = useState<FleetVehicle[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/fleet/?scope=return")
+      .then((response) => (response.ok ? response.json() : null))
+      .then((payload) => {
+        if (cancelled || !payload) return;
+        const list = payload.vehicles as FleetVehicle[];
+        setVehicles(list);
+        // One car out means there is nothing to choose; preselect it rather
+        // than making somebody open a select with a single option.
+        if (list.length === 1) {
+          setForm((current) =>
+            current.vehicleId ? current : { ...current, vehicleId: list[0].id }
+          );
+        }
+      })
+      .catch(() => {
+        // Leaves the picker empty. The field is required, so the form refuses
+        // to advance rather than submitting a return naming no car.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const vehicle = useMemo(
+    () => vehicles.find((candidate) => candidate.id === form.vehicleId),
+    [vehicles, form.vehicleId]
+  );
 
   // Ticks so a form left open does not show a stamp that disagrees with the
   // one the PDF records at submit. Set after mount for hydration's sake.
@@ -613,7 +657,7 @@ export default function RentalReturnWizard() {
                   className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 md:text-sm"
                 >
                   <option value="">{L.vehicle.selectPlaceholder}</option>
-                  {availableFleet.map((entry) => (
+                  {vehicles.map((entry) => (
                     <option key={entry.id} value={entry.id}>
                       {entry.model} — {entry.plate}
                     </option>

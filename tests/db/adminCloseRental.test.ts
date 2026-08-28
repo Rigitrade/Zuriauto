@@ -84,7 +84,10 @@ async function activeRental() {
 }
 
 async function fleetSlugs(): Promise<string[]> {
-  const body = await (await fleetGet()).json();
+  // The public picker's default scope: available cars only.
+  const body = await (
+    await fleetGet(new Request("https://zuriauto.ch/api/fleet/"))
+  ).json();
   return body.vehicles.map((v: { id: string }) => v.id);
 }
 
