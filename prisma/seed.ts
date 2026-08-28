@@ -14,6 +14,7 @@ import { config } from "dotenv";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../generated/prisma/client";
 import { fleet } from "../lib/rental/fleet";
+import { hashPassword } from "../lib/admin/password";
 
 export async function ensureOrganisation(
   client: PrismaClient
@@ -54,6 +55,48 @@ export async function seedFleet(
   }
 }
 
+/**
+ * The first account, so a fresh deployment can be signed into.
+ *
+ * Keyed on "is there an owner at all", not on the username: this runs on every
+ * deploy, and **it must never write a password that already exists.** Otherwise
+ * every deploy silently resets the owner's password to whatever is in the
+ * environment, and whoever changed it last week is locked out with no error
+ * anywhere.
+ *
+ * Same rule as seedFleet, which reconciles identity and never touches status.
+ *
+ * A forgotten owner password is therefore not recoverable through the seed, by
+ * design. `pnpm admin:password` is the way back in; deleting the row and
+ * redeploying is the other.
+ */
+export async function seedOwner(
+  client: PrismaClient,
+  organisationId: string
+): Promise<{ created: boolean }> {
+  const username = process.env.ADMIN_OWNER_USERNAME?.trim().toLowerCase();
+  const password = process.env.ADMIN_OWNER_PASSWORD;
+  if (!username || !password) return { created: false };
+
+  const existing = await client.adminUser.findFirst({
+    where: { organisationId, role: "owner" },
+    select: { id: true },
+  });
+  if (existing) return { created: false };
+
+  await client.adminUser.create({
+    data: {
+      organisationId,
+      username,
+      displayName: process.env.ADMIN_OWNER_NAME?.trim() || username,
+      role: "owner",
+      passwordHash: await hashPassword(password),
+    },
+  });
+
+  return { created: true };
+}
+
 async function main() {
   config({ path: ".env.local" });
 
@@ -67,7 +110,11 @@ async function main() {
   try {
     const org = await ensureOrganisation(client);
     await seedFleet(client, org.id);
-    console.log(`[seed] organisation ${org.id}, ${fleet.length} vehicles`);
+    const owner = await seedOwner(client, org.id);
+    console.log(
+      `[seed] organisation ${org.id}, ${fleet.length} vehicles` +
+        (owner.created ? ", owner created" : "")
+    );
   } finally {
     await client.$disconnect();
   }

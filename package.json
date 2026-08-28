@@ -19,6 +19,7 @@
     "test:all": "vitest run --passWithNoTests",
     "db:backfill-charges": "tsx scripts/backfill-charges.ts",
     "db:backfill-phone-keys": "tsx scripts/backfill-phone-keys.ts",
+    "admin:password": "tsx scripts/set-admin-password.ts",
     "mail:up": "docker compose up -d mail",
     "mail:open": "node -e \"console.log('http://localhost:8025')\""
   },
