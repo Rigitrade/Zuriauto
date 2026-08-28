@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { AdminLanguage } from "@/lib/admin/labels";
 import type { Labels } from "@/components/admin/types";
+import { PasswordInput } from "@/components/admin/parts/PasswordInput";
 import { LanguageToggle } from "./LanguageToggle";
 
 /**
@@ -66,12 +67,12 @@ export function SignIn({
             </label>
             <label className="flex flex-col gap-1">
               <span className="text-sm text-slate-700">{L.signIn.password}</span>
-              <input
-                type="password"
+              <PasswordInput
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={setPassword}
+                L={L}
                 autoComplete="current-password"
-                className="h-11 rounded-md border border-input px-3 text-base"
+                large
               />
             </label>
           </div>

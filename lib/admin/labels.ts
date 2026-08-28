@@ -39,6 +39,21 @@ const de = {
     /** Screen-reader name for the section navigation itself. */
     sections: "Bereiche",
   },
+  overview: {
+    /** The band. Reads as a heading, so it names work rather than a status. */
+    needsYou: "Zu erledigen",
+    nothingWaiting: "Nichts offen.",
+    nothingWaitingHint: "Alle Rückgaben bestätigt, keine Miete endet heute.",
+    confirmReturn: "Rückgabe bestätigen",
+    carStaysBlocked: "Fahrzeug bleibt gesperrt",
+    endsToday: "Miete endet",
+    overdue: "überfällig",
+    mailNotDelivered: "Vertrag nicht zugestellt",
+    open: "Öffnen",
+    today: "Heute",
+    noReturnsToday: "Heute keine Rückgaben.",
+    returnsOn: "Rückgabe",
+  },
   counts: {
     available: "Verfügbar",
     rented: "Vermietet",
@@ -102,6 +117,8 @@ const de = {
     passwordTooShort: "Mindestens 10 Zeichen.",
     usernameInvalid: "Nur Kleinbuchstaben, Zahlen, Punkt, Bindestrich und Unterstrich; 3–32 Zeichen.",
     myPassword: "Mein Passwort",
+    showPassword: "Passwort anzeigen",
+    hidePassword: "Passwort verbergen",
     passwordChangedSignOut: "Passwort geändert. Bitte erneut anmelden.",
   },
   errors: {
@@ -135,6 +152,21 @@ const en: typeof de = {
     myPassword: "My password",
     /** Screen-reader name for the section navigation itself. */
     sections: "Sections",
+  },
+  overview: {
+    /** The band. Reads as a heading, so it names work rather than a status. */
+    needsYou: "Needs you",
+    nothingWaiting: "Nothing waiting.",
+    nothingWaitingHint: "Every return confirmed, no rental ending today.",
+    confirmReturn: "Confirm return",
+    carStaysBlocked: "Car stays blocked",
+    endsToday: "Rental ends",
+    overdue: "overdue",
+    mailNotDelivered: "Contract was not delivered",
+    open: "Open",
+    today: "Today",
+    noReturnsToday: "No returns today.",
+    returnsOn: "Returns",
   },
   counts: {
     available: "Available",
@@ -199,6 +231,8 @@ const en: typeof de = {
     passwordTooShort: "At least 10 characters.",
     usernameInvalid: "Lowercase letters, digits, dot, hyphen and underscore only; 3–32 characters.",
     myPassword: "My password",
+    showPassword: "Show password",
+    hidePassword: "Hide password",
     passwordChangedSignOut: "Password changed. Please sign in again.",
   },
   errors: {

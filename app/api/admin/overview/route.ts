@@ -58,8 +58,26 @@ export interface AdminOverview {
     contracts: number;
     mailFailed: number;
   };
+  /**
+   * The contracts behind `counts.mailFailed`, so the Overview band can render
+   * a row somebody can act on rather than a number they have to go looking
+   * for. Capped — see UNSENT_LIMIT — because this is a prompt, not a report.
+   *
+   * Deliberately narrow: a number, a name and a date. No PDF key, no asset
+   * ids, nothing that would make this payload worth intercepting.
+   */
+  unsentContracts: {
+    id: string;
+    contractNumber: string;
+    customerName: string;
+    signedAt: string;
+  }[];
   latestContractAt: string | null;
 }
+
+/** Enough to act on this morning. The count beside it reports the true total,
+ *  so a backlog of forty is still honest on screen. */
+const UNSENT_LIMIT = 20;
 
 export async function GET(request: Request) {
   const user = await requireAdmin(request);
@@ -119,12 +137,26 @@ export async function GET(request: Request) {
     },
   });
 
-  const [contracts, mailFailed, latest] = await Promise.all([
+  const [contracts, mailFailed, unsent, latest] = await Promise.all([
     prisma.contract.count({ where: { organisationId: organisation.id } }),
     // A contract that exists but whose email never left. Worth surfacing:
     // until now the only way to notice was reading the column by hand.
     prisma.contract.count({
       where: { organisationId: organisation.id, mailSentAt: null },
+    }),
+    // The same rows, newest first, for the Overview band.
+    prisma.contract.findMany({
+      where: { organisationId: organisation.id, mailSentAt: null },
+      orderBy: { signedAt: "desc" },
+      take: UNSENT_LIMIT,
+      select: {
+        id: true,
+        contractNumber: true,
+        signedAt: true,
+        rental: {
+          select: { customer: { select: { firstName: true, lastName: true } } },
+        },
+      },
     }),
     prisma.contract.findFirst({
       where: { organisationId: organisation.id },
@@ -177,6 +209,19 @@ export async function GET(request: Request) {
       contracts,
       mailFailed,
     },
+    unsentContracts: unsent.map((contract) => ({
+      id: contract.id,
+      contractNumber: contract.contractNumber,
+      // Assembled here rather than sent as two fields: every consumer wants
+      // the whole name, and the parts have no separate use on this screen.
+      customerName: [
+        contract.rental?.customer?.firstName,
+        contract.rental?.customer?.lastName,
+      ]
+        .filter(Boolean)
+        .join(" "),
+      signedAt: contract.signedAt.toISOString(),
+    })),
     latestContractAt: latest?.signedAt.toISOString() ?? null,
   };
 

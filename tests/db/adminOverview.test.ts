@@ -172,6 +172,39 @@ describe("GET /api/admin/overview", () => {
     // exactly the state the office needs surfaced.
     expect(body.counts.mailFailed).toBe(1);
     expect(body.latestContractAt).toBeTruthy();
+
+    // The count alone cannot be rendered as a row somebody can act on, which
+    // is what the Overview band needs. The records come back beside it.
+    expect(body.unsentContracts).toHaveLength(1);
+    expect(body.unsentContracts[0].contractNumber).toMatch(/^ZA-\d{8}-\d{4}$/);
+    expect(body.unsentContracts[0].customerName).toBe("Anna Meier");
+    expect(body.unsentContracts[0].signedAt).toBeTruthy();
+    // Never the PDF key or anything else about the document: this row exists
+    // to be clicked, not to carry a contract around the client.
+    expect(Object.keys(body.unsentContracts[0]).sort()).toEqual([
+      "contractNumber",
+      "customerName",
+      "id",
+      "signedAt",
+    ]);
+  });
+
+  it("reports no unsent contracts once the mail has gone", async () => {
+    const org = await ensureOrganisation(prisma);
+    await seedFleet(prisma, org.id);
+    await persistPickup({
+      organisationId: org.id,
+      details,
+      vehicleSlug: details.vehicleId,
+      uploads,
+      pdf: { body: new Uint8Array([7]) },
+      store: createMemoryStore(),
+    });
+    await prisma.contract.updateMany({ data: { mailSentAt: new Date() } });
+
+    const body = await (await GET(await signedIn())).json();
+    expect(body.counts.mailFailed).toBe(0);
+    expect(body.unsentContracts).toEqual([]);
   });
 
   it("reports an empty fleet without failing", async () => {

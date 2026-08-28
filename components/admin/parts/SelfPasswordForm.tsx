@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Labels } from "@/components/admin/types";
+import { PasswordInput } from "./PasswordInput";
 
 /** Visible to any signed-in user — owner or staff — since the endpoint it
  *  calls lets either change their own password. There is no owner gate on
@@ -27,13 +28,12 @@ export function SelfPasswordForm({
       className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white p-3"
     >
       <span className="text-sm text-slate-600">{L.accounts.myPassword}</span>
-      <input
-        type="password"
+      <PasswordInput
         value={password}
-        onChange={(e) => setPassword(e.target.value)}
+        onChange={setPassword}
+        L={L}
         placeholder={L.accounts.newPassword}
-        autoComplete="new-password"
-        className="h-10 w-40 rounded-md border border-input px-2 text-sm"
+        className="w-56"
       />
       <button
         type="submit"

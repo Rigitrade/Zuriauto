@@ -9,6 +9,7 @@ import {
   type AdminLanguage,
 } from "@/lib/admin/labels";
 import type { Account, Me, Overview } from "@/components/admin/types";
+import { attentionItems } from "@/lib/admin/attention";
 import { AdminProvider } from "./AdminContext";
 import { LanguageToggle } from "./LanguageToggle";
 import { Rail } from "./Rail";
@@ -245,10 +246,10 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Stage 2 replaces this with the attention selector. Until then the badge
-  // counts the one thing the payload already reports as needing a person, so
-  // it is never a number the office has to distrust.
-  const attention = data?.counts.returnsAwaiting ?? 0;
+  // The same selector the band renders from, so the badge and the band can
+  // never disagree about how much work there is. A badge saying 3 above a band
+  // showing 2 would teach the office to stop believing both.
+  const attention = data ? attentionItems(data, new Date()).length : 0;
 
   return (
     <AdminProvider

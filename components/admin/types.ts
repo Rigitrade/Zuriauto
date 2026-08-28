@@ -49,6 +49,13 @@ export type Me = {
   role: "owner" | "staff";
 };
 
+export interface UnsentContract {
+  id: string;
+  contractNumber: string;
+  customerName: string;
+  signedAt: string;
+}
+
 export interface Overview {
   /** The same shape the sign-in response carries — one type for "who am I",
    *  populated from either. */
@@ -64,6 +71,10 @@ export interface Overview {
     contracts: number;
     mailFailed: number;
   };
+  /** The contracts behind `counts.mailFailed`, newest first, capped at 20.
+   *  Optional so a client running against an older deployment degrades by one
+   *  row rather than throwing. */
+  unsentContracts?: UnsentContract[];
   latestContractAt: string | null;
 }
 

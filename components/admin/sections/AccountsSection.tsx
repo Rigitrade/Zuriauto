@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAdmin } from "@/components/admin/shell/AdminContext";
 import { AccountActions } from "@/components/admin/parts/AccountActions";
+import { PasswordInput } from "@/components/admin/parts/PasswordInput";
 import { day } from "@/components/admin/format";
 import { messageForCode } from "@/lib/admin/labels";
 import { USERNAME_PATTERN } from "@/lib/admin/users";
@@ -138,13 +139,12 @@ export function AccountsSection() {
           spellCheck={false}
           className="h-10 rounded-md border border-input px-3 text-sm"
         />
-        <input
-          type="password"
+        <PasswordInput
           value={draft.password}
-          onChange={(e) => setDraft({ ...draft, password: e.target.value })}
+          onChange={(password) => setDraft({ ...draft, password })}
+          L={L}
           placeholder={L.accounts.newPassword}
-          autoComplete="new-password"
-          className="h-10 rounded-md border border-input px-3 text-sm"
+          className="w-56"
         />
         <select
           value={draft.role}

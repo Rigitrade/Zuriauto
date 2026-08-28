@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { messageForCode } from "@/lib/admin/labels";
 import type { Account, Labels } from "@/components/admin/types";
+import { PasswordInput } from "./PasswordInput";
 
 export function AccountActions({
   account,
@@ -57,13 +58,12 @@ export function AccountActions({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <input
-        type="password"
+      <PasswordInput
         value={newPassword}
-        onChange={(e) => setNewPassword(e.target.value)}
+        onChange={setNewPassword}
+        L={L}
         placeholder={L.accounts.newPassword}
-        autoComplete="new-password"
-        className="h-10 w-40 rounded-md border border-input px-2 text-sm"
+        className="w-56"
       />
       <button
         type="button"
