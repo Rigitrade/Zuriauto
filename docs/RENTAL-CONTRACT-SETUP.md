@@ -142,7 +142,7 @@ UPDATE "Car" SET status = 'maintenance' WHERE plate = 'ZH 886 530';
 
 It disappears from the picker on the next page load. `available`, `rented`,
 `maintenance`, `retired`. Identity — model, plate, chassis number — stays in
-`lib/rental/fleet.ts` and is reconciled by `pnpm db:seed` on every deploy;
+`lib/rental/fleet.ts` and is reconciled whenever `pnpm db:seed` is run;
 the seed never touches status.
 
 ### Who was driving on the 10th at 14:30?

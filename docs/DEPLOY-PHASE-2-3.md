@@ -60,13 +60,14 @@ document.
 
 **Also creates the office's first dashboard account, if you are ready for it.**
 The command below runs `seedOwner()`, which reads `ADMIN_OWNER_USERNAME`,
-`ADMIN_OWNER_NAME` and `ADMIN_OWNER_PASSWORD` — described in step 3's table,
-two sections below this one — and does nothing if they are unset: no error,
-just a missing `, owner created` in the log line. Nothing later in this
-runbook re-runs the seed for you, so **read step 3's owner-variable note now**
-and have those three values in your local `.env.local` (or inlined in the
-command below) before running it, or the deploy ships a dashboard nobody can
-sign into. Step 5h is the check that would catch it if you don't.
+`ADMIN_OWNER_NAME` and `ADMIN_OWNER_PASSWORD` — described in step 3's
+owner-variable note, two sections below this one — and does nothing if they
+are unset: no error, just a missing `, owner created` in the log line.
+Nothing later in this runbook re-runs the seed for you, so **read step 3's
+owner-variable note now** and have those three values in **your local
+`.env.local`** (or inlined in the command below) before running it, or the
+deploy ships a dashboard nobody can sign into. Step 5h is the check that
+would catch it if you don't.
 
 ```bash
 # One Organisation row, the nine fleet vehicles, and the first dashboard
@@ -116,21 +117,36 @@ documents every one.
 | `R2_BUCKET` | `zuriauto-assets` |
 | `CRON_SECRET` | a third random string |
 | `ADMIN_SECRET` | a fourth random string — **must differ from `APPLY_SECRET`** |
-| `ADMIN_OWNER_USERNAME` | the first account's username, e.g. `chef` |
-| `ADMIN_OWNER_NAME` | how it is displayed, e.g. `Die Chefin` |
-| `ADMIN_OWNER_PASSWORD` | its initial password — **set before the deploy** |
 | `SITE_URL` | `https://zuriauto.ch` — no trailing slash |
 
-> **Set these three before running step 1's `pnpm db:seed`, not just before
-> the deploy.** The seed creates the first account only when the organisation
-> has none, and never overwrites a password that already exists — so a seed
-> run without them ships a dashboard nobody can sign into, and setting
+`ADMIN_OWNER_USERNAME`, `ADMIN_OWNER_NAME` and `ADMIN_OWNER_PASSWORD` are
+**deliberately not in this table.** They do not belong on Vercel at all —
+they belong in the *operator's own local* `.env.local`, for the one command
+below.
+
+> **Why not Vercel.** Nothing in the deployment ever reads them there. The
+> build is `prisma generate && next build` (see `package.json`); there is no
+> `prisma.seed` hook, and `vercel.json` runs no seed step. `seedOwner()` runs
+> only from `pnpm db:seed`, a command an operator runs by hand, and `prisma/
+> seed.ts` loads `.env.local` itself — the operator's local file, not
+> anything Vercel injects into a Function. Setting these three on Vercel
+> would not create the account faster or more reliably; it would do nothing
+> at all except leave the owner's initial password sitting in the Vercel
+> dashboard permanently, readable by anyone with project access, with no
+> code that ever consumes it.
+>
+> **Set these three in your local `.env.local` before running step 1's
+> `pnpm db:seed`, not on Vercel and not "before the deploy."** The seed
+> creates the first account only when the organisation has none, and never
+> overwrites a password that already exists — so a seed run without them
+> ships a dashboard nobody can sign into, and setting
 > `ADMIN_OWNER_PASSWORD` afterwards does nothing, because the account it
 > would apply to was never created. `pnpm admin:password <username>
 > <password>` only resets a *forgotten* password on an account that already
 > exists — it cannot create the missing one. If step 5h finds nobody can sign
-> in, the recovery is step 5h's, not this command: set the three variables,
-> point `DATABASE_URL` at the production database, and re-run `pnpm db:seed`.
+> in, the recovery is step 5h's, not this command: set the three variables
+> locally, point `DATABASE_URL` at the production database, and re-run
+> `pnpm db:seed` from your machine.
 
 Already set, unchanged: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`,
 `MAIL_FROM`, `MAIL_OFFICE`, `MAIL_ARCHIVE`.
@@ -286,16 +302,54 @@ the dashboard.
       `ADMIN_OWNER_USERNAME` / `ADMIN_OWNER_PASSWORD`. Expect the dashboard,
       not the sign-in form staying up with a failure message.
 
-If it fails: the seed in step 1 most likely ran before the three
-`ADMIN_OWNER_*` variables were set, so `seedOwner()` silently created no
-account. Recover by setting `ADMIN_OWNER_USERNAME`, `ADMIN_OWNER_NAME` and
-`ADMIN_OWNER_PASSWORD`, pointing `DATABASE_URL` at the production database,
-and re-running `pnpm db:seed`. This is safe to do at any time, including
-against a database that already has data: the seed never overwrites a
+If it fails, there are two indistinguishable causes — the sign-in form shows
+the same failure message and the server logs stay silent either way, so
+check both:
+
+1. **No owner was seeded.** The seed in step 1 most likely ran before the
+   three `ADMIN_OWNER_*` variables were set, so `seedOwner()` silently
+   created no account.
+2. **`ADMIN_SECRET` is unset or was rotated.** `issueAdminSession()` throws
+   when it is missing, and the sign-in route answers the same 401 as a wrong
+   password by design (see `lib/admin/session.ts`) — so a correct username
+   and password can fail this check for a reason that has nothing to do with
+   the owner row at all.
+
+Check `https://zuriauto.ch/api/health/` before doing anything else — it is
+deliberately unfenced for exactly this. Its `env.fence.ADMIN_SECRET` field
+reports whether the variable is present, without revealing its value, and
+its `database.admins` field reports how many `AdminUser` rows exist. Nonzero
+`admins` with `ADMIN_SECRET` present but sign-in still failing points at a
+third possibility (a typo in the credentials); zero `admins` points at cause
+1; `ADMIN_SECRET` reporting absent points at cause 2 regardless of what
+`admins` says.
+
+**Recovering from cause 1:** set `ADMIN_OWNER_USERNAME`, `ADMIN_OWNER_NAME`
+and `ADMIN_OWNER_PASSWORD` in your local `.env.local`, point `DATABASE_URL`
+at the production database, and re-run `pnpm db:seed` from your machine.
+This is safe to do at any time, including against a database that already
+has data, for the owner row specifically: the seed never overwrites a
 password that already exists, so re-running it only fills in the missing
-owner and otherwise changes nothing. `pnpm admin:password` cannot substitute
-for this — it resets a forgotten password on an account that already exists,
-not create one that was never seeded.
+owner and never touches an existing account. `pnpm admin:password` cannot
+substitute for this — it resets a forgotten password on an account that
+already exists, not create one that was never seeded.
+
+**But re-running `pnpm db:seed` is not a no-op on a system the office has
+already been using.** The same run also calls `seedFleet()`, and its
+`update` branch writes `model`, `plate` and `vin` from `lib/rental/fleet.ts`
+over whatever is currently in each `Car` row — the same three fields the
+dashboard's fleet section lets the office correct by hand (a typo'd plate,
+a corrected VIN). `status` is genuinely untouched, so a car the office took
+off the road stays off the road. A plate is a legal identifier printed on
+signed contracts, so **before re-running the seed against a live system,
+diff the fleet's current plates against `lib/rental/fleet.ts` and update the
+file first** if the office has corrected anything there — otherwise the seed
+silently reverts the correction on every affected car.
+
+**Recovering from cause 2:** set (or reset) `ADMIN_SECRET` on Vercel and
+redeploy or wait for the next request to pick it up. This also signs
+everyone else out at once, which is the same lever step 3 describes for
+rotating it deliberately.
 
 ---
 
@@ -356,8 +410,31 @@ GET for exactly this reason, and nothing in the code changes. Remove the
       report is stored against it. It deliberately does **not** free the car —
       an unfenced form must not be able to put a car somebody is driving back
       into the picker. The office confirms in `/admin`, which is one click.
-- [ ] Show them how to take a car off the road:
-      `UPDATE "Car" SET status = 'maintenance' WHERE plate = '…';`
+- [ ] **Taking a car off the road is a button, not SQL.** In `/admin`'s
+      fleet table, each car has a **Ausser Betrieb** / "Take off the road"
+      button (**Wieder aktivieren** / "Put back on the road" once it is).
+      It disappears from the picker on the next page load. There is no SQL
+      to show anyone for this any more.
+- [ ] **Explain the change the office will actually notice: everyone now
+      signs in with their own account.** The shared `ADMIN_SECRET` that used
+      to double as the dashboard's password stops working as a password —
+      it still signs the session cookie behind the scenes, but nobody types
+      it any more. Each person signs in at `/admin` with their own username
+      and password instead. Walk the owner through the **Konten** /
+      "Accounts" section at the bottom of the dashboard: it is where they
+      create a login for each staff member (name, username, initial
+      password, and a role of owner or staff), disable somebody who leaves,
+      and reset a password for somebody who forgot theirs. Each person can
+      also change their own password from the "My password" card once
+      signed in.
+- [ ] **Tell the owner what happens if *they* forget their own password.**
+      Resetting it through the dashboard needs to be signed in already, which
+      a locked-out owner by definition is not — the accounts section cannot
+      get them back into their own account. The way back in is `pnpm
+      admin:password <username> <password>`, run by whoever has
+      `DATABASE_URL` for the production database — the same command and the
+      same person who could already recover any forgotten dashboard
+      credential before this handover.
 - [ ] Show them the traffic-fine lookup — see `docs/RENTAL-CONTRACT-SETUP.md`.
 - [ ] Tell them marking a charge paid is a SQL statement until Phase 5.
 - [ ] **Closing a rental is a button, not SQL.** `/admin` lists every rental

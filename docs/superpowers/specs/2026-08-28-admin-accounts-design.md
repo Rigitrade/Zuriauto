@@ -126,10 +126,13 @@ The preset owner comes from `ADMIN_OWNER_USERNAME` and
 `ADMIN_OWNER_PASSWORD`, upserted by `pnpm db:seed` — the same split the fleet
 uses, where code owns identity and the database owns everything mutable.
 
-**The seed runs on every deploy, so it must never write a password that already
-exists.** Otherwise every deploy silently resets the owner's password to
-whatever is in the environment variable, and the person who changed it last
-week is locked out with no error anywhere. Same rule as `seedFleet`, which
+**The seed is run by hand — `pnpm db:seed` — against a live database,
+possibly more than once, so it must never write a password that already
+exists.** Otherwise a re-run silently resets the owner's password to
+whatever is currently in the environment variable, and the person who
+changed it last week is locked out with no error anywhere. (There is no
+`prisma.seed` hook in `package.json` and no seed step in `vercel.json`; a
+Vercel deploy never runs this on its own.) Same rule as `seedFleet`, which
 reconciles identity and never touches status.
 
 Two consequences worth stating:
