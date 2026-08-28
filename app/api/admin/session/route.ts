@@ -82,6 +82,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ code: "rate-limited" }, { status: 429 });
   }
 
+  // No organisationId here — correct only because the system runs a single
+  // Organisation today, the same assumption every admin route makes (see
+  // the fuller note in app/api/admin/users/[id]/route.ts). If a second
+  // organisation ever exists, `username` is unique per organisation, not
+  // globally, so this lookup could match either of two identically-named
+  // users non-deterministically — signing somebody into the wrong
+  // organisation's account. Scope by organisationId before that happens.
   const user = await prisma.adminUser.findFirst({
     where: { username: credentials.username, disabledAt: null },
     select: {
@@ -114,6 +121,14 @@ export async function POST(request: Request) {
   try {
     token = issueAdminSession(user.id);
   } catch {
+    // The response stays identical to a wrong password — fail-closed and
+    // deliberate, see the comment above. But answering identically to the
+    // caller must not mean failing silently to whoever is trying to fix it:
+    // this is the one case a correct password still gets refused, and
+    // without a log line it is indistinguishable from "no owner was seeded"
+    // to anyone without database access. Names only the cause, never a
+    // credential value.
+    console.error("[admin] sign-in refused: ADMIN_SECRET is not set.");
     return NextResponse.json({ code: "unauthorised" }, { status: 401 });
   }
 

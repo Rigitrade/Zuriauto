@@ -95,6 +95,7 @@ export async function GET() {
   let database: {
     reachable: boolean;
     cars?: number;
+    admins?: number;
     attempts?: number;
     error?: string;
   };
@@ -109,7 +110,17 @@ export async function GET() {
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     try {
       await prisma.$queryRaw`select 1`;
-      database = { reachable: true, attempts: attempt, cars: await prisma.car.count() };
+      // `admins` beside `cars` for the same reason this endpoint exists: a
+      // failed sign-in and a missing ADMIN_SECRET produce the identical
+      // response and identical silence in the logs. Zero here says "run the
+      // seed"; a nonzero count with sign-in still failing points at
+      // ADMIN_SECRET instead — distinguishable without database access.
+      database = {
+        reachable: true,
+        attempts: attempt,
+        cars: await prisma.car.count(),
+        admins: await prisma.adminUser.count(),
+      };
       break;
     } catch (error) {
       lastError = error;

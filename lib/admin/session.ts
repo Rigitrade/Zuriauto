@@ -123,6 +123,14 @@ export function readAdminCookie(
  * The Cookie header is parsed rather than reaching for Next's `cookies()`, so
  * every admin route can be driven by a plain `Request` in a test without a
  * request context to fake.
+ *
+ * The parse below does no cookie-value decoding (no `decodeURIComponent`,
+ * nothing that would unescape a `"..."`-quoted value). That is deliberate,
+ * not an oversight: the value is always the base64url output of
+ * `issueAdminSession`, which contains none of the characters cookie
+ * serialisation would ever escape or quote — no `=`, no `;`, no space, no
+ * `"`. If something other than that base64url token is ever put in this
+ * cookie, this function needs an encoding-aware parse first.
  */
 export function adminCookieFrom(request: Request): string | undefined {
   const header = request.headers.get("cookie");
@@ -172,7 +180,19 @@ export async function requireAdmin(
   };
 }
 
-/** As `requireAdmin`, and null unless the user is an owner. */
+/**
+ * As `requireAdmin`, and null unless the user is an owner.
+ *
+ * Has no production caller today; the spec's stage 2 is the intended one.
+ * Note its contract before wiring that up: this returns `null` for both "not
+ * signed in" and "not an owner", collapsing what the accounts routes
+ * (`app/api/admin/users/route.ts`, `app/api/admin/users/[id]/route.ts`) treat
+ * as two distinct responses — 401 for the first, 403 for the second. A stage
+ * 2 caller that maps a `null` here straight to 401 would answer differently
+ * than the rest of the admin surface for the same "signed in, wrong role"
+ * case. Either give this function the same two-value contract or map its
+ * `null` to 403 at the call site, deliberately, rather than by accident.
+ */
 export async function requireOwner(
   request: Request,
   now: Date = new Date()

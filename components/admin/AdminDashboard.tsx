@@ -282,6 +282,18 @@ export default function AdminDashboard() {
     await loadAccounts();
   }
 
+  /** Shared by every path that ends an owner or staff member's own session
+   *  after their own password changed — the self-password card below, and
+   *  the per-row account actions when the row being patched is the signed-in
+   *  user's own. Pulled out so both read as the same event instead of one
+   *  showing a message and the other going silently stale. */
+  const endOwnSession = useCallback(() => {
+    setSignedIn(false);
+    setMe(null);
+    setData(null);
+    setMessage(L.accounts.passwordChangedSignOut);
+  }, [L]);
+
   /** Available to any signed-in user, not just an owner: `PATCH
    *  /api/admin/users/[id]/` lets a staff member change exactly their own
    *  password, and this is the only place in the UI that reaches it. Kept
@@ -306,10 +318,7 @@ export default function AdminDashboard() {
         setMessage(messageForCode(L, result.code));
         return false;
       }
-      setSignedIn(false);
-      setMe(null);
-      setData(null);
-      setMessage(L.accounts.passwordChangedSignOut);
+      endOwnSession();
       return true;
     } finally {
       setBusy(false);
@@ -580,8 +589,10 @@ export default function AdminDashboard() {
                       <td className="p-3">
                         <AccountActions
                           account={account}
+                          isSelf={me?.id === account.id}
                           L={L}
                           onChanged={loadAccounts}
+                          onSelfPasswordChanged={endOwnSession}
                           onError={setMessage}
                         />
                       </td>
@@ -883,13 +894,25 @@ function RentalRow({
 
 function AccountActions({
   account,
+  isSelf,
   L,
   onChanged,
+  onSelfPasswordChanged,
   onError,
 }: {
   account: Account;
+  /** Whether this row is the signed-in user's own account. An owner appears
+   *  in their own accounts list, so this path — not just the "my password"
+   *  card above — can be how they change their own password. */
+  isSelf: boolean;
   L: Labels;
   onChanged: () => Promise<void>;
+  /** Called instead of `onChanged` when a self-password patch succeeds.
+   *  That PATCH kills the caller's own session (`credentialsChangedAt` moves
+   *  past the cookie's `issuedAt`), so the follow-up `loadAccounts()` would
+   *  hit its own swallowed 401 and leave the owner on a dashboard that no
+   *  longer works, with no message, until their next write. */
+  onSelfPasswordChanged: () => void;
   onError: (message: string) => void;
 }) {
   const [newPassword, setNewPassword] = useState("");
@@ -910,6 +933,10 @@ function AccountActions({
         return;
       }
       setNewPassword("");
+      if (isSelf && body.password !== undefined) {
+        onSelfPasswordChanged();
+        return;
+      }
       await onChanged();
     } finally {
       setBusy(false);

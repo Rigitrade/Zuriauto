@@ -35,6 +35,12 @@ export async function GET(request: Request) {
   const { error } = await ownerOr(request);
   if (error) return error;
 
+  // No organisationId filter — correct only because the system runs a
+  // single Organisation today, the same assumption every admin route makes
+  // (see the fuller note in app/api/admin/users/[id]/route.ts). If a second
+  // organisation ever exists, this `findMany` would hand one organisation's
+  // owner the other's entire roster; scope it by organisationId before
+  // that happens.
   const users = await prisma.adminUser.findMany({
     orderBy: [{ role: "asc" }, { username: "asc" }],
     // passwordHash is absent on purpose: it never leaves the server, not even
@@ -94,6 +100,13 @@ export async function POST(request: Request) {
         role: input.role,
         passwordHash: await hashPassword(input.password),
         createdById: owner!.id,
+        // Explicit app-clock time, not the column's `DEFAULT CURRENT_TIMESTAMP`.
+        // `issuedAt` in a session cookie is always app time; if the database
+        // clock leads it even slightly, a freshly created account would sign
+        // in (200, cookie set) and then fail `requireAdmin`'s comparison on
+        // every request after — a lockout invisible at creation time. Setting
+        // this explicitly keeps both sides of that comparison on one clock.
+        credentialsChangedAt: new Date(),
       },
       select: { id: true, username: true, displayName: true, role: true },
     });

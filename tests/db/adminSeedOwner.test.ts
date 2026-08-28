@@ -60,4 +60,18 @@ describe("seedOwner", () => {
     expect(await seedOwner(prisma, org.id)).toEqual({ created: false });
     expect(await prisma.adminUser.count()).toBe(1);
   });
+
+  it("refuses a username the dashboard's own pattern would reject", async () => {
+    const org = await ensureOrganisation(prisma);
+    process.env.ADMIN_OWNER_USERNAME = "Not An Email!";
+    await expect(seedOwner(prisma, org.id)).rejects.toThrow(/ADMIN_OWNER_USERNAME/);
+    expect(await prisma.adminUser.count()).toBe(0);
+  });
+
+  it("refuses a password shorter than the dashboard's ten-character minimum", async () => {
+    const org = await ensureOrganisation(prisma);
+    process.env.ADMIN_OWNER_PASSWORD = "short";
+    await expect(seedOwner(prisma, org.id)).rejects.toThrow(/ADMIN_OWNER_PASSWORD/);
+    expect(await prisma.adminUser.count()).toBe(0);
+  });
 });
