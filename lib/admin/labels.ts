@@ -48,15 +48,20 @@ const de = {
     heading: "Fahrzeuge",
     model: "Marke und Modell",
     plate: "Kontrollschild",
+    platePlaceholder: "ZH 123 456",
     vin: "Fahrgestell-Nr.",
+    vinOptional: "Fahrgestell-Nr. (optional)",
     status: "Status",
     add: "Hinzufügen",
     save: "Speichern",
+    cancel: "Abbrechen",
     retire: "Ausser Betrieb",
     reactivate: "Wieder aktivieren",
     delete: "Löschen",
     deleteConfirm: "Wirklich löschen?",
     hasHistory: "Dieses Fahrzeug hat Mietverträge und kann nicht gelöscht werden. Bitte ausser Betrieb setzen.",
+    empty: "Noch keine Fahrzeuge erfasst.",
+    latestContract: "Letzter Vertrag",
     statuses: {
       available: "Verfügbar",
       rented: "Vermietet",
@@ -72,6 +77,7 @@ const de = {
     closeConfirm: "Wirklich abschliessen",
     cancel: "Abbrechen",
     none: "Keine laufenden Mieten.",
+    closeHint: "«Abschliessen» gibt das Fahrzeug frei und ersetzt nicht das Rückgabeprotokoll.",
   },
   accounts: {
     heading: "Konten",
@@ -95,6 +101,13 @@ const de = {
   errors: {
     generic: "Etwas ist schiefgelaufen. Bitte erneut versuchen.",
     signedOut: "Sitzung abgelaufen. Bitte erneut anmelden.",
+    duplicatePlate: "Dieses Kontrollschild ist bereits vergeben.",
+    statusChangeRefused: "Dieser Statuswechsel ist gerade nicht möglich.",
+    alreadyClosed: "Diese Miete ist bereits abgeschlossen.",
+    notFound: "Nicht gefunden.",
+    forbidden: "Keine Berechtigung.",
+    notConfigured: "Server ist nicht eingerichtet.",
+    invalid: "Ungültige Eingabe.",
   },
 };
 
@@ -126,15 +139,20 @@ const en: typeof de = {
     heading: "Vehicles",
     model: "Make and model",
     plate: "Plate",
+    platePlaceholder: "ZH 123 456",
     vin: "Chassis no.",
+    vinOptional: "Chassis no. (optional)",
     status: "Status",
     add: "Add",
     save: "Save",
+    cancel: "Cancel",
     retire: "Take off the road",
     reactivate: "Put back on the road",
     delete: "Delete",
     deleteConfirm: "Delete this car?",
     hasHistory: "This car has rental history and cannot be deleted. Take it off the road instead.",
+    empty: "No vehicles added yet.",
+    latestContract: "Latest contract",
     statuses: {
       available: "Available",
       rented: "Rented out",
@@ -150,6 +168,7 @@ const en: typeof de = {
     closeConfirm: "Yes, close it",
     cancel: "Cancel",
     none: "No open rentals.",
+    closeHint: "“Close” frees the car and does not replace the return protocol.",
   },
   accounts: {
     heading: "Accounts",
@@ -173,9 +192,49 @@ const en: typeof de = {
   errors: {
     generic: "Something went wrong. Please try again.",
     signedOut: "Session expired. Please sign in again.",
+    duplicatePlate: "That plate is already registered.",
+    statusChangeRefused: "That status change isn't possible right now.",
+    alreadyClosed: "This rental is already closed.",
+    notFound: "Not found.",
+    forbidden: "Not permitted.",
+    notConfigured: "Server is not configured.",
+    invalid: "Invalid input.",
   },
 };
 
 export function labelsFor(language: AdminLanguage): typeof de {
   return language === "en" ? en : de;
+}
+
+export type AdminLabels = ReturnType<typeof labelsFor>;
+
+/**
+ * Turns an API failure `code` into a message a caller can act on.
+ *
+ * Shared rather than duplicated per screen: the fleet writes here and the
+ * accounts screen a later task adds both call the same admin routes' error
+ * shape (`{ code }`), so one map keeps "unauthorised" or "not-found" reading
+ * the same everywhere they can occur, not just where they were first wired
+ * up. An unrecognised code still surfaces — appended to the generic message,
+ * the way the very first version of this dashboard did before per-code
+ * messages existed — so a report of "something went wrong (whatever-code)"
+ * is still enough to grep the server logs.
+ */
+export function messageForCode(L: AdminLabels, code: string | undefined): string {
+  const known: Record<string, string> = {
+    "duplicate-plate": L.errors.duplicatePlate,
+    "status-change-refused": L.errors.statusChangeRefused,
+    "has-history": L.fleet.hasHistory,
+    "already-closed": L.errors.alreadyClosed,
+    "username-taken": L.accounts.usernameTaken,
+    "last-owner": L.accounts.lastOwner,
+    "not-found": L.errors.notFound,
+    forbidden: L.errors.forbidden,
+    "not-configured": L.errors.notConfigured,
+    invalid: L.errors.invalid,
+    "bad-request": L.errors.invalid,
+    unauthorised: L.errors.signedOut,
+  };
+  if (code && known[code]) return known[code];
+  return code ? `${L.errors.generic} (${code})` : L.errors.generic;
 }

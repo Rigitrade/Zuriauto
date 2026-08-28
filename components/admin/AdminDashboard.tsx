@@ -6,6 +6,7 @@ import {
   ADMIN_LANGUAGE_KEY,
   asAdminLanguage,
   labelsFor,
+  messageForCode,
   type AdminLanguage,
 } from "@/lib/admin/labels";
 
@@ -40,7 +41,12 @@ interface Rental {
   returnContractNumber: string | null;
 }
 
+type Me = { username: string; displayName: string; role: "owner" | "staff" };
+
 interface Overview {
+  /** The same shape the sign-in response carries — one type for "who am I",
+   *  populated from either. */
+  me: Me;
   cars: Car[];
   rentals: Rental[];
   counts: {
@@ -54,8 +60,6 @@ interface Overview {
   };
   latestContractAt: string | null;
 }
-
-type Me = { displayName: string; role: "owner" | "staff" };
 
 const STATUS_STYLE: Record<string, string> = {
   available: "bg-emerald-100 text-emerald-900",
@@ -111,7 +115,11 @@ export default function AdminDashboard() {
       return;
     }
     setSignedIn(true);
-    setData(await response.json());
+    const body = (await response.json()) as Overview;
+    setData(body);
+    // Restores the header on a reload with an already-valid cookie: sign-in
+    // is not the only place the identity comes from once a session exists.
+    setMe(body.me);
   }, []);
 
   // The cookie may already be valid from this morning, so the page tries
@@ -157,40 +165,29 @@ export default function AdminDashboard() {
     setData(null);
   }
 
-  /** Every write goes through here, so one place reports failure and refetches. */
-  async function write(url: string, init: RequestInit, failure: string) {
+  /** Every write goes through here, so one place reports failure and
+   *  refetches. The failure message comes from the response's own `code` via
+   *  `messageForCode` — not a static string per call site — so a duplicate
+   *  plate, a refused status change and a stale session each read as what
+   *  they are instead of one shared "something went wrong". */
+  async function write(url: string, init: RequestInit) {
     setBusy(true);
     setMessage(null);
     try {
       const response = await fetch(url, init);
       if (!response.ok) {
-        setMessage(failure);
-        return false;
-      }
-      await load();
-      return true;
-    } catch {
-      setMessage(failure);
-      return false;
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  /** Deletion is narrower than the other writes: a car with rental history
-   *  refuses with 409, and that refusal gets its own explanation rather than
-   *  the generic failure message. */
-  async function deleteCar(id: string) {
-    setBusy(true);
-    setMessage(null);
-    try {
-      const response = await fetch(`/api/admin/cars/${id}/`, { method: "DELETE" });
-      if (response.status === 409) {
-        setMessage(L.fleet.hasHistory);
-        return false;
-      }
-      if (!response.ok) {
-        setMessage(L.errors.generic);
+        const body = await response.json().catch(() => ({}));
+        if (body.code === "unauthorised") {
+          // The cookie died mid-session (expiry, a password reset, being
+          // disabled). Sent back to the sign-in screen rather than left
+          // looking at a dashboard that can no longer write anything.
+          setSignedIn(false);
+          setMe(null);
+          setData(null);
+          setMessage(L.errors.signedOut);
+          return false;
+        }
+        setMessage(messageForCode(L, body.code));
         return false;
       }
       await load();
@@ -201,6 +198,10 @@ export default function AdminDashboard() {
     } finally {
       setBusy(false);
     }
+  }
+
+  function deleteCar(id: string) {
+    return write(`/api/admin/cars/${id}/`, { method: "DELETE" });
   }
 
   const LanguageToggle = (
@@ -338,19 +339,21 @@ export default function AdminDashboard() {
           </section>
         )}
 
+        {data && data.latestContractAt && (
+          <p className="text-xs text-slate-500">
+            {L.fleet.latestContract}: {day(data.latestContractAt)}
+          </p>
+        )}
+
         <AddCar
           L={L}
           busy={busy}
           onAdd={(body) =>
-            write(
-              "/api/admin/cars/",
-              {
-                method: "POST",
-                headers: { "content-type": "application/json" },
-                body: JSON.stringify(body),
-              },
-              L.errors.generic
-            )
+            write("/api/admin/cars/", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify(body),
+            })
           }
         />
 
@@ -377,19 +380,22 @@ export default function AdminDashboard() {
                     L={L}
                     busy={busy}
                     onSave={(body) =>
-                      write(
-                        `/api/admin/cars/${car.id}/`,
-                        {
-                          method: "PATCH",
-                          headers: { "content-type": "application/json" },
-                          body: JSON.stringify(body),
-                        },
-                        L.errors.generic
-                      )
+                      write(`/api/admin/cars/${car.id}/`, {
+                        method: "PATCH",
+                        headers: { "content-type": "application/json" },
+                        body: JSON.stringify(body),
+                      })
                     }
                     onDelete={() => deleteCar(car.id)}
                   />
                 ))}
+                {data?.cars.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="p-4 text-sm text-slate-500">
+                      {L.fleet.empty}
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -410,17 +416,15 @@ export default function AdminDashboard() {
                   L={L}
                   busy={busy}
                   onClose={() =>
-                    write(
-                      `/api/admin/rentals/${rental.id}/close/`,
-                      { method: "POST" },
-                      L.errors.generic
-                    )
+                    write(`/api/admin/rentals/${rental.id}/close/`, { method: "POST" })
                   }
                 />
               ))}
             </ul>
           )}
         </section>
+
+        <p className="pb-6 text-xs text-slate-400">{L.rentals.closeHint}</p>
       </div>
     </main>
   );
@@ -461,12 +465,12 @@ function AddCar({
       <Input
         value={plate}
         onChange={(e) => setPlate(e.target.value)}
-        placeholder={L.fleet.plate}
+        placeholder={L.fleet.platePlaceholder}
       />
       <Input
         value={vin}
         onChange={(e) => setVin(e.target.value)}
-        placeholder={L.fleet.vin}
+        placeholder={L.fleet.vinOptional}
       />
       <button
         type="submit"
@@ -521,16 +525,32 @@ function CarRow({
       <td className="p-3 align-middle whitespace-nowrap">
         <div className="flex flex-wrap items-center gap-2">
           {dirty && (
-            <button
-              type="button"
-              disabled={busy}
-              // The row's own state already matches what is being sent; the
-              // refetch behind onSave replaces it with the server's copy.
-              onClick={() => onSave({ model, plate, vin })}
-              className="h-10 rounded-md bg-slate-900 px-3 text-sm font-medium text-white disabled:opacity-50"
-            >
-              {L.fleet.save}
-            </button>
+            <>
+              <button
+                type="button"
+                disabled={busy}
+                // The row's own state already matches what is being sent; the
+                // refetch behind onSave replaces it with the server's copy.
+                onClick={() => onSave({ model, plate, vin })}
+                className="h-10 rounded-md bg-slate-900 px-3 text-sm font-medium text-white disabled:opacity-50"
+              >
+                {L.fleet.save}
+              </button>
+              <button
+                type="button"
+                // Discards the typed edit and goes back to what the server
+                // last reported — the only way to undo a typo, since the
+                // fields are always editable rather than behind an edit mode.
+                onClick={() => {
+                  setModel(car.model);
+                  setPlate(car.plate);
+                  setVin(car.vin ?? "");
+                }}
+                className="h-10 rounded-md px-3 text-sm text-slate-500 underline"
+              >
+                {L.fleet.cancel}
+              </button>
+            </>
           )}
 
           {/* A rented car has no toggle at all: it is freed by closing its
@@ -565,7 +585,7 @@ function CarRow({
                   onClick={() => setConfirmingDelete(false)}
                   className="h-10 rounded-md px-3 text-sm text-slate-500 underline"
                 >
-                  {L.rentals.cancel}
+                  {L.fleet.cancel}
                 </button>
               </>
             ) : (

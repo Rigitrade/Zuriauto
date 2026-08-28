@@ -17,6 +17,14 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export interface AdminOverview {
+  /** The same shape the sign-in response carries, so a reload can repaint the
+   *  header without a second endpoint: the office already fetches this once
+   *  on every load. */
+  me: {
+    username: string;
+    displayName: string;
+    role: "owner" | "staff";
+  };
   cars: {
     id: string;
     slug: string;
@@ -125,6 +133,11 @@ export async function GET(request: Request) {
   ]);
 
   const payload: AdminOverview = {
+    me: {
+      username: user.username,
+      displayName: user.displayName,
+      role: user.role,
+    },
     cars: cars.map((car) => ({
       id: car.id,
       slug: car.slug,
