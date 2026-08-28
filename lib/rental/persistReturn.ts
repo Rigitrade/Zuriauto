@@ -31,6 +31,26 @@ import { normaliseEmail } from "./customers";
 import { fuelLevelToDb } from "./fleet";
 import type { ReturnDetails } from "./returnSchema";
 
+/** "yes"/"no" as the radios carry it, into a column. Undefined stays
+ *  undefined: an answer nobody gave is not a "no". */
+function yesNo(value: string | undefined): boolean | undefined {
+  if (value === "yes") return true;
+  if (value === "no") return false;
+  return undefined;
+}
+
+/** Francs from the form into the cents every money column stores. */
+function toCents(chf: number | undefined): number | undefined {
+  return chf === undefined ? undefined : Math.round(chf * 100);
+}
+
+/** An empty date string is "not given", not the epoch. */
+function isoDate(value: string | undefined): Date | undefined {
+  if (!value) return undefined;
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+}
+
 /** Prisma's code for a unique-constraint violation. */
 const UNIQUE_VIOLATION = "P2002";
 
@@ -242,6 +262,27 @@ async function writeOnce(
         mileageKm: details.mileageKm,
         fuelLevel: fuelLevelToDb(details.fuelLevel),
         damageNotes: details.damages,
+
+        // The return protocol. Collected and validated since the form
+        // existed, but until now it reached only the PDF — so the office
+        // confirmed a return without being able to read what was in it.
+        cleanliness: details.cleanliness,
+        papersInside: yesNo(details.papersInside),
+        keyReturned: yesNo(details.keyReturned),
+        tickets: yesNo(details.tickets),
+        ticketsNote: details.ticketsNote,
+        fullyPaid: yesNo(details.fullyPaid),
+        paymentMethods: details.paymentMethods,
+        paidAmountCents: toCents(details.paidAmountChf),
+        paidOn: isoDate(details.paidOn),
+        // Recorded as a claim, not a debt. It becomes a Charge only when the
+        // office confirms the return — nobody is chased over a number a
+        // customer typed and nobody checked.
+        hasDuePayment: yesNo(details.hasDuePayment),
+        dueAmountCents: toCents(details.dueAmountChf),
+        dueDate: isoDate(details.dueDate),
+        dueMethod: details.dueMethod,
+        depositBack: yesNo(details.depositBack),
         // The return document is not the GTC acceptance — that happened at
         // pickup and is recorded on that contract. These columns are not
         // nullable, so the addendum carries the return's own moment rather

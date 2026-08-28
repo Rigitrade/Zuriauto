@@ -21,6 +21,34 @@ export interface Car {
   activeRentalId: string | null;
 }
 
+/**
+ * The return protocol, as the renter filled it in.
+ *
+ * Every field nullable: an addendum written before these columns existed
+ * carries a mileage and a signature and nothing else, and the review screen
+ * must show gaps rather than confident falsehoods.
+ */
+export interface ReturnReport {
+  mileageKm: number;
+  distanceKm: number | null;
+  fuelLevel: string;
+  damageNotes: string;
+  cleanliness: string | null;
+  papersInside: boolean | null;
+  keyReturned: boolean | null;
+  tickets: boolean | null;
+  ticketsNote: string;
+  fullyPaid: boolean | null;
+  paymentMethods: string[];
+  paidAmountCents: number | null;
+  paidOn: string | null;
+  hasDuePayment: boolean | null;
+  dueAmountCents: number | null;
+  dueDate: string | null;
+  dueMethod: string | null;
+  depositBack: boolean | null;
+}
+
 export interface Rental {
   id: string;
   carPlate: string;
@@ -31,6 +59,7 @@ export interface Rental {
   contractNumber: string | null;
   returnSubmittedAt: string | null;
   returnContractNumber: string | null;
+  returnReport?: ReturnReport | null;
 }
 
 export interface Account {

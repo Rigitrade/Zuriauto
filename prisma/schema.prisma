@@ -38,6 +38,14 @@ enum ContractKind {
   RETURN_ADDENDUM
 }
 
+/// How the car came back. Spelled out rather than a boolean: "not clean" and
+/// "needs a wash we will charge for" are the same fact, and the office bills
+/// on it.
+enum Cleanliness {
+  clean
+  needsWash
+}
+
 // Spelled out rather than fractional: a Prisma enum cannot contain a slash.
 // The mapping to and from "1/4" lives in lib/rental/fleet.ts, beside the
 // function that prints it, so the two representations cannot drift apart.
@@ -69,29 +77,29 @@ enum AdminRole {
 /// every table from the first migration rather than being retrofitted, which
 /// would mean rewriting every query and every access check.
 model Organisation {
-  id        String            @id @default(cuid())
-  name      String
-  createdAt DateTime          @default(now())
-  cars      Car[]
-  customers Customer[]
-  rentals   Rental[]
-  contracts Contract[]
-  counters  ContractCounter[]
+  id         String            @id @default(cuid())
+  name       String
+  createdAt  DateTime          @default(now())
+  cars       Car[]
+  customers  Customer[]
+  rentals    Rental[]
+  contracts  Contract[]
+  counters   ContractCounter[]
   adminUsers AdminUser[]
 }
 
 model Car {
   id String @id @default(cuid())
 
-  organisationId String
+  organisationId     String
   /// Mirrors FleetVehicle.id in lib/rental/fleet.ts. The seed reconciles on it.
-  slug           String
-  model          String
-  plate          String
-  vin            String?
+  slug               String
+  model              String
+  plate              String
+  vin                String?
   /// Owned by the database, never by the seed: a car is taken out of service
   /// by the office, without a deploy.
-  status         CarStatus @default(available)
+  status             CarStatus @default(available)
   /// Reserved for Phase 6. Nothing is built against it until trackers exist.
   telematicsDeviceId String?
 
@@ -167,9 +175,9 @@ model Rental {
 
   createdAt DateTime @default(now())
 
-  organisation Organisation  @relation(fields: [organisationId], references: [id])
-  car          Car           @relation(fields: [carId], references: [id])
-  customer     Customer      @relation(fields: [customerId], references: [id])
+  organisation  Organisation   @relation(fields: [organisationId], references: [id])
+  car           Car            @relation(fields: [carId], references: [id])
+  customer      Customer       @relation(fields: [customerId], references: [id])
   contracts     Contract[]
   events        RentalEvent[]
   charges       Charge[]
@@ -209,6 +217,43 @@ model Contract {
   pdfKey     String?
   mailSentAt DateTime?
   mailError  String?
+
+  /// ---------------------------------------------------------------------
+  /// The return protocol.
+  ///
+  /// Null on a PICKUP contract, which is why every one of these is optional
+  /// rather than defaulted: a pickup has no opinion about whether the key
+  /// came back, and a `false` would claim it did not.
+  ///
+  /// These were collected by the return form and validated from the first
+  /// day it existed, but reached only the PDF. The office was asked to
+  /// confirm a return — the click that frees the car — while every answer
+  /// that decides whether money is owed sat in a document in a bucket.
+  /// ---------------------------------------------------------------------
+  cleanliness  Cleanliness?
+  papersInside Boolean?
+  keyReturned  Boolean?
+
+  /// Traffic fines the renter declares. The note is free text off the paper
+  /// protocol; empty is the normal case, so it defaults rather than nulls.
+  tickets     Boolean?
+  ticketsNote String   @default("")
+
+  /// The Abrechnung. Amounts in cents, as everywhere else money is stored.
+  fullyPaid       Boolean?
+  paymentMethods  String[]
+  paidAmountCents Int?
+  paidOn          DateTime?
+
+  /// What the renter says is still owed, and when. Recorded here as a claim,
+  /// not as a debt: it becomes a Charge only when the office confirms the
+  /// return, so nobody is chased over a number a customer typed unreviewed.
+  hasDuePayment  Boolean?
+  dueAmountCents Int?
+  dueDate        DateTime?
+  dueMethod      String?
+
+  depositBack Boolean?
 
   /// Set when identity documents were carried forward from an earlier contract
   /// instead of photographed at this handover.
@@ -263,7 +308,7 @@ model RentalEvent {
 model SubmissionAttempt {
   id String @id @default(cuid())
 
-  ipHash String
+  ipHash    String
   /// Which fence recorded this attempt: "pickup", "signin".
   ///
   /// Added in Phase 5. A shared budget lets a burst against one endpoint
@@ -372,7 +417,7 @@ model Notification {
   organisationId String
   rentalId       String
 
-  kind NotificationKind
+  kind      NotificationKind
   /// What makes this send distinct — the Zurich day of an endAt, a week
   /// number. Never a timestamp, which would be unique on every run and so
   /// would dedupe nothing.
@@ -401,7 +446,7 @@ model ActionToken {
   organisationId String
   rentalId       String
 
-  purpose ActionTokenPurpose
+  purpose   ActionTokenPurpose
   /// SHA-256 of the token. The token itself exists only in the email, so a
   /// database dump does not hand over a set of live links.
   tokenHash String             @unique
@@ -429,7 +474,7 @@ model AdminUser {
   organisationId String
 
   /// Lowercased and trimmed on write. `[a-z0-9._-]{3,32}`.
-  username String
+  username    String
   /// What attribution shows, e.g. "Eng Ahmed".
   displayName String
   role        AdminRole @default(staff)
@@ -450,7 +495,7 @@ model AdminUser {
   lastSignInAt DateTime?
   createdAt    DateTime  @default(now())
   /// The owner who created this account. Null for the seeded one.
-  createdById String?
+  createdById  String?
 
   organisation Organisation @relation(fields: [organisationId], references: [id])
 

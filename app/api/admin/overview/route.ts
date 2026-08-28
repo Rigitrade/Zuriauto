@@ -47,6 +47,35 @@ export interface AdminOverview {
     /** Set once the renter has submitted a return the office has not confirmed. */
     returnSubmittedAt: string | null;
     returnContractNumber: string | null;
+    /**
+     * Everything the renter wrote on the return protocol, so the office can
+     * read it before pressing the button that frees the car.
+     *
+     * Null until a return is submitted. Every field inside is nullable in
+     * turn: an older addendum, written before these columns existed, has a
+     * signature and a mileage and nothing else, and must render as gaps
+     * rather than as confident falsehoods.
+     */
+    returnReport: {
+      mileageKm: number;
+      distanceKm: number | null;
+      fuelLevel: string;
+      damageNotes: string;
+      cleanliness: string | null;
+      papersInside: boolean | null;
+      keyReturned: boolean | null;
+      tickets: boolean | null;
+      ticketsNote: string;
+      fullyPaid: boolean | null;
+      paymentMethods: string[];
+      paidAmountCents: number | null;
+      paidOn: string | null;
+      hasDuePayment: boolean | null;
+      dueAmountCents: number | null;
+      dueDate: string | null;
+      dueMethod: string | null;
+      depositBack: boolean | null;
+    } | null;
   }[];
   counts: {
     available: number;
@@ -132,7 +161,30 @@ export async function GET(request: Request) {
       // number rather than in a second query per row.
       contracts: {
         orderBy: { signedAt: "desc" },
-        select: { kind: true, contractNumber: true, signedAt: true },
+        select: {
+          kind: true,
+          contractNumber: true,
+          signedAt: true,
+          // Pickup mileage is what makes the return's figure mean anything:
+          // 121,450 km is a number, "1,450 km driven" is the fact.
+          mileageKm: true,
+          fuelLevel: true,
+          damageNotes: true,
+          cleanliness: true,
+          papersInside: true,
+          keyReturned: true,
+          tickets: true,
+          ticketsNote: true,
+          fullyPaid: true,
+          paymentMethods: true,
+          paidAmountCents: true,
+          paidOn: true,
+          hasDuePayment: true,
+          dueAmountCents: true,
+          dueDate: true,
+          dueMethod: true,
+          depositBack: true,
+        },
       },
     },
   });
@@ -196,6 +248,31 @@ export async function GET(request: Request) {
         contractNumber: pickup?.contractNumber ?? null,
         returnSubmittedAt: addendum?.signedAt.toISOString() ?? null,
         returnContractNumber: addendum?.contractNumber ?? null,
+        returnReport: addendum
+          ? {
+              mileageKm: addendum.mileageKm,
+              distanceKm:
+                pickup === undefined
+                  ? null
+                  : addendum.mileageKm - pickup.mileageKm,
+              fuelLevel: addendum.fuelLevel,
+              damageNotes: addendum.damageNotes,
+              cleanliness: addendum.cleanliness,
+              papersInside: addendum.papersInside,
+              keyReturned: addendum.keyReturned,
+              tickets: addendum.tickets,
+              ticketsNote: addendum.ticketsNote,
+              fullyPaid: addendum.fullyPaid,
+              paymentMethods: addendum.paymentMethods,
+              paidAmountCents: addendum.paidAmountCents,
+              paidOn: addendum.paidOn?.toISOString() ?? null,
+              hasDuePayment: addendum.hasDuePayment,
+              dueAmountCents: addendum.dueAmountCents,
+              dueDate: addendum.dueDate?.toISOString() ?? null,
+              dueMethod: addendum.dueMethod,
+              depositBack: addendum.depositBack,
+            }
+          : null,
       };
     }),
     counts: {

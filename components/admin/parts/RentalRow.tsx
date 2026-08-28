@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { day } from "@/components/admin/format";
+import { ReturnReview } from "./ReturnReview";
 import type { Labels, Rental } from "@/components/admin/types";
 
 /**
@@ -27,10 +28,20 @@ export function RentalRow({
   onClose: () => Promise<boolean>;
 }) {
   const [confirming, setConfirming] = useState(false);
+  const [reviewing, setReviewing] = useState(false);
   const returned = Boolean(rental.returnSubmittedAt);
 
   return (
     <li className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3 border-t border-[var(--admin-rule)] px-4 py-3.5 first:border-t-0">
+      <ReturnReview
+        rental={rental}
+        L={L}
+        busy={busy}
+        open={reviewing}
+        onClose={() => setReviewing(false)}
+        onApprove={onClose}
+      />
+
       <div className="min-w-0 flex-1">
         <p className="flex flex-wrap items-center gap-2">
           <span className="font-medium">{rental.customerName}</span>
@@ -62,7 +73,18 @@ export function RentalRow({
 
       {/* Confirmed, because it moves two rows and is an override rather than
           the return protocol. */}
-      {confirming ? (
+      {returned ? (
+        /* A submitted return is never closed blind. The review modal is the
+           only path to the button for these, because this is exactly the case
+           where the answers that decide money exist and were unreadable. */
+        <button
+          type="button"
+          onClick={() => setReviewing(true)}
+          className="h-9 shrink-0 rounded-md bg-[var(--admin-accent)] px-3 text-sm font-medium text-[var(--admin-accent-ink)] transition-opacity hover:opacity-90"
+        >
+          {L.ret.heading}
+        </button>
+      ) : confirming ? (
         <div className="flex shrink-0 items-center gap-2">
           <button
             type="button"

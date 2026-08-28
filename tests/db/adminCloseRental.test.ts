@@ -7,6 +7,31 @@ import { ADMIN_COOKIE, issueAdminSession } from "@/lib/admin/session";
 import { persistPickup, type PickupUpload } from "@/lib/rental/persistPickup";
 import type { ContractDetails } from "@/lib/rental/schema";
 import { createMemoryStore } from "@/lib/storage";
+import { persistReturn } from "@/lib/rental/persistReturn";
+import type { ReturnDetails } from "@/lib/rental/returnSchema";
+
+/** The renter's own answers; the tests below vary only the settlement. */
+const returnDetails: ReturnDetails = {
+  vehicleId: "prius-zh513925",
+  mileageKm: 121_450,
+  papersInside: "yes",
+  keyReturned: "yes",
+  fuelLevel: "1/2",
+  cleanliness: "clean",
+  damages: "",
+  tickets: "no",
+  ticketsNote: "",
+  fullyPaid: "yes",
+  paymentMethods: ["twint"],
+  paidOn: "2026-09-14",
+  hasDuePayment: "no",
+  dueDate: "",
+  depositBack: "yes",
+  lastName: "Meier",
+  firstName: "Anna",
+  email: "anna@example.ch",
+  place: "Zurich",
+};
 import { ensureOrganisation, seedFleet } from "@/prisma/seed";
 
 const SECRET = "test-admin-secret";
@@ -91,6 +116,31 @@ async function fleetSlugs(): Promise<string[]> {
   return body.vehicles.map((v: { id: string }) => v.id);
 }
 
+/** A rental whose renter has submitted a return declaring what is still owed. */
+async function returnedRentalOwing(
+  owing: { dueAmountChf?: number; dueDate?: string }
+): Promise<string> {
+  const saved = await activeRental();
+  const store = createMemoryStore();
+  await persistReturn({
+    organisationId: (await ensureOrganisation(prisma)).id,
+    details: {
+      ...returnDetails,
+      hasDuePayment: owing.dueAmountChf === undefined ? "no" : "yes",
+      dueAmountChf: owing.dueAmountChf,
+      dueDate: owing.dueDate ?? "",
+    },
+    vehicleSlug: details.vehicleId,
+    returnNumber: "ZR-20260914-513925-TEST",
+    uploads: [
+      { kind: "SIGNATURE", body: new Uint8Array([10]), contentType: "image/png" },
+    ],
+    pdf: { body: new Uint8Array([11]) },
+    store,
+  });
+  return saved.rentalId;
+}
+
 describe("POST /api/admin/rentals/[id]/close", () => {
   beforeEach(() => {
     process.env.ADMIN_SECRET = SECRET;
@@ -161,5 +211,58 @@ describe("POST /api/admin/rentals/[id]/close", () => {
     expect(
       await prisma.asset.count({ where: { contractId: saved.contractId } })
     ).toBe(1);
+  });
+});
+
+/**
+ * The settlement the renter declared has to become something the system will
+ * chase. Until this existed, "I still owe 200 francs, due the 30th" was text
+ * inside a PDF: no Charge, so no reminder, no office alert, nothing.
+ *
+ * It is raised on confirmation rather than at submission on purpose — the
+ * office reads the figure in the review modal first, so nobody is chased over
+ * a number a customer typed and no one checked.
+ */
+describe("closing a rental settles the return's declared balance", () => {
+  it("raises a charge for the outstanding amount", async () => {
+    const rentalId = await returnedRentalOwing({
+      dueAmountChf: 200,
+      dueDate: "2026-09-30",
+    });
+
+    await POST(await request(), params(rentalId));
+
+    const charges = await prisma.charge.findMany({ where: { rentalId } });
+    const settlement = charges.find((charge) => charge.weekNumber === 0);
+    expect(settlement).toBeDefined();
+    expect(settlement?.amountCents).toBe(20_000);
+    expect(settlement?.status).toBe("SCHEDULED");
+    expect(settlement?.dueDate.toISOString().slice(0, 10)).toBe("2026-09-30");
+  });
+
+  it("raises nothing when the renter owed nothing", async () => {
+    const rentalId = await returnedRentalOwing({});
+
+    await POST(await request(), params(rentalId));
+
+    const charges = await prisma.charge.findMany({ where: { rentalId } });
+    expect(charges.some((charge) => charge.weekNumber === 0)).toBe(false);
+  });
+
+  it("does not raise a second charge if the close is retried", async () => {
+    // weekNumber 0 is unique per rental, so a retry after a partial failure
+    // cannot bill somebody twice for the same balance.
+    const rentalId = await returnedRentalOwing({
+      dueAmountChf: 150,
+      dueDate: "2026-10-05",
+    });
+
+    await POST(await request(), params(rentalId));
+    await POST(await request(), params(rentalId));
+
+    const settlements = await prisma.charge.findMany({
+      where: { rentalId, weekNumber: 0 },
+    });
+    expect(settlements).toHaveLength(1);
   });
 });

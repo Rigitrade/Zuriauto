@@ -109,6 +109,63 @@ function submitReturn(
   });
 }
 
+describe("the return protocol reaches columns, not only the PDF", () => {
+  it("records every answer the renter gave", async () => {
+    const { organisationId, store } = await ready();
+    await rentalOut(organisationId, store);
+    await submitReturn(organisationId, store, {
+        cleanliness: "needsWash",
+        papersInside: "no",
+        keyReturned: "yes",
+        tickets: "yes",
+        ticketsNote: "Parkbusse Zürich, 40 CHF",
+        fullyPaid: "no",
+        paymentMethods: ["twint", "cash"],
+        paidAmountChf: 300,
+        paidOn: "2026-09-14",
+        hasDuePayment: "yes",
+        dueAmountChf: 200,
+        dueDate: "2026-09-30",
+        dueMethod: "bank",
+      depositBack: "no",
+    });
+
+    const addendum = await prisma.contract.findFirstOrThrow({
+      where: { kind: "RETURN_ADDENDUM" },
+    });
+
+    expect(addendum.cleanliness).toBe("needsWash");
+    expect(addendum.papersInside).toBe(false);
+    expect(addendum.keyReturned).toBe(true);
+    expect(addendum.tickets).toBe(true);
+    expect(addendum.ticketsNote).toBe("Parkbusse Zürich, 40 CHF");
+    expect(addendum.fullyPaid).toBe(false);
+    expect(addendum.paymentMethods).toEqual(["twint", "cash"]);
+    // Francs in, cents stored — the same convention as Charge.amountCents.
+    expect(addendum.paidAmountCents).toBe(30_000);
+    expect(addendum.dueAmountCents).toBe(20_000);
+    expect(addendum.dueMethod).toBe("bank");
+    expect(addendum.hasDuePayment).toBe(true);
+    expect(addendum.depositBack).toBe(false);
+    expect(addendum.dueDate?.toISOString().slice(0, 10)).toBe("2026-09-30");
+  });
+
+  it("leaves the pickup contract's return columns null", async () => {
+    // A pickup has no opinion about whether the key came back. `false` would
+    // claim it did not, which is why these are nullable rather than defaulted.
+    const { organisationId, store } = await ready();
+    await rentalOut(organisationId, store);
+
+    const contract = await prisma.contract.findFirstOrThrow({
+      where: { kind: "PICKUP" },
+    });
+    expect(contract.cleanliness).toBeNull();
+    expect(contract.keyReturned).toBeNull();
+    expect(contract.depositBack).toBeNull();
+    expect(contract.paymentMethods).toEqual([]);
+  });
+});
+
 describe("persistReturn", () => {
   it("writes a return addendum against the rental the car is out on", async () => {
     const { organisationId, store } = await ready();
