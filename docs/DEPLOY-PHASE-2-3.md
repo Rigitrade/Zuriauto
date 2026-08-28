@@ -57,11 +57,11 @@ DATABASE_URL="<neon pooled url>" pnpm exec prisma migrate deploy
 Expect two migrations: `…_init` and `…_lifecycle`.
 
 ```bash
-# One Organisation row and the eight fleet vehicles.
+# One Organisation row and the nine fleet vehicles.
 DATABASE_URL="<neon pooled url>" pnpm db:seed
 ```
 
-- [ ] Verify: `SELECT count(*) FROM "Car";` returns 8.
+- [ ] Verify: `SELECT count(*) FROM "Car";` returns 9.
 
 ---
 
@@ -185,7 +185,7 @@ Old links that carry the key keep working: `/apply/` now redirects to
 ```bash
 curl -s https://zuriauto.ch/api/fleet/ | head -c 200
 ```
-Expect eight vehicles.
+Expect nine vehicles.
 
 **b. The write fence holds.**
 
@@ -298,21 +298,25 @@ GET for exactly this reason, and nothing in the code changes. Remove the
       the link *is* the credential: anyone who has it can create a rental, so it
       should not be forwarded outside the office.
 - [ ] The return form at `https://zuriauto.ch/return/` is **not** fenced by this
-      key, because it is filled in by the renter. It emails a signed return
-      report and does not yet write to the database or free the car — that is
-      Phase 4. Until then a return still needs the SQL below.
+      key, because it is filled in by the renter. Since Phase 4 it **records
+      the return**: the rental moves to `RETURN_SUBMITTED` and the signed
+      report is stored against it. It deliberately does **not** free the car —
+      an unfenced form must not be able to put a car somebody is driving back
+      into the picker. The office confirms in `/admin`, which is one click.
 - [ ] Show them how to take a car off the road:
       `UPDATE "Car" SET status = 'maintenance' WHERE plate = '…';`
 - [ ] Show them the traffic-fine lookup — see `docs/RENTAL-CONTRACT-SETUP.md`.
 - [ ] Tell them marking a charge paid is a SQL statement until Phase 5.
-- [ ] Tell them **closing a rental is also SQL** until Phase 4. Nothing in the
-      code sets a rental to `COMPLETED` or a car back to `available`, so a car
-      that has come back stays `rented` and disappears from the picker until
-      somebody runs:
-      `UPDATE "Rental" SET status = 'COMPLETED' WHERE id = '…';`
-      `UPDATE "Car" SET status = 'available' WHERE plate = '…';`
-      This is the first thing they will hit in real use, so say it out loud
-      rather than leaving it in a document.
+- [ ] **Closing a rental is a button, not SQL.** `/admin` lists every rental
+      that is out; one marked **Zurückgegeben – bestätigen** is one the renter
+      has already filled the return form for. Confirming it sets the rental
+      `COMPLETED` and the car `available` in one transaction, and the car
+      reappears in the picker.
+      This is the first thing they will hit in real use, so show them the
+      button rather than leaving it in a document.
+- [ ] Tell them what the **Rückgabe offen** count means: cars the renter says
+      are back that nobody here has confirmed. It should normally be zero by
+      the end of the day.
 
 ---
 

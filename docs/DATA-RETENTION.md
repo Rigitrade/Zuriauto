@@ -1,6 +1,8 @@
 # What is kept, where, and for how long
 
-**Status:** retention periods are NOT yet signed off. See "Retention" below.
+**Status:** retention periods agreed by the owner on 2026-08-22. See
+"Retention" below. No deletion job exists yet, so the clock is documented
+rather than enforced.
 **Applies from:** Phase 2 (persistence), 2026-08-18.
 
 Phase 2 changed the obligation. Until now, identity documents were emailed and

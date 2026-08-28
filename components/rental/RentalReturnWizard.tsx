@@ -407,6 +407,7 @@ export default function RentalReturnWizard() {
         "meta",
         JSON.stringify({
           returnNumber,
+          vehicleId: vehicle.id,
           customerName: `${parsed.data.firstName} ${parsed.data.lastName}`,
           customerEmail: parsed.data.email,
           vehicleLabel: vehicle.model,
@@ -414,6 +415,19 @@ export default function RentalReturnWizard() {
           mileageKm: parsed.data.mileageKm,
           language,
         })
+      );
+      // The full answers, so the return can be recorded rather than only read
+      // off a PDF. Validated again server-side; see the route.
+      body.append("details", JSON.stringify(parsed.data));
+      // The signature travels beside the PDF for the same reason the pickup's
+      // images do: it is inside the document, but a document is not a place to
+      // look one up from.
+      body.append(
+        "asset:SIGNATURE",
+        new Blob([dataUrlToBytes(signature) as unknown as BlobPart], {
+          type: "image/png",
+        }),
+        "signature.png"
       );
       // Honeypot: a real customer never fills a field they cannot see.
       body.append("company", "");

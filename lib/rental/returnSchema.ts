@@ -177,6 +177,15 @@ export type ReturnDetails = z.infer<typeof returnDetailsSchema>;
  */
 export const returnMetaSchema = z.object({
   returnNumber: z.string().trim().min(1).max(64),
+  /**
+   * The vehicle's `FleetVehicle.id`, i.e. `Car.slug`.
+   *
+   * Carried alongside the plate from Phase 4, because the plate is a printed
+   * string and the slug is the key the database is actually indexed on. The
+   * two agree today; matching on the one that cannot be reformatted keeps
+   * them from having to.
+   */
+  vehicleId: z.string().trim().min(1).max(120),
   customerName: z.string().trim().min(1).max(200),
   customerEmail: z.email().max(200),
   vehicleLabel: z.string().trim().min(1).max(200),

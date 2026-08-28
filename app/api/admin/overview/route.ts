@@ -35,12 +35,17 @@ export interface AdminOverview {
     startAt: string;
     endAt: string;
     contractNumber: string | null;
+    /** Set once the renter has submitted a return the office has not confirmed. */
+    returnSubmittedAt: string | null;
+    returnContractNumber: string | null;
   }[];
   counts: {
     available: number;
     retired: number;
     rented: number;
     activeRentals: number;
+    /** Returns recorded by the renter and not yet confirmed by the office. */
+    returnsAwaiting: number;
     contracts: number;
     mailFailed: number;
   };
@@ -83,18 +88,23 @@ export async function GET(request: Request) {
       organisationId: organisation.id,
       status: { notIn: ["COMPLETED", "CANCELLED"] },
     },
-    orderBy: { endAt: "asc" },
+    // Returns awaiting confirmation first: "what came back that I have not
+    // dealt with" is the question the office opens this page to answer.
+    // RentalStatus is declared ACTIVE, EXTENSION_REQUESTED, RETURN_SUBMITTED,
+    // so descending puts a submitted return at the top.
+    orderBy: [{ status: "desc" }, { endAt: "asc" }],
     select: {
       id: true,
+      status: true,
       startAt: true,
       endAt: true,
       car: { select: { plate: true, model: true } },
       customer: { select: { firstName: true, lastName: true } },
+      // Both kinds, so the return addendum can be reported beside the pickup
+      // number rather than in a second query per row.
       contracts: {
-        where: { kind: "PICKUP" },
         orderBy: { signedAt: "desc" },
-        take: 1,
-        select: { contractNumber: true },
+        select: { kind: true, contractNumber: true, signedAt: true },
       },
     },
   });
@@ -123,20 +133,31 @@ export async function GET(request: Request) {
       status: car.status,
       activeRentalId: car.rentals[0]?.id ?? null,
     })),
-    rentals: rentals.map((rental) => ({
-      id: rental.id,
-      carPlate: rental.car.plate,
-      carModel: rental.car.model,
-      customerName: `${rental.customer.firstName} ${rental.customer.lastName}`,
-      startAt: rental.startAt.toISOString(),
-      endAt: rental.endAt.toISOString(),
-      contractNumber: rental.contracts[0]?.contractNumber ?? null,
-    })),
+    rentals: rentals.map((rental) => {
+      const pickup = rental.contracts.find((c) => c.kind === "PICKUP");
+      const addendum = rental.contracts.find(
+        (c) => c.kind === "RETURN_ADDENDUM"
+      );
+      return {
+        id: rental.id,
+        carPlate: rental.car.plate,
+        carModel: rental.car.model,
+        customerName: `${rental.customer.firstName} ${rental.customer.lastName}`,
+        startAt: rental.startAt.toISOString(),
+        endAt: rental.endAt.toISOString(),
+        contractNumber: pickup?.contractNumber ?? null,
+        returnSubmittedAt: addendum?.signedAt.toISOString() ?? null,
+        returnContractNumber: addendum?.contractNumber ?? null,
+      };
+    }),
     counts: {
       available: cars.filter((car) => car.status === "available").length,
       retired: cars.filter((car) => car.status === "retired").length,
       rented: cars.filter((car) => car.status === "rented").length,
       activeRentals: rentals.length,
+      returnsAwaiting: rentals.filter(
+        (rental) => rental.status === "RETURN_SUBMITTED"
+      ).length,
       contracts,
       mailFailed,
     },

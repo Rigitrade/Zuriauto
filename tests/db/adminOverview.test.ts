@@ -4,6 +4,8 @@ import { GET } from "@/app/api/admin/overview/route";
 import { prisma } from "@/lib/db";
 import { ADMIN_COOKIE, issueAdminSession } from "@/lib/admin/session";
 import { persistPickup, type PickupUpload } from "@/lib/rental/persistPickup";
+import { persistReturn } from "@/lib/rental/persistReturn";
+import type { ReturnDetails } from "@/lib/rental/returnSchema";
 import type { ContractDetails } from "@/lib/rental/schema";
 import { createMemoryStore } from "@/lib/storage";
 import { ensureOrganisation, seedFleet } from "@/prisma/seed";
@@ -35,6 +37,28 @@ const details: ContractDetails = {
   gtcVersion: "2026-07-31",
   gtcLanguage: "de",
   acceptedAt: "2026-08-17T08:00:00.000Z",
+  place: "Zurich",
+};
+
+const returnDetails: ReturnDetails = {
+  vehicleId: "prius-zh513925",
+  mileageKm: 121_000,
+  papersInside: "yes",
+  keyReturned: "yes",
+  fuelLevel: "1/2",
+  cleanliness: "clean",
+  damages: "",
+  tickets: "no",
+  ticketsNote: "",
+  fullyPaid: "yes",
+  paymentMethods: ["twint"],
+  paidOn: "",
+  hasDuePayment: "no",
+  dueDate: "",
+  depositBack: "yes",
+  lastName: "Meier",
+  firstName: "Anna",
+  email: "anna@example.ch",
   place: "Zurich",
 };
 
@@ -189,4 +213,61 @@ describe("GET /api/admin/overview", () => {
     expect(body.counts.contracts).toBe(0);
     expect(body.latestContractAt).toBeNull();
   });
+it("marks a rental whose return the renter has submitted", async () => {
+    const org = await ensureOrganisation(prisma);
+    await seedFleet(prisma, org.id);
+    const store = createMemoryStore();
+
+    await persistPickup({
+      organisationId: org.id,
+      details,
+      vehicleSlug: details.vehicleId,
+      uploads,
+      pdf: { body: new Uint8Array([7]) },
+      store,
+    });
+
+    await persistReturn({
+      organisationId: org.id,
+      details: returnDetails,
+      vehicleSlug: details.vehicleId,
+      returnNumber: "ZR-20260914-513925-A1B2",
+      uploads: [
+        { kind: "SIGNATURE", body: new Uint8Array([9]), contentType: "image/png" },
+      ],
+      pdf: { body: new Uint8Array([8]) },
+      store,
+    });
+
+    const body = await (await GET(signedIn())).json();
+
+    expect(body.counts.returnsAwaiting).toBe(1);
+    // Still an active rental as far as the office is concerned: the car is not
+    // free until somebody confirms.
+    expect(body.counts.activeRentals).toBe(1);
+    expect(body.counts.rented).toBe(1);
+
+    const rental = body.rentals[0];
+    expect(rental.returnSubmittedAt).toBeTruthy();
+    expect(rental.returnContractNumber).toBe("ZR-20260914-513925-A1B2");
+  });
+
+  it("reports no awaiting returns while every car is simply out", async () => {
+    const org = await ensureOrganisation(prisma);
+    await seedFleet(prisma, org.id);
+
+    await persistPickup({
+      organisationId: org.id,
+      details,
+      vehicleSlug: details.vehicleId,
+      uploads,
+      pdf: { body: new Uint8Array([7]) },
+      store: createMemoryStore(),
+    });
+
+    const body = await (await GET(signedIn())).json();
+    expect(body.counts.returnsAwaiting).toBe(0);
+    expect(body.rentals[0].returnSubmittedAt).toBeNull();
+  });
+
 });

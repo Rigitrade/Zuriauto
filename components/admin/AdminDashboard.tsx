@@ -30,6 +30,8 @@ interface Rental {
   startAt: string;
   endAt: string;
   contractNumber: string | null;
+  returnSubmittedAt: string | null;
+  returnContractNumber: string | null;
 }
 
 interface Overview {
@@ -40,6 +42,7 @@ interface Overview {
     retired: number;
     rented: number;
     activeRentals: number;
+    returnsAwaiting: number;
     contracts: number;
     mailFailed: number;
   };
@@ -197,6 +200,7 @@ export default function AdminDashboard() {
               ["Vermietet", counts.rented],
               ["Ausser Betrieb", counts.retired],
               ["Aktive Mieten", counts.activeRentals],
+              ["Rückgabe offen", counts.returnsAwaiting],
               ["Verträge", counts.contracts],
               ["Mail offen", counts.mailFailed],
             ].map(([label, value]) => (
@@ -483,10 +487,24 @@ function RentalRow({
       <div>
         <p className="font-medium text-slate-900">
           {rental.carPlate} · {rental.customerName}
+          {/* The renter has filled in the return form; the car stays marked
+              rented until somebody here confirms it. */}
+          {rental.returnSubmittedAt && (
+            <span className="ml-2 rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900">
+              Zurückgegeben – bestätigen
+            </span>
+          )}
         </p>
         <p className="text-xs text-slate-500">
           {day(rental.startAt)} – {day(rental.endAt)}
           {rental.contractNumber ? ` · ${rental.contractNumber}` : ""}
+          {rental.returnSubmittedAt
+            ? ` · Rückgabe ${day(rental.returnSubmittedAt)}${
+                rental.returnContractNumber
+                  ? ` · ${rental.returnContractNumber}`
+                  : ""
+              }`
+            : ""}
         </p>
       </div>
 
