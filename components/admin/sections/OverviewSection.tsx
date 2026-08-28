@@ -61,7 +61,7 @@ export function OverviewSection() {
         </dl>
       </div>
 
-      <p className="text-xs text-slate-500">
+      <p className="px-1 text-xs text-[var(--admin-faint)]">
         {L.counts.contracts}: {counts.contracts}
         {data.latestContractAt
           ? ` · ${L.fleet.latestContract}: ${day(data.latestContractAt)}`
@@ -73,9 +73,11 @@ export function OverviewSection() {
 
 function Tile({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3">
-      <dt className="text-xs text-slate-500">{label}</dt>
-      <dd className="text-xl font-semibold tabular-nums text-slate-900">{value}</dd>
+    <div className="rounded-xl border border-[var(--admin-rule)] bg-[var(--admin-surface)] px-4 py-3">
+      <dt className="text-xs text-[var(--admin-muted)]">{label}</dt>
+      <dd className="mt-0.5 text-2xl font-semibold tabular-nums tracking-tight">
+        {value}
+      </dd>
     </div>
   );
 }

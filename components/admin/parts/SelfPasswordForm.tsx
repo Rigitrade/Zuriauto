@@ -25,9 +25,8 @@ export function SelfPasswordForm({
         event.preventDefault();
         if (await onChangePassword(password)) setPassword("");
       }}
-      className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white p-3"
+      className="flex flex-wrap items-end gap-2"
     >
-      <span className="text-sm text-slate-600">{L.accounts.myPassword}</span>
       <PasswordInput
         value={password}
         onChange={setPassword}
@@ -38,7 +37,7 @@ export function SelfPasswordForm({
       <button
         type="submit"
         disabled={busy || password.length < 10}
-        className="h-10 rounded-md border border-slate-300 px-3 text-sm text-slate-700 disabled:opacity-50"
+        className="h-10 shrink-0 rounded-md bg-[var(--admin-accent)] px-4 text-sm font-medium text-[var(--admin-accent-ink)] transition-opacity hover:opacity-90 disabled:opacity-40"
       >
         {L.accounts.setPassword}
       </button>

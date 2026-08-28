@@ -65,7 +65,7 @@ export function AccountActions({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center justify-end gap-2">
       <PasswordInput
         value={newPassword}
         onChange={setNewPassword}
@@ -77,7 +77,7 @@ export function AccountActions({
         type="button"
         disabled={busy || newPassword.length < 10}
         onClick={() => patch({ password: newPassword })}
-        className="h-10 rounded-md bg-slate-900 px-3 text-sm text-white disabled:opacity-50"
+        className="h-9 shrink-0 rounded-md bg-[var(--admin-accent)] px-3 text-sm font-medium text-[var(--admin-accent-ink)] transition-opacity hover:opacity-90 disabled:opacity-40"
       >
         {L.accounts.setPassword}
       </button>
@@ -86,13 +86,13 @@ export function AccountActions({
           type="button"
           disabled={busy}
           onClick={() => patch({ disabled: !account.disabledAt })}
-          className="h-10 rounded-md border border-slate-300 px-3 text-sm text-slate-700 disabled:opacity-50"
+          className="h-9 shrink-0 rounded-md border border-[var(--admin-rule-strong)] px-3 text-sm text-[var(--admin-muted)] transition-colors hover:bg-[var(--admin-sunk)] hover:text-[var(--admin-ink)] disabled:opacity-40"
         >
           {account.disabledAt ? L.accounts.enable : L.accounts.disable}
         </button>
       ) : (
         disabledHint && (
-          <span className="text-xs text-slate-400">{disabledHint}</span>
+          <span className="text-xs text-[var(--admin-faint)]">{disabledHint}</span>
         )
       )}
     </div>

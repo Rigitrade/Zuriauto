@@ -7,6 +7,7 @@ import { useAdmin } from "@/components/admin/shell/AdminContext";
 import { AccountActions } from "@/components/admin/parts/AccountActions";
 import { PasswordInput } from "@/components/admin/parts/PasswordInput";
 import { Dialog } from "@/components/admin/parts/Dialog";
+import { Panel } from "@/components/admin/parts/Panel";
 import { day } from "@/components/admin/format";
 import { messageForCode } from "@/lib/admin/labels";
 import { USERNAME_PATTERN } from "@/lib/admin/users";
@@ -96,30 +97,30 @@ export function AccountsSection() {
       >
         <form onSubmit={createAccount} className="grid gap-3">
           <label className="grid gap-1">
-            <span className="text-xs text-slate-500">{L.accounts.displayName}</span>
+            <span className="text-xs text-[var(--admin-muted)]">{L.accounts.displayName}</span>
             <input
               value={draft.displayName}
               onChange={(e) => setDraft({ ...draft, displayName: e.target.value })}
-              className="h-10 rounded-md border border-input px-3 text-sm"
+              className="h-10 rounded-md border border-[var(--admin-rule-strong)] bg-[var(--admin-surface)] px-3 text-sm outline-none focus-visible:border-[var(--admin-accent)] focus-visible:ring-2 focus-visible:ring-[var(--admin-accent)]/20"
             />
           </label>
           <label className="grid gap-1">
-            <span className="text-xs text-slate-500">{L.accounts.username}</span>
+            <span className="text-xs text-[var(--admin-muted)]">{L.accounts.username}</span>
             <input
               value={draft.username}
               onChange={(e) => setDraft({ ...draft, username: e.target.value })}
               autoCapitalize="none"
               spellCheck={false}
-              className="h-10 rounded-md border border-input px-3 text-sm"
+              className="h-10 rounded-md border border-[var(--admin-rule-strong)] bg-[var(--admin-surface)] px-3 text-sm outline-none focus-visible:border-[var(--admin-accent)] focus-visible:ring-2 focus-visible:ring-[var(--admin-accent)]/20"
             />
             {/* The rule stated before it is broken, rather than as a refusal
                 after the fact. */}
-            <span className="text-xs text-slate-400">
+            <span className="text-xs text-[var(--admin-faint)]">
               {L.accounts.usernameInvalid}
             </span>
           </label>
           <label className="grid gap-1">
-            <span className="text-xs text-slate-500">{L.accounts.newPassword}</span>
+            <span className="text-xs text-[var(--admin-muted)]">{L.accounts.newPassword}</span>
             <PasswordInput
               value={draft.password}
               onChange={(password) => setDraft({ ...draft, password })}
@@ -128,13 +129,13 @@ export function AccountsSection() {
             />
           </label>
           <label className="grid gap-1">
-            <span className="text-xs text-slate-500">{L.accounts.role}</span>
+            <span className="text-xs text-[var(--admin-muted)]">{L.accounts.role}</span>
             <select
               value={draft.role}
               onChange={(e) =>
                 setDraft({ ...draft, role: e.target.value as "owner" | "staff" })
               }
-              className="h-10 rounded-md border border-input px-2 text-sm"
+              className="h-10 rounded-md border border-[var(--admin-rule-strong)] bg-[var(--admin-surface)] px-2 text-sm outline-none focus-visible:border-[var(--admin-accent)]"
             >
               <option value="staff">{L.accounts.roles.staff}</option>
               <option value="owner">{L.accounts.roles.owner}</option>
@@ -142,38 +143,36 @@ export function AccountsSection() {
           </label>
           <button
             type="submit"
-            className="mt-1 h-10 rounded-md bg-slate-900 px-3 text-sm font-medium text-white transition-colors hover:bg-slate-800"
+            className="mt-1 h-10 rounded-md bg-[var(--admin-accent)] px-3 text-sm font-medium text-[var(--admin-accent-ink)] transition-opacity hover:opacity-90"
           >
             {L.accounts.create}
           </button>
         </form>
       </Dialog>
 
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-        <h2 className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 p-4 text-sm font-semibold text-slate-900">
-          <span>
-            {L.accounts.heading}
-            <span className="ml-2 font-normal text-slate-400">{accounts.length}</span>
-          </span>
+      <Panel
+        title={L.accounts.heading}
+        meta={String(accounts.length)}
+        action={
           <button
             type="button"
             onClick={() => setCreating(true)}
-            className="inline-flex h-9 items-center gap-1.5 rounded-md bg-slate-900 px-3 text-sm font-medium text-white transition-colors hover:bg-slate-800"
+            className="inline-flex h-9 items-center gap-1.5 rounded-md bg-[var(--admin-accent)] px-3 text-sm font-medium text-[var(--admin-accent-ink)] transition-opacity hover:opacity-90"
           >
             <Plus className="h-4 w-4" aria-hidden="true" />
             {L.accounts.addHeading}
           </button>
-        </h2>
-
+        }
+      >
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+          <table className="w-full min-w-[40rem] text-sm">
+            <thead className="bg-[var(--admin-sunk)] text-xs uppercase tracking-wider text-[var(--admin-faint)]">
               <tr>
-                <th className="p-3 text-left font-medium">{L.accounts.displayName}</th>
-                <th className="p-3 text-left font-medium">{L.accounts.username}</th>
-                <th className="p-3 text-left font-medium">{L.accounts.role}</th>
-                <th className="p-3 text-left font-medium">{L.accounts.lastSignIn}</th>
-                <th className="p-3" />
+                <th className="px-4 py-2.5 text-left font-medium">{L.accounts.displayName}</th>
+                <th className="px-4 py-2.5 text-left font-medium">{L.accounts.username}</th>
+                <th className="px-4 py-2.5 text-left font-medium">{L.accounts.role}</th>
+                <th className="px-4 py-2.5 text-left font-medium">{L.accounts.lastSignIn}</th>
+                <th className="px-4 py-2.5" />
               </tr>
             </thead>
             <tbody>
@@ -187,33 +186,35 @@ export function AccountsSection() {
                 return (
                   <tr
                     key={account.id}
-                    className={`border-t border-slate-200 ${
-                      me.id === account.id ? "shadow-[inset_3px_0_0_theme(colors.slate.900)]" : ""
+                    className={`border-t border-[var(--admin-rule)] transition-colors hover:bg-[var(--admin-sunk)]/50 ${
+                      me.id === account.id
+                        ? "shadow-[inset_3px_0_0_var(--admin-accent)]"
+                        : ""
                     }`}
                   >
-                    <td className="p-3 font-medium text-slate-900">
+                    <td className="px-4 py-3 font-medium">
                       {account.displayName}
                       {me.id === account.id && (
-                        <span className="ml-2 rounded bg-slate-900 px-1.5 py-0.5 text-[0.625rem] font-medium uppercase tracking-wide text-white">
+                        <span className="ml-2 rounded-full bg-[var(--admin-accent-soft)] px-2 py-0.5 text-[0.625rem] font-semibold uppercase tracking-wide text-[var(--admin-accent)]">
                           {L.accounts.you}
                         </span>
                       )}
                       {account.disabledAt && (
-                        <span className="ml-2 rounded bg-red-100 px-2 py-0.5 text-xs text-red-900">
+                        <span className="ml-2 rounded-full bg-[var(--admin-crit-soft)] px-2.5 py-0.5 text-xs font-medium text-[var(--admin-crit)]">
                           {L.accounts.disabled}
                         </span>
                       )}
                     </td>
-                    <td className="p-3 font-mono text-xs text-slate-600">
+                    <td className="px-4 py-3 font-mono text-xs text-[var(--admin-muted)]">
                       {account.username}
                     </td>
-                    <td className="p-3 text-slate-600">
+                    <td className="px-4 py-3 text-[var(--admin-muted)]">
                       {L.accounts.roles[account.role]}
                     </td>
-                    <td className="p-3 text-slate-500 tabular-nums">
+                    <td className="px-4 py-3 tabular-nums text-[var(--admin-faint)]">
                       {account.lastSignInAt ? day(account.lastSignInAt) : L.accounts.never}
                     </td>
-                    <td className="p-3">
+                    <td className="px-4 py-3">
                       <AccountActions
                         account={account}
                         isSelf={me.id === account.id}
@@ -231,7 +232,7 @@ export function AccountsSection() {
             </tbody>
           </table>
         </div>
-      </section>
+      </Panel>
     </>
   );
 }

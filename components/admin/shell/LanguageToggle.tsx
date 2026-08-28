@@ -11,7 +11,7 @@ export function LanguageToggle({
   onChoose: (next: AdminLanguage) => void;
 }) {
   return (
-    <div className="flex overflow-hidden rounded-md border border-slate-300 text-sm">
+    <div className="flex overflow-hidden rounded-md border border-[var(--admin-rule-strong)] text-sm">
       {(["de", "en"] as const).map((code) => (
         <button
           key={code}
@@ -20,8 +20,8 @@ export function LanguageToggle({
           aria-pressed={language === code}
           className={
             language === code
-              ? "bg-slate-900 px-3 py-1.5 text-white"
-              : "px-3 py-1.5 text-slate-700"
+              ? "bg-[var(--admin-accent)] px-3 py-1.5 font-medium text-[var(--admin-accent-ink)]"
+              : "px-3 py-1.5 text-[var(--admin-muted)] transition-colors hover:bg-[var(--admin-sunk)]"
           }
         >
           {code.toUpperCase()}

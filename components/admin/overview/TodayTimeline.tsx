@@ -33,32 +33,34 @@ export function TodayTimeline({
     .slice(0, 4);
 
   return (
-    <section className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-      <h2 className="flex items-baseline justify-between gap-2 border-b border-slate-200 px-4 py-2.5">
-        <span className="text-xs font-semibold text-slate-900">{L.overview.today}</span>
-        <span className="text-xs font-normal text-slate-400">{day(now.toISOString())}</span>
+    <section className="overflow-hidden rounded-xl border border-[var(--admin-rule)] bg-[var(--admin-surface)]">
+      <h2 className="flex items-baseline justify-between gap-2 border-b border-[var(--admin-rule)] px-4 py-2.5">
+        <span className="text-sm font-semibold tracking-tight">{L.overview.today}</span>
+        <span className="text-xs tabular-nums text-[var(--admin-faint)]">{day(now.toISOString())}</span>
       </h2>
 
       {upcoming.length === 0 ? (
-        <p className="px-4 py-3 text-sm text-slate-500">{L.overview.noReturnsToday}</p>
+        <p className="px-4 py-8 text-center text-sm text-[var(--admin-faint)]">{L.overview.noReturnsToday}</p>
       ) : (
-        <ul className="divide-y divide-slate-100">
+        <ul className="divide-y divide-[var(--admin-rule)]">
           {upcoming.map((rental) => {
             const overdue = Date.parse(rental.endAt) < now.getTime();
             return (
               <li key={rental.id} className="flex gap-4 px-4 py-2.5">
                 <span
                   className={`w-20 shrink-0 pt-0.5 text-xs tabular-nums ${
-                    overdue ? "font-semibold text-amber-700" : "text-slate-500"
+                    overdue
+                      ? "font-semibold text-[var(--admin-attn)]"
+                      : "text-[var(--admin-muted)]"
                   }`}
                 >
                   {day(rental.endAt)}
                 </span>
                 <span className="min-w-0 text-sm">
-                  <span className="font-medium text-slate-900">
+                  <span className="font-medium">
                     {rental.customerName}
                   </span>
-                  <span className="block text-xs text-slate-500">
+                  <span className="block text-xs text-[var(--admin-faint)]">
                     {rental.carModel} · {rental.carPlate}
                     {overdue ? ` · ${L.overview.overdue}` : ""}
                   </span>

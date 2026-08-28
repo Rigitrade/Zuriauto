@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { Check } from "lucide-react";
 import type { AttentionItem } from "@/lib/admin/attention";
 import type { Labels } from "@/components/admin/types";
 import { day } from "@/components/admin/format";
@@ -34,37 +35,43 @@ export function AttentionBand({
 }) {
   if (items.length === 0) {
     return (
-      <section className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
-        <p className="text-sm font-medium text-emerald-900">
-          {L.overview.nothingWaiting}
-        </p>
-        <p className="mt-0.5 text-xs text-emerald-800/80">
-          {L.overview.nothingWaitingHint}
-        </p>
+      <section className="flex items-start gap-3 rounded-xl border border-[var(--admin-rule)] bg-[var(--admin-surface)] px-4 py-3.5">
+        <span
+          className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[var(--admin-good-soft)] text-[var(--admin-good)]"
+          aria-hidden="true"
+        >
+          <Check className="h-3 w-3" />
+        </span>
+        <span>
+          <p className="text-sm font-medium">{L.overview.nothingWaiting}</p>
+          <p className="mt-0.5 text-xs text-[var(--admin-faint)]">
+            {L.overview.nothingWaitingHint}
+          </p>
+        </span>
       </section>
     );
   }
 
   return (
-    <section className="overflow-hidden rounded-xl border border-amber-300 border-l-4 bg-amber-50">
-      <h2 className="px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-amber-900">
+    <section className="overflow-hidden rounded-xl border border-[var(--admin-attn-rule)] border-l-[3px] border-l-[var(--admin-attn)] bg-[var(--admin-attn-soft)]">
+      <h2 className="px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-[var(--admin-attn)]">
         {L.overview.needsYou} · {items.length}
       </h2>
-      <ul className="divide-y divide-slate-200 border-t border-amber-200">
+      <ul className="divide-y divide-[var(--admin-rule)] border-t border-[var(--admin-attn-rule)]">
         {items.map((item) => (
           <li
             key={item.key}
-            className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 bg-white px-4 py-3"
+            className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 bg-[var(--admin-surface)] px-4 py-3"
           >
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-slate-900">
+              <p className="text-sm font-semibold">
                 {title(item, L)} — {item.customerName}
               </p>
-              <p className="mt-0.5 text-xs text-slate-500">{detail(item, L, now)}</p>
+              <p className="mt-0.5 text-xs text-[var(--admin-faint)]">{detail(item, L, now)}</p>
             </div>
             <div className="flex shrink-0 items-center gap-2">
               {item.kind === "return" && (
-                <span className="rounded bg-amber-100 px-2 py-0.5 text-[0.625rem] font-medium uppercase tracking-wide text-amber-900">
+                <span className="rounded-full bg-[var(--admin-attn-soft)] px-2.5 py-0.5 text-[0.625rem] font-medium uppercase tracking-wide text-[var(--admin-attn)] ring-1 ring-inset ring-[var(--admin-attn)]/25">
                   {L.overview.carStaysBlocked}
                 </span>
               )}
@@ -76,7 +83,7 @@ export function AttentionBand({
               ) : (
                 <Link
                   href="/admin/rentals"
-                  className="h-9 rounded-md border border-slate-300 px-3 text-sm leading-9 text-slate-700 transition-colors hover:bg-slate-50"
+                  className="h-9 shrink-0 rounded-md border border-[var(--admin-rule-strong)] px-3 text-sm leading-[2.125rem] text-[var(--admin-muted)] transition-colors hover:bg-[var(--admin-sunk)] hover:text-[var(--admin-ink)]"
                 >
                   {item.kind === "return" ? L.rentals.close : L.overview.open}
                 </Link>
@@ -133,7 +140,7 @@ function ResendButton({
 
   if (state === "sent") {
     return (
-      <span className="rounded bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-900">
+      <span className="rounded-full bg-[var(--admin-good-soft)] px-2.5 py-1 text-xs font-medium text-[var(--admin-good)]">
         {L.overview.sent}
       </span>
     );
@@ -150,7 +157,7 @@ function ResendButton({
         // once it is fixed.
         setState((await onResend()) ? "sent" : "idle");
       }}
-      className="h-9 rounded-md border border-slate-300 px-3 text-sm text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
+      className="h-9 rounded-md border border-[var(--admin-rule-strong)] px-3 text-sm text-[var(--admin-muted)] transition-colors hover:bg-[var(--admin-sunk)] hover:text-[var(--admin-ink)] disabled:opacity-40"
     >
       {state === "sending" ? "…" : L.overview.sendAgain}
     </button>

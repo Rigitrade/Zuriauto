@@ -52,7 +52,7 @@ export function AddCar({
       <button
         type="submit"
         disabled={busy || !model.trim() || !plate.trim()}
-        className="mt-1 h-10 rounded-md bg-slate-900 px-4 text-sm font-medium text-white transition-colors hover:bg-slate-800 disabled:opacity-50"
+        className="mt-1 h-10 rounded-md bg-[var(--admin-accent)] px-4 text-sm font-medium text-[var(--admin-accent-ink)] transition-opacity hover:opacity-90 disabled:opacity-40"
       >
         {L.fleet.add}
       </button>

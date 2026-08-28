@@ -37,7 +37,7 @@ export function SignIn({
   const [password, setPassword] = useState("");
 
   return (
-    <main className="grid min-h-screen place-items-center bg-slate-50 p-6">
+    <main className="grid min-h-screen place-items-center bg-[var(--admin-ground)] p-6 text-[var(--admin-ink)]">
       <div className="w-full max-w-sm space-y-4">
         <div className="flex justify-end">
           <LanguageToggle language={language} onChoose={onChooseLanguage} />
@@ -48,13 +48,20 @@ export function SignIn({
             await onSubmit(username, password);
             setPassword("");
           }}
-          className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+          className="space-y-5 rounded-2xl border border-[var(--admin-rule)] bg-[var(--admin-surface)] p-6 shadow-sm"
         >
-          <h1 className="text-lg font-semibold text-slate-900">{L.signIn.heading}</h1>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--admin-faint)]">
+              ZURIAUTO
+            </p>
+            <h1 className="mt-1 text-lg font-semibold tracking-tight">
+              {L.signIn.heading}
+            </h1>
+          </div>
 
           <div className="flex flex-col gap-3">
             <label className="flex flex-col gap-1">
-              <span className="text-sm text-slate-700">{L.signIn.username}</span>
+              <span className="text-sm text-[var(--admin-muted)]">{L.signIn.username}</span>
               <input
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
@@ -62,11 +69,11 @@ export function SignIn({
                 autoCapitalize="none"
                 spellCheck={false}
                 autoFocus
-                className="h-11 rounded-md border border-input px-3 text-base"
+                className="h-11 rounded-md border border-[var(--admin-rule-strong)] bg-[var(--admin-surface)] px-3 text-base outline-none focus-visible:border-[var(--admin-accent)] focus-visible:ring-2 focus-visible:ring-[var(--admin-accent)]/20"
               />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-sm text-slate-700">{L.signIn.password}</span>
+              <span className="text-sm text-[var(--admin-muted)]">{L.signIn.password}</span>
               <PasswordInput
                 value={password}
                 onChange={setPassword}
@@ -77,12 +84,12 @@ export function SignIn({
             </label>
           </div>
 
-          {message && <p className="text-sm text-red-600">{message}</p>}
+          {message && <p className="rounded-md bg-[var(--admin-crit-soft)] px-3 py-2 text-sm text-[var(--admin-crit)]">{message}</p>}
 
           <button
             type="submit"
             disabled={busy || !username || !password}
-            className="h-11 w-full rounded-md bg-slate-900 text-base font-medium text-white transition-colors hover:bg-slate-800 disabled:opacity-50"
+            className="h-11 w-full rounded-md bg-[var(--admin-accent)] text-base font-medium text-[var(--admin-accent-ink)] transition-opacity hover:opacity-90 disabled:opacity-40"
           >
             {busy ? "…" : L.signIn.submit}
           </button>

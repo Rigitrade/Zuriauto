@@ -12,11 +12,3 @@ export function day(iso: string): string {
   const [y, m, d] = date.split("-");
   return `${d}.${m}.${y}`;
 }
-
-/** Chip colours per car status. Paired with a word, never colour alone. */
-export const STATUS_STYLE: Record<string, string> = {
-  available: "bg-emerald-100 text-emerald-900",
-  rented: "bg-sky-100 text-sky-900",
-  maintenance: "bg-amber-100 text-amber-900",
-  retired: "bg-slate-200 text-slate-700",
-};

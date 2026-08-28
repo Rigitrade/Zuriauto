@@ -197,3 +197,39 @@ html {
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-foreground;
 }
+
+/* ==========================================================================
+   The fleet console (/admin)
+   --------------------------------------------------------------------------
+   A staff tool, deliberately its own visual world rather than the shopfront's.
+   The office looks at this all day at a desk, so it is denser and quieter than
+   the public site, and it commits to one light appearance: a car-rental desk
+   is not a place anyone asked for a dark mode, and a half-built one is worse
+   than none.
+
+   Three semantic states, kept separate from the accent. An accent that also
+   means "fine" cannot also mean "look here", and this screen's whole job is to
+   make one row louder than the others.
+   ========================================================================== */
+:root {
+  --admin-ground: #F4F6F5;
+  --admin-surface: #FFFFFF;
+  --admin-sunk: #EDF1F0;
+  --admin-ink: #14191A;
+  --admin-muted: #5C6A6C;
+  --admin-faint: #8B9799;
+  --admin-rule: #DDE3E2;
+  --admin-rule-strong: #C6CFCE;
+
+  --admin-accent: #0E5A63;
+  --admin-accent-ink: #FFFFFF;
+  --admin-accent-soft: #DDEDEE;
+
+  --admin-good: #1F6B4C;
+  --admin-good-soft: #E4F0E9;
+  --admin-attn: #8A5A0E;
+  --admin-attn-soft: #FBF0DC;
+  --admin-attn-rule: #E4C489;
+  --admin-crit: #A32B26;
+  --admin-crit-soft: #F8E3E1;
+}

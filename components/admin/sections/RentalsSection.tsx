@@ -2,24 +2,33 @@
 
 import { useAdmin } from "@/components/admin/shell/AdminContext";
 import { RentalRow } from "@/components/admin/parts/RentalRow";
+import { Panel } from "@/components/admin/parts/Panel";
 
 /** Every rental that is neither COMPLETED nor CANCELLED, returns awaiting
  *  confirmation first — "what came back that I have not dealt with" is the
  *  question this screen exists to answer. */
 export function RentalsSection() {
   const { L, data, busy, write } = useAdmin();
+  const rentals = data?.rentals ?? [];
+  const awaiting = rentals.filter((rental) => rental.returnSubmittedAt).length;
 
   return (
     <>
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-        <h2 className="border-b border-slate-200 p-4 text-sm font-semibold text-slate-900">
-          {L.rentals.heading}
-        </h2>
-        {data?.rentals.length === 0 ? (
-          <p className="p-4 text-sm text-slate-500">{L.rentals.none}</p>
+      <Panel
+        title={L.rentals.heading}
+        meta={
+          awaiting
+            ? `${rentals.length} · ${awaiting} ${L.counts.returnsAwaiting.toLowerCase()}`
+            : String(rentals.length)
+        }
+      >
+        {rentals.length === 0 ? (
+          <p className="px-4 py-8 text-center text-sm text-[var(--admin-faint)]">
+            {L.rentals.none}
+          </p>
         ) : (
-          <ul className="divide-y divide-slate-100">
-            {data?.rentals.map((rental) => (
+          <ul>
+            {rentals.map((rental) => (
               <RentalRow
                 key={rental.id}
                 rental={rental}
@@ -32,9 +41,9 @@ export function RentalsSection() {
             ))}
           </ul>
         )}
-      </section>
+      </Panel>
 
-      <p className="text-xs text-slate-400">{L.rentals.closeHint}</p>
+      <p className="px-1 text-xs text-[var(--admin-faint)]">{L.rentals.closeHint}</p>
     </>
   );
 }

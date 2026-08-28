@@ -9,10 +9,12 @@ import {
   type AdminLanguage,
 } from "@/lib/admin/labels";
 import type { Account, Me, Overview } from "@/components/admin/types";
+import { usePathname } from "next/navigation";
+import { LogOut } from "lucide-react";
 import { attentionItems } from "@/lib/admin/attention";
 import { AdminProvider } from "./AdminContext";
 import { LanguageToggle } from "./LanguageToggle";
-import { Rail } from "./Rail";
+import { isCurrent, Rail, railItems } from "./Rail";
 import { SignIn } from "./SignIn";
 
 /**
@@ -34,6 +36,7 @@ import { SignIn } from "./SignIn";
  * the single-file dashboard did.
  */
 export function AdminShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
   const [language, setLanguage] = useState<AdminLanguage>("de");
   const [me, setMe] = useState<Me | null>(null);
@@ -227,8 +230,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
   if (signedIn === null) {
     return (
-      <main className="grid min-h-screen place-items-center bg-slate-50 p-6">
-        <p className="text-sm text-slate-500">…</p>
+      <main className="grid min-h-screen place-items-center bg-[var(--admin-ground)] p-6">
+        <p className="text-sm text-[var(--admin-faint)]">…</p>
       </main>
     );
   }
@@ -251,6 +254,9 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   // showing 2 would teach the office to stop believing both.
   const attention = data ? attentionItems(data, new Date()).length : 0;
 
+  const items = railItems(L, me, attention);
+  const current = items.find((item) => isCurrent(pathname, item.href));
+
   return (
     <AdminProvider
       value={{
@@ -270,42 +276,81 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         changeMyPassword,
       }}
     >
-      <main className="min-h-screen bg-slate-50 p-4 sm:p-8">
-        <div className="mx-auto max-w-5xl space-y-6">
-          <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-4">
-            <div>
-              <h1 className="text-xl font-semibold text-slate-900">
-                {L.signIn.heading}
-              </h1>
-              <p className="text-sm text-slate-500">
-                {me.displayName} · {L.accounts.roles[me.role]}
-              </p>
+      <div className="flex min-h-screen bg-[var(--admin-ground)] text-[var(--admin-ink)]">
+        {/* The sidebar is its own scroll container pinned to the viewport, so
+            a long vehicle list scrolls under a navigation that stays put. */}
+        <aside className="sticky top-0 hidden h-screen w-56 shrink-0 flex-col border-r border-[var(--admin-rule)] bg-[var(--admin-surface)] md:flex lg:w-60">
+          <div className="px-5 py-5">
+            <p className="text-[0.9375rem] font-bold tracking-tight">ZURIAUTO</p>
+            <p className="text-xs text-[var(--admin-faint)]">{L.signIn.heading}</p>
+          </div>
+
+          <div className="flex-1 overflow-y-auto pb-4">
+            <Rail L={L} me={me} attention={attention} variant="sidebar" />
+          </div>
+
+          {/* Who you are, at the bottom, where an application puts it. */}
+          <div className="border-t border-[var(--admin-rule)] px-5 py-4">
+            <p className="truncate text-sm font-medium">{me.displayName}</p>
+            <p className="text-xs text-[var(--admin-faint)]">
+              {L.accounts.roles[me.role]}
+            </p>
+            <button
+              type="button"
+              onClick={signOut}
+              className="mt-2.5 inline-flex items-center gap-1.5 text-xs text-[var(--admin-muted)] underline-offset-2 transition-colors hover:text-[var(--admin-ink)] hover:underline"
+            >
+              <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
+              {L.nav.signOut}
+            </button>
+          </div>
+        </aside>
+
+        <div className="flex min-w-0 flex-1 flex-col">
+          <header className="sticky top-0 z-10 border-b border-[var(--admin-rule)] bg-[var(--admin-surface)]/95 backdrop-blur">
+            <div className="flex items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
+              <div className="min-w-0">
+                {/* The brand only appears here below md, where the sidebar
+                    carrying it is not on screen. */}
+                <p className="text-sm font-bold tracking-tight md:hidden">
+                  ZURIAUTO
+                </p>
+                <h1 className="truncate text-lg font-semibold tracking-tight">
+                  {current?.label ?? L.nav.overview}
+                </h1>
+              </div>
+              <div className="flex shrink-0 items-center gap-3">
+                <LanguageToggle language={language} onChoose={chooseLanguage} />
+                <button
+                  type="button"
+                  onClick={signOut}
+                  aria-label={L.nav.signOut}
+                  className="grid h-9 w-9 place-items-center rounded-md text-[var(--admin-muted)] transition-colors hover:bg-[var(--admin-sunk)] hover:text-[var(--admin-ink)] md:hidden"
+                >
+                  <LogOut className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </div>
             </div>
-            <div className="flex items-center gap-4">
-              <LanguageToggle language={language} onChoose={chooseLanguage} />
-              <button
-                type="button"
-                onClick={signOut}
-                className="text-sm text-slate-600 underline"
-              >
-                {L.nav.signOut}
-              </button>
-            </div>
+            <Rail L={L} me={me} attention={attention} variant="bar" />
           </header>
 
-          <div className="flex flex-col gap-6 md:flex-row">
-            <Rail L={L} me={me} attention={attention} />
-            <div className="min-w-0 flex-1 space-y-6">
+          <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+            {/* Wide, but not edge to edge: a table stretched across a 27-inch
+                monitor is harder to read across, not easier. */}
+            <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
               {message && (
-                <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+                <p
+                  role="status"
+                  className="rounded-lg border border-[var(--admin-attn-rule)] bg-[var(--admin-attn-soft)] px-4 py-3 text-sm text-[var(--admin-attn)]"
+                >
                   {message}
                 </p>
               )}
               {children}
             </div>
-          </div>
+          </main>
         </div>
-      </main>
+      </div>
     </AdminProvider>
   );
 }

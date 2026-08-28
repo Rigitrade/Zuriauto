@@ -63,7 +63,7 @@ export function PasswordInput({
         autoCapitalize="none"
         spellCheck={false}
         autoFocus={autoFocus}
-        className={`w-full rounded-md border border-input pl-3 pr-10 ${
+        className={`w-full rounded-md border border-[var(--admin-rule-strong)] bg-[var(--admin-surface)] pl-3 pr-11 outline-none focus-visible:border-[var(--admin-accent)] focus-visible:ring-2 focus-visible:ring-[var(--admin-accent)]/20 ${
           large ? "h-11 text-base" : "h-10 text-sm"
         }`}
       />
@@ -78,7 +78,7 @@ export function PasswordInput({
         aria-pressed={revealed}
         aria-controls={inputId}
         title={revealed ? L.accounts.hidePassword : L.accounts.showPassword}
-        className="absolute inset-y-0 right-0 grid w-11 place-items-center text-slate-500 transition-colors hover:text-slate-900"
+        className="absolute inset-y-0 right-0 grid w-11 place-items-center rounded-r-md text-[var(--admin-faint)] transition-colors hover:text-[var(--admin-ink)]"
       >
         {revealed ? (
           <EyeOff className="h-4 w-4" aria-hidden="true" />
