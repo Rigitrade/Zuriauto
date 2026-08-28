@@ -9,6 +9,7 @@ import {
   messageForCode,
   type AdminLanguage,
 } from "@/lib/admin/labels";
+import { USERNAME_PATTERN } from "@/lib/admin/users";
 
 /**
  * The office's fleet page.
@@ -39,6 +40,15 @@ interface Rental {
   contractNumber: string | null;
   returnSubmittedAt: string | null;
   returnContractNumber: string | null;
+}
+
+interface Account {
+  id: string;
+  username: string;
+  displayName: string;
+  role: "owner" | "staff";
+  disabledAt: string | null;
+  lastSignInAt: string | null;
 }
 
 type Me = { username: string; displayName: string; role: "owner" | "staff" };
@@ -83,6 +93,13 @@ export default function AdminDashboard() {
   const [data, setData] = useState<Overview | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [draft, setDraft] = useState({
+    displayName: "",
+    username: "",
+    password: "",
+    role: "staff" as "owner" | "staff",
+  });
 
   const L = labelsFor(language);
 
@@ -127,6 +144,30 @@ export default function AdminDashboard() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  /** Owners only — the section is not rendered at all for staff, and the
+   *  endpoint refuses them anyway, so this is a convenience rather than the
+   *  fence. Depends on `me?.role` rather than being called inline right
+   *  after `setMe`: a state setter does not update the `me` this closure
+   *  already captured, so a call fired synchronously in the same function
+   *  would still see the *previous* role and quietly skip the fetch on a
+   *  fresh sign-in. Reading it through the dependency array instead means
+   *  this always runs against the role React has actually committed. */
+  const loadAccounts = useCallback(async () => {
+    if (me?.role !== "owner") return;
+    const response = await fetch("/api/admin/users/", { cache: "no-store" });
+    if (!response.ok) return;
+    const body = (await response.json()) as { users: Account[] };
+    setAccounts(body.users);
+  }, [me?.role]);
+
+  // Fires after sign-in and after a reload that restores an owner's session
+  // alike, since both simply change `me?.role` to "owner" and this effect
+  // reacts to that rather than being threaded through every place `load()`
+  // is called.
+  useEffect(() => {
+    void loadAccounts();
+  }, [loadAccounts]);
 
   async function signIn(event: React.FormEvent) {
     event.preventDefault();
@@ -202,6 +243,42 @@ export default function AdminDashboard() {
 
   function deleteCar(id: string) {
     return write(`/api/admin/cars/${id}/`, { method: "DELETE" });
+  }
+
+  /** Not routed through `write()`: the codes this endpoint returns —
+   *  `username-taken` alongside the client-side password/username checks
+   *  below — map onto the office's language directly, and a failure here
+   *  should not sign anybody out or refetch the fleet. */
+  async function createAccount(event: React.FormEvent) {
+    event.preventDefault();
+    setMessage("");
+
+    if (draft.password.length < 10) {
+      setMessage(L.accounts.passwordTooShort);
+      return;
+    }
+    if (!USERNAME_PATTERN.test(draft.username.trim().toLowerCase())) {
+      setMessage(L.accounts.usernameInvalid);
+      return;
+    }
+
+    const response = await fetch("/api/admin/users/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(draft),
+    });
+
+    if (response.status === 409) {
+      setMessage(L.accounts.usernameTaken);
+      return;
+    }
+    if (!response.ok) {
+      setMessage(L.errors.generic);
+      return;
+    }
+
+    setDraft({ displayName: "", username: "", password: "", role: "staff" });
+    await loadAccounts();
   }
 
   const LanguageToggle = (
@@ -424,7 +501,99 @@ export default function AdminDashboard() {
           )}
         </section>
 
-        <p className="pb-6 text-xs text-slate-400">{L.rentals.closeHint}</p>
+        <p className="text-xs text-slate-400">{L.rentals.closeHint}</p>
+
+        {me?.role === "owner" && (
+          <section className="flex flex-col gap-3 pb-6">
+            <h2 className="text-lg font-medium text-slate-900">{L.accounts.heading}</h2>
+
+            <div className="overflow-x-auto rounded-lg border border-slate-200">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                  <tr>
+                    <th className="p-3 text-left">{L.accounts.displayName}</th>
+                    <th className="p-3 text-left">{L.accounts.username}</th>
+                    <th className="p-3 text-left">{L.accounts.role}</th>
+                    <th className="p-3 text-left">{L.accounts.lastSignIn}</th>
+                    <th className="p-3" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {accounts.map((account) => (
+                    <tr key={account.id} className="border-t border-slate-200">
+                      <td className="p-3 font-medium text-slate-900">
+                        {account.displayName}
+                        {account.disabledAt && (
+                          <span className="ml-2 rounded bg-slate-200 px-2 py-0.5 text-xs text-slate-700">
+                            {L.accounts.disabled}
+                          </span>
+                        )}
+                      </td>
+                      <td className="p-3 text-slate-600">{account.username}</td>
+                      <td className="p-3 text-slate-600">
+                        {L.accounts.roles[account.role]}
+                      </td>
+                      <td className="p-3 text-slate-500">
+                        {account.lastSignInAt
+                          ? day(account.lastSignInAt)
+                          : L.accounts.never}
+                      </td>
+                      <td className="p-3">
+                        <AccountActions
+                          account={account}
+                          L={L}
+                          onChanged={loadAccounts}
+                          onError={setMessage}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <form onSubmit={createAccount} className="flex flex-wrap items-end gap-2">
+              <input
+                value={draft.displayName}
+                onChange={(e) => setDraft({ ...draft, displayName: e.target.value })}
+                placeholder={L.accounts.displayName}
+                className="h-10 rounded-md border border-input px-3 text-sm"
+              />
+              <input
+                value={draft.username}
+                onChange={(e) => setDraft({ ...draft, username: e.target.value })}
+                placeholder={L.accounts.username}
+                autoCapitalize="none"
+                spellCheck={false}
+                className="h-10 rounded-md border border-input px-3 text-sm"
+              />
+              <input
+                type="password"
+                value={draft.password}
+                onChange={(e) => setDraft({ ...draft, password: e.target.value })}
+                placeholder={L.accounts.newPassword}
+                autoComplete="new-password"
+                className="h-10 rounded-md border border-input px-3 text-sm"
+              />
+              <select
+                value={draft.role}
+                onChange={(e) =>
+                  setDraft({ ...draft, role: e.target.value as "owner" | "staff" })
+                }
+                className="h-10 rounded-md border border-input px-2 text-sm"
+              >
+                <option value="staff">{L.accounts.roles.staff}</option>
+                <option value="owner">{L.accounts.roles.owner}</option>
+              </select>
+              <button
+                type="submit"
+                className="h-10 rounded-md bg-slate-900 px-3 text-sm text-white"
+              >
+                {L.accounts.create}
+              </button>
+            </form>
+          </section>
+        )}
       </div>
     </main>
   );
@@ -670,5 +839,74 @@ function RentalRow({
         </button>
       )}
     </li>
+  );
+}
+
+function AccountActions({
+  account,
+  L,
+  onChanged,
+  onError,
+}: {
+  account: Account;
+  L: Labels;
+  onChanged: () => Promise<void>;
+  onError: (message: string) => void;
+}) {
+  const [newPassword, setNewPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function patch(body: Record<string, unknown>) {
+    setBusy(true);
+    onError("");
+    try {
+      const response = await fetch(`/api/admin/users/${account.id}/`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (response.status === 409) {
+        const { code } = (await response.json()) as { code: string };
+        onError(code === "last-owner" ? L.accounts.lastOwner : L.errors.generic);
+        return;
+      }
+      if (!response.ok) {
+        onError(L.errors.generic);
+        return;
+      }
+      setNewPassword("");
+      await onChanged();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <input
+        type="password"
+        value={newPassword}
+        onChange={(e) => setNewPassword(e.target.value)}
+        placeholder={L.accounts.newPassword}
+        autoComplete="new-password"
+        className="h-10 w-40 rounded-md border border-input px-2 text-sm"
+      />
+      <button
+        type="button"
+        disabled={busy || newPassword.length < 10}
+        onClick={() => patch({ password: newPassword })}
+        className="h-10 rounded-md bg-slate-900 px-3 text-sm text-white disabled:opacity-50"
+      >
+        {L.accounts.setPassword}
+      </button>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => patch({ disabled: !account.disabledAt })}
+        className="h-10 rounded-md border border-slate-300 px-3 text-sm text-slate-700 disabled:opacity-50"
+      >
+        {account.disabledAt ? L.accounts.enable : L.accounts.disable}
+      </button>
+    </div>
   );
 }

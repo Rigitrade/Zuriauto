@@ -101,7 +101,16 @@ documents every one.
 | `R2_BUCKET` | `zuriauto-assets` |
 | `CRON_SECRET` | a third random string |
 | `ADMIN_SECRET` | a fourth random string — **must differ from `APPLY_SECRET`** |
+| `ADMIN_OWNER_USERNAME` | the first account's username, e.g. `chef` |
+| `ADMIN_OWNER_NAME` | how it is displayed, e.g. `Die Chefin` |
+| `ADMIN_OWNER_PASSWORD` | its initial password — **set before the deploy** |
 | `SITE_URL` | `https://zuriauto.ch` — no trailing slash |
+
+> **Set the owner variables before the deploy that carries Phase 5.** The seed
+> creates the first account only when the organisation has none, and never
+> overwrites a password that already exists — so a deploy without them ships a
+> dashboard nobody can sign into, and changing `ADMIN_OWNER_PASSWORD` later
+> does nothing. `pnpm admin:password <username> <password>` is the way back in.
 
 Already set, unchanged: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`,
 `MAIL_FROM`, `MAIL_OFFICE`, `MAIL_ARCHIVE`.
@@ -127,11 +136,15 @@ is pasted into WhatsApp by staff and leaks the moment a link is forwarded; the
 admin key can rewrite the fleet. Sharing one value would put fleet management
 behind a semi-public string. See the warning in `lib/applyKey.ts`.
 
-Sign-in exchanges the secret for an httpOnly cookie lasting twelve hours, so the
-office signs in once a morning and the secret never travels in a URL. Rotating
-the variable signs everyone out, which is the intended way to revoke access —
-there are no individual accounts until Phase 5, so there is also no per-person
-revocation and no attribution of who changed what.
+Sign-in is a username and a password against an account in the database, and
+exchanges them for an httpOnly cookie lasting twelve hours. `ADMIN_SECRET` is
+no longer the password: it signs those cookies, so rotating it signs everyone
+out at once, which stays the emergency lever.
+
+Per-person revocation is real from Phase 5: disabling an account takes effect
+on that person's next click, and changing their password ends their other
+sessions. There are two roles — an owner manages accounts, staff manage the
+fleet.
 
 - [ ] `MAIL_ARCHIVE` is still set. It runs in parallel through this phase and is
       the only *proven* durable record. Do not switch it off yet.

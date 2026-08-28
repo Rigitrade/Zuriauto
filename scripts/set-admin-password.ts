@@ -37,6 +37,9 @@ async function main(): Promise<void> {
     });
     if (!user) {
       console.error(`No account called ${username}.`);
+      // process.exit() does not unwind `finally`, so the disconnect below
+      // would otherwise be skipped on this path.
+      await client.$disconnect();
       process.exit(1);
     }
 
