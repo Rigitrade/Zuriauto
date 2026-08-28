@@ -1,0 +1,1058 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="description" content="Three directions for the ZURIAUTO fleet dashboard, drawn with the real fleet and the real English labels, with the trade-offs of each.">
+<title>Fleet Dashboard — Three Directions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600&family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+  /* ==========================================================================
+     1. Document chrome — same tokens as the other docs in this folder.
+     ========================================================================== */
+  html { -webkit-text-size-adjust: 100%; }
+
+  :root {
+    --ground: #F1F4F6;
+    --surface: #FFFFFF;
+    --surface-sunk: #E7ECEF;
+    --ink: #13181C;
+    --ink-soft: #56626C;
+    --ink-faint: #8A959E;
+    --rule: #D6DDE2;
+    --rule-strong: #B9C4CB;
+    --accent: #2C3E5C;
+    --ok: #2C6A4E;
+    --ok-soft: #DDEBE3;
+    --warn: #855F0D;
+    --warn-soft: #F3E9D2;
+    --gap: #97292A;
+    --gap-soft: #F2DDDD;
+
+    --measure: 68ch;
+    --step--1: .8125rem;
+    --step-0: 1rem;
+    --step-1: 1.1875rem;
+    --step-2: 1.5rem;
+    --step-3: 2rem;
+    --step-4: 2.9rem;
+
+    /* The product palette the mockups are drawn in — deliberately not the
+       document's. Cool near-white, deep petrol accent, three semantic states
+       kept separate from the accent. */
+    --ui-ground: #F4F6F5;
+    --ui-surface: #FFFFFF;
+    --ui-sunk: #EDF1F0;
+    --ui-ink: #14191A;
+    --ui-muted: #5C6A6C;
+    --ui-faint: #8B9799;
+    --ui-rule: #DDE3E2;
+    --ui-accent: #0E5A63;
+    --ui-accent-soft: #DDEDEE;
+    --ui-good: #1F6B4C;
+    --ui-good-soft: #DFEDE5;
+    --ui-attn: #9A6410;
+    --ui-attn-soft: #FBF0DC;
+    --ui-crit: #A32B26;
+    --ui-crit-soft: #F8E3E1;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0E1216;
+      --surface: #161C21;
+      --surface-sunk: #1D242A;
+      --ink: #E3E9ED;
+      --ink-soft: #97A3AD;
+      --ink-faint: #6C7883;
+      --rule: #252D35;
+      --rule-strong: #37424B;
+      --accent: #93B2DA;
+      --ok: #6DB48D;
+      --ok-soft: #16251D;
+      --warn: #D2A250;
+      --warn-soft: #262013;
+      --gap: #E08787;
+      --gap-soft: #2A1A1A;
+
+      --ui-ground: #101415;
+      --ui-surface: #171D1E;
+      --ui-sunk: #1E2526;
+      --ui-ink: #E6ECEB;
+      --ui-muted: #9AA7A8;
+      --ui-faint: #6E7B7C;
+      --ui-rule: #283031;
+      --ui-accent: #6FBCC4;
+      --ui-accent-soft: #16292B;
+      --ui-good: #6DB48D;
+      --ui-good-soft: #15241C;
+      --ui-attn: #D2A250;
+      --ui-attn-soft: #251F12;
+      --ui-crit: #E08787;
+      --ui-crit-soft: #291918;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #0E1216;
+    --surface: #161C21;
+    --surface-sunk: #1D242A;
+    --ink: #E3E9ED;
+    --ink-soft: #97A3AD;
+    --ink-faint: #6C7883;
+    --rule: #252D35;
+    --rule-strong: #37424B;
+    --accent: #93B2DA;
+    --ok: #6DB48D;
+    --ok-soft: #16251D;
+    --warn: #D2A250;
+    --warn-soft: #262013;
+    --gap: #E08787;
+    --gap-soft: #2A1A1A;
+
+    --ui-ground: #101415;
+    --ui-surface: #171D1E;
+    --ui-sunk: #1E2526;
+    --ui-ink: #E6ECEB;
+    --ui-muted: #9AA7A8;
+    --ui-faint: #6E7B7C;
+    --ui-rule: #283031;
+    --ui-accent: #6FBCC4;
+    --ui-accent-soft: #16292B;
+    --ui-good: #6DB48D;
+    --ui-good-soft: #15241C;
+    --ui-attn: #D2A250;
+    --ui-attn-soft: #251F12;
+    --ui-crit: #E08787;
+    --ui-crit-soft: #291918;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "Archivo", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: var(--step-0);
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+    margin: 0;
+    padding: 0 1.25rem 6rem;
+  }
+  img, svg { max-width: 100%; height: auto; }
+
+  .wrap { max-width: 74rem; margin: 0 auto; display: flex; flex-direction: column; gap: 4rem; }
+
+  code, .mono {
+    font-family: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+    font-size: .875em;
+    font-variant-ligatures: none;
+  }
+  p code, li code, td code { background: var(--surface-sunk); border-radius: 3px; padding: .1em .34em; }
+
+  .masthead { padding-top: 4rem; display: flex; flex-direction: column; gap: 1.3rem; }
+  .eyebrow {
+    font-family: "IBM Plex Mono", monospace; font-size: var(--step--1);
+    letter-spacing: .11em; text-transform: uppercase; color: var(--ink-faint);
+    display: flex; flex-wrap: wrap; gap: .55rem;
+  }
+  .eyebrow .bar { color: var(--rule-strong); }
+
+  h1 {
+    font-family: Newsreader, ui-serif, Georgia, serif;
+    font-weight: 500; font-size: var(--step-4); line-height: 1.06;
+    letter-spacing: -.017em; margin: 0; text-wrap: balance; max-width: 20ch;
+  }
+  .standfirst {
+    font-family: Newsreader, ui-serif, Georgia, serif;
+    font-size: var(--step-2); line-height: 1.44; color: var(--ink-soft);
+    margin: 0; max-width: 52ch; text-wrap: pretty;
+  }
+  .standfirst strong { color: var(--ink); font-weight: 600; }
+
+  section { display: flex; flex-direction: column; gap: 1.5rem; }
+  .sec-head { border-top: 2px solid var(--ink); padding-top: 1rem; display: flex; flex-direction: column; gap: .5rem; }
+  h2 {
+    font-family: Newsreader, ui-serif, Georgia, serif;
+    font-weight: 500; font-size: var(--step-3); line-height: 1.14;
+    letter-spacing: -.012em; margin: 0; text-wrap: balance;
+  }
+  .sec-head p { margin: 0; color: var(--ink-soft); max-width: var(--measure); text-wrap: pretty; }
+  .sec-head .count {
+    font-family: "IBM Plex Mono", monospace; font-size: var(--step--1);
+    letter-spacing: .09em; text-transform: uppercase; color: var(--ink-faint);
+  }
+  section > p { margin: 0; max-width: var(--measure); text-wrap: pretty; }
+
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
+  @media (max-width: 860px) { .cols { grid-template-columns: 1fr; } }
+
+  .verdict {
+    border: 1px solid var(--rule); background: var(--surface);
+    border-radius: 4px; padding: .85rem 1rem; font-size: .9375rem;
+  }
+  .verdict b {
+    display: block; font-family: "IBM Plex Mono", monospace;
+    font-size: .6875rem; letter-spacing: .09em; text-transform: uppercase;
+    margin-bottom: .35rem;
+  }
+  .verdict.good b { color: var(--ok); }
+  .verdict.cost b { color: var(--gap); }
+  .verdict ul { margin: 0; padding-left: 1.1rem; }
+  .verdict li { margin: .2rem 0; }
+
+  .recommend {
+    border-left: 2px solid var(--ok); background: var(--ok-soft);
+    padding: .8rem 1rem; border-radius: 0 4px 4px 0; max-width: var(--measure);
+  }
+  .recommend b {
+    display: block; font-family: "IBM Plex Mono", monospace;
+    font-size: .6875rem; letter-spacing: .09em; text-transform: uppercase;
+    color: var(--ok); margin-bottom: .2rem;
+  }
+  .recommend p { margin: .4rem 0 0; }
+  .recommend p:first-of-type { margin-top: 0; }
+
+  .note {
+    border-left: 2px solid var(--warn); background: var(--warn-soft);
+    padding: .8rem 1rem; border-radius: 0 4px 4px 0; max-width: var(--measure);
+  }
+  .note b {
+    display: block; font-family: "IBM Plex Mono", monospace;
+    font-size: .6875rem; letter-spacing: .09em; text-transform: uppercase;
+    color: var(--warn); margin-bottom: .2rem;
+  }
+  .note p { margin: .4rem 0 0; }
+  .note p:first-of-type { margin-top: 0; }
+
+  footer {
+    border-top: 1px solid var(--rule); padding-top: 1.3rem;
+    color: var(--ink-faint); font-size: var(--step--1);
+    display: flex; flex-direction: column; gap: .4rem;
+  }
+
+  /* ==========================================================================
+     2. Screen frame — everything inside is product, not document.
+     ========================================================================== */
+  .screen {
+    border: 1px solid var(--rule-strong); border-radius: 8px;
+    overflow: hidden; background: var(--ui-ground);
+    box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 8px 24px -12px rgba(0,0,0,.18);
+  }
+  .screen-bar {
+    display: flex; align-items: center; gap: .5rem;
+    padding: .55rem .8rem; background: var(--surface-sunk);
+    border-bottom: 1px solid var(--rule);
+  }
+  .screen-bar i { width: .6rem; height: .6rem; border-radius: 50%; background: var(--rule-strong); display: block; }
+  .screen-bar span {
+    font-family: "IBM Plex Mono", monospace; font-size: .6875rem;
+    color: var(--ink-faint); margin-left: .5rem;
+  }
+  .screen-body { padding: 1.1rem; overflow-x: auto; }
+
+  .ui { font-family: "Archivo", ui-sans-serif, system-ui, sans-serif; color: var(--ui-ink); line-height: 1.45; min-width: 40rem; }
+  .ui .num, .ui .plate { font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; }
+
+  .ui-top {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 1rem; padding-bottom: .9rem; margin-bottom: 1rem;
+    border-bottom: 1px solid var(--ui-rule);
+  }
+  .ui-brand { display: flex; align-items: baseline; gap: .6rem; }
+  .ui-brand b { font-size: 1.0625rem; font-weight: 700; letter-spacing: -.01em; }
+  .ui-brand span { font-size: .75rem; color: var(--ui-faint); }
+  .ui-who { font-size: .75rem; color: var(--ui-muted); display: flex; align-items: center; gap: .6rem; }
+  .ui-who em { font-style: normal; color: var(--ui-ink); font-weight: 500; }
+
+  .ui-btn {
+    font: inherit; font-size: .75rem; font-weight: 500;
+    border: 1px solid var(--ui-rule); background: var(--ui-surface); color: var(--ui-ink);
+    border-radius: 5px; padding: .3rem .6rem; cursor: default; white-space: nowrap;
+  }
+  .ui-btn.primary { background: var(--ui-accent); border-color: var(--ui-accent); color: #fff; }
+  .ui-btn.ghost { border-color: transparent; background: none; color: var(--ui-muted); }
+  .ui-btn.danger { color: var(--ui-crit); border-color: var(--ui-rule); }
+
+  .ui-chip {
+    display: inline-flex; align-items: center; gap: .3rem;
+    font-family: "IBM Plex Mono", monospace; font-size: .625rem;
+    letter-spacing: .06em; text-transform: uppercase; font-weight: 500;
+    padding: .16rem .42rem; border-radius: 3px; white-space: nowrap;
+  }
+  .ui-chip.good { background: var(--ui-good-soft); color: var(--ui-good); }
+  .ui-chip.attn { background: var(--ui-attn-soft); color: var(--ui-attn); }
+  .ui-chip.crit { background: var(--ui-crit-soft); color: var(--ui-crit); }
+  .ui-chip.mute { background: var(--ui-sunk); color: var(--ui-muted); }
+  .ui-chip.accent { background: var(--ui-accent-soft); color: var(--ui-accent); }
+
+  .ui-card { background: var(--ui-surface); border: 1px solid var(--ui-rule); border-radius: 7px; }
+  .ui-card > h4 {
+    margin: 0; padding: .65rem .85rem; border-bottom: 1px solid var(--ui-rule);
+    font-size: .75rem; font-weight: 600; letter-spacing: .02em;
+    display: flex; align-items: center; justify-content: space-between; gap: .6rem;
+  }
+  .ui-card > h4 small { font-weight: 400; color: var(--ui-faint); font-size: .6875rem; }
+
+  .ui-row {
+    display: grid; align-items: center; gap: .8rem;
+    padding: .6rem .85rem; border-bottom: 1px solid var(--ui-rule); font-size: .8125rem;
+  }
+  .ui-row:last-child { border-bottom: none; }
+  .ui-row .plate { font-size: .75rem; color: var(--ui-muted); }
+  .ui-row strong { font-weight: 600; }
+  .ui-row.head {
+    font-family: "IBM Plex Mono", monospace; font-size: .625rem;
+    letter-spacing: .08em; text-transform: uppercase; color: var(--ui-faint);
+    background: var(--ui-sunk);
+  }
+  .ui-sub { font-size: .6875rem; color: var(--ui-faint); }
+  .ui-me { box-shadow: inset 3px 0 0 var(--ui-accent); }
+
+  .ui-band {
+    border: 1px solid var(--ui-attn); border-left-width: 3px;
+    background: var(--ui-attn-soft); border-radius: 7px; overflow: hidden;
+  }
+  .ui-band > h4 {
+    margin: 0; padding: .6rem .85rem; font-size: .75rem; font-weight: 700;
+    letter-spacing: .04em; text-transform: uppercase; color: var(--ui-attn);
+    display: flex; align-items: center; gap: .5rem;
+  }
+  .ui-band .ui-row { background: var(--ui-surface); border-color: var(--ui-rule); }
+
+  .ui-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: .6rem; }
+  .ui-tile { background: var(--ui-surface); border: 1px solid var(--ui-rule); border-radius: 7px; padding: .7rem .8rem; margin: 0; }
+  .ui-tile dt { font-size: .6875rem; color: var(--ui-muted); margin: 0; }
+  .ui-tile dd {
+    margin: .15rem 0 0; font-size: 1.5rem; font-weight: 600; letter-spacing: -.02em;
+    font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums;
+  }
+  .ui-tile.lead { border-color: var(--ui-attn); background: var(--ui-attn-soft); }
+  .ui-tile.lead dd { color: var(--ui-attn); }
+
+  .ui-search {
+    display: flex; align-items: center; gap: .55rem;
+    background: var(--ui-surface); border: 1px solid var(--ui-rule);
+    border-radius: 7px; padding: .6rem .8rem; font-size: .875rem; color: var(--ui-faint);
+  }
+  .ui-search.big { padding: .85rem 1rem; font-size: 1rem; border-color: var(--ui-accent); }
+  .ui-search kbd {
+    margin-left: auto; font-family: "IBM Plex Mono", monospace; font-size: .625rem;
+    border: 1px solid var(--ui-rule); border-radius: 3px; padding: .1rem .3rem; color: var(--ui-faint);
+  }
+
+  .ui-tabs { display: flex; gap: .2rem; border-bottom: 1px solid var(--ui-rule); flex-wrap: wrap; }
+  .ui-tabs span {
+    font-size: .8125rem; padding: .45rem .75rem; color: var(--ui-muted);
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+  }
+  .ui-tabs span.on { color: var(--ui-ink); font-weight: 600; border-bottom-color: var(--ui-accent); }
+  .ui-tabs span b { font-family: "IBM Plex Mono", monospace; font-size: .6875rem; color: var(--ui-faint); font-weight: 500; }
+
+  .ui-rail { display: grid; grid-template-columns: 11rem 1fr; gap: 0; }
+  .ui-rail nav {
+    border-right: 1px solid var(--ui-rule); padding: .3rem .5rem 1rem;
+    display: flex; flex-direction: column; gap: .1rem;
+  }
+  .ui-rail nav a {
+    font-size: .8125rem; padding: .4rem .6rem; border-radius: 5px;
+    color: var(--ui-muted); text-decoration: none;
+    display: flex; align-items: center; justify-content: space-between; gap: .5rem;
+  }
+  .ui-rail nav a.on { background: var(--ui-accent-soft); color: var(--ui-accent); font-weight: 600; }
+  .ui-rail nav a i {
+    font-style: normal; font-family: "IBM Plex Mono", monospace; font-size: .625rem;
+    background: var(--ui-attn); color: #fff; border-radius: 9px; padding: 0 .3rem;
+  }
+  .ui-rail nav .grp {
+    font-family: "IBM Plex Mono", monospace; font-size: .625rem; letter-spacing: .09em;
+    text-transform: uppercase; color: var(--ui-faint); padding: .8rem .6rem .25rem;
+  }
+  .ui-rail > .pane { padding: 0 0 0 1.1rem; display: flex; flex-direction: column; gap: .9rem; }
+
+  .ui-stack { display: flex; flex-direction: column; gap: .9rem; }
+  .ui-grid2 { display: grid; grid-template-columns: 1.35fr 1fr; gap: .9rem; }
+
+  .ui-time { display: flex; flex-direction: column; }
+  .ui-time .slot {
+    display: grid; grid-template-columns: 4.5rem 1fr; gap: .8rem;
+    padding: .5rem .85rem; border-bottom: 1px solid var(--ui-rule); font-size: .8125rem;
+  }
+  .ui-time .slot:last-child { border-bottom: none; }
+  .ui-time .when {
+    font-family: "IBM Plex Mono", monospace; font-size: .6875rem;
+    color: var(--ui-muted); padding-top: .15rem;
+  }
+  .ui-time .slot.now .when { color: var(--ui-attn); font-weight: 600; }
+
+  /* form controls, drawn not wired */
+  .ui-field { display: flex; flex-direction: column; gap: .25rem; }
+  .ui-field label { font-size: .6875rem; color: var(--ui-muted); }
+  .ui-input {
+    border: 1px solid var(--ui-rule); background: var(--ui-surface); color: var(--ui-faint);
+    border-radius: 5px; padding: .38rem .55rem; font-size: .8125rem; font-family: inherit;
+  }
+  .ui-input.filled { color: var(--ui-ink); }
+  .ui-form { display: grid; gap: .6rem; padding: .75rem .85rem; }
+  .ui-hint { font-size: .6875rem; color: var(--ui-faint); }
+  .ui-err {
+    font-size: .6875rem; color: var(--ui-crit); background: var(--ui-crit-soft);
+    border-radius: 4px; padding: .3rem .5rem;
+  }
+
+  /* the current-state sketch, drawn honestly in its own (unchanged) style */
+  .ui-old { font-family: ui-sans-serif, system-ui, sans-serif; color: #0f172a; min-width: 40rem; }
+  .ui-old .tiles { display: grid; grid-template-columns: repeat(7, 1fr); gap: .5rem; margin-bottom: .9rem; }
+  .ui-old .tile { border: 1px solid #e2e8f0; background: #fff; border-radius: 10px; padding: .55rem .6rem; margin: 0; }
+  .ui-old .tile dt { font-size: .625rem; color: #64748b; }
+  .ui-old .tile dd { margin: .1rem 0 0; font-size: 1.05rem; font-weight: 600; color: #0f172a; }
+  .ui-old .block { border: 1px solid #e2e8f0; background: #fff; border-radius: 14px; margin-bottom: .8rem; }
+  .ui-old .block h4 { margin: 0; padding: .7rem .8rem; border-bottom: 1px solid #e2e8f0; font-size: .8125rem; font-weight: 600; }
+  .ui-old .line { padding: .55rem .8rem; border-bottom: 1px solid #f1f5f9; font-size: .8125rem; display: flex; gap: .8rem; align-items: center; }
+  .ui-old .line:last-child { border-bottom: none; }
+  .ui-old .line .g { color: #64748b; font-size: .75rem; }
+  .ui-old .form { display: flex; gap: .4rem; padding: .6rem .8rem; flex-wrap: wrap; }
+  .ui-old .form input { border: 1px solid #e2e8f0; border-radius: 8px; padding: .35rem .55rem; font-size: .75rem; color: #94a3b8; background: #fff; min-width: 8rem; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .ui-old { background: #fff; padding: .8rem; border-radius: 6px; }
+  }
+  :root[data-theme="dark"] .ui-old { background: #fff; padding: .8rem; border-radius: 6px; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+  @media (max-width: 760px) {
+    :root { --step-4: 2.2rem; --step-3: 1.6rem; --step-2: 1.25rem; }
+    .ui-tiles { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="eyebrow">
+      <span>ZURIAUTO</span><span class="bar">/</span>
+      <span>/admin</span><span class="bar">/</span>
+      <span>Design proposal</span><span class="bar">/</span>
+      <span>3 directions</span>
+    </div>
+    <h1>Fleet Dashboard</h1>
+    <p class="standfirst">
+      Three ways the office's daily tool could work, drawn with the <strong>real nine
+      vehicles</strong> and the <strong>real English labels</strong> already in
+      <code>lib/admin/labels.ts</code>. Nothing here is built yet. Pick a direction and
+      the spec follows.
+    </p>
+  </header>
+
+  <section>
+    <div class="sec-head">
+      <h2>What's wrong with it today</h2>
+      <p>
+        Not the colours. The problem is that everything on the page carries the same weight,
+        so nothing tells you what needs doing.
+      </p>
+    </div>
+
+    <div class="screen">
+      <div class="screen-bar"><i></i><i></i><i></i><span>/admin/ — today</span></div>
+      <div class="screen-body">
+        <div class="ui-old">
+          <div class="tiles">
+            <dl class="tile"><dt>Available</dt><dd>7</dd></dl>
+            <dl class="tile"><dt>Rented out</dt><dd>2</dd></dl>
+            <dl class="tile"><dt>Off the road</dt><dd>0</dd></dl>
+            <dl class="tile"><dt>Active rentals</dt><dd>2</dd></dl>
+            <dl class="tile"><dt>Returns to confirm</dt><dd>1</dd></dl>
+            <dl class="tile"><dt>Contracts</dt><dd>14</dd></dl>
+            <dl class="tile"><dt>Mail unsent</dt><dd>1</dd></dl>
+          </div>
+          <div class="block">
+            <h4>Add a vehicle</h4>
+            <div class="form">
+              <input value="Make and model" readonly>
+              <input value="ZH 123 456" readonly>
+              <input value="Chassis no. (optional)" readonly>
+              <input value="Add" readonly style="color:#0f172a">
+            </div>
+          </div>
+          <div class="block">
+            <h4>Vehicles</h4>
+            <div class="line"><span>Toyota Prius Hybrid</span><span class="g">ZH 513 925</span><span class="g">Available</span></div>
+            <div class="line"><span>Toyota Prius Hybrid</span><span class="g">ZH 401 859</span><span class="g">Rented out</span></div>
+            <div class="line"><span>Toyota Prius Hybrid</span><span class="g">ZH 615 166</span><span class="g">Available</span></div>
+            <div class="line"><span>Skoda Octavia</span><span class="g">ZH 886 530</span><span class="g">Rented out</span></div>
+            <div class="line"><span>BMW 218d</span><span class="g">ZH 656 404</span><span class="g">Available</span></div>
+          </div>
+          <div class="block">
+            <h4>Open rentals</h4>
+            <div class="line"><span>M. Keller</span><span class="g">ZH 401 859</span><span class="g">Returned – confirm</span></div>
+            <div class="line"><span>A. Brunner</span><span class="g">ZH 886 530</span><span class="g">until 29 Aug</span></div>
+          </div>
+          <div class="block">
+            <h4>Accounts</h4>
+            <div class="line"><span>Chef</span><span class="g">chef</span><span class="g">Owner</span><span class="g">Last sign-in: today</span></div>
+            <div class="form">
+              <input value="Name" readonly>
+              <input value="Username" readonly>
+              <input value="New password" readonly>
+              <input value="Create account" readonly style="color:#0f172a">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cols">
+      <div class="verdict cost">
+        <b>What it costs you</b>
+        <ul>
+          <li><strong>Returns to confirm</strong> and <strong>Mail unsent</strong> — the only two numbers that mean somebody must act — sit fifth and seventh in a row of equals, beside <em>Contracts</em>, which is trivia.</li>
+          <li>The <em>add a vehicle</em> form is permanently open above the fleet, so the rarest job takes the most valuable space. The <em>create account</em> form does the same thing lower down.</li>
+          <li>No search. Finding a plate or a customer means reading every row.</li>
+          <li>Nothing shows what is due back today, which is the question the phone is ringing about.</li>
+        </ul>
+      </div>
+      <div class="verdict">
+        <b>What is already right</b>
+        <ul>
+          <li>The data behind it is good: <code>/api/admin/overview</code> already returns every car in every status, open rentals with customer and dates, contract counts and the latest contract date.</li>
+          <li>Every refusal is already modelled properly — <code>duplicate-plate</code>, <code>has-history</code>, <code>last-owner</code>, <code>status-change-refused</code>, <code>username-taken</code>.</li>
+          <li>English and German are both complete, and the strings below are the real ones.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="note">
+      <b>None of the three options needs a new API</b>
+      <p>
+        All of them are built from what <code>/api/admin/overview</code> and the accounts
+        endpoints already return. The work is in the front end — plus splitting the
+        1,017-line <code>AdminDashboard.tsx</code>, which is currently sign-in, counters,
+        fleet, rentals and account management in one file.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="count">Option A</span>
+      <h2>The day list</h2>
+      <p>
+        The dashboard is a work queue. It opens with what needs a person, and empties as the
+        day goes on. Everything else is one click away, not on screen.
+      </p>
+    </div>
+
+    <div class="screen">
+      <div class="screen-bar"><i></i><i></i><i></i><span>/admin/ — Option A</span></div>
+      <div class="screen-body">
+        <div class="ui">
+
+          <div class="ui-top">
+            <div class="ui-brand"><b>ZURIAUTO</b><span>Fleet</span></div>
+            <div class="ui-who"><em>Chef</em> · Owner <button class="ui-btn ghost">Accounts</button><button class="ui-btn ghost">Sign out</button></div>
+          </div>
+
+          <div class="ui-stack">
+
+            <div class="ui-band">
+              <h4>Needs you today · 3</h4>
+              <div class="ui-row" style="grid-template-columns: 1fr auto auto">
+                <div>
+                  <strong>Confirm a return</strong> — M. Keller
+                  <div class="ui-sub">Toyota Prius Hybrid · <span class="plate">ZH 401 859</span> · returned 27 Aug, 17:40 · 842 km</div>
+                </div>
+                <span class="ui-chip attn">Car still blocked</span>
+                <button class="ui-btn primary">Close</button>
+              </div>
+              <div class="ui-row" style="grid-template-columns: 1fr auto auto">
+                <div>
+                  <strong>Rental ends today</strong> — A. Brunner
+                  <div class="ui-sub">Skoda Octavia · <span class="plate">ZH 886 530</span> · until 28 Aug, 18:00</div>
+                </div>
+                <span class="ui-chip mute">in 6 hrs</span>
+                <button class="ui-btn">Open</button>
+              </div>
+              <div class="ui-row" style="grid-template-columns: 1fr auto auto">
+                <div>
+                  <strong>Contract was not delivered</strong> — R. Fischer
+                  <div class="ui-sub">C-2026-0142 · mail to r.fischer@example.ch was rejected</div>
+                </div>
+                <span class="ui-chip crit">Mail unsent</span>
+                <button class="ui-btn">Send again</button>
+              </div>
+            </div>
+
+            <div class="ui-tiles">
+              <dl class="ui-tile"><dt>Available</dt><dd>7</dd></dl>
+              <dl class="ui-tile"><dt>Rented out</dt><dd>2</dd></dl>
+              <dl class="ui-tile"><dt>Active rentals</dt><dd>2</dd></dl>
+              <dl class="ui-tile"><dt>Off the road</dt><dd>0</dd></dl>
+            </div>
+
+            <div class="ui-search">
+              <span>Search plate, name or contract …</span><kbd>Ctrl K</kbd>
+            </div>
+
+            <div class="ui-card">
+              <h4>Open rentals <small>2</small></h4>
+              <div class="ui-row" style="grid-template-columns: 1fr 8rem 8rem auto">
+                <div><strong>M. Keller</strong><div class="ui-sub">Toyota Prius Hybrid</div></div>
+                <span class="plate">ZH 401 859</span>
+                <span class="ui-chip attn">Returned</span>
+                <button class="ui-btn">Open</button>
+              </div>
+              <div class="ui-row" style="grid-template-columns: 1fr 8rem 8rem auto">
+                <div><strong>A. Brunner</strong><div class="ui-sub">Skoda Octavia · until 28 Aug</div></div>
+                <span class="plate">ZH 886 530</span>
+                <span class="ui-chip good">On hire</span>
+                <button class="ui-btn">Open</button>
+              </div>
+            </div>
+
+            <div class="ui-card">
+              <h4>Vehicles <small>9 · 7 available</small><button class="ui-btn">Add a vehicle</button></h4>
+              <div class="ui-row" style="grid-template-columns: 1fr 8rem 8rem"><div><strong>Toyota Prius Hybrid</strong></div><span class="plate">ZH 513 925</span><span class="ui-chip good">Available</span></div>
+              <div class="ui-row" style="grid-template-columns: 1fr 8rem 8rem"><div><strong>Toyota Prius Hybrid</strong></div><span class="plate">ZH 401 859</span><span class="ui-chip attn">Rented out</span></div>
+              <div class="ui-row" style="grid-template-columns: 1fr 8rem 8rem"><div><strong>BMW 218d</strong></div><span class="plate">ZH 656 404</span><span class="ui-chip good">Available</span></div>
+              <div class="ui-row" style="grid-template-columns: 1fr; color: var(--ui-muted); font-size: .75rem">Show all 9 vehicles →</div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cols">
+      <div class="verdict good">
+        <b>Good at</b>
+        <ul>
+          <li>The blocked car is impossible to miss — first thing on the page, with the reason and the button on the same row.</li>
+          <li>An empty band is a real signal: nothing to do today.</li>
+          <li>Smallest change from what exists. The queue is derived from data the overview endpoint already returns.</li>
+        </ul>
+      </div>
+      <div class="verdict cost">
+        <b>Costs</b>
+        <ul>
+          <li>Weak when the job is <em>look something up</em> — search is present but secondary.</li>
+          <li>The queue has to be genuinely reliable. A dashboard saying "nothing to do" while a return sits unconfirmed is worse than today's.</li>
+          <li>Fleet editing and accounts both move behind a click, which is slower for the rare admin session.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="count">Option B</span>
+      <h2>The register</h2>
+      <p>
+        The dashboard is a lookup surface. One search box over plates, customers and
+        contracts, with dense filterable tables underneath. Built for the ringing phone.
+      </p>
+    </div>
+
+    <div class="screen">
+      <div class="screen-bar"><i></i><i></i><i></i><span>/admin/ — Option B</span></div>
+      <div class="screen-body">
+        <div class="ui">
+
+          <div class="ui-top">
+            <div class="ui-brand"><b>ZURIAUTO</b><span>Fleet</span></div>
+            <div class="ui-who"><em>Chef</em> · Owner <button class="ui-btn ghost">Sign out</button></div>
+          </div>
+
+          <div class="ui-stack">
+
+            <div class="ui-search big">
+              <span>ZH 401 …</span><kbd>Ctrl K</kbd>
+            </div>
+
+            <div class="ui-card">
+              <h4>3 matches <small>plate starts with “ZH 401”</small></h4>
+              <div class="ui-row" style="grid-template-columns: 5.5rem 1fr 8rem 8rem auto">
+                <span class="ui-chip mute">Vehicle</span>
+                <div><strong>Toyota Prius Hybrid</strong><div class="ui-sub">Chassis no. WVW…8821</div></div>
+                <span class="plate">ZH 401 859</span>
+                <span class="ui-chip attn">Rented out</span>
+                <button class="ui-btn">Open</button>
+              </div>
+              <div class="ui-row" style="grid-template-columns: 5.5rem 1fr 8rem 8rem auto">
+                <span class="ui-chip mute">Rental</span>
+                <div><strong>M. Keller</strong><div class="ui-sub">21 – 27 Aug · 842 km</div></div>
+                <span class="plate">ZH 401 859</span>
+                <span class="ui-chip attn">Returned</span>
+                <button class="ui-btn primary">Close</button>
+              </div>
+              <div class="ui-row" style="grid-template-columns: 5.5rem 1fr 8rem 8rem auto">
+                <span class="ui-chip mute">Contract</span>
+                <div><strong>C-2026-0138</strong><div class="ui-sub">signed 21 Aug · PDF</div></div>
+                <span class="plate">ZH 401 859</span>
+                <span class="ui-chip good">Delivered</span>
+                <button class="ui-btn">Open</button>
+              </div>
+            </div>
+
+            <div class="ui-tabs">
+              <span class="on">Rentals <b>2</b></span>
+              <span>Vehicles <b>9</b></span>
+              <span>Contracts <b>14</b></span>
+              <span>Accounts <b>3</b></span>
+            </div>
+
+            <div class="ui-card">
+              <h4>Open rentals <small>All · Returns to confirm · Ends this week</small></h4>
+              <div class="ui-row" style="grid-template-columns: 1fr 8rem 7rem 6rem auto">
+                <div><strong>M. Keller</strong><div class="ui-sub">Toyota Prius Hybrid</div></div>
+                <span class="plate">ZH 401 859</span>
+                <span class="num ui-sub">21 – 27 Aug</span>
+                <span class="ui-chip attn">Returned</span>
+                <button class="ui-btn primary">Close</button>
+              </div>
+              <div class="ui-row" style="grid-template-columns: 1fr 8rem 7rem 6rem auto">
+                <div><strong>A. Brunner</strong><div class="ui-sub">Skoda Octavia</div></div>
+                <span class="plate">ZH 886 530</span>
+                <span class="num ui-sub">24 – 28 Aug</span>
+                <span class="ui-chip good">On hire</span>
+                <button class="ui-btn">Open</button>
+              </div>
+              <div class="ui-row" style="grid-template-columns: 1fr; color: var(--ui-muted); font-size: .75rem">
+                Returns to confirm: 1 · Mail unsent: 1 — <span style="color: var(--ui-accent)">show</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cols">
+      <div class="verdict good">
+        <b>Good at</b>
+        <ul>
+          <li>Answering "where is ZH 401 859" in one keystroke, across cars, rentals and contracts at once.</li>
+          <li>Scales past nine cars without redesign — the same screen works at ninety.</li>
+          <li>Dense and fast for someone who uses it all day and knows it.</li>
+        </ul>
+      </div>
+      <div class="verdict cost">
+        <b>Costs</b>
+        <ul>
+          <li>Pending work is a filter, not a headline. A car left blocked stays invisible until somebody thinks to look.</li>
+          <li>Needs a real cross-entity search endpoint — the one piece of backend work in this document.</li>
+          <li>Rewards familiarity, which is a cost on the day a new person covers the desk.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="count">Option C</span>
+      <h2>The console</h2>
+      <p>
+        A left rail turns the single scrolling page into proper sections, with a landing
+        Overview combining a short alert strip, the numbers, and today's returns as a
+        timeline.
+      </p>
+    </div>
+
+    <div class="screen">
+      <div class="screen-bar"><i></i><i></i><i></i><span>/admin/ — Option C</span></div>
+      <div class="screen-body">
+        <div class="ui">
+
+          <div class="ui-top">
+            <div class="ui-brand"><b>ZURIAUTO</b><span>Fleet</span></div>
+            <div class="ui-who">
+              <span class="ui-search" style="padding:.25rem .55rem;font-size:.75rem">Search …<kbd>Ctrl K</kbd></span>
+              <em>Chef</em> · Owner <button class="ui-btn ghost">Sign out</button>
+            </div>
+          </div>
+
+          <div class="ui-rail">
+            <nav>
+              <a class="on" href="#">Overview <i>3</i></a>
+              <a href="#">Rentals</a>
+              <a href="#">Vehicles</a>
+              <a href="#">Customers</a>
+              <a href="#">Contracts</a>
+              <span class="grp">Administration</span>
+              <a href="#">Accounts</a>
+              <a href="#">My password</a>
+            </nav>
+
+            <div class="pane">
+
+              <div class="ui-band">
+                <h4>Needs you · 3</h4>
+                <div class="ui-row" style="grid-template-columns: 1fr auto">
+                  <div><strong>1 return waiting to be confirmed</strong><div class="ui-sub">M. Keller · <span class="plate">ZH 401 859</span> — the car stays blocked until you do</div></div>
+                  <button class="ui-btn primary">Close</button>
+                </div>
+                <div class="ui-row" style="grid-template-columns: 1fr auto">
+                  <div><strong>1 contract was not delivered</strong><div class="ui-sub">C-2026-0142 · R. Fischer</div></div>
+                  <button class="ui-btn">Send again</button>
+                </div>
+              </div>
+
+              <div class="ui-grid2">
+                <div class="ui-card">
+                  <h4>Today <small>Thursday, 28 August</small></h4>
+                  <div class="ui-time">
+                    <div class="slot now">
+                      <span class="when">18:00</span>
+                      <div><strong>A. Brunner</strong> returns<div class="ui-sub">Skoda Octavia · <span class="plate">ZH 886 530</span></div></div>
+                    </div>
+                    <div class="slot">
+                      <span class="when">Tomorrow</span>
+                      <div><strong>No returns</strong><div class="ui-sub">Next one on 2 Sep</div></div>
+                    </div>
+                    <div class="slot">
+                      <span class="when">2 Sep</span>
+                      <div><strong>S. Meier</strong> returns<div class="ui-sub">Toyota Prius Hybrid 1.8 · <span class="plate">ZH 918 474</span></div></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="ui-stack">
+                  <div class="ui-tiles" style="grid-template-columns: 1fr 1fr">
+                    <dl class="ui-tile lead"><dt>Returns to confirm</dt><dd>1</dd></dl>
+                    <dl class="ui-tile"><dt>Available</dt><dd>7</dd></dl>
+                    <dl class="ui-tile"><dt>Rented out</dt><dd>2</dd></dl>
+                    <dl class="ui-tile"><dt>Active rentals</dt><dd>2</dd></dl>
+                  </div>
+                  <div class="ui-card">
+                    <h4>Vehicles <small>9</small></h4>
+                    <div class="ui-row" style="grid-template-columns: 1fr auto"><span>Available</span><span class="ui-chip good">7</span></div>
+                    <div class="ui-row" style="grid-template-columns: 1fr auto"><span>Rented out</span><span class="ui-chip attn">2</span></div>
+                    <div class="ui-row" style="grid-template-columns: 1fr auto"><span>Off the road</span><span class="ui-chip mute">0</span></div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cols">
+      <div class="verdict good">
+        <b>Good at</b>
+        <ul>
+          <li>Room to grow. Customers, Contracts and anything Phase 5 adds get a home instead of being bolted onto one scrolling page.</li>
+          <li>Reads as a product rather than an internal page — the thing you actually asked for.</li>
+          <li>The badge on <em>Overview</em> carries pending work into every other section.</li>
+        </ul>
+      </div>
+      <div class="verdict cost">
+        <b>Costs</b>
+        <ul>
+          <li>The most work by a distance: routing, a layout shell, and every section rebuilt as its own view.</li>
+          <li>A rail with seven items is heavy furniture for a nine-car fleet and three accounts.</li>
+          <li>Needs a mobile answer — the rail collapses to something, and that something has to be designed too.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="count">All three options</span>
+      <h2>Accounts and profiles</h2>
+      <p>
+        The same screen whichever direction you pick — only where it lives changes: a link in
+        the header for A, a tab for B, a rail item for C. This is the part the current
+        dashboard buries at the bottom of a 1,017-line page.
+      </p>
+    </div>
+
+    <div class="screen">
+      <div class="screen-bar"><i></i><i></i><i></i><span>/admin/ — Accounts, signed in as an owner</span></div>
+      <div class="screen-body">
+        <div class="ui">
+
+          <div class="ui-top">
+            <div class="ui-brand"><b>ZURIAUTO</b><span>Fleet</span></div>
+            <div class="ui-who"><em>Chef</em> · Owner <button class="ui-btn ghost">Sign out</button></div>
+          </div>
+
+          <div class="ui-stack">
+
+            <div class="ui-card">
+              <h4>Accounts <small>3 · 1 owner, 2 staff</small><button class="ui-btn primary">Add a person</button></h4>
+
+              <div class="ui-row head" style="grid-template-columns: 1fr 8rem 6rem 8rem 11rem">
+                <span>Name</span><span>Username</span><span>Role</span><span>Last sign-in</span><span></span>
+              </div>
+
+              <div class="ui-row ui-me" style="grid-template-columns: 1fr 8rem 6rem 8rem 11rem">
+                <div><strong>Chef</strong> <span class="ui-chip accent">You</span></div>
+                <span class="plate">chef</span>
+                <span class="ui-chip mute">Owner</span>
+                <span class="ui-sub num">today, 08:14</span>
+                <span class="ui-sub">Only owner — cannot be demoted or disabled</span>
+              </div>
+
+              <div class="ui-row" style="grid-template-columns: 1fr 8rem 6rem 8rem 11rem">
+                <div><strong>Anna Brunner</strong></div>
+                <span class="plate">anna</span>
+                <span class="ui-chip mute">Staff</span>
+                <span class="ui-sub num">27 Aug, 16:02</span>
+                <span style="display:flex;gap:.35rem">
+                  <button class="ui-btn">Set password</button>
+                  <button class="ui-btn danger">Disable</button>
+                </span>
+              </div>
+
+              <div class="ui-row" style="grid-template-columns: 1fr 8rem 6rem 8rem 11rem">
+                <div><strong>Rolf Fischer</strong> <span class="ui-chip crit">Disabled</span></div>
+                <span class="plate">rolf.f</span>
+                <span class="ui-chip mute">Staff</span>
+                <span class="ui-sub">never</span>
+                <span style="display:flex;gap:.35rem">
+                  <button class="ui-btn">Set password</button>
+                  <button class="ui-btn">Enable</button>
+                </span>
+              </div>
+            </div>
+
+            <div class="ui-grid2">
+
+              <div class="ui-card">
+                <h4>Add a person</h4>
+                <div class="ui-form" style="grid-template-columns: 1fr 1fr">
+                  <div class="ui-field">
+                    <label>Name</label>
+                    <input class="ui-input filled" value="Sara Meier" readonly>
+                  </div>
+                  <div class="ui-field">
+                    <label>Username</label>
+                    <input class="ui-input filled" value="sara.m" readonly>
+                  </div>
+                  <div class="ui-field">
+                    <label>New password</label>
+                    <input class="ui-input" value="At least 10 characters" readonly>
+                  </div>
+                  <div class="ui-field">
+                    <label>Role</label>
+                    <input class="ui-input filled" value="Staff ▾" readonly>
+                  </div>
+                  <div style="grid-column: 1 / -1; display:flex; align-items:center; justify-content:space-between; gap:.6rem">
+                    <span class="ui-hint">Lowercase letters, digits, dot, hyphen and underscore; 3–32 characters.</span>
+                    <button class="ui-btn primary">Create account</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="ui-stack">
+                <div class="ui-card">
+                  <h4>My password <small>Chef</small></h4>
+                  <div class="ui-form">
+                    <div class="ui-field">
+                      <label>New password</label>
+                      <input class="ui-input" value="At least 10 characters" readonly>
+                    </div>
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:.6rem">
+                      <span class="ui-hint">You will be signed out everywhere.</span>
+                      <button class="ui-btn">Set password</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="ui-card">
+                  <h4>What the form refuses</h4>
+                  <div style="padding:.7rem .85rem; display:flex; flex-direction:column; gap:.4rem">
+                    <span class="ui-err">That username is already taken.</span>
+                    <span class="ui-err">At least 10 characters.</span>
+                    <span class="ui-err">This is the last owner. Make somebody else an owner first.</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cols">
+      <div class="verdict good">
+        <b>What this fixes</b>
+        <ul>
+          <li><strong>Staff never see this screen.</strong> Today the section is hidden but the distinction isn't visible — here, a staff member gets only the <em>My password</em> card, which is theirs by right.</li>
+          <li><strong>The last owner is explained, not just refused.</strong> The row says why the buttons are absent instead of failing with <code>409 last-owner</code> after the click.</li>
+          <li><strong>A disabled account looks disabled</strong> in the list, rather than being a state you discover by trying to use it.</li>
+          <li><strong>Last sign-in becomes useful</strong> — <em>never</em> next to a real date is how you spot an account that was created and forgotten.</li>
+        </ul>
+      </div>
+      <div class="verdict">
+        <b>Already built behind it</b>
+        <ul>
+          <li><code>POST /api/admin/users</code> and <code>PATCH /api/admin/users/[id]</code>, with <code>username-taken</code>, <code>last-owner</code>, <code>forbidden</code> and <code>not-found</code> all distinguished.</li>
+          <li>Any signed-in person can change their own password; only an owner sees the rest.</li>
+          <li>Disabling takes effect on that person's very next click, and a password change ends their other sessions.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>What I'd do</h2>
+    </div>
+
+    <div class="recommend">
+      <b>Recommendation — A now, C later</b>
+      <p>
+        <strong>Option A</strong>, built properly, and structured so it becomes C without a
+        rewrite. The office has nine cars and three accounts. A seven-item rail is furniture
+        the business does not have the weight for yet, and Option B optimises for the wrong
+        failure: the expensive mistake here is not a <em>slow lookup</em>, it is <em>a car
+        sitting blocked because nobody confirmed a return</em> — the one thing today's screen
+        actively hides.
+      </p>
+      <p>
+        Build the queue as its own component over its own selector, and accounts as its own
+        route from the first commit. When Customers and Contracts earn their own screens, the
+        rail gets added around them and the queue becomes the Overview pane. No throwaway work.
+      </p>
+    </div>
+
+    <div class="note">
+      <b>Included either way</b>
+      <p>
+        Splitting <code>components/admin/AdminDashboard.tsx</code>. One 1,017-line file
+        currently holds the sign-in card, the counters, the fleet list, the add-car form, the
+        rentals list, the accounts table, the create-account form and the change-my-password
+        control. Every option above needs it broken into a shell plus one component per
+        section — and both label sets stay exactly as they are, since they are already
+        complete.
+      </p>
+    </div>
+
+    <p>
+      Nothing here touches the pickup or return wizards. Those are a separate job with a
+      different audience, and worth doing after this lands — alongside the per-rental pickup
+      link, which replaces the shared <code>APPLY_SECRET</code> with a button on this
+      dashboard.
+    </p>
+  </section>
+
+  <footer>
+    <div>ZURIAUTO · fleet dashboard directions · drawn against <span class="mono">integrate/backend-plus-return</span></div>
+    <div>Mockups only — no code has been changed. Real fleet from <span class="mono">lib/rental/fleet.ts</span>, real labels from <span class="mono">lib/admin/labels.ts</span>.</div>
+    <div>Customer names, staff names and contract numbers are invented for the drawing.</div>
+  </footer>
+
+</div>
+</body>
+</html>

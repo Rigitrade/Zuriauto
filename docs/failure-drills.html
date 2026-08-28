@@ -1,0 +1,1382 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Zuriauto Failure Drills</title>
+<meta name="description" content="Forty-seven conditions the Zuriauto preview should refuse, survive or hold — the negative half of the release test run.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+  /* Minimal reset — this file is opened directly, not through a host page. */
+  html { -webkit-text-size-adjust: 100%; }
+  /* Tokens lifted from docs/release-test-run.html so the two documents read as one set. */
+  :root {
+    --ground: #F1F4F6;
+    --surface: #FFFFFF;
+    --surface-sunk: #E7ECEF;
+    --ink: #13181C;
+    --ink-soft: #56626C;
+    --ink-faint: #8A959E;
+    --rule: #D6DDE2;
+    --rule-strong: #B9C4CB;
+
+    --accent: #2C3E5C;
+    --ok: #2C6A4E;
+    --ok-soft: #DDEBE3;
+    --warn: #855F0D;
+    --warn-soft: #F3E9D2;
+    --gap: #97292A;
+    --gap-soft: #F2DDDD;
+
+    --measure: 68ch;
+    --step--1: .8125rem;
+    --step-0: 1rem;
+    --step-1: 1.1875rem;
+    --step-2: 1.5rem;
+    --step-3: 2rem;
+    --step-4: 2.9rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0E1216;
+      --surface: #161C21;
+      --surface-sunk: #1D242A;
+      --ink: #E3E9ED;
+      --ink-soft: #97A3AD;
+      --ink-faint: #6C7883;
+      --rule: #252D35;
+      --rule-strong: #37424B;
+      --accent: #93B2DA;
+      --ok: #6DB48D;
+      --ok-soft: #16251D;
+      --warn: #D2A250;
+      --warn-soft: #262013;
+      --gap: #E08787;
+      --gap-soft: #2A1A1A;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #0E1216;
+    --surface: #161C21;
+    --surface-sunk: #1D242A;
+    --ink: #E3E9ED;
+    --ink-soft: #97A3AD;
+    --ink-faint: #6C7883;
+    --rule: #252D35;
+    --rule-strong: #37424B;
+    --accent: #93B2DA;
+    --ok: #6DB48D;
+    --ok-soft: #16251D;
+    --warn: #D2A250;
+    --warn-soft: #262013;
+    --gap: #E08787;
+    --gap-soft: #2A1A1A;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: var(--step-0);
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+    margin: 0;
+    padding: 0 1.25rem 6rem;
+  }
+  img, svg { max-width: 100%; height: auto; }
+
+  .wrap { max-width: 60rem; margin: 0 auto; display: flex; flex-direction: column; gap: 4rem; }
+
+  code, .mono {
+    font-family: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+    font-size: .875em;
+    font-variant-ligatures: none;
+  }
+  p code, li code, td code, dd code, .expect code, .danger code, .caution code {
+    background: var(--surface-sunk);
+    border-radius: 3px;
+    padding: .1em .34em;
+  }
+
+  .masthead { padding-top: 4rem; display: flex; flex-direction: column; gap: 1.3rem; }
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: var(--step--1);
+    letter-spacing: .11em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    display: flex; flex-wrap: wrap; gap: .55rem;
+  }
+  .eyebrow .bar { color: var(--rule-strong); }
+
+  h1 {
+    font-family: Newsreader, ui-serif, Georgia, serif;
+    font-weight: 500; font-size: var(--step-4); line-height: 1.06;
+    letter-spacing: -.017em; margin: 0; text-wrap: balance; max-width: 18ch;
+  }
+  .standfirst {
+    font-family: Newsreader, ui-serif, Georgia, serif;
+    font-size: var(--step-2); line-height: 1.44; color: var(--ink-soft);
+    margin: 0; max-width: 50ch; text-wrap: pretty;
+  }
+  .standfirst strong { color: var(--ink); font-weight: 600; }
+
+  section { display: flex; flex-direction: column; gap: 1.5rem; }
+  .sec-head { border-top: 2px solid var(--ink); padding-top: 1rem; display: flex; flex-direction: column; gap: .5rem; }
+  h2 {
+    font-family: Newsreader, ui-serif, Georgia, serif;
+    font-weight: 500; font-size: var(--step-3); line-height: 1.14;
+    letter-spacing: -.012em; margin: 0; text-wrap: balance;
+  }
+  .sec-head p { margin: 0; color: var(--ink-soft); max-width: var(--measure); text-wrap: pretty; }
+  .sec-head .count {
+    font-family: "IBM Plex Mono", monospace; font-size: var(--step--1);
+    letter-spacing: .09em; text-transform: uppercase; color: var(--ink-faint);
+  }
+
+  h3 {
+    font-family: Newsreader, ui-serif, Georgia, serif;
+    font-weight: 600; font-size: var(--step-1); line-height: 1.3; margin: 0;
+    text-wrap: balance;
+  }
+
+  /* --- a drill: a tick box, an id, and what should happen --- */
+  .run { display: flex; flex-direction: column; }
+  .case {
+    display: grid; grid-template-columns: 1.5rem 3.4rem 1fr; gap: 0 1rem;
+    padding: 1.5rem 0; border-top: 1px solid var(--rule); align-items: start;
+  }
+  .case:first-child { border-top: 1px solid var(--rule-strong); }
+  .case > .tick { padding-top: .35rem; }
+  .case > .tick input {
+    appearance: none; -webkit-appearance: none;
+    width: 1.05rem; height: 1.05rem; margin: 0;
+    border: 1px solid var(--rule-strong); border-radius: 3px;
+    background: var(--surface); cursor: pointer; display: block;
+    position: relative;
+  }
+  .case > .tick input:checked { background: var(--ok); border-color: var(--ok); }
+  .case > .tick input:checked::after {
+    content: ""; position: absolute; left: .32rem; top: .1rem;
+    width: .26rem; height: .55rem;
+    border: solid var(--surface); border-width: 0 2px 2px 0;
+    transform: rotate(42deg);
+  }
+  .case > .tick input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .case > .id {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: var(--step--1); font-variant-numeric: tabular-nums;
+    color: var(--accent); padding-top: .3rem; letter-spacing: .03em;
+  }
+  .case > .body { display: flex; flex-direction: column; gap: .75rem; min-width: 0; }
+  .case p { margin: 0; max-width: var(--measure); text-wrap: pretty; }
+  .case p.why { color: var(--ink-soft); font-size: .9375rem; }
+  .case.done > .body > h3 { opacity: .5; }
+  .case.done > .body > p { opacity: .5; }
+
+  .pill {
+    display: inline-block; font-family: "IBM Plex Mono", monospace;
+    font-size: .625rem; letter-spacing: .09em; text-transform: uppercase;
+    padding: .16rem .45rem; border-radius: 3px; vertical-align: .14em;
+    margin-left: .4rem; font-weight: 500; white-space: nowrap;
+  }
+  .pill.writes { background: var(--warn-soft); color: var(--warn); }
+  .pill.mails { background: var(--gap-soft); color: var(--gap); }
+  .pill.locks { background: var(--gap-soft); color: var(--gap); }
+
+  pre {
+    background: var(--surface-sunk); border: 1px solid var(--rule);
+    border-radius: 4px; padding: .9rem 1.05rem; overflow-x: auto; margin: 0;
+    max-width: 100%;
+  }
+  pre code {
+    font-size: .8125rem; line-height: 1.65; color: var(--ink);
+    white-space: pre; display: block; background: none; padding: 0;
+  }
+
+  .expect {
+    border-left: 2px solid var(--ok); background: var(--ok-soft);
+    padding: .7rem .95rem; border-radius: 0 4px 4px 0;
+    font-size: .9375rem; max-width: var(--measure);
+  }
+  .expect b {
+    display: block; font-family: "IBM Plex Mono", monospace;
+    font-size: .6875rem; letter-spacing: .09em; text-transform: uppercase;
+    color: var(--ok); margin-bottom: .2rem;
+  }
+  .expect ul, .danger ul, .caution ul { margin: .3rem 0 0; padding-left: 1.1rem; }
+  .expect li, .danger li, .caution li { margin: .15rem 0; }
+  .expect p, .danger p, .caution p { margin: .4rem 0 0; }
+  .expect p:first-of-type, .danger p:first-of-type, .caution p:first-of-type { margin-top: 0; }
+
+  .danger {
+    border-left: 2px solid var(--gap); background: var(--gap-soft);
+    padding: .7rem .95rem; border-radius: 0 4px 4px 0;
+    font-size: .9375rem; max-width: var(--measure);
+  }
+  .danger b {
+    display: block; font-family: "IBM Plex Mono", monospace;
+    font-size: .6875rem; letter-spacing: .09em; text-transform: uppercase;
+    color: var(--gap); margin-bottom: .2rem;
+  }
+
+  .caution {
+    border-left: 2px solid var(--warn); background: var(--warn-soft);
+    padding: .7rem .95rem; border-radius: 0 4px 4px 0;
+    font-size: .9375rem; max-width: var(--measure);
+  }
+  .caution b {
+    display: block; font-family: "IBM Plex Mono", monospace;
+    font-size: .6875rem; letter-spacing: .09em; text-transform: uppercase;
+    color: var(--warn); margin-bottom: .2rem;
+  }
+
+  .tablewrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 4px; background: var(--surface); }
+  table { width: 100%; font-size: .9375rem; border-collapse: collapse; }
+  th, td { text-align: left; padding: .7rem .9rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  thead th {
+    font-family: "IBM Plex Mono", monospace; font-size: .6875rem;
+    letter-spacing: .09em; text-transform: uppercase; color: var(--ink-faint);
+    font-weight: 500; background: var(--surface-sunk);
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.num { font-variant-numeric: tabular-nums; }
+
+  dl.kv { display: grid; grid-template-columns: auto 1fr; gap: .4rem 1.2rem; margin: 0; max-width: var(--measure); }
+  dl.kv dt { font-family: "IBM Plex Mono", monospace; font-size: .8125rem; color: var(--ink-soft); }
+  dl.kv dd { margin: 0; }
+
+  .progress {
+    display: flex; align-items: center; gap: .9rem; flex-wrap: wrap;
+    font-family: "IBM Plex Mono", monospace; font-size: var(--step--1);
+    letter-spacing: .06em; text-transform: uppercase; color: var(--ink-faint);
+    border: 1px solid var(--rule); background: var(--surface);
+    border-radius: 4px; padding: .7rem .95rem;
+  }
+  .progress .track {
+    flex: 1 1 12rem; height: 4px; background: var(--surface-sunk);
+    border-radius: 2px; overflow: hidden; min-width: 8rem;
+  }
+  .progress .track span { display: block; height: 100%; width: 0; background: var(--ok); transition: width .18s ease; }
+  .progress .tally { font-variant-numeric: tabular-nums; color: var(--ink-soft); }
+  .progress button {
+    font: inherit; letter-spacing: inherit; text-transform: inherit;
+    background: none; border: 1px solid var(--rule-strong); color: var(--ink-soft);
+    border-radius: 3px; padding: .2rem .6rem; cursor: pointer;
+  }
+  .progress button:hover { color: var(--ink); border-color: var(--ink-soft); }
+  .progress button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  footer {
+    border-top: 1px solid var(--rule); padding-top: 1.3rem;
+    color: var(--ink-faint); font-size: var(--step--1);
+    display: flex; flex-direction: column; gap: .4rem;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+
+  @media (max-width: 760px) {
+    :root { --step-4: 2.2rem; --step-3: 1.6rem; --step-2: 1.25rem; }
+    .case { grid-template-columns: 1.3rem 2.6rem 1fr; gap: 0 .7rem; }
+    dl.kv { grid-template-columns: 1fr; gap: .1rem; }
+    dl.kv dd { margin-bottom: .5rem; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="eyebrow">
+      <span>Zuriauto</span><span class="bar">/</span>
+      <span>Preview</span><span class="bar">/</span>
+      <span>integrate/backend-plus-return</span><span class="bar">/</span>
+      <span>47 drills</span>
+    </div>
+    <h1>Failure Drills</h1>
+    <p class="standfirst">
+      The release test run proves the system <strong>works</strong>. This one proves it
+      <strong>refuses</strong> — cross-site posts, oversized files, impossible status
+      changes, a car returned twice, and the last owner trying to stand down.
+      Every drill here is a condition the code has an opinion about.
+    </p>
+    <div class="progress">
+      <span class="track"><span id="bar-fill"></span></span>
+      <span class="tally" id="bar-label">0 of 47 done</span>
+      <button type="button" id="reset">Clear ticks</button>
+    </div>
+  </header>
+
+  <section>
+    <div class="sec-head">
+      <h2>Before you start</h2>
+      <p>Four things that change what you see, and one that cannot be undone.</p>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>The preview, right now</th><th>Value</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Cars</td><td class="num">9, all <code>available</code></td></tr>
+          <tr><td>Admin accounts</td><td class="num">1 — <code>chef</code>, role <code>owner</code></td></tr>
+          <tr><td>Rentals</td><td class="num">0</td></tr>
+          <tr><td>Customers</td><td class="num">0</td></tr>
+          <tr><td>Deployment</td><td><code>72481c2</code> · region <code>fra1</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <dl class="kv">
+      <dt>Pickup link</dt>
+      <dd><code>/pickup/</code> &mdash; nothing after it. The <code>?k=</code> gate was removed deliberately; an old keyed link still works and the key is ignored.</dd>
+      <dt>Fleet page</dt>
+      <dd><code>/admin/</code> — <code>chef</code>, plus the owner password from setup. Not written on this page on purpose: this page can be shared onward, and a password cannot be un-shared.</dd>
+      <dt>Health</dt>
+      <dd><code>/api/health/</code> — presence of every variable, never a value, plus a live <code>cars</code> and <code>admins</code> count.</dd>
+    </dl>
+
+    <div class="danger">
+      <b>The preview sends real email</b>
+      <p>
+        Check <code>MAIL_OFFICE</code> in Vercel's Preview environment before drill E1.
+        If it still points at the real office address, they receive every trial contract
+        you generate. Use your own address in every renter field.
+      </p>
+    </div>
+
+    <div class="caution">
+      <b>curl cannot reach this deployment</b>
+      <p>
+        Deployment Protection answers an unauthenticated request with <code>302</code> to
+        <code>vercel.com/sso-api</code>, so a check that looks like it passed means nothing.
+        Every drill below is written for a browser, where you are already signed in. The
+        three that need a request a browser cannot make — G1, G2, G3 — need a bypass token
+        first: <em>Settings → Deployment Protection → Protection Bypass for Automation</em>,
+        then <code>-H "x-vercel-protection-bypass: $BYPASS"</code> on every call.
+      </p>
+    </div>
+
+    <div class="caution">
+      <b>Run B5 last</b>
+      <p>
+        It deliberately spends the sign-in budget and locks your own address out of
+        <code>/admin</code> for ten minutes. Everything else in suite B needs you signed in.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="count">Suite A · 6 drills</span>
+      <h2>The fences hold</h2>
+      <p>
+        The pickup form used to be fenced with a shared office key. It is not any more &mdash;
+        that was removed so the office could hand out a bare link. These drills prove what
+        replaced it actually holds, and that the fleet page is still a different story.
+      </p>
+    </div>
+
+    <div class="run">
+
+      <div class="case" data-id="A1">
+        <div class="tick"><input type="checkbox" aria-label="Drill A1 done"></div>
+        <span class="id">A1</span>
+        <div class="body">
+          <h3>The pickup form opens for anyone</h3>
+          <p>Open <code>/pickup/</code> with nothing after it, in a private window.</p>
+          <div class="expect">
+            <b>Expect</b>
+            <p>The five-step wizard. No <em>Link not valid</em> screen &mdash; that gate is gone, and its strings were deleted from both languages.</p>
+          </div>
+          <p class="why">
+            This is the change itself, so confirm it first. Then open an old
+            <code>/apply/?k=&hellip;</code> link: it should redirect to <code>/pickup/</code>
+            and work, with the stale key ignored rather than refused, so nothing already sent
+            over WhatsApp breaks.
+          </p>
+        </div>
+      </div>
+
+      <div class="case" data-id="A2">
+        <div class="tick"><input type="checkbox" aria-label="Drill A2 done"></div>
+        <span class="id">A2</span>
+        <div class="body">
+          <h3>A cross-site post is still refused</h3>
+          <p>
+            From the console on any other site, post to
+            <code>https://&lt;preview&gt;/api/rental-contract/</code>.
+          </p>
+          <div class="expect">
+            <b>Expect</b>
+            <p><code>403 bad-origin</code>. With the key gone, this and the rate limiter are what stand between the form and a script.</p>
+          </div>
+          <p class="why">
+            An absent <code>Origin</code> header is allowed on purpose, for native clients
+            that do not send one &mdash; so this stops a browser-driven attack, not a
+            determined one with curl. The limiter in E7 is the backstop that does.
+          </p>
+        </div>
+      </div>
+
+      <div class="case" data-id="A3">
+        <div class="tick"><input type="checkbox" aria-label="Drill A3 done"></div>
+        <span class="id">A3</span>
+        <div class="body">
+          <h3><code>APPLY_SECRET</code> still does its one remaining job</h3>
+          <p>
+            Run a pickup for a customer who has rented before (drill E6). Then unset
+            <code>APPLY_SECRET</code> in the Preview environment, redeploy, and try again.
+          </p>
+          <div class="expect">
+            <b>Expect</b>
+            <p>
+              With it set, their stored ID and licence are offered for reuse. With it unset,
+              that step fails with a <code>500</code> and no helpful message &mdash; while
+              everything else on the form still works, which is exactly why it is easy to miss.
+            </p>
+          </div>
+          <p class="why">
+            It fences nothing any more; it signs the short-lived document-reuse token in
+            <code>lib/rental/reuseToken.ts</code>. It must stay set in every environment, and
+            must still never equal <code>ADMIN_SECRET</code> &mdash;
+            <code>scripts/set-preview-env.sh</code> refuses to push an environment where the
+            two are equal. Put it back before carrying on.
+          </p>
+        </div>
+      </div>
+
+      <div class="case" data-id="A4">
+        <div class="tick"><input type="checkbox" aria-label="Drill A4 done"></div>
+        <span class="id">A4</span>
+        <div class="body">
+          <h3>The fleet page with no session</h3>
+          <p>Open <code>/admin/</code> in a private window.</p>
+          <div class="expect">
+            <b>Expect</b>
+            <p>The sign-in card only. No counters, no car list, no rental data sitting behind it in the page source.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="case" data-id="A5">
+        <div class="tick"><input type="checkbox" aria-label="Drill A5 done"></div>
+        <span class="id">A5</span>
+        <div class="body">
+          <h3>Nothing links to the admin page</h3>
+          <p>Open <code>/</code> and read the header, the footer and the page source. Then check <code>/sitemap.xml</code>.</p>
+          <div class="expect">
+            <b>Expect</b>
+            <p>No link to <code>/admin</code> anywhere, and <code>index: false, follow: false</code> in its metadata.</p>
+          </div>
+          <p class="why">
+            Obscurity is not the fence — the password is. But a staff tool that turns up in a
+            search result invites someone to start guessing at it.
+          </p>
+        </div>
+      </div>
+
+      <div class="case" data-id="A6">
+        <div class="tick"><input type="checkbox" aria-label="Drill A6 done"></div>
+        <span class="id">A6</span>
+        <div class="body">
+          <h3>Health gives away nothing worth having</h3>
+          <p>Open <code>/api/health/</code> while signed out and read it as an attacker would.</p>
+          <div class="expect">
+            <b>Expect</b>
+            <p>Booleans, never values. Every secret it names fails closed when unset, so knowing which are missing tells you only that the doors are locked.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="count">Suite B · 7 drills</span>
+      <h2>Sign-in and sessions</h2>
+      <p>One answer for every kind of refusal, and a cookie that can be revoked despite being stateless. B7 is the one that surprises people.</p>
+    </div>
+
+    <div class="run">
+
+      <div class="case" data-id="B1">
+        <div class="tick"><input type="checkbox" aria-label="Drill B1 done"></div>
+        <span class="id">B1</span>
+        <div class="body">
+          <h3>Right name, wrong password</h3>
+          <p>Sign in as <code>chef</code> with <code>wrongwrongwrong</code>.</p>
+          <div class="expect">
+            <b>Expect</b>
+            <p>One short refusal, with no hint that the username was the half that was right.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="case" data-id="B2">
+        <div class="tick"><input type="checkbox" aria-label="Drill B2 done"></div>
+        <span class="id">B2</span>
+        <div class="body">
+          <h3>A username that does not exist</h3>
+          <p>Sign in as <code>nobody</code> with anything. Watch the network tab's timing column.</p>
+          <div class="expect">
+            <b>Expect</b>
+            <p>The <strong>same message</strong> as B1, and — the part worth measuring — in roughly the <strong>same time</strong>.</p>
+          </div>
+          <p class="why">
+            The route verifies a real hash of a value nobody knows when no user matched.
+            Without it, an unknown name would return in a millisecond while a known one paid
+            the scrypt cost, turning the login into a way to enumerate who works here.
+          </p>
+        </div>
+      </div>
+
+      <div class="case" data-id="B3">
+        <div class="tick"><input type="checkbox" aria-label="Drill B3 done"></div>
+        <span class="id">B3</span>
+        <div class="body">
+          <h3>The session survives a reload</h3>
+          <p>Sign in, reload, close the tab, reopen <code>/admin/</code>.</p>
+          <div class="expect">
+            <b>Expect</b>
+            <p>Still signed in, still showing your display name. The cookie is good for twelve hours — one working day, so the office signs in once each morning.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="case" data-id="B4">
+        <div class="tick"><input type="checkbox" aria-label="Drill B4 done"></div>
+        <span class="id">B4</span>
+        <div class="body">
+          <h3>Signing out actually signs out</h3>
+          <p>Sign out, then press the browser's Back button.</p>
+          <div class="expect">
+            <b>Expect</b>
+            <p>The sign-in card — not a cached dashboard with live figures still on it.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="case" data-id="B5">
+        <div class="tick"><input type="checkbox" aria-label="Drill B5 done"></div>
+        <span class="id">B5</span>
+        <div class="body">
+          <h3>Eleven wrong passwords in a row<span class="pill locks">locks you out</span></h3>
+          <p>Submit a wrong password eleven times without pausing.</p>
+          <div class="expect">
+            <b>Expect</b>
+            <p>The first ten refuse normally. The eleventh returns <code>429</code> and stays refused for ten minutes — from your address only.</p>
+          </div>
+          <div class="caution">
+            <b>Do this last, and only once</b>
+            <p>You are locking your own address out of <code>/admin</code> for ten minutes. A phone on mobile data is a second address if you need back in sooner.</p>
+          </div>
+          <p class="why">
+            Ten failures per ten minutes, and only <em>failures</em> are charged. The reason is
+            in the next drill.
+          </p>
+        </div>
+      </div>
+
+      <div class="case" data-id="B6">
+        <div class="tick"><input type="checkbox" aria-label="Drill B6 done"></div>
+        <span class="id">B6</span>
+        <div class="body">
+          <h3>A busy morning is not an attack</h3>
+          <p>Sign in and out five times in a row, correctly, in under a minute.</p>
+          <div class="expect">
+            <b>Expect</b>
+            <p>No rate limiting at all.</p>
+          </div>
+          <p class="why">
+            The office sits behind one address with up to ten accounts. If correct sign-ins
+            were charged, ten people arriving at nine o'clock would lock the desk out of its
+            own dashboard.
+          </p>
+        </div>
+      </div>
+
+      <div class="case" data-id="B7">
+        <div class="tick"><input type="checkbox" aria-label="Drill B7 done"></div>
+        <span class="id">B7</span>
+        <div class="body">
+          <h3>Changing your password ends your other sessions<span class="pill writes">writes</span></h3>
+          <p>
+            Sign in on a laptop <em>and</em> a phone. On the laptop, change your own password.
+            Then click something on the phone.
+          </p>
+          <div class="expect">
+            <b>Expect</b>
+            <p>The phone is signed out on its very next click — not twelve hours later when the cookie would have expired.</p>
+          </div>
+          <p class="why">
+            The cookie carries the moment it was issued, and every request compares that to
+            <code>credentialsChangedAt</code>. It is what lets a stateless cookie still be
+            revoked, and it is exactly what you want if the reason for the reset is that
+            somebody else knew the old password.
+          </p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="count">Suite C · 7 drills</span>
+      <h2>Accounts</h2>
+      <p>Two roles, and a set of refusals that exist so the office cannot lock itself out of its own system.</p>
+    </div>
+
+    <div class="run">
+
+      <div class="case" data-id="C1">
+        <div class="tick"><input type="checkbox" aria-label="Drill C1 done"></div>
+        <span class="id">C1</span>
+        <div class="body">
+          <h3>Create a staff account<span class="pill writes">writes</span></h3>
+          <p>As <code>chef</code>, add a second account with role <code>staff</code>.</p>
+          <div class="expect">
+            <b>Expect</b>
+            <p>Created, and listed. Keep the password — C3 and C4 need it.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="case" data-id="C2">
+        <div class="tick"><input type="checkbox" aria-label="Drill C2 done"></div>
+        <span class="id">C2</span>
+        <div class="body">
+          <h3>The names the form refuses</h3>
+          <p>Try to create accounts called, in turn:</p>
+          <pre><code>Chef          an uppercase letter
+ab            two characters
+mo hamed      a space
+schwätzer     a non-ASCII letter
+chef          already taken</code></pre>
+          <p>Then one valid name with the password <code>kurz</code>.</p>
+          <div class="expect">
+            <b>Expect</b>
+            <p>
+              All six refused, each naming the field that was wrong. The rule is
+              <code>^[a-z0-9._-]{3,32}$</code>; passwords are 10–200 characters. The duplicate
+              gets its own answer — <em>username taken</em>, <code>409</code> — rather than
+              being lumped in with the malformed ones.
+            </p>
+          </div>
+          <p class="why">
+            The same schema runs in the seed, so a malformed <code>ADMIN_OWNER_USERNAME</code>
+            fails loudly at seed time instead of creating an account nobody can sign into.
+          </p>
+        </div>
+      </div>
+
+      <div class="case" data-id="C3">
+        <div class="tick"><input type="checkbox" aria-label="Drill C3 done"></div>
+        <span class="id">C3</span>
+        <div class="body">
+          <h3>Staff cannot manage accounts</h3>
+          <p>Sign in as the staff account from C1 and look for the accounts section.</p>
+          <div class="expect">
+            <b>Expect</b>
+            <p>
+              It is not there, and the API behind it answers <code>403 forbidden</code> — a
+              different code from <code>401 unauthorised</code>, because "signed in but not
+              allowed" and "not signed in" are genuinely different problems.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="case" data-id="C4">
+        <div class="tick"><input type="checkbox" aria-label="Drill C4 done"></div>
+        <span class="id">C4</span>
+        <div class="body">
+          <h3>Staff can still change their own password<span class="pill writes">writes</span></h3>
+          <p>Still signed in as staff, change your own password, then sign in again with the new one.</p>
+          <div class="expect">
+            <b>Expect</b>
+            <p>Allowed, signed out immediately afterwards, and the new password works. Every account can rotate its own credential without asking an owner to do it.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="case" data-id="C5">
+        <div class="tick"><input type="checkbox" aria-label="Drill C5 done"></div>
+        <span class="id">C5</span>
+        <div class="body">
+          <h3>The last owner cannot stand down</h3>
+          <p>As <code>chef</code> — the only owner — try to change your own role to <code>staff</code>, then try to disable yourself.</p>
+          <div class="expect">
+            <b>Expect</b>
+            <p>Both refused, <code>409 last-owner</code>. An organisation with no owner has nobody left who can create one.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="case" data-id="C6">
+        <div class="tick"><input type="checkbox" aria-label="Drill C6 done"></div>
+        <span class="id">C6</span>
+        <div class="body">
+          <h3>A disabled account stops working mid-session<span class="pill writes">writes</span></h3>
+          <p>Sign in as staff on a phone. On the laptop, as <code>chef</code>, disable that account. Click something on the phone.</p>
+          <div class="expect">
+            <b>Expect</b>
+            <p>Refused on the next click, without waiting for the cookie to expire.</p>
+          </div>
+          <p class="why">
+            Every request reads the account row, which is what buys revocation a stateless
+            cookie cannot have on its own. One indexed read, against a dashboard serving a
+            handful of requests a day.
+          </p>
+        </div>
+      </div>
+
+      <div class="case" data-id="C7">
+        <div class="tick"><input type="checkbox" aria-label="Drill C7 done"></div>
+        <span class="id">C7</span>
+        <div class="body">
+          <h3>The way back in from the command line<span class="pill writes">writes</span></h3>
+          <p>With <code>DATABASE_URL</code> pointed at the preview branch:</p>
+          <pre><code>pnpm admin:password chef 'EinNeuesPasswort2026'</code></pre>
+          <p>Then try the same against an account that does not exist.</p>
+          <div class="expect">
+            <b>Expect</b>
+            <p>
+              The first succeeds and reports that other sessions were ended. The second
+              refuses — this script resets an existing password and <strong>cannot create a
+              missing account</strong>. That distinction is why a forgotten owner password is
+              recoverable and a missing owner row is not.
+            </p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="count">Suite D · 7 drills</span>
+      <h2>The fleet</h2>
+      <p>
+        Identity lives in code, status lives in the database. The status whitelist is the
+        interesting part: everything involving <code>rented</code> is refused by omission.
+      </p>
+    </div>
+
+    <div class="run">
+
+      <div class="case" data-id="D1">
+        <div class="tick"><input type="checkbox" aria-label="Drill D1 done"></div>
+        <span class="id">D1</span>
+        <div class="body">
+          <h3>Add a car<span class="pill writes">writes</span></h3>
+          <p>Add the BMW you originally came here for — model, plate, VIN.</p>
+          <div class="expect">
+            <b>Expect</b>
+            <p>Created <code>available</code>, and the counter goes from 9 to 10.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="case" data-id="D2">
+        <div class="tick"><input type="checkbox" aria-label="Drill D2 done"></div>
+        <span class="id">D2</span>
+        <div class="body">
+          <h3>The same plate twice</h3>
+          <p>Add another car carrying the plate you just used.</p>
+          <div class="expect">
+            <b>Expect</b>
+            <p>Refused, <code>409 duplicate-plate</code>. A plate is a legal identifier printed on a signed contract; two cars cannot share one.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="case" data-id="D3">
+        <div class="tick"><input type="checkbox" aria-label="Drill D3 done"></div>
+        <span class="id">D3</span>
+        <div class="body">
+          <h3>Edit, then edit into a collision<span class="pill writes">writes</span></h3>
+          <p>Change the BMW's model and VIN. Then change its plate to one an existing car already carries.</p>
+          <div class="expect">
+            <b>Expect</b>
+            <p>The first saves. The second is refused with the same <code>duplicate-plate</code> — the rule holds on update, not only on create.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="case" data-id="D4">
+        <div class="tick"><input type="checkbox" aria-label="Drill D4 done"></div>
+        <span class="id">D4</span>
+        <div class="body">
+          <h3>Retire and un-retire<span class="pill writes">writes</span></h3>
+          <p>Set a car to <code>retired</code>, then back to <code>available</code>. Then submit the form again without changing anything.</p>
+          <div class="expect">
+            <b>Expect</b>
+            <p>All three allowed. Those two transitions plus the no-ops are the entire whitelist, and the no-ops are there so a resubmitted form is not an error.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="case" data-id="D5">
+        <div class="tick"><input type="checkbox" aria-label="Drill D5 done"></div>
+        <span class="id">D5</span>
+        <div class="body">
+          <h3>A retired car is not on offer</h3>
+          <p>Retire a car, then open the public fleet page and the pickup form's car list.</p>
+          <div class="expect">
+            <b>Expect</b>
+            <p>Gone from both. Retiring is how a car comes off the road without a deploy.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="case" data-id="D6">
+        <div class="tick"><input type="checkbox" aria-label="Drill D6 done"></div>
+        <span class="id">D6</span>
+        <div class="body">
+          <h3>Nobody can hand-set a car to rented</h3>
+          <p>
+            There is no control for this in the UI, which is the point — so it is an API
+            check. In the browser console on <code>/admin/</code>, where your session cookie
+            rides along automatically:
+          </p>
+          <pre><code>await (await fetch('/api/admin/cars/&lt;id&gt;/', {
+  method: 'PATCH',
+  headers: { 'content-type': 'application/json' },
+  body: JSON.stringify({ status: 'rented' })
+})).json()</code></pre>
+          <div class="expect">
+            <b>Expect</b>
+            <p><code>{ code: "status-change-refused", from: "available", to: "rented" }</code></p>
+          </div>
+          <p class="why">
+            A whitelist rather than a blacklist, so adding a status to the enum later cannot
+            silently make a new transition reachable. <code>rented</code> belongs to the
+            rental lifecycle, never to a form.
+          </p>
+        </div>
+      </div>
+
+      <div class="case" data-id="D7">
+        <div class="tick"><input type="checkbox" aria-label="Drill D7 done"></div>
+        <span class="id">D7</span>
+        <div class="body">
+          <h3>A car with history cannot be deleted</h3>
+          <p>Come back to this after suite F. Try to delete the car you rented out — then delete the BMW from D1, which has no history.</p>
+          <div class="expect">
+            <b>Expect</b>
+            <p>The first refused, <code>409 has-history</code>. The second deleted. Retiring is the correct move for any car that has ever been on a contract; deleting it would orphan a ten-year commercial record.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="count">Suite E · 8 drills</span>
+      <h2>One rental, and everything that can go wrong with it</h2>
+      <p>
+        This is where the preview writes real data and sends real mail. E1 is the point of no
+        return for the office's inbox if <code>MAIL_OFFICE</code> is still the real address.
+      </p>
+    </div>
+
+    <div class="run">
+
+      <div class="case" data-id="E1">
+        <div class="tick"><input type="checkbox" aria-label="Drill E1 done"></div>
+        <span class="id">E1</span>
+        <div class="body">
+          <h3>A complete pickup<span class="pill writes">writes</span><span class="pill mails">sends mail</span></h3>
+          <p>
+            Open the pickup link with the key and go all the way through: your own name and
+            email, a car, dates, ID and licence images, condition photos, signature.
+          </p>
+          <div class="expect">
+            <b>Expect</b>
+            <ul>
+              <li>A contract number, and a PDF that opens</li>
+              <li>Mail at the renter address — yours</li>
+              <li>The car's status is now <code>rented</code></li>
+              <li><code>/admin/</code> shows one open rental, with the customer and the dates</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="case" data-id="E2">
+        <div class="tick"><input type="checkbox" aria-label="Drill E2 done"></div>
+        <span class="id">E2</span>
+        <div class="body">
+          <h3>The same car, twice over</h3>
+          <p>Start a second pickup and try to choose the car you just rented out.</p>
+          <div class="expect">
+            <b>Expect</b>
+            <p>Not offered. A car on an open contract cannot be handed to a second driver.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="case" data-id="E3">
+        <div class="tick"><input type="checkbox" aria-label="Drill E3 done"></div>
+        <span class="id">E3</span>
+        <div class="body">
+          <h3>An incomplete contract</h3>
+          <p>
+            Start again and try to advance each step with the required field empty — no name,
+            no email, no dates, no signature. Then set an end date before the start date.
+          </p>
+          <div class="expect">
+            <b>Expect</b>
+            <p>Every step blocks, naming the field. Nothing reaches the database.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="case" data-id="E4">
+        <div class="tick"><input type="checkbox" aria-label="Drill E4 done"></div>
+        <span class="id">E4</span>
+        <div class="body">
+          <h3>A PDF that is too big, and one with too many pages</h3>
+          <p>
+            Where the form takes a PDF, offer one over <strong>1.5 MB</strong>, then one with
+            <strong>more than five pages</strong>, then a <code>.jpg</code> renamed to
+            <code>.pdf</code>.
+          </p>
+          <div class="expect">
+            <b>Expect</b>
+            <p>All three refused before anything is uploaded. The page count is checked by reading the file, not by trusting its name or its size.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="case" data-id="E5">
+        <div class="tick"><input type="checkbox" aria-label="Drill E5 done"></div>
+        <span class="id">E5</span>
+        <div class="body">
+          <h3>Photographs, from an actual phone</h3>
+          <p>Open the pickup link on a phone and use the camera for the ID and the condition photos. Then decline the camera permission and use the file picker instead.</p>
+          <div class="expect">
+            <b>Expect</b>
+            <p>Both work. Declining the camera gives <em>No camera found. Please choose a file instead.</em> rather than a dead end.</p>
+          </div>
+          <p class="why">This is the real device story — the office does this at the kerbside, not at a desk.</p>
+        </div>
+      </div>
+
+      <div class="case" data-id="E6">
+        <div class="tick"><input type="checkbox" aria-label="Drill E6 done"></div>
+        <span class="id">E6</span>
+        <div class="body">
+          <h3>A returning customer does not re-scan their passport<span class="pill writes">writes</span></h3>
+          <p>Start a third pickup using the same name and email as E1.</p>
+          <div class="expect">
+            <b>Expect</b>
+            <p>The existing customer is found, and their stored documents are offered for reuse rather than demanded again.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="case" data-id="E7">
+        <div class="tick"><input type="checkbox" aria-label="Drill E7 done"></div>
+        <span class="id">E7</span>
+        <div class="body">
+          <h3>Six pickups in ten minutes</h3>
+          <p>Submit the pickup form six times in quick succession.</p>
+          <div class="expect">
+            <b>Expect</b>
+            <p>
+              The sixth is rate-limited — five per ten minutes per address. It has its own
+              budget, so spending it here does <strong>not</strong> lock you out of
+              <code>/admin</code>, and B5 does not lock you out of here.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="case" data-id="E8">
+        <div class="tick"><input type="checkbox" aria-label="Drill E8 done"></div>
+        <span class="id">E8</span>
+        <div class="body">
+          <h3>The images really are in the EU</h3>
+          <pre><code>wrangler r2 bucket list</code></pre>
+          <p>Find the bucket holding what you just uploaded and read its jurisdiction.</p>
+          <div class="expect">
+            <b>Expect</b>
+            <p><code>EU</code>. A bucket's jurisdiction is fixed at creation, and this one holds ID scans and driving licences.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="count">Suite F · 5 drills</span>
+      <h2>The return</h2>
+      <p>
+        <code>/return/</code> has <strong>no key at all</strong> — it is a public page, because
+        the renter holding the phone has no credential anyone can rely on. What protects it
+        instead: the rental is found <em>from the car</em> and never supplied by the caller,
+        and submitting it deliberately does <em>not</em> free the car.
+      </p>
+    </div>
+
+    <div class="run">
+
+      <div class="case" data-id="F1">
+        <div class="tick"><input type="checkbox" aria-label="Drill F1 done"></div>
+        <span class="id">F1</span>
+        <div class="body">
+          <h3>Return the car<span class="pill writes">writes</span><span class="pill mails">sends mail</span></h3>
+          <p>Open <code>/return/</code> — no key, nothing after it — pick the car you rented out in E1, and fill in mileage, fuel level and any damage photos.</p>
+          <div class="expect">
+            <b>Expect</b>
+            <ul>
+              <li>A confirmation naming the distance driven</li>
+              <li>The rental is now <code>RETURN_SUBMITTED</code></li>
+              <li>The car is <strong>still <code>rented</code></strong></li>
+              <li><code>/admin/</code> badges it <em>Zurückgegeben – bestätigen</em></li>
+            </ul>
+          </div>
+          <p class="why">
+            The car is not freed here on purpose. <code>/return/</code> is unfenced, so letting
+            it put a car back on the road would let anyone who can read a numberplate return
+            a car somebody is still driving — and the next customer could then sign a contract
+            for it.
+          </p>
+        </div>
+      </div>
+
+      <div class="case" data-id="F2">
+        <div class="tick"><input type="checkbox" aria-label="Drill F2 done"></div>
+        <span class="id">F2</span>
+        <div class="body">
+          <h3>The form is open to anyone, and that is the design</h3>
+          <p>
+            Open <code>/return/</code> in a private window, from a phone on mobile data,
+            having never seen an email. Then look at what the page is willing to tell you
+            about a car before you submit anything.
+          </p>
+          <div class="expect">
+            <b>Expect</b>
+            <p>
+              The form loads for anybody. What it must <strong>not</strong> do is confirm who
+              is renting a given car, or let a stranger's submission change what
+              <code>/admin</code> shows as available — that is F4's job.
+            </p>
+          </div>
+          <p class="why">
+            The guards here are not a key: a same-origin check, a per-address rate limit, a
+            honeypot field, PDF-only with a size cap, and the rule that matters most — the
+            rental is looked up <em>from the car</em>, never taken from the request. A caller
+            cannot name someone else's rental id.
+          </p>
+        </div>
+      </div>
+
+      <div class="case" data-id="F3">
+        <div class="tick"><input type="checkbox" aria-label="Drill F3 done"></div>
+        <span class="id">F3</span>
+        <div class="body">
+          <h3>The same car, returned twice</h3>
+          <p>Submit a second return for the car you just returned in F1, before the office has confirmed anything.</p>
+          <div class="expect">
+            <b>Expect</b>
+            <p>
+              The rental is still <em>found</em> — deliberate — so you get an honest
+              <em>already returned</em> rather than the misleading <em>no rental is out on this
+              car</em>, which reads as though the first return was never recorded. The
+              <strong>write</strong> is refused: it is guarded on <code>ACTIVE</code> and
+              <code>EXTENSION_REQUESTED</code> only.
+            </p>
+          </div>
+          <p class="why">
+            Also try a car nobody is driving. That one genuinely has no open rental, and
+            should say so.
+          </p>
+        </div>
+      </div>
+
+      <div class="case" data-id="F4">
+        <div class="tick"><input type="checkbox" aria-label="Drill F4 done"></div>
+        <span class="id">F4</span>
+        <div class="body">
+          <h3>The office confirms, and the car comes back<span class="pill writes">writes</span></h3>
+          <p>On <code>/admin/</code>, confirm the return.</p>
+          <div class="expect">
+            <b>Expect</b>
+            <p>The rental moves to <code>COMPLETED</code> and the car back to <code>available</code>, with the counters moving to match. This is the one click that frees a car.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="case" data-id="F5">
+        <div class="tick"><input type="checkbox" aria-label="Drill F5 done"></div>
+        <span class="id">F5</span>
+        <div class="body">
+          <h3>Closing a rental that is already closed</h3>
+          <p>Confirm the same return a second time — the button again, or a repeated request.</p>
+          <div class="expect">
+            <b>Expect</b>
+            <p><code>409 already-closed</code>, naming the status it is already in. A double click does not double-free a car.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="count">Suite G · 4 drills</span>
+      <h2>The daily run</h2>
+      <p>
+        Vercel Cron does not fire on preview deployments, so a manual trigger is the only way
+        to exercise any of this — and that needs the bypass token from the top of this page.
+      </p>
+    </div>
+
+    <div class="run">
+
+      <div class="case" data-id="G1">
+        <div class="tick"><input type="checkbox" aria-label="Drill G1 done"></div>
+        <span class="id">G1</span>
+        <div class="body">
+          <h3>The scheduler refuses an unsigned call</h3>
+          <pre><code>curl -s -o /dev/null -w '%{http_code}\n' \
+  -H "x-vercel-protection-bypass: $BYPASS" \
+  $PREVIEW_URL/api/cron/daily/</code></pre>
+          <div class="expect">
+            <b>Expect</b>
+            <p><code>401</code>. Without the bypass header you get <code>302</code> instead, which tells you nothing at all about the fence.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="case" data-id="G2">
+        <div class="tick"><input type="checkbox" aria-label="Drill G2 done"></div>
+        <span class="id">G2</span>
+        <div class="body">
+          <h3>A wrong bearer token</h3>
+          <pre><code>curl -s -o /dev/null -w '%{http_code}\n' \
+  -H "x-vercel-protection-bypass: $BYPASS" \
+  -H "authorization: Bearer wrong" \
+  $PREVIEW_URL/api/cron/daily/</code></pre>
+          <div class="expect">
+            <b>Expect</b>
+            <p><code>401</code> — the same answer as no token at all.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="case" data-id="G3">
+        <div class="tick"><input type="checkbox" aria-label="Drill G3 done"></div>
+        <span class="id">G3</span>
+        <div class="body">
+          <h3>The real daily run<span class="pill writes">writes</span><span class="pill mails">sends mail</span></h3>
+          <pre><code>curl -s -H "x-vercel-protection-bypass: $BYPASS" \
+  -H "authorization: Bearer $CRON_SECRET" \
+  $PREVIEW_URL/api/cron/daily/ | jq</code></pre>
+          <div class="expect">
+            <b>Expect</b>
+            <p>A summary of what it did. With a rental ending inside the next 48 hours, a reminder goes out — to your address, because you used it as the renter's.</p>
+          </div>
+          <p class="why">
+            The window is 48 hours wide rather than 24 because the free plan fires the cron
+            once a day, within the hour, rather than at a precise time.
+          </p>
+        </div>
+      </div>
+
+      <div class="case" data-id="G4">
+        <div class="tick"><input type="checkbox" aria-label="Drill G4 done"></div>
+        <span class="id">G4</span>
+        <div class="body">
+          <h3>A returned rental is still chased for money</h3>
+          <p>Run G3 again <em>after</em> F1 but <em>before</em> F4 — so the rental sits at <code>RETURN_SUBMITTED</code> with a charge outstanding.</p>
+          <div class="expect">
+            <b>Expect</b>
+            <p>The charge is still picked up. Handing the keys back does not settle the bill.</p>
+          </div>
+          <p class="why">
+            Filtering the scheduler on <code>ACTIVE</code> alone would quietly stop chasing
+            money that is still owed — the exact bug fixed in <code>65d3f0b</code>, and the
+            drill most worth keeping when the rest of this page has gone stale.
+          </p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="count">Suite H · 3 drills</span>
+      <h2>Language, device, and interruption</h2>
+    </div>
+
+    <div class="run">
+
+      <div class="case" data-id="H1">
+        <div class="tick"><input type="checkbox" aria-label="Drill H1 done"></div>
+        <span class="id">H1</span>
+        <div class="body">
+          <h3>Both languages, all the way through</h3>
+          <p>Run a pickup in German and one in English, reading the sign-in card, the error messages and the generated PDF in each.</p>
+          <div class="expect">
+            <b>Expect</b>
+            <p>No English leaking into a German contract, and no untranslated key anywhere. The legal terms are the part to read properly rather than skim.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="case" data-id="H2">
+        <div class="tick"><input type="checkbox" aria-label="Drill H2 done"></div>
+        <span class="id">H2</span>
+        <div class="body">
+          <h3>A slow connection, then a lost one</h3>
+          <p>With the network throttled to Slow 3G, submit a pickup. Then, mid-upload, switch to Offline.</p>
+          <div class="expect">
+            <b>Expect</b>
+            <p>A visible pending state rather than a frozen button, and an error you can act on rather than a silent failure. Afterwards, check whether a half-finished rental was left behind.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="case" data-id="H3">
+        <div class="tick"><input type="checkbox" aria-label="Drill H3 done"></div>
+        <span class="id">H3</span>
+        <div class="body">
+          <h3>Reload in the middle of the wizard</h3>
+          <p>Get as far as the signature step, reload the page, and see what survives.</p>
+          <div class="expect">
+            <b>Expect</b>
+            <p>Whatever it does, it should be honest about it — either the work is still there, or it clearly starts again. What it must not do is submit a contract with half the fields missing.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Afterwards</h2>
+    </div>
+    <p style="margin:0;max-width:var(--measure)">
+      The preview database now holds real-shaped test data: customers, contracts, and images
+      in the EU bucket. Part 6 of the release test run has the cleanup, and
+      <code>docs/DATA-RETENTION.md</code> has the rules that apply to the images specifically.
+      Delete the test customers' documents rather than leaving them in the bucket — if you
+      used your own ID, as instructed, they are scans of a real person's papers.
+    </p>
+    <div class="caution">
+      <b>Two known gaps — not bugs to file</b>
+      <ul>
+        <li>
+          <code>ADMIN_OWNER_USERNAME</code> and <code>ADMIN_OWNER_PASSWORD</code> are missing
+          from <code>.env.preview.template</code> and from the required list in
+          <code>scripts/set-preview-env.sh</code>, so the next fresh database seeds with no
+          owner and refuses every sign-in with no explanation on screen.
+        </li>
+        <li>
+          The owner password now in use was generated during setup and written into a chat
+          transcript. Rotate it with C7 before this account guards anything real.
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>
+    <div>Zuriauto · failure drills for <span class="mono">integrate/backend-plus-return</span> at <span class="mono">72481c2</span></div>
+    <div>The happy path lives in <span class="mono">docs/release-test-run.html</span>. This page is the other half of it.</div>
+    <div>Ticks are remembered in this browser only. Nobody else opening this page sees them.</div>
+  </footer>
+
+</div>
+
+<script>
+  (function () {
+    var KEY = "zuriauto-failure-drills-v1";
+    var boxes = Array.prototype.slice.call(document.querySelectorAll(".case input[type=checkbox]"));
+    var fill = document.getElementById("bar-fill");
+    var label = document.getElementById("bar-label");
+    var reset = document.getElementById("reset");
+
+    function read() {
+      try {
+        var raw = localStorage.getItem(KEY);
+        return raw ? JSON.parse(raw) : {};
+      } catch (e) {
+        return {};
+      }
+    }
+
+    function write(state) {
+      try {
+        localStorage.setItem(KEY, JSON.stringify(state));
+      } catch (e) {
+        /* private window, or storage blocked — ticks just do not persist */
+      }
+    }
+
+    function paint() {
+      var done = 0;
+      boxes.forEach(function (box) {
+        var row = box.parentNode.parentNode;
+        if (box.checked) {
+          done++;
+          row.classList.add("done");
+        } else {
+          row.classList.remove("done");
+        }
+      });
+      if (fill) fill.style.width = (boxes.length ? (done / boxes.length) * 100 : 0) + "%";
+      if (label) label.textContent = done + " of " + boxes.length + " done";
+    }
+
+    var state = read();
+    boxes.forEach(function (box) {
+      var row = box.parentNode.parentNode;
+      var id = row.getAttribute("data-id");
+      if (state[id]) box.checked = true;
+      box.addEventListener("change", function () {
+        var next = read();
+        if (box.checked) { next[id] = 1; } else { delete next[id]; }
+        write(next);
+        paint();
+      });
+    });
+
+    if (reset) {
+      reset.addEventListener("click", function () {
+        boxes.forEach(function (b) { b.checked = false; });
+        write({});
+        paint();
+      });
+    }
+
+    paint();
+  })();
+</script>
+
+</body>
+</html>
