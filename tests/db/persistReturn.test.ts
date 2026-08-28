@@ -378,3 +378,32 @@ describe("persistReturn", () => {
     expect(car.status).toBe("available");
   });
 });
+
+describe("a submitted return and the money still owed", () => {
+  it("keeps chasing a weekly charge after the renter has returned the car", async () => {
+    const { organisationId, store } = await ready();
+    const pickup = await rentalOut(organisationId, store);
+    await submitReturn(organisationId, store);
+
+    // Week 1 falls due while the rental sits in RETURN_SUBMITTED.
+    const charge = await prisma.charge.findFirstOrThrow({
+      where: { rentalId: pickup.rentalId, weekNumber: 1 },
+    });
+
+    const { weeklyChargePass } = await import("@/lib/rental/scheduler");
+    const issued = await weeklyChargePass({
+      client: prisma,
+      now: new Date(charge.dueDate.getTime() + 60_000),
+      baseUrl: "https://example.test",
+      // No SMTP config: the pass claims and marks, and skips the send.
+      mail: null,
+    });
+
+    // The car being back does not make the week already driven unpayable.
+    expect(issued).toBeGreaterThan(0);
+    const after = await prisma.charge.findUniqueOrThrow({
+      where: { id: charge.id },
+    });
+    expect(after.status).toBe("REQUESTED");
+  });
+});

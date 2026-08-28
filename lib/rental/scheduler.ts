@@ -199,11 +199,28 @@ export async function preEndReminderPass(deps: SchedulerDeps): Promise<number> {
 // 2–4. Weekly charges, ported from the old repo's issue/remind/alert passes.
 // ---------------------------------------------------------------------
 
+/**
+ * The rental statuses whose charges are still chased.
+ *
+ * RETURN_SUBMITTED is in the list and that is the whole point of the list.
+ * From Phase 4 the renter can move their own rental into it by submitting the
+ * return form, and money owed for a week already driven does not stop being
+ * owed because the car is back — so filtering on ACTIVE alone would let a
+ * renter switch off their own payment reminders.
+ *
+ * COMPLETED is deliberately absent: closing a rental is the office's own act,
+ * and stopping the chasing is part of what they mean by it.
+ */
+const CHARGEABLE_RENTAL_STATUSES = ["ACTIVE", "RETURN_SUBMITTED"] as const;
+
 export async function weeklyChargePass(deps: SchedulerDeps): Promise<number> {
   const { client, now, mail } = deps;
 
   const candidates = await client.charge.findMany({
-    where: { status: "SCHEDULED", rental: { status: "ACTIVE" } },
+    where: {
+      status: "SCHEDULED",
+      rental: { status: { in: [...CHARGEABLE_RENTAL_STATUSES] } },
+    },
     include: { rental: { include: rentalInclude } },
   });
 
@@ -290,7 +307,10 @@ export async function chargeReminderPass(deps: SchedulerDeps): Promise<number> {
   const { client, now, mail } = deps;
 
   const candidates = await client.charge.findMany({
-    where: { status: "REQUESTED", rental: { status: "ACTIVE" } },
+    where: {
+      status: "REQUESTED",
+      rental: { status: { in: [...CHARGEABLE_RENTAL_STATUSES] } },
+    },
     include: { rental: { include: rentalInclude } },
   });
 
@@ -344,7 +364,10 @@ export async function chargeOverduePass(deps: SchedulerDeps): Promise<number> {
   const { client, now, mail } = deps;
 
   const candidates = await client.charge.findMany({
-    where: { status: "REMINDED", rental: { status: "ACTIVE" } },
+    where: {
+      status: "REMINDED",
+      rental: { status: { in: [...CHARGEABLE_RENTAL_STATUSES] } },
+    },
     include: { rental: { include: rentalInclude } },
   });
 
