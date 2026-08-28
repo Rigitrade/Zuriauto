@@ -272,6 +272,36 @@
       A preview missing <code>DATABASE_URL</code> fails in a way that looks like a
       code bug — which is the exact confusion <code>/api/health</code> exists to end.
     </div>
+
+    <div class="danger">
+      <b>Deployment Protection breaks every curl step — read this before running any</b>
+      <p style="margin:.4rem 0 0">
+        The preview sits behind Vercel Authentication, so an unauthenticated
+        request is answered with <code>302</code> to <code>vercel.com/sso-api</code>
+        and never reaches the application. In a browser you are already signed in
+        and see the real page, which makes this easy to miss: a <code>curl</code>
+        fence check would report <code>302</code> where you expected
+        <code>401</code>, and <strong>a passing-looking result would mean
+        nothing</strong>.
+      </p>
+      <p style="margin:.5rem 0 0">
+        It also means <strong>the cron cannot be triggered at all</strong> — and
+        Vercel Cron does not fire on preview deployments, so a manual trigger is
+        the only way to exercise Part 5.
+      </p>
+      <p style="margin:.5rem 0 0">
+        Fix it once, in <em>Settings → Deployment Protection → Protection Bypass
+        for Automation</em>. Generate the secret, then send it with every request:
+      </p>
+      <pre style="margin:.5rem 0 0"><code>export BYPASS="&lt;VERCEL_AUTOMATION_BYPASS_SECRET&gt;"
+curl -s -H "x-vercel-protection-bypass: $BYPASS" $PREVIEW_URL/api/health/ | jq</code></pre>
+      <p style="margin:.5rem 0 0">
+        Add that header to <strong>every</strong> <code>curl</code> in this guide.
+        Prefer the bypass token over switching protection off: while you are
+        testing, the preview writes real ID scans into the EU bucket and its
+        pickup form would otherwise be open to anyone with the URL.
+      </p>
+    </div>
   </section>
 
   <section>
