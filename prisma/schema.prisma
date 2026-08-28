@@ -60,6 +60,11 @@ enum AssetKind {
   DAMAGE_PHOTO
 }
 
+enum AdminRole {
+  owner
+  staff
+}
+
 /// One row for the foreseeable future. Present so that a tenant key exists on
 /// every table from the first migration rather than being retrofitted, which
 /// would mean rewriting every query and every access check.
@@ -72,6 +77,7 @@ model Organisation {
   rentals   Rental[]
   contracts Contract[]
   counters  ContractCounter[]
+  adminUsers AdminUser[]
 }
 
 model Car {
@@ -257,10 +263,16 @@ model RentalEvent {
 model SubmissionAttempt {
   id String @id @default(cuid())
 
-  ipHash    String
+  ipHash String
+  /// Which fence recorded this attempt: "pickup", "signin".
+  ///
+  /// Added in Phase 5. A shared budget lets a burst against one endpoint
+  /// starve another — the reasoning already written in
+  /// app/api/rental-return/route.ts for keeping that route's limiter its own.
+  scope     String   @default("pickup")
   createdAt DateTime @default(now())
 
-  @@index([ipHash, createdAt])
+  @@index([scope, ipHash, createdAt])
 }
 
 /// One row per desk lookup, so "who looked up whom" is answerable without the
@@ -401,4 +413,47 @@ model ActionToken {
   rental Rental @relation(fields: [rentalId], references: [id])
 
   @@index([rentalId, purpose])
+}
+
+// ---------------------------------------------------------------------
+// Phase 5, stage 1 — accounts for the fleet dashboard.
+// See docs/superpowers/specs/2026-08-28-admin-accounts-design.md
+// ---------------------------------------------------------------------
+
+/// A person who can sign into the fleet page.
+///
+/// Disabled, never deleted: a rental event saying this person closed a rental
+/// has to keep resolving after they leave the company.
+model AdminUser {
+  id             String @id @default(cuid())
+  organisationId String
+
+  /// Lowercased and trimmed on write. `[a-z0-9._-]{3,32}`.
+  username String
+  /// What attribution shows, e.g. "Eng Ahmed".
+  displayName String
+  role        AdminRole @default(staff)
+
+  /// `scrypt$N$r$p$salt$hash`. See lib/admin/password.ts.
+  passwordHash String
+
+  /// Set to disable. Read on every request, so it takes effect at once.
+  disabledAt DateTime?
+
+  /// Bumped when the password changes, which invalidates every cookie issued
+  /// before it.
+  ///
+  /// Deliberately not bumped on a role change: the cookie carries no role, so
+  /// a demotion is already in force on the demoted person's next request.
+  credentialsChangedAt DateTime @default(now())
+
+  lastSignInAt DateTime?
+  createdAt    DateTime  @default(now())
+  /// The owner who created this account. Null for the seeded one.
+  createdById String?
+
+  organisation Organisation @relation(fields: [organisationId], references: [id])
+
+  @@unique([organisationId, username])
+  @@index([organisationId, disabledAt])
 }
