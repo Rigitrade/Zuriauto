@@ -24,31 +24,48 @@ export function hashIp(ip: string): string {
     .digest("hex");
 }
 
+export interface RateLimitOptions {
+  /** Which fence is asking. Budgets never cross scopes. */
+  scope?: string;
+  max?: number;
+  windowMs?: number;
+}
+
 /**
  * Records this attempt and reports whether it should be refused.
  *
  * Records first, then counts, so a failure between the two cannot be turned
  * into a free attempt. Expired rows are deleted on the way past, which keeps
- * the table bounded without a scheduled job — there is no scheduler until
- * Phase 3.
+ * the table bounded without a scheduled job.
+ *
+ * `now` stays the third parameter and `options` the fourth so that adding
+ * scopes did not have to touch every existing call.
  */
 export async function rateLimited(
   client: PrismaClient,
   ip: string,
-  now: Date = new Date()
+  now: Date = new Date(),
+  options: RateLimitOptions = {}
 ): Promise<boolean> {
-  const ipHash = hashIp(ip);
-  const windowStart = new Date(now.getTime() - RATE_LIMIT.windowMs);
+  const scope = options.scope ?? "pickup";
+  const max = options.max ?? RATE_LIMIT.max;
+  const windowMs = options.windowMs ?? RATE_LIMIT.windowMs;
 
+  const ipHash = hashIp(ip);
+  const windowStart = new Date(now.getTime() - windowMs);
+
+  // Swept across every scope: an expired row is expired whoever wrote it.
   await client.submissionAttempt.deleteMany({
     where: { createdAt: { lt: windowStart } },
   });
 
-  await client.submissionAttempt.create({ data: { ipHash, createdAt: now } });
-
-  const attempts = await client.submissionAttempt.count({
-    where: { ipHash, createdAt: { gte: windowStart } },
+  await client.submissionAttempt.create({
+    data: { ipHash, scope, createdAt: now },
   });
 
-  return attempts > RATE_LIMIT.max;
+  const attempts = await client.submissionAttempt.count({
+    where: { scope, ipHash, createdAt: { gte: windowStart } },
+  });
+
+  return attempts > max;
 }

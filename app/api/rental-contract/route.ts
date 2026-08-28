@@ -55,7 +55,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ code: "bad-origin" }, { status: 403 });
   }
 
-  if (await rateLimited(prisma, clientIp(request))) {
+  if (await rateLimited(prisma, clientIp(request), new Date(), { scope: "pickup" })) {
     return NextResponse.json({ code: "rate-limited" }, { status: 429 });
   }
 

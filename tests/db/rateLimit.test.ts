@@ -59,4 +59,28 @@ describe("rateLimited", () => {
     // The first row is outside the window and has been deleted on the way past.
     expect(await prisma.submissionAttempt.count()).toBe(1);
   });
+
+  it("keeps a separate budget per scope", async () => {
+    const ip = "198.51.100.9";
+    // Exhaust the sign-in budget.
+    for (let i = 0; i <= 10; i += 1) {
+      await rateLimited(prisma, ip, undefined, { scope: "signin", max: 10 });
+    }
+    expect(
+      await rateLimited(prisma, ip, undefined, { scope: "signin", max: 10 })
+    ).toBe(true);
+
+    // The pickup form is untouched by that burst.
+    expect(await rateLimited(prisma, ip)).toBe(false);
+  });
+
+  it("honours a custom max", async () => {
+    const ip = "198.51.100.10";
+    for (let i = 0; i <= 1; i += 1) {
+      await rateLimited(prisma, ip, undefined, { scope: "signin", max: 1 });
+    }
+    expect(
+      await rateLimited(prisma, ip, undefined, { scope: "signin", max: 1 })
+    ).toBe(true);
+  });
 });
