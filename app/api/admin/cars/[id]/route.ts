@@ -4,12 +4,14 @@ import { statusChangeAllowed, updateCarSchema } from "@/lib/admin/cars";
 import { requireAdmin } from "@/lib/admin/session";
 
 /**
- * Editing a car, or taking it off the road.
+ * Editing a car, retiring it, or removing it.
  *
- * There is no DELETE, deliberately. A car with rentals against it cannot be
- * removed: `driverAt` reaches back through `Rental` to attribute traffic fines,
- * and a contract naming a plate that no longer exists is a broken commercial
- * record. Retiring hides it from the picker and keeps every row pointing at it.
+ * Deletion is available only for a car with no rental history — typically one
+ * just added by mistake. Anything with a rental stays and is retired instead
+ * via PATCH: every contract naming the car points at this row, so deleting one
+ * would break the traffic-fine lookup — "who was driving ZH 589 864 on the
+ * 12th" — and orphan signed documents under a ten-year retention obligation.
+ * Retiring hides it from the picker and keeps every row pointing at it.
  */
 
 export const runtime = "nodejs";
@@ -85,4 +87,42 @@ export async function PATCH(
     console.error("[admin] could not update the car:", error);
     return NextResponse.json({ code: "failed" }, { status: 500 });
   }
+}
+
+/**
+ * Removing a car, narrowly.
+ *
+ * Only a car with no rentals, which in practice means one somebody has just
+ * mistyped. Anything with history stays: every rental and every contract
+ * naming it points at this row, so deleting one would break the traffic-fine
+ * lookup — "who was driving ZH 589 864 on the 12th" — and orphan signed
+ * documents under a ten-year retention obligation.
+ *
+ * `retired` is the delete that is safe, and it is what the 409 points at.
+ */
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const user = await requireAdmin(request);
+  if (!user) {
+    return NextResponse.json({ code: "unauthorised" }, { status: 401 });
+  }
+
+  const { id } = await params;
+
+  const car = await prisma.car.findUnique({
+    where: { id },
+    select: { id: true, _count: { select: { rentals: true } } },
+  });
+  if (!car) {
+    return NextResponse.json({ code: "not-found" }, { status: 404 });
+  }
+
+  if (car._count.rentals > 0) {
+    return NextResponse.json({ code: "has-history" }, { status: 409 });
+  }
+
+  await prisma.car.delete({ where: { id: car.id } });
+  return NextResponse.json({ ok: true });
 }
