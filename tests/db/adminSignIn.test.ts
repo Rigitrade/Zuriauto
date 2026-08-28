@@ -99,6 +99,40 @@ describe("POST /api/admin/session", () => {
     expect(attempts).toBe(0);
   });
 
+  it("does not charge the budget for a run of successful sign-ins", async () => {
+    await seedUser();
+    // More than SIGNIN_MAX correct sign-ins from one address: the office
+    // behind one NAT address, more than ten accounts, nobody typing wrong.
+    let last;
+    for (let i = 0; i < 12; i += 1) {
+      last = await POST(
+        signIn({ username: "ahmed", password: "Sommer2026!" }, "203.0.113.11")
+      );
+    }
+    expect(last!.status).toBe(200);
+  });
+
+  it("fails closed with 401 when ADMIN_SECRET is unset, and does not stamp lastSignInAt", async () => {
+    const user = await seedUser();
+    const original = process.env.ADMIN_SECRET;
+    delete process.env.ADMIN_SECRET;
+    try {
+      const response = await POST(
+        signIn({ username: "ahmed", password: "Sommer2026!" }, "203.0.113.13")
+      );
+      expect(response.status).toBe(401);
+      expect(await response.json()).toEqual({ code: "unauthorised" });
+      expect(response.headers.get("set-cookie")).toBeNull();
+    } finally {
+      // Restored so the tests that follow are not left signing against an
+      // unconfigured key.
+      process.env.ADMIN_SECRET = original;
+    }
+
+    const after = await prisma.adminUser.findUniqueOrThrow({ where: { id: user.id } });
+    expect(after.lastSignInAt).toBeNull();
+  });
+
   it("clears the cookie on sign out", async () => {
     const response = await DELETE();
     expect(response.cookies.get(ADMIN_COOKIE)?.value).toBe("");

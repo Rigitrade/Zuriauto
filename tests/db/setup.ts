@@ -13,7 +13,7 @@ export async function resetDatabase(): Promise<void> {
   await prisma.$executeRawUnsafe(`
     TRUNCATE TABLE
       "Asset", "RentalEvent", "Contract", "Rental",
-      "Customer", "Car", "ContractCounter", "SubmissionAttempt",
+      "Customer", "Car", "ContractCounter", "SubmissionAttempt", "AdminUser",
       -- No foreign key, so CASCADE from another table never reaches it.
       "CustomerLookup", "Organisation"
     RESTART IDENTITY CASCADE

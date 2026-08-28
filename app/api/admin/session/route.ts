@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { passwordMatches } from "@/lib/admin/password";
-import { rateLimited } from "@/lib/rental/rateLimit";
+import { rateLimited, rateLimitExceeded } from "@/lib/rental/rateLimit";
 import {
   ADMIN_COOKIE,
   ADMIN_SESSION_TTL_MS,
@@ -20,7 +20,13 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** How many sign-in attempts one address gets in ten minutes. */
+/**
+ * How many failed sign-in attempts one address gets in ten minutes.
+ *
+ * Only failures are charged — the office sits behind one NAT address with up
+ * to ten accounts, and ten correct sign-ins on the same morning must not
+ * lock the desk out of its own dashboard.
+ */
 const SIGNIN_MAX = 10;
 
 const credentialsSchema = z.object({
@@ -64,14 +70,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ code: "bad-request" }, { status: 400 });
   }
 
-  // Its own budget, so a burst here cannot lock the office out of the pickup
+  const ip = clientIp(request);
+  const now = new Date();
+  // Its own scope, so a burst here cannot lock the office out of the pickup
   // form and vice versa.
-  if (
-    await rateLimited(prisma, clientIp(request), new Date(), {
-      scope: "signin",
-      max: SIGNIN_MAX,
-    })
-  ) {
+  const limitOptions = { scope: "signin", max: SIGNIN_MAX };
+
+  // Checked, not recorded: a run of correct passwords must not spend the
+  // budget by itself. Only a failure below records an attempt.
+  if (await rateLimitExceeded(prisma, ip, now, limitOptions)) {
     return NextResponse.json({ code: "rate-limited" }, { status: 429 });
   }
 
@@ -86,17 +93,32 @@ export async function POST(request: Request) {
     },
   });
 
-  // One answer for a wrong password, an unknown username, a disabled account
-  // and an unconfigured server: a caller learns only that they are not in.
+  // One answer for a wrong password, an unknown username and a disabled
+  // account: a caller learns only that they are not in.
   //
   // The hash is verified even when no user was found, against a dummy of the
   // same shape, so the response time does not reveal which usernames exist.
   const hash = user?.passwordHash ?? DUMMY_HASH;
   const ok = await passwordMatches(credentials.password, hash);
   if (!user || !ok) {
+    await rateLimited(prisma, ip, now, limitOptions);
     return NextResponse.json({ code: "unauthorised" }, { status: 401 });
   }
 
+  // The same "one answer" rule extends to a server that cannot sign anybody
+  // in: issueAdminSession() throws when ADMIN_SECRET is unset, and a caller
+  // who typed the right password must learn no more than "not in" — not a
+  // 500 that tells them the credentials were the part that worked. Not
+  // charged against the rate limit: this is a misconfiguration, not a guess.
+  let token: string;
+  try {
+    token = issueAdminSession(user.id);
+  } catch {
+    return NextResponse.json({ code: "unauthorised" }, { status: 401 });
+  }
+
+  // Only stamped once a session has actually been issued — a sign-in that
+  // produced no cookie is not a sign-in.
   await prisma.adminUser.update({
     where: { id: user.id },
     data: { lastSignInAt: new Date() },
@@ -110,11 +132,7 @@ export async function POST(request: Request) {
       role: user.role,
     },
   });
-  response.cookies.set(
-    ADMIN_COOKIE,
-    issueAdminSession(user.id),
-    cookieOptions(ADMIN_SESSION_TTL_MS / 1000)
-  );
+  response.cookies.set(ADMIN_COOKIE, token, cookieOptions(ADMIN_SESSION_TTL_MS / 1000));
   return response;
 }
 
