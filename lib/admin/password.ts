@@ -32,11 +32,13 @@ const KEY_BYTES = 32;
 const SALT_BYTES = 16;
 
 /**
- * Ceiling for scrypt's memory, and a real guard rather than a formality.
+ * Bounds on scrypt parameters, and Node's memory ceiling.
  *
- * Cost is roughly `128 * N * r` bytes — 16 MB at our parameters. A tampered
- * `passwordHash` naming N = 2^30 would otherwise ask Node for gigabytes on
- * a login attempt, so the parameters are bounded before they are used.
+ * MAX_N and MAX_R are loose: together they allow ~4 GiB, so upfront bounds
+ * reject the obviously absurd but are not the actual guard. Cost is roughly
+ * `128 * N * r` bytes; anything that exceeds MAX_MEM is refused by Node's own
+ * maxmem check inside derive(), caught and returned as false. Together, both
+ * layers prevent a tampered row from turning a login into a memory bomb.
  */
 const MAX_MEM = 64 * 1024 * 1024;
 const MAX_N = 1 << 20;

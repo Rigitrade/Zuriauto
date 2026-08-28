@@ -53,9 +53,17 @@ describe("passwordMatches", () => {
     }
   });
 
-  it("refuses absurd parameters instead of allocating gigabytes", async () => {
-    // A tampered row must not be able to turn a login into a memory bomb.
+  it("refuses absurd parameters upfront", async () => {
+    // N=2^30 exceeds MAX_N, caught by parseStored bounds check.
     const bomb = "scrypt$1073741824$32$16$aaaa$bbbb";
     expect(await passwordMatches("Sommer2026!", bomb)).toBe(false);
+  });
+
+  it("refuses parameters within bounds but still too large for maxmem", async () => {
+    // N=2^20 (MAX_N) with r=32 is ~4 GiB total, within parseStored bounds but
+    // beyond the maxmem ceiling. Rejected by Node's scrypt maxmem check, caught
+    // and turned to false.
+    const tooLarge = "scrypt$1048576$32$1$aaaa$bbbb";
+    expect(await passwordMatches("Sommer2026!", tooLarge)).toBe(false);
   });
 });
