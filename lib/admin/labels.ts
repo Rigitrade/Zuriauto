@@ -31,9 +31,13 @@ const de = {
   },
   nav: {
     signOut: "Abmelden",
+    overview: "Übersicht",
     fleet: "Flotte",
     rentals: "Mieten",
     accounts: "Konten",
+    myPassword: "Mein Passwort",
+    /** Screen-reader name for the section navigation itself. */
+    sections: "Bereiche",
   },
   counts: {
     available: "Verfügbar",
@@ -124,9 +128,13 @@ const en: typeof de = {
   },
   nav: {
     signOut: "Sign out",
+    overview: "Overview",
     fleet: "Fleet",
     rentals: "Rentals",
     accounts: "Accounts",
+    myPassword: "My password",
+    /** Screen-reader name for the section navigation itself. */
+    sections: "Sections",
   },
   counts: {
     available: "Available",
