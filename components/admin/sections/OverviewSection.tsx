@@ -18,7 +18,7 @@ import { day } from "@/components/admin/format";
  * band above, with the action attached.
  */
 export function OverviewSection() {
-  const { L, data } = useAdmin();
+  const { L, data, write } = useAdmin();
 
   // Set after mount rather than at module scope: a timestamp computed during
   // render differs between the server's HTML and the client's first paint,
@@ -41,7 +41,14 @@ export function OverviewSection() {
 
   return (
     <>
-      <AttentionBand items={items} L={L} now={now} />
+      <AttentionBand
+        items={items}
+        L={L}
+        now={now}
+        onResend={(contractId) =>
+          write(`/api/admin/contracts/${contractId}/resend/`, { method: "POST" })
+        }
+      />
 
       <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
         <TodayTimeline rentals={data.rentals} L={L} now={now} />

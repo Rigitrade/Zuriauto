@@ -1,14 +1,23 @@
 /**
  * Somewhere to put bytes.
  *
- * Kept to one method on purpose. Nothing in Phase 2 reads an object back — the
- * PDF the customer needs is the one the browser already has, and the only
- * consumer of stored images is a human opening the storage console. Adding
- * `get` and `delete` before there is a caller would be designing the Phase 5
- * dashboard from here.
+ * Deliberately small. `get` arrived with the first real reader — resending a
+ * contract whose email never left, which needs the stored PDF because the
+ * browser that built it is long gone. There is still no `delete`: nothing
+ * deletes an asset yet, and retention (docs/DATA-RETENTION.md) will want a
+ * policy rather than a method.
  */
 export interface AssetStore {
   put(key: string, body: Uint8Array, contentType: string): Promise<void>;
+  /**
+   * Reads an object back, or null when it is not there.
+   *
+   * Null rather than throwing: a contract row can outlive its object — a
+   * bucket restored from an older snapshot, a key written before a rename —
+   * and the caller's honest answer to that is "cannot resend this one", not a
+   * 500.
+   */
+  get(key: string): Promise<{ body: Uint8Array; contentType: string } | null>;
   /**
    * Copies an existing object to a new key, server-side.
    *

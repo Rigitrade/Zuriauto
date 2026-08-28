@@ -10,7 +10,6 @@
 import nodemailer from "nodemailer";
 import { buildCustomerEmail } from "./customerEmail";
 import { labelsFor } from "./labels";
-import type { ContractMeta } from "./schema";
 
 interface MailConfig {
   host: string;
@@ -84,6 +83,27 @@ export interface MailOutcome {
 }
 
 /**
+ * What sending actually needs: enough to address the mail and write the
+ * office's summary line.
+ *
+ * Narrower than `ContractMeta`, which also carries the full validated
+ * `details` for the write path. Declared separately so resending a stored
+ * contract — which has a database row and a PDF, but no submitted form — can
+ * call the same function instead of growing a second mailer that drifts.
+ * `ContractMeta` satisfies this structurally, so the pickup route is
+ * unchanged.
+ */
+export interface ContractMailFields {
+  contractNumber: string;
+  customerName: string;
+  customerEmail: string;
+  vehicleLabel: string;
+  plate: string;
+  mileageKm: number;
+  language: "de" | "en";
+}
+
+/**
  * Sends the office copy and the customer copy.
  *
  * Never throws. The records are already committed when this runs, so the
@@ -91,7 +111,7 @@ export interface MailOutcome {
  * anything.
  */
 export async function sendContractMails(
-  meta: ContractMeta,
+  meta: ContractMailFields,
   pdf: Buffer
 ): Promise<MailOutcome> {
   const config = readMailConfig();

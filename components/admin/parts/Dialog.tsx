@@ -1,0 +1,75 @@
+"use client";
+
+import { useEffect, useRef } from "react";
+import { X } from "lucide-react";
+
+/**
+ * A modal for the jobs done a handful of times a year.
+ *
+ * Adding a vehicle and creating an account used to be forms wedged permanently
+ * open above the lists they belong to — the rarest work holding the most
+ * valuable space on the page. Behind a button they cost one click and give the
+ * space back.
+ *
+ * Built on `<dialog>` rather than a div with a z-index, which buys three
+ * things that are tedious to reproduce and easy to get subtly wrong: focus is
+ * trapped inside while it is open, the rest of the page is inert to a screen
+ * reader, and Escape closes it without a key handler.
+ *
+ * `showModal()` is called from an effect rather than rendering `open`: the
+ * `open` attribute produces a non-modal dialog, which looks identical and does
+ * none of the above.
+ */
+export function Dialog({
+  open,
+  onClose,
+  title,
+  closeLabel,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  closeLabel: string;
+  children: React.ReactNode;
+}) {
+  const ref = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    if (open && !node.open) node.showModal();
+    if (!open && node.open) node.close();
+  }, [open]);
+
+  return (
+    <dialog
+      ref={ref}
+      // Fires for Escape and for the form-method="dialog" close alike, so the
+      // parent's state cannot drift out of step with what is on screen.
+      onClose={onClose}
+      // A click landing on the dialog element itself is a click on the
+      // backdrop; anything inside the panel stops at the panel.
+      onClick={(event) => {
+        if (event.target === ref.current) onClose();
+      }}
+      className="
+        m-auto w-[min(32rem,calc(100vw-2rem))] rounded-2xl border border-slate-200
+        bg-white p-0 text-slate-900 shadow-xl backdrop:bg-slate-900/40
+      "
+    >
+      <div className="flex items-center justify-between gap-4 border-b border-slate-200 px-5 py-3.5">
+        <h2 className="text-sm font-semibold">{title}</h2>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label={closeLabel}
+          className="grid h-8 w-8 place-items-center rounded-md text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
+        >
+          <X className="h-4 w-4" aria-hidden="true" />
+        </button>
+      </div>
+      <div className="px-5 py-4">{children}</div>
+    </dialog>
+  );
+}

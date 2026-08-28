@@ -12,6 +12,8 @@ export function AccountActions({
   onChanged,
   onSelfPasswordChanged,
   onError,
+  canDisable = true,
+  disabledHint,
 }: {
   account: Account;
   /** Whether this row is the signed-in user's own account. An owner appears
@@ -27,6 +29,12 @@ export function AccountActions({
    *  longer works, with no message, until their next write. */
   onSelfPasswordChanged: () => void;
   onError: (message: string) => void;
+  /** False for the last remaining owner. The API refuses that with
+   *  409 last-owner; withholding the button says so before the click.
+   *  Setting a password stays available — that rule is about role and
+   *  disabled state, not credentials. */
+  canDisable?: boolean;
+  disabledHint?: string;
 }) {
   const [newPassword, setNewPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -73,14 +81,20 @@ export function AccountActions({
       >
         {L.accounts.setPassword}
       </button>
-      <button
-        type="button"
-        disabled={busy}
-        onClick={() => patch({ disabled: !account.disabledAt })}
-        className="h-10 rounded-md border border-slate-300 px-3 text-sm text-slate-700 disabled:opacity-50"
-      >
-        {account.disabledAt ? L.accounts.enable : L.accounts.disable}
-      </button>
+      {canDisable ? (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => patch({ disabled: !account.disabledAt })}
+          className="h-10 rounded-md border border-slate-300 px-3 text-sm text-slate-700 disabled:opacity-50"
+        >
+          {account.disabledAt ? L.accounts.enable : L.accounts.disable}
+        </button>
+      ) : (
+        disabledHint && (
+          <span className="text-xs text-slate-400">{disabledHint}</span>
+        )
+      )}
     </div>
   );
 }

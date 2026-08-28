@@ -18,6 +18,10 @@ export function createMemoryStore(): MemoryStore {
       objects.set(key, { body, contentType });
     },
 
+    async get(key) {
+      return objects.get(key) ?? null;
+    },
+
     async copy(fromKey, toKey, contentType) {
       const source = objects.get(fromKey);
       // Loud, because the alternative is a contract recorded as carrying

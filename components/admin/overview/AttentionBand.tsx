@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import type { AttentionItem } from "@/lib/admin/attention";
 import type { Labels } from "@/components/admin/types";
@@ -21,10 +22,15 @@ export function AttentionBand({
   items,
   L,
   now,
+  onResend,
 }: {
   items: AttentionItem[];
   L: Labels;
   now: Date;
+  /** Resolves true when the contract went out. The row reports the outcome
+   *  itself rather than only through the shell's message strip, because by
+   *  then the row may have vanished from a refetch. */
+  onResend: (contractId: string) => Promise<boolean>;
 }) {
   if (items.length === 0) {
     return (
@@ -62,12 +68,19 @@ export function AttentionBand({
                   {L.overview.carStaysBlocked}
                 </span>
               )}
-              <Link
-                href={item.kind === "mail" ? "/admin/rentals" : "/admin/rentals"}
-                className="h-9 rounded-md border border-slate-300 px-3 text-sm leading-9 text-slate-700 transition-colors hover:bg-slate-50"
-              >
-                {item.kind === "return" ? L.rentals.close : L.overview.open}
-              </Link>
+              {item.kind === "mail" && item.contractId ? (
+                <ResendButton
+                  L={L}
+                  onResend={() => onResend(item.contractId as string)}
+                />
+              ) : (
+                <Link
+                  href="/admin/rentals"
+                  className="h-9 rounded-md border border-slate-300 px-3 text-sm leading-9 text-slate-700 transition-colors hover:bg-slate-50"
+                >
+                  {item.kind === "return" ? L.rentals.close : L.overview.open}
+                </Link>
+              )}
             </div>
           </li>
         ))}
@@ -100,4 +113,46 @@ function detail(item: AttentionItem, L: Labels, now: Date): string {
     );
   }
   return parts.join(" · ");
+}
+
+/**
+ * Its own component so the pending and sent states are per row.
+ *
+ * Three unsent contracts is one click each, and a single shared `busy` flag
+ * would grey out all three while one is in flight — which reads as though the
+ * click landed on the wrong row.
+ */
+function ResendButton({
+  L,
+  onResend,
+}: {
+  L: Labels;
+  onResend: () => Promise<boolean>;
+}) {
+  const [state, setState] = useState<"idle" | "sending" | "sent">("idle");
+
+  if (state === "sent") {
+    return (
+      <span className="rounded bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-900">
+        {L.overview.sent}
+      </span>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      disabled={state === "sending"}
+      onClick={async () => {
+        setState("sending");
+        // Back to idle on failure, never stuck: the shell's message strip
+        // says what went wrong, and the office should be able to try again
+        // once it is fixed.
+        setState((await onResend()) ? "sent" : "idle");
+      }}
+      className="h-9 rounded-md border border-slate-300 px-3 text-sm text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
+    >
+      {state === "sending" ? "…" : L.overview.sendAgain}
+    </button>
+  );
 }

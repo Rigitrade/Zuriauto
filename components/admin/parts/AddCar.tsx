@@ -29,7 +29,10 @@ export function AddCar({
           setVin("");
         }
       }}
-      className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-[2fr_1fr_1fr_auto]"
+      // A vertical stack: this lives in a dialog now, not across the top of
+      // the page, and three labelled fields in a 32rem panel read better as
+      // rows than as a squeezed four-column grid.
+      className="grid gap-3"
     >
       <Input
         value={model}
@@ -49,7 +52,7 @@ export function AddCar({
       <button
         type="submit"
         disabled={busy || !model.trim() || !plate.trim()}
-        className="h-10 rounded-md bg-slate-900 px-4 text-sm font-medium text-white transition-colors hover:bg-slate-800 disabled:opacity-50"
+        className="mt-1 h-10 rounded-md bg-slate-900 px-4 text-sm font-medium text-white transition-colors hover:bg-slate-800 disabled:opacity-50"
       >
         {L.fleet.add}
       </button>

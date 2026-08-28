@@ -1,4 +1,9 @@
-import { CopyObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {
+  CopyObjectCommand,
+  GetObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 import type { AssetStore } from "./types";
 
 /**
@@ -81,6 +86,29 @@ export function createR2Store(): AssetStore {
           ContentType: contentType,
         })
       );
+    },
+
+    async get(key) {
+      try {
+        const result = await client.send(
+          new GetObjectCommand({ Bucket: R2_BUCKET, Key: key })
+        );
+        if (!result.Body) return null;
+        // transformToByteArray is the SDK v3 helper that drains the stream
+        // without pulling in Node's stream/consumers, which would not run on
+        // every runtime this could deploy to.
+        const body = await result.Body.transformToByteArray();
+        return {
+          body,
+          contentType: result.ContentType ?? "application/octet-stream",
+        };
+      } catch (error) {
+        // A missing key is an answer, not a failure — see the note on `get`
+        // in ./types.ts. Anything else is a real fault and is rethrown.
+        const name = (error as { name?: string })?.name;
+        if (name === "NoSuchKey" || name === "NotFound") return null;
+        throw error;
+      }
     },
 
     async copy(fromKey, toKey, contentType) {
