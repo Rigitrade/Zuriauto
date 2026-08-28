@@ -35,6 +35,7 @@ yarn-error.log*
 # ...except the template, which holds no secrets and is the setup instructions
 # for the rental contract mailer.
 !.env.local.example
+!.env.preview.template
 
 # vercel
 .vercel
