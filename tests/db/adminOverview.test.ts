@@ -7,6 +7,7 @@ import { persistPickup, type PickupUpload } from "@/lib/rental/persistPickup";
 import { persistReturn } from "@/lib/rental/persistReturn";
 import type { ReturnDetails } from "@/lib/rental/returnSchema";
 import type { ContractDetails } from "@/lib/rental/schema";
+import { fleet } from "@/lib/rental/fleet";
 import { createMemoryStore } from "@/lib/storage";
 import { ensureOrganisation, seedFleet } from "@/prisma/seed";
 
@@ -149,13 +150,15 @@ describe("GET /api/admin/overview", () => {
 
     const body = await (await GET(signedIn())).json();
 
-    expect(body.cars).toHaveLength(8);
+    // Counted from the fleet, not hard-coded: adding a car is a one-line
+    // change to fleet.ts and must not break an unrelated test.
+    expect(body.cars).toHaveLength(fleet.length);
     // /api/fleet/ hides these; this page exists to manage them.
     expect(body.cars.some((car: { status: string }) => car.status === "retired")).toBe(
       true
     );
     expect(body.counts.retired).toBe(1);
-    expect(body.counts.available).toBe(7);
+    expect(body.counts.available).toBe(fleet.length - 1);
   });
 
   it("reports an active rental with its car and renter", async () => {
