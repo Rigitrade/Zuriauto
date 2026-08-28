@@ -51,7 +51,7 @@ interface Account {
   lastSignInAt: string | null;
 }
 
-type Me = { username: string; displayName: string; role: "owner" | "staff" };
+type Me = { id: string; username: string; displayName: string; role: "owner" | "staff" };
 
 interface Overview {
   /** The same shape the sign-in response carries — one type for "who am I",
@@ -268,17 +268,52 @@ export default function AdminDashboard() {
       body: JSON.stringify(draft),
     });
 
-    if (response.status === 409) {
-      setMessage(L.accounts.usernameTaken);
-      return;
-    }
     if (!response.ok) {
-      setMessage(L.errors.generic);
+      // Routed through the shared map rather than treating every 409 as
+      // "username taken": that is the only 409 this endpoint returns today,
+      // but reading the actual `code` is what keeps that true by
+      // construction instead of by accident.
+      const result = await response.json().catch(() => ({}));
+      setMessage(messageForCode(L, result.code));
       return;
     }
 
     setDraft({ displayName: "", username: "", password: "", role: "staff" });
     await loadAccounts();
+  }
+
+  /** Available to any signed-in user, not just an owner: `PATCH
+   *  /api/admin/users/[id]/` lets a staff member change exactly their own
+   *  password, and this is the only place in the UI that reaches it. Kept
+   *  outside `write()` on purpose — a self password change always ends the
+   *  session that made the request (`credentialsChangedAt` moves past the
+   *  cookie's `issuedAt`), and `write()`'s own follow-up `load()` would hit
+   *  that 401 silently, via its own bare `signedIn(false)` branch, and drop
+   *  the caller on the sign-in screen with no explanation. Handled here
+   *  instead, so the sign-out carries `L.accounts.passwordChangedSignOut`. */
+  async function changeMyPassword(password: string): Promise<boolean> {
+    if (!me) return false;
+    setBusy(true);
+    setMessage(null);
+    try {
+      const response = await fetch(`/api/admin/users/${me.id}/`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        setMessage(messageForCode(L, result.code));
+        return false;
+      }
+      setSignedIn(false);
+      setMe(null);
+      setData(null);
+      setMessage(L.accounts.passwordChangedSignOut);
+      return true;
+    } finally {
+      setBusy(false);
+    }
   }
 
   const LanguageToggle = (
@@ -385,6 +420,10 @@ export default function AdminDashboard() {
             </button>
           </div>
         </header>
+
+        {me && (
+          <SelfPasswordForm L={L} busy={busy} onChangePassword={changeMyPassword} />
+        )}
 
         {message && (
           <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
@@ -865,13 +904,9 @@ function AccountActions({
         headers: { "content-type": "application/json" },
         body: JSON.stringify(body),
       });
-      if (response.status === 409) {
-        const { code } = (await response.json()) as { code: string };
-        onError(code === "last-owner" ? L.accounts.lastOwner : L.errors.generic);
-        return;
-      }
       if (!response.ok) {
-        onError(L.errors.generic);
+        const result = await response.json().catch(() => ({}));
+        onError(messageForCode(L, result.code));
         return;
       }
       setNewPassword("");
@@ -908,5 +943,48 @@ function AccountActions({
         {account.disabledAt ? L.accounts.enable : L.accounts.disable}
       </button>
     </div>
+  );
+}
+
+/** Visible to any signed-in user — owner or staff — since the endpoint it
+ *  calls lets either change their own password. There is no owner gate on
+ *  this component; the fence is `PATCH /api/admin/users/[id]/`'s own
+ *  self-password-only carve-out for staff. */
+function SelfPasswordForm({
+  L,
+  busy,
+  onChangePassword,
+}: {
+  L: Labels;
+  busy: boolean;
+  onChangePassword: (password: string) => Promise<boolean>;
+}) {
+  const [password, setPassword] = useState("");
+
+  return (
+    <form
+      onSubmit={async (event) => {
+        event.preventDefault();
+        if (await onChangePassword(password)) setPassword("");
+      }}
+      className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white p-3"
+    >
+      <span className="text-sm text-slate-600">{L.accounts.myPassword}</span>
+      <input
+        type="password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        placeholder={L.accounts.newPassword}
+        autoComplete="new-password"
+        className="h-10 w-40 rounded-md border border-input px-2 text-sm"
+      />
+      <button
+        type="submit"
+        disabled={busy || password.length < 10}
+        className="h-10 rounded-md border border-slate-300 px-3 text-sm text-slate-700 disabled:opacity-50"
+      >
+        {L.accounts.setPassword}
+      </button>
+    </form>
   );
 }

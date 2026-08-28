@@ -34,12 +34,13 @@ beforeEach(() => {
 
 describe("POST /api/admin/session", () => {
   it("signs in and sets the cookie", async () => {
-    await seedUser();
+    const user = await seedUser();
     const response = await POST(signIn({ username: "ahmed", password: "Sommer2026!" }));
 
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.user).toEqual({
+      id: user.id,
       username: "ahmed",
       displayName: "Eng Ahmed",
       role: "staff",

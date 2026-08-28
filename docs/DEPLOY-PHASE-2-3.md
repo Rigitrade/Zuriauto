@@ -54,14 +54,29 @@ one means recreating it, which is only cheap while there is no production data.
 DATABASE_URL="<neon pooled url>" pnpm exec prisma migrate deploy
 ```
 
-Expect two migrations: `…_init` and `…_lifecycle`.
+Expect four migrations: `…_init`, `…_lifecycle`, `…_returning_customer_recognition`
+and `…_admin_accounts`. All additive — see "Rolling back" at the end of this
+document.
+
+**Also creates the office's first dashboard account, if you are ready for it.**
+The command below runs `seedOwner()`, which reads `ADMIN_OWNER_USERNAME`,
+`ADMIN_OWNER_NAME` and `ADMIN_OWNER_PASSWORD` — described in step 3's table,
+two sections below this one — and does nothing if they are unset: no error,
+just a missing `, owner created` in the log line. Nothing later in this
+runbook re-runs the seed for you, so **read step 3's owner-variable note now**
+and have those three values in your local `.env.local` (or inlined in the
+command below) before running it, or the deploy ships a dashboard nobody can
+sign into. Step 5h is the check that would catch it if you don't.
 
 ```bash
-# One Organisation row and the nine fleet vehicles.
+# One Organisation row, the nine fleet vehicles, and the first dashboard
+# account (only if the three ADMIN_OWNER_* variables above are set).
 DATABASE_URL="<neon pooled url>" pnpm db:seed
 ```
 
 - [ ] Verify: `SELECT count(*) FROM "Car";` returns 9.
+- [ ] Verify: `SELECT username, role FROM "AdminUser";` returns the one owner
+      row you expect. Empty here is exactly the failure step 5h is for.
 
 ---
 
@@ -106,11 +121,16 @@ documents every one.
 | `ADMIN_OWNER_PASSWORD` | its initial password — **set before the deploy** |
 | `SITE_URL` | `https://zuriauto.ch` — no trailing slash |
 
-> **Set the owner variables before the deploy that carries Phase 5.** The seed
-> creates the first account only when the organisation has none, and never
-> overwrites a password that already exists — so a deploy without them ships a
-> dashboard nobody can sign into, and changing `ADMIN_OWNER_PASSWORD` later
-> does nothing. `pnpm admin:password <username> <password>` is the way back in.
+> **Set these three before running step 1's `pnpm db:seed`, not just before
+> the deploy.** The seed creates the first account only when the organisation
+> has none, and never overwrites a password that already exists — so a seed
+> run without them ships a dashboard nobody can sign into, and setting
+> `ADMIN_OWNER_PASSWORD` afterwards does nothing, because the account it
+> would apply to was never created. `pnpm admin:password <username>
+> <password>` only resets a *forgotten* password on an account that already
+> exists — it cannot create the missing one. If step 5h finds nobody can sign
+> in, the recovery is step 5h's, not this command: set the three variables,
+> point `DATABASE_URL` at the production database, and re-run `pnpm db:seed`.
 
 Already set, unchanged: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`,
 `MAIL_FROM`, `MAIL_OFFICE`, `MAIL_ARCHIVE`.
@@ -257,6 +277,26 @@ failed in this project before.
 **g. Clean up.** Delete the test rental, its contract, charges, notifications
 and tokens; set the car back to `available`; delete its objects from R2.
 
+**h. The owner can actually sign in.** This is the check that catches an
+unseeded owner — nothing earlier in this runbook attempts a sign-in, so a
+deploy can pass every other smoke test and still leave nobody able to open
+the dashboard.
+
+- [ ] Open `https://zuriauto.ch/admin/` in a browser and sign in with
+      `ADMIN_OWNER_USERNAME` / `ADMIN_OWNER_PASSWORD`. Expect the dashboard,
+      not the sign-in form staying up with a failure message.
+
+If it fails: the seed in step 1 most likely ran before the three
+`ADMIN_OWNER_*` variables were set, so `seedOwner()` silently created no
+account. Recover by setting `ADMIN_OWNER_USERNAME`, `ADMIN_OWNER_NAME` and
+`ADMIN_OWNER_PASSWORD`, pointing `DATABASE_URL` at the production database,
+and re-running `pnpm db:seed`. This is safe to do at any time, including
+against a database that already has data: the seed never overwrites a
+password that already exists, so re-running it only fills in the missing
+owner and otherwise changes nothing. `pnpm admin:password` cannot substitute
+for this — it resets a forgotten password on an account that already exists,
+not create one that was never seeded.
+
 ---
 
 ## 6. Turn the cron on
@@ -359,5 +399,5 @@ be requested on the next cron run.
 - **The database**: migrations are additive; nothing that already existed
   changed shape. There is no down-migration and it should not be needed.
 
-The one thing that does not roll back is a sent email. That is why step 5f is
-last, and why it uses your own address.
+The one thing that does not roll back is a sent email. That is why step 5f
+runs after every safer check in that list, and why it uses your own address.

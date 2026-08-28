@@ -21,6 +21,7 @@ export interface AdminOverview {
    *  header without a second endpoint: the office already fetches this once
    *  on every load. */
   me: {
+    id: string;
     username: string;
     displayName: string;
     role: "owner" | "staff";
@@ -134,6 +135,7 @@ export async function GET(request: Request) {
 
   const payload: AdminOverview = {
     me: {
+      id: user.id,
       username: user.username,
       displayName: user.displayName,
       role: user.role,

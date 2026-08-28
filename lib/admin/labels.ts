@@ -97,6 +97,8 @@ const de = {
     lastOwner: "Das ist der letzte Inhaber. Bitte zuerst einen weiteren Inhaber bestimmen.",
     passwordTooShort: "Mindestens 10 Zeichen.",
     usernameInvalid: "Nur Kleinbuchstaben, Zahlen, Punkt, Bindestrich und Unterstrich; 3–32 Zeichen.",
+    myPassword: "Mein Passwort",
+    passwordChangedSignOut: "Passwort geändert. Bitte erneut anmelden.",
   },
   errors: {
     generic: "Etwas ist schiefgelaufen. Bitte erneut versuchen.",
@@ -188,6 +190,8 @@ const en: typeof de = {
     lastOwner: "This is the last owner. Make somebody else an owner first.",
     passwordTooShort: "At least 10 characters.",
     usernameInvalid: "Lowercase letters, digits, dot, hyphen and underscore only; 3–32 characters.",
+    myPassword: "My password",
+    passwordChangedSignOut: "Password changed. Please sign in again.",
   },
   errors: {
     generic: "Something went wrong. Please try again.",

@@ -127,6 +127,7 @@ export async function POST(request: Request) {
   const response = NextResponse.json({
     ok: true,
     user: {
+      id: user.id,
       username: user.username,
       displayName: user.displayName,
       role: user.role,
