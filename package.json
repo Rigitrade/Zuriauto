@@ -5,7 +5,7 @@
   "packageManager": "pnpm@11.9.0",
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "prisma generate && next build --turbopack",
+    "build": "prisma generate && node scripts/migrate-on-build.mjs && next build --turbopack",
     "start": "next start",
     "lint": "eslint",
     "check-mail": "node --env-file=.env.local scripts/check-mail.mjs",

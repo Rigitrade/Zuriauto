@@ -48,15 +48,40 @@ one means recreating it, which is only cheap while there is no production data.
 - [ ] Copy the pooled connection string.
 - [ ] Record the region in `docs/DATA-RETENTION.md`, which has a checkbox for it.
 
+**The deploy migrates itself.** `pnpm build` runs
+`scripts/migrate-on-build.mjs`, which applies pending migrations whenever a
+`DATABASE_URL` is present, so the schema and the code that expects it ship
+together and there is no manual step to forget. It uses `migrate deploy`, never
+`migrate dev` — dev can prompt to reset the database, which against production
+would be catastrophic — and `deploy` only applies what is pending and never
+rolls anything back, so it is safe on every build. Prisma takes an advisory
+lock, so two builds racing each other serialise rather than collide. With no
+`DATABASE_URL` the migration is skipped and the build still succeeds, which is
+deliberate: a CI typecheck should not need production credentials.
+
+You can still run it by hand — against a database that has no deployment
+pointed at it yet, that is the only way:
+
 ```bash
-# Apply the schema. `migrate deploy`, never `migrate dev` — dev can prompt to
-# reset the database, which against production would be catastrophic.
 DATABASE_URL="<neon pooled url>" pnpm exec prisma migrate deploy
 ```
 
 Expect four migrations: `…_init`, `…_lifecycle`, `…_returning_customer_recognition`
 and `…_admin_accounts`. All additive — see "Rolling back" at the end of this
 document.
+
+- [ ] Verify in the deployment's build log: a `[build] applying pending
+      migrations to <host>` line naming the host you expect. If it says
+      `DATABASE_URL is not set`, the deploy built against no database and
+      nothing migrated — fix the environment and redeploy before going on.
+
+**The seed deliberately does not run on build, and must not.** Migrating is
+idempotent; seeding is not. `pnpm db:seed` also calls `seedFleet`, whose update
+re-applies `model`, `plate` and `vin` from `lib/rental/fleet.ts` over whatever is
+in the database — including a plate the office has corrected through the
+dashboard. On every deploy that would silently revert their corrections, and a
+plate is a legal identifier printed on signed contracts. So the seed stays a
+deliberate, hand-run step.
 
 **Also creates the office's first dashboard account, if you are ready for it.**
 The command below runs `seedOwner()`, which reads `ADMIN_OWNER_USERNAME`,
@@ -475,6 +500,10 @@ be requested on the next cron run.
   `CRON_SECRET`, which makes every trigger 401 immediately.
 - **The database**: migrations are additive; nothing that already existed
   changed shape. There is no down-migration and it should not be needed.
+  Redeploying an earlier build does not undo a migration and does not fail
+  either: that build's `migrate deploy` finds only its own migrations, all of
+  which are already applied, and does nothing. The schema stays ahead of the
+  rolled-back code, which is exactly why every migration here is additive.
 
 The one thing that does not roll back is a sent email. That is why step 5f
 runs after every safer check in that list, and why it uses your own address.
