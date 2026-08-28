@@ -7,13 +7,12 @@
  * name because four deployed environments already set it, and renaming it
  * would break every one of them for no gain.
  *
- * IMPORTANT: still deliberately NOT `APPLY_SECRET`. That one is pasted into
- * WhatsApp by staff and leaks the moment a link is forwarded — see the warning
- * in lib/applyKey.ts.
+ * IMPORTANT: still deliberately NOT `APPLY_SECRET`. That one signs tokens in
+ * the public, unfenced pickup flow — see the note in lib/rental/reuseToken.ts.
+ * A key used there must never be the key that protects the fleet page.
  *
- * A cookie rather than `?k=` in the URL, which is what the pickup form uses:
- * that link is opened once from a message, while this page is opened daily,
- * and a secret in a URL accumulates in history, bookmarks and referrer
+ * A cookie rather than a secret in the URL: this page is opened daily, and a
+ * secret in a URL accumulates in history, bookmarks and referrer
  * headers.
  *
  * Rotating `ADMIN_SECRET` invalidates every cookie, which stays the way to

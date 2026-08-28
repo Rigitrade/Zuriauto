@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { APPLY_KEY_HEADER, applyKeyValid } from "@/lib/applyKey";
 import { prisma } from "@/lib/db";
 import type { AssetKind } from "@/generated/prisma/client";
 import { sendContractMails } from "@/lib/rental/mail";
@@ -17,9 +16,18 @@ import { getAssetStore } from "@/lib/storage";
  * sent — so a mail failure leaves a contract that exists and an email to
  * retry, rather than the Phase 1 failure mode where it existed nowhere.
  *
- * The endpoint is fenced with a shared secret, an origin check, a honeypot, a
- * size cap and a per-IP limiter backed by the database, which therefore
- * survives a cold start and is shared across instances.
+ * The endpoint is NOT fenced with a shared secret. It was, until the office
+ * asked for a pickup link with nothing to paste after it; what guards it now
+ * is an origin check, a honeypot, a size cap and a per-IP limiter backed by
+ * the database, which therefore survives a cold start and is shared across
+ * instances. That is the same set the return form has always run on alone.
+ *
+ * Know what that means before adding to this handler: anyone who can load
+ * /pickup/ can reach this. It creates a rental against a real plate and takes
+ * identity documents, so the limiter is load-bearing rather than politeness,
+ * and a fabricated submission is a record the office may later be asked to
+ * stand behind. If this endpoint ever grows the ability to read data back
+ * out, it needs a fence again first.
  */
 
 // SMTP needs a socket and Prisma needs Node APIs, so not the Edge runtime.
@@ -46,11 +54,7 @@ function sameOrigin(request: Request): boolean {
 }
 
 export async function POST(request: Request) {
-  // First, so an unauthorised request costs nothing to reject.
-  if (!applyKeyValid(request.headers.get(APPLY_KEY_HEADER))) {
-    return NextResponse.json({ code: "unauthorised" }, { status: 401 });
-  }
-
+  // First, so a cross-site post costs nothing to reject.
   if (!sameOrigin(request)) {
     return NextResponse.json({ code: "bad-origin" }, { status: 403 });
   }

@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { POST } from "@/app/api/rental-contract/route";
 import { prisma } from "@/lib/db";
-import { APPLY_KEY_HEADER } from "@/lib/applyKey";
 import { persistPickup, type PickupUpload } from "@/lib/rental/persistPickup";
 import { issueReuseToken } from "@/lib/rental/reuseToken";
 import type { ContractDetails } from "@/lib/rental/schema";
@@ -88,7 +87,6 @@ function submission(meta: Record<string, unknown>): Request {
 
   return new Request("https://zuriauto.ch/api/rental-contract/", {
     method: "POST",
-    headers: { [APPLY_KEY_HEADER]: SECRET },
     body,
   });
 }

@@ -283,11 +283,6 @@ const de = {
     },
   },
 
-  gate: {
-    title: "Link nicht gültig",
-    body: "Dieser Link ist unvollständig oder abgelaufen. Bitte fordern Sie bei ZURIAUTO einen neuen Link an.",
-  },
-
   manage: {
     heading: "Ihre Miete",
     intro: "Bitte teilen Sie uns mit, wie Sie weiter vorgehen möchten.",
@@ -676,11 +671,6 @@ const en: typeof de = {
       customerHello: "Hello",
       customerBody: "Please find your signed return report attached.",
     },
-  },
-
-  gate: {
-    title: "Link not valid",
-    body: "This link is incomplete or has expired. Please ask ZURIAUTO for a new one.",
   },
 
   manage: {

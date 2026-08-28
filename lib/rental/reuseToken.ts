@@ -14,9 +14,23 @@
  * read, and needs no revocation — so a row would buy a write and a cleanup
  * obligation and nothing else.
  *
- * Keyed with APPLY_SECRET, which is already the office credential for this
- * flow: rotating it invalidates outstanding tokens, which is the correct
- * behaviour and is why the "different secret" case is tested.
+ * Keyed with APPLY_SECRET. Rotating it invalidates outstanding tokens, which
+ * is the correct behaviour and is why the "different secret" case is tested.
+ *
+ * IMPORTANT — this is now the ONLY thing APPLY_SECRET does. It used to be the
+ * office credential fencing /pickup/, /api/rental-contract and
+ * /api/customers/lookup; that fence was removed deliberately, so the office
+ * could hand out a pickup link with nothing to paste after it. What replaced
+ * it on those routes is an origin check and a per-address rate limiter.
+ *
+ * So: the variable must stay set in every environment even though no request
+ * carries it any more. Unset it and returning customers stop being able to
+ * reuse their documents, with a 500 rather than a helpful message — which is
+ * why it is still in the required list in scripts/set-preview-env.sh and in
+ * the `fence` group reported by /api/health.
+ *
+ * And it is still NOT the admin secret. A signing key that lives in a
+ * customer-facing flow must not be the one that protects the fleet page.
  */
 
 import { createHmac, timingSafeEqual } from "node:crypto";
@@ -26,8 +40,8 @@ export const REUSE_TOKEN_TTL_MS = 30 * 60 * 1000;
 
 function sign(payload: string): string {
   const secret = process.env.APPLY_SECRET;
-  // Fail closed, as applyKeyValid does: an unconfigured secret is a
-  // misconfiguration, not permission to skip signing.
+  // Fail closed: an unconfigured secret is a misconfiguration, not permission
+  // to skip signing.
   if (!secret) throw new Error("APPLY_SECRET is not set.");
   return createHmac("sha256", secret).update(payload).digest("base64url");
 }

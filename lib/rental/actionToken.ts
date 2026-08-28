@@ -11,8 +11,8 @@
  * anyway. A stateless token would buy nothing and would be impossible to
  * withdraw.
  *
- * This is emphatically NOT `APPLY_SECRET`. That is an office credential pasted
- * into WhatsApp by staff; see the warning in lib/applyKey.ts.
+ * This is emphatically NOT `APPLY_SECRET`. That one signs document-reuse
+ * tokens in the public pickup flow; see the note in lib/rental/reuseToken.ts.
  */
 
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";

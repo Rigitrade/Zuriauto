@@ -192,7 +192,7 @@ than misbehaving quietly:
 rental, and closes a rental that has come back. It is unlinked and `noindex` —
 nothing in the site points at it — but the secret is what actually protects it.
 
-**`ADMIN_SECRET` must not be the same value as `APPLY_SECRET`.** The pickup key
+**`ADMIN_SECRET` must not be the same value as `APPLY_SECRET`.** The reuse key
 is pasted into WhatsApp by staff and leaks the moment a link is forwarded; the
 admin key can rewrite the fleet. Sharing one value would put fleet management
 behind a semi-public string. See the warning in `lib/applyKey.ts`.
@@ -217,9 +217,9 @@ fleet.
 **Set the environment variables in step 3 first.** Two of them change what the
 live site does the moment this merges, and neither failure is loud:
 
-- Without `APPLY_SECRET`, every submission is refused with 401. The customer
-  still gets their PDF — the wizard falls back to the Phase 1 download — but
-  nothing is recorded, and the office finds out only from a missing row.
+- Without `APPLY_SECRET`, submissions still work — it no longer fences the
+  endpoint — but a returning customer cannot reuse stored documents, and the
+  failure is a 500 rather than a message. Set it everywhere regardless.
 - Without `DATABASE_URL` or `R2_BUCKET`, the write path answers 503 and the
   same fallback happens. `/api/fleet` degrades quietly too: the picker keeps
   the compiled-in list from `lib/rental/fleet.ts`, so the form still works and
@@ -235,19 +235,18 @@ live site does the moment this merges, and neither failure is loud:
 - [ ] `pnpm build` runs `prisma generate` first, so the generated client is
       rebuilt on the deploy. `postinstall` does the same for installs.
 
-### The office's link changes — warn them before you merge
+### The office's link
 
-Phase 1 had no gate: `https://zuriauto.ch/apply/` opened the form for anybody.
-From Phase 2 the page needs `?k=<APPLY_SECRET>`, and without it a browser shows
-"Link nicht gültig" and no form.
+`https://zuriauto.ch/pickup/` — nothing after it.
 
-So **every bare link already sent to a customer stops working at the merge.**
-Old links that carry the key keep working: `/apply/` now redirects to
-`/pickup/`, and the redirect preserves the query string, so
-`/apply/?k=<secret>` lands on `/pickup/?k=<secret>`. Verified, not assumed.
+Phase 2 briefly required `?k=<APPLY_SECRET>`; that gate was removed again on
+purpose, so there is no link for the office to keep track of. Every earlier
+form still works: `/apply/` and `/rental/pickup/` redirect to `/pickup/`, and
+the redirect preserves any query string, so an old keyed link lands correctly
+and the now-ignored `?k=` does no harm.
 
-- [ ] Tell the office the new link before merging, not after.
-- [ ] Check whether anyone is mid-handover with a bare link open. They should
+- [ ] Tell the office they can drop the `?k=` from anything they have saved.
+- [ ] Check whether anyone is mid-handover with an old link open. They should
       submit before the deploy or be re-sent the new one.
 
 ---
@@ -268,18 +267,14 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST https://zuriauto.ch/api/rental-
 ```
 Expect `401`.
 
-**c. The gate holds.** Open `https://zuriauto.ch/pickup/` in a *browser* —
-expect "Link nicht gültig" and no form. Then open
-`https://zuriauto.ch/pickup/?k=<APPLY_SECRET>` and expect the five-step wizard.
+**c. The form opens.** Open `https://zuriauto.ch/pickup/` in a browser and
+expect the five-step wizard, with nothing after the URL.
 
-Use a browser, not curl. The gate is a client-side decision, so the
-server-rendered HTML contains the form either way and `curl` will appear to
-show it. That is not a hole — the fence that matters is the `APPLY_SECRET`
-check on the write endpoint, tested in **b** — but it does make curl the wrong
-tool for this step.
+There is no gate to test any more. What replaced it is the origin check and
+the rate limiter on the write endpoint, tested in **b**.
 
-- [ ] `https://zuriauto.ch/apply/?k=<APPLY_SECRET>` still reaches the form, so
-      keys already circulated keep working.
+- [ ] `https://zuriauto.ch/apply/?k=<anything>` still reaches the form, so
+      links already circulated keep working and the stale key is ignored.
 
 **d. One real contract, end to end.** Use a car you can take out of service
 afterwards, and your own email as the renter.
@@ -426,9 +421,10 @@ GET for exactly this reason, and nothing in the code changes. Remove the
 
 ## 7. Hand over to the office
 
-- [ ] Give them `https://zuriauto.ch/pickup/?k=<APPLY_SECRET>` and explain that
-      the link *is* the credential: anyone who has it can create a rental, so it
-      should not be forwarded outside the office.
+- [ ] Give them `https://zuriauto.ch/pickup/`. There is no key in it, and
+      nothing about the link is secret — anyone who has the address can start a
+      contract, which is the trade made deliberately when the gate was removed.
+      Rate limiting, not secrecy, is what stands between the form and abuse.
 - [ ] The return form at `https://zuriauto.ch/return/` is **not** fenced by this
       key, because it is filled in by the renter. Since Phase 4 it **records
       the return**: the rental moves to `RETURN_SUBMITTED` and the signed

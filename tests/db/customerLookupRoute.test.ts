@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { POST } from "@/app/api/customers/lookup/route";
 import { prisma } from "@/lib/db";
-import { APPLY_KEY_HEADER } from "@/lib/applyKey";
 import { persistPickup, type PickupUpload } from "@/lib/rental/persistPickup";
 import { readReuseToken } from "@/lib/rental/reuseToken";
 import type { ContractDetails } from "@/lib/rental/schema";
@@ -47,12 +46,12 @@ const uploads: PickupUpload[] = [
   { kind: "SIGNATURE", body: new Uint8Array([6]), contentType: "image/png" },
 ];
 
-function request(body: unknown, key: string | null = SECRET): Request {
+function request(body: unknown, origin?: string): Request {
   return new Request("https://zuriauto.ch/api/customers/lookup/", {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      ...(key ? { [APPLY_KEY_HEADER]: key } : {}),
+      ...(origin ? { origin } : {}),
     },
     body: JSON.stringify(body),
   });
@@ -78,14 +77,21 @@ describe("POST /api/customers/lookup", () => {
     process.env.RATE_LIMIT_SALT = "test-salt";
   });
 
-  it("refuses an unfenced request", async () => {
-    const response = await POST(request({ phone: "079 123 45 67" }, null));
-    expect(response.status).toBe(401);
+  // The office key was removed from this endpoint: the pickup form is public,
+  // so the form calling it has no credential to send. What stands in its place
+  // is the origin check plus the per-address rate limit — the same pair the
+  // return form has always run on. See the note in lib/rental/reuseToken.ts.
+  it("answers a request carrying no key at all", async () => {
+    await seedOneRental();
+    const response = await POST(request({ phone: "079 123 45 67" }));
+    expect(response.status).toBe(200);
   });
 
-  it("refuses the wrong key", async () => {
-    const response = await POST(request({ phone: "079 123 45 67" }, "wrong"));
-    expect(response.status).toBe(401);
+  it("still refuses a cross-site post", async () => {
+    const response = await POST(
+      request({ phone: "079 123 45 67" }, "https://evil.example")
+    );
+    expect(response.status).toBe(403);
   });
 
   it("finds a returning customer and hands back a usable token", async () => {

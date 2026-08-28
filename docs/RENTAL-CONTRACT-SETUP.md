@@ -81,9 +81,13 @@ Download and Share, including on every failure path.
   form survives only as the offline fallback when the database is unreachable.
 - **The PDF is built client-side**, so a determined customer could alter it
   before sending. The office should read the document before releasing keys.
-- ~~**`/api/rental-contract` is public and unauthenticated**~~ — fixed in
-  Phase 2. It now requires `APPLY_SECRET`, and the per-IP limiter is backed by
-  the database, so it survives a cold start and is shared across instances.
+- **`/api/rental-contract` is public and unauthenticated.** It was fenced with
+  `APPLY_SECRET` from Phase 2 until that was removed deliberately, so the office
+  could hand out a pickup link with nothing to paste after it. What guards it
+  now is an origin check, a honeypot and a per-IP limiter backed by the
+  database, so the limiter survives a cold start and is shared across
+  instances — the same set `/return/` has always run on. Anyone who can load
+  `/pickup/` can submit to it.
 - **Identity documents travel by email**, which is not encrypted end to end,
   *and* are now stored in EU object storage. Both need a retention rule — see
   `docs/DATA-RETENTION.md`.
@@ -112,7 +116,7 @@ All documented in `.env.local.example`. Four groups:
 |---|---|
 | `DATABASE_URL` | Postgres. Neon, EU region, in production. |
 | `ORGANISATION_NAME` | Name on the single Organisation row the seed creates. |
-| `APPLY_SECRET` | The key in the /apply link. Without it the form refuses to open and the endpoint returns 401. |
+| `APPLY_SECRET` | No longer fences anything. Still required: it signs the token that lets a returning customer reuse stored documents. Unset, that reuse fails with a 500. |
 | `RATE_LIMIT_SALT` | Salt for hashing client IPs. Any long random string. |
 | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` | Object storage for ID scans, licences, signatures, photos and the PDF. |
 
@@ -123,12 +127,14 @@ every ID scan while reporting success is the worse failure.
 ### The link the office uses
 
 ```
-https://zuriauto.ch/apply/?k=<APPLY_SECRET>
+https://zuriauto.ch/pickup/
 ```
 
-Without `?k=`, the page shows "Link nicht gültig" and no form. This is checked
-at load, not at submit, so nobody photographs four documents and signs before
-being told the link was bad.
+Nothing after it. `/apply/` and `/rental/pickup/` still redirect here, so links
+already sent over WhatsApp keep working.
+
+There is no key and no gate: the page opens for anyone who has the address. It
+is unlisted and `noindex`, which is not a fence and is not claimed to be one.
 
 **Do not reuse this key for the Phase 4 return form.** That one is opened by
 renters from an email; mailing customers the office key would give every past

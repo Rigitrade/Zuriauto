@@ -257,7 +257,7 @@
     </div>
     <dl class="kv">
       <dt>PREVIEW_URL</dt><dd>The Vercel preview for <code>integrate/backend-plus-return</code>. Not the production domain.</dd>
-      <dt>APPLY_SECRET</dt><dd>The office key. Opens the pickup form and signs its writes.</dd>
+      <dt>APPLY_SECRET</dt><dd>Signs the returning-customer document-reuse token. No longer opens or fences anything.</dd>
       <dt>ADMIN_SECRET</dt><dd>The fleet page key. <strong>Must be a different value</strong> from APPLY_SECRET.</dd>
       <dt>CRON_SECRET</dt><dd>Bearer token for the daily run.</dd>
       <dt>psql</dt><dd>A connection to the <em>preview</em> Neon branch, for the verification queries.</dd>
@@ -411,22 +411,23 @@ DATABASE_URL="&lt;preview neon url&gt;" pnpm db:seed</code></pre>
       <div class="task">
         <span class="n">1.5</span>
         <div class="body">
-          <h3>The gate, in a browser</h3>
-          <p>Open <code>$PREVIEW_URL/pickup/</code> with no key.</p>
+          <h3>The form opens, with nothing after the URL</h3>
+          <p>Open <code>$PREVIEW_URL/pickup/</code>.</p>
           <div class="expect">
             <b>Expect</b>
-            &ldquo;Link nicht gültig&rdquo; and no form. Then open
-            <code>$PREVIEW_URL/pickup/?k=$APPLY_SECRET</code> and expect the
-            five-step wizard. Also check <code>/apply/?k=…</code> still lands on
-            the form, so keys already circulated keep working.
+            The five-step wizard. There is no gate any more &mdash;
+            <code>APPLY_SECRET</code> stopped fencing this route deliberately, so
+            the office can hand out a bare link. Also check
+            <code>/apply/?k=&hellip;</code> still lands on the form: links already
+            circulated keep working, and the stale key is ignored rather than
+            refused.
           </div>
           <div class="caution">
-            <b>Use a browser, not curl</b>
-            The gate is a client-side decision, so the server-rendered HTML
-            contains the form either way and curl will appear to show a hole.
-            The fence that matters is step 1.4.
+            <b>What protects it now</b>
+            An origin check, a honeypot and the per-address rate limiter on the
+            write endpoint &mdash; the same set <code>/return/</code> has always
+            run on alone. Anyone who can load this page can submit to it.
           </div>
-        </div>
       </div>
 
     </div>
@@ -445,7 +446,7 @@ DATABASE_URL="&lt;preview neon url&gt;" pnpm db:seed</code></pre>
         <div class="body">
           <h3>Sign a pickup contract</h3>
           <p>
-            Complete the wizard at <code>/pickup/?k=$APPLY_SECRET</code>: choose a
+            Complete the wizard at <code>/pickup/</code>: choose a
             car, photograph an ID and a licence (any document will do on preview),
             take a portrait, enter weekly terms, sign, submit.
           </p>
@@ -815,7 +816,7 @@ SELECT "weekNumber", status FROM "Charge" ORDER BY "weekNumber";</code></pre>
         <tbody>
           <tr><td>500 in a few milliseconds, no outgoing request</td><td><code>DATABASE_URL</code> missing — not a rejected password. Check <code>/api/health/</code>.</td></tr>
           <tr><td>Uploads fail with <code>NoSuchBucket</code></td><td>The EU bucket addressed on the plain R2 host. A jurisdiction-pinned bucket answers only on <code>&lt;account&gt;.eu.r2.cloudflarestorage.com</code>.</td></tr>
-          <tr><td>The customer gets a PDF but no row appears</td><td><code>APPLY_SECRET</code> missing or wrong. The write is refused with 401 and the wizard falls back to the Phase 1 download — silently, by design.</td></tr>
+          <tr><td>The customer gets a PDF but no row appears</td><td><code>DATABASE_URL</code> or <code>R2_BUCKET</code> missing: the write answers 503 and the wizard falls back to the Phase 1 download — silently, by design. A missing <code>APPLY_SECRET</code> is no longer a cause; it only breaks document reuse.</td></tr>
           <tr><td>Build fails on <code>vercel.json</code></td><td>A comment key. Vercel's schema rejects unknown properties outright.</td></tr>
           <tr><td>Cron never fires on its own</td><td>Cron only runs on production deployments of the default branch. Trigger previews by hand with the bearer token.</td></tr>
           <tr><td>The app refuses to start</td><td><code>R2_BUCKET</code> unset in production. Deliberate: discarding ID scans while reporting success is the worse failure.</td></tr>

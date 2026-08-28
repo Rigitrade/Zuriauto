@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { APPLY_KEY_HEADER, applyKeyValid } from "@/lib/applyKey";
 import { prisma } from "@/lib/db";
 import { findCustomersByPhone } from "@/lib/rental/findCustomers";
 import { normalisePhone } from "@/lib/rental/phone";
@@ -13,10 +12,17 @@ import { issueReuseToken } from "@/lib/rental/reuseToken";
  * referrer header — it is personal data, and a query string is the one place
  * that leaks it everywhere at once.
  *
- * Fenced with the office key, origin-checked and rate-limited, because an open
- * version of this is a way to test phone numbers against the customer list.
- * Returns no image bytes and no contract id: permission to reuse documents
- * travels as a signed, expiring token instead.
+ * Origin-checked and rate-limited, but NOT fenced with a key. It used to be,
+ * and the reason it no longer is decides how it must be read: the pickup form
+ * that calls this is public, so the caller has no credential to send. Anything
+ * this endpoint will tell an authorised caller, it will tell anybody.
+ *
+ * That is why it answers as narrowly as it does, and why those limits are not
+ * optional decoration. It returns no image bytes and no contract id —
+ * permission to reuse documents travels as a signed, expiring token instead —
+ * and the per-address limiter caps how fast the remaining question ("is this
+ * number one of yours?") can be asked. Do not widen the response shape here
+ * without putting a fence back first.
  */
 
 // Prisma needs Node APIs, so not the Edge runtime.
@@ -40,11 +46,7 @@ function sameOrigin(request: Request): boolean {
 }
 
 export async function POST(request: Request) {
-  // First, so an unauthorised request costs nothing to reject.
-  if (!applyKeyValid(request.headers.get(APPLY_KEY_HEADER))) {
-    return NextResponse.json({ code: "unauthorised" }, { status: 401 });
-  }
-
+  // First, so a cross-site post costs nothing to reject.
   if (!sameOrigin(request)) {
     return NextResponse.json({ code: "bad-origin" }, { status: 403 });
   }
