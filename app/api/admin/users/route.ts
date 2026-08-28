@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { hashPassword } from "@/lib/admin/password";
-import { requireAdmin, requireOwner } from "@/lib/admin/session";
+import { requireAdmin } from "@/lib/admin/session";
 import { newUserSchema } from "@/lib/admin/users";
 
 /**
@@ -14,13 +14,21 @@ import { newUserSchema } from "@/lib/admin/users";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** 401 when nobody is signed in, 403 when somebody is but is not an owner. */
+/**
+ * 401 when nobody is signed in, 403 when somebody is but is not an owner.
+ *
+ * One lookup, not two: `requireAdmin` already carries `role`, so there is no
+ * need for a second `adminUser.findUnique` (via `requireOwner`) to learn
+ * something the first call already knows. Two round-trips would also open a
+ * window in which the row could change between them, for no benefit.
+ */
 async function ownerOr(request: Request) {
   const user = await requireAdmin(request);
   if (!user) return { error: NextResponse.json({ code: "unauthorised" }, { status: 401 }) };
-  const owner = await requireOwner(request);
-  if (!owner) return { error: NextResponse.json({ code: "forbidden" }, { status: 403 }) };
-  return { owner };
+  if (user.role !== "owner") {
+    return { error: NextResponse.json({ code: "forbidden" }, { status: 403 }) };
+  }
+  return { owner: user };
 }
 
 export async function GET(request: Request) {
@@ -77,17 +85,34 @@ export async function POST(request: Request) {
     return NextResponse.json({ code: "username-taken" }, { status: 409 });
   }
 
-  const created = await prisma.adminUser.create({
-    data: {
-      organisationId: organisation.id,
-      username: input.username,
-      displayName: input.displayName,
-      role: input.role,
-      passwordHash: await hashPassword(input.password),
-      createdById: owner!.id,
-    },
-    select: { id: true, username: true, displayName: true, role: true },
-  });
+  try {
+    const created = await prisma.adminUser.create({
+      data: {
+        organisationId: organisation.id,
+        username: input.username,
+        displayName: input.displayName,
+        role: input.role,
+        passwordHash: await hashPassword(input.password),
+        createdById: owner!.id,
+      },
+      select: { id: true, username: true, displayName: true, role: true },
+    });
 
-  return NextResponse.json({ user: created }, { status: 201 });
+    return NextResponse.json({ user: created }, { status: 201 });
+  } catch (error) {
+    // P2002 is the unique constraint on [organisationId, username]. The
+    // pre-check above closes the common case; this catches two owners
+    // creating the same username at the same instant, which would otherwise
+    // surface as a 500 instead of the 409 this endpoint already defines.
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      (error as { code?: unknown }).code === "P2002"
+    ) {
+      return NextResponse.json({ code: "username-taken" }, { status: 409 });
+    }
+    console.error("[admin] could not create the account:", error);
+    return NextResponse.json({ code: "failed" }, { status: 500 });
+  }
 }

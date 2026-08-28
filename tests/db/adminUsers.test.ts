@@ -140,6 +140,23 @@ describe("PATCH /api/admin/users/[id]", () => {
       params(staff.id)
     );
     expect(response.status).toBe(200);
+
+    const after = await prisma.adminUser.findUniqueOrThrow({ where: { id: staff.id } });
+    expect(await passwordMatches("Herbst2026!", after.passwordHash)).toBe(true);
+  });
+
+  it("refuses a staff member setting their own displayName alongside a password change", async () => {
+    const staff = await makeUser("staff", "ahmed");
+    const before = await prisma.adminUser.findUniqueOrThrow({ where: { id: staff.id } });
+
+    const response = await PATCH(
+      as(staff.id, { password: "Herbst2026!", displayName: "Not Ahmed" }, "PATCH"),
+      params(staff.id)
+    );
+    expect(response.status).toBe(403);
+
+    const after = await prisma.adminUser.findUniqueOrThrow({ where: { id: staff.id } });
+    expect(after.displayName).toBe(before.displayName);
   });
 
   it("refuses a staff member changing somebody else's password", async () => {
@@ -201,5 +218,18 @@ describe("PATCH /api/admin/users/[id]", () => {
       params("clxnope00000000000000000")
     );
     expect(response.status).toBe(404);
+  });
+
+  it("refuses a stranger with 401", async () => {
+    const owner = await makeUser("owner", "chef");
+    const response = await PATCH(
+      new Request("https://example.test/api/admin/users/", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ displayName: "X" }),
+      }),
+      params(owner.id)
+    );
+    expect(response.status).toBe(401);
   });
 });
