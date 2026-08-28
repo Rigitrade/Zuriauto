@@ -524,12 +524,9 @@ function CarRow({
             <button
               type="button"
               disabled={busy}
-              onClick={async () => {
-                if (await onSave({ model, plate, vin })) {
-                  // The row's own state already matches what was just saved;
-                  // the refetch behind onSave will confirm it from the server.
-                }
-              }}
+              // The row's own state already matches what is being sent; the
+              // refetch behind onSave replaces it with the server's copy.
+              onClick={() => onSave({ model, plate, vin })}
               className="h-10 rounded-md bg-slate-900 px-3 text-sm font-medium text-white disabled:opacity-50"
             >
               {L.fleet.save}
