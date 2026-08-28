@@ -67,9 +67,27 @@ Two consequences, recorded because they are easy to discover late:
   effective retention is indefinite. The privacy notice must not imply
   otherwise.
 
-No deletion job exists yet. Until one ships, deletion is manual and the clock is
-documented rather than enforced — which is why the periods had to be agreed
-before the first hundred contracts rather than after.
+**Enforced since 29 August 2026.** `lib/admin/retention.ts` runs as the last
+pass of the daily cron: it deletes the bytes of every person-asset whose rental
+ended more than five years ago, and stamps `Asset.deletedAt`.
+
+Three properties worth knowing, because they are the ones a reader will want to
+check against this document:
+
+- **The row outlives the object.** An `Asset` is the record that a passport
+  *was* photographed and checked at that handover. The bytes go; the row, its
+  kind and its recorded size stay, so the office can still show what was
+  verified. The documents view lists a deleted asset as deleted rather than
+  omitting it, because "checked, and since deleted" is a different answer from
+  "never taken".
+- **The object is deleted before the row is stamped.** The reverse order would
+  let a crash between the two leave a row claiming deletion over a passport
+  still sitting in the bucket — and nothing would revisit it, because the sweep
+  skips stamped rows.
+- **The ten-year records are untouched.** The sweep never reads
+  `Contract.pdfKey`. Nothing is ten years old yet; when something is, it needs
+  its own pass and a decision about what a contract PDF minus its images is
+  worth.
 
 ## Region
 

@@ -285,9 +285,46 @@ model Asset {
   bytes       Int
   createdAt   DateTime  @default(now())
 
+  /// When the bytes were deleted under the retention policy.
+  ///
+  /// The row survives its object on purpose. An Asset is the record that a
+  /// passport *was* photographed and checked at that handover — evidence the
+  /// office may need long after the image itself must be gone. Deleting the
+  /// row would destroy that proof along with the data protection it provides.
+  ///
+  /// So: storageKey stays (it is opaque and meaningless — see
+  /// lib/storage/keys.ts), bytes stay as the recorded size, and this stamp is
+  /// what says the object is no longer there. Nothing re-reads a deleted
+  /// asset; the documents endpoint refuses it.
+  deletedAt DateTime?
+
   contract Contract @relation(fields: [contractId], references: [id])
 
   @@index([contractId])
+  /// The retention sweep's query: the undeleted ones, oldest first.
+  @@index([deletedAt, createdAt])
+}
+
+/// Who opened an identity document, and when.
+///
+/// The same reasoning as CustomerLookup, which logs every phone search
+/// including the ones that matched nothing: a passport scan is the
+/// highest-risk data in the system, and an office tool that can show one
+/// should be able to say who did. Written before the bytes are served, so a
+/// read that fails halfway is still recorded as attempted.
+model AssetAccess {
+  id String @id @default(cuid())
+
+  assetId  String
+  /// Denormalised on purpose. An account can be deleted; the record of who
+  /// looked at somebody's passport should outlive it.
+  userId   String
+  username String
+
+  createdAt DateTime @default(now())
+
+  @@index([assetId])
+  @@index([createdAt])
 }
 
 model RentalEvent {

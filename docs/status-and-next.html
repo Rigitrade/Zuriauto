@@ -153,9 +153,10 @@
     </div>
     <h1>Where We Stand</h1>
     <p class="standfirst">
-      Nine commits, 71 files, <strong>384 tests</strong>. The fleet console is
-      built. Three things turned out to be <strong>actually broken</strong> along
-      the way, and the worst of them was losing money quietly.
+      Eleven commits, <strong>404 tests</strong>. The fleet console is built,
+      retention is enforced and the documents are reachable. Three things turned
+      out to be <strong>actually broken</strong> along the way, and the worst of
+      them was losing money quietly.
     </p>
   </header>
 
@@ -252,6 +253,7 @@
           <tr><td><strong>Vehicles</strong></td><td>Every car in every status. Add behind a dialog, edit behind a dialog, retire and un-retire, delete when there is no history.</td></tr>
           <tr><td><strong>Accounts</strong></td><td>Owner only. Add a person, set a password, disable. Your own row marked; the last owner keeps their password field and loses only the disable button, with the reason shown.</td></tr>
           <tr><td><strong>My password</strong></td><td>Everyone, including staff who never see Accounts.</td></tr>
+          <tr><td><strong>Documents</strong></td><td>On every rental: the contract PDFs and every stored image, listed without being shown. Opening one is proxied through the server and writes an <code>AssetAccess</code> row naming who asked. A deleted image is listed as deleted rather than hidden.</td></tr>
         </tbody>
       </table>
     </div>
@@ -267,31 +269,31 @@
 
     <div>
       <div class="item">
-        <span class="n">1</span>
+        <span class="n">✓</span>
         <div class="body">
-          <div class="tags"><span class="tag legal">legal exposure</span><span class="tag big">bigger</span></div>
-          <h3>Nothing enforces the retention rules</h3>
+          <div class="tags"><span class="tag small">done</span></div>
+          <h3>Retention is now enforced</h3>
           <p>
-            <code>docs/DATA-RETENTION.md</code> sets 90 days for ID and licence
-            images, ten years for contracts under OR 958f, two years for condition
-            photographs. Nothing implements any of it. <code>AssetStore</code> has
-            no <code>delete</code> at all, so every passport scan ever uploaded is
-            still in the bucket.
+            <code>lib/admin/retention.ts</code> runs as the last pass of the daily
+            cron: person-assets whose rental ended more than <strong>five
+            years</strong> ago have their bytes deleted and the row stamped. The
+            contract PDF and the records are untouched — ten years under OR 958f.
           </p>
           <p class="why">
-            This is the only item on the list that is a compliance problem rather
-            than an inconvenience, and it gets worse every day the system runs.
-            Needs a delete method, a scheduled sweep, and a record of what was
-            deleted and when.
+            <strong>Correction to an earlier draft of this page,</strong> which
+            said 90 days for identity images and two years for condition
+            photographs. Those were the <em>superseded</em> proposal;
+            <code>DATA-RETENTION.md</code> records that the owner agreed five and
+            ten years on 22 August 2026, and the code follows the agreed figures.
           </p>
         </div>
       </div>
 
       <div class="item">
-        <span class="n">2</span>
+        <span class="n">✓</span>
         <div class="body">
-          <div class="tags"><span class="tag ops">daily friction</span><span class="tag big">bigger</span></div>
-          <h3>No documents anywhere in the dashboard</h3>
+          <div class="tags"><span class="tag small">done</span></div>
+          <h3>Documents are in the dashboard</h3>
           <p>
             The signed contracts, ID scans, licences, condition photos and
             signatures are reachable <strong>only through the Cloudflare
@@ -299,16 +301,17 @@
             plus the driver's licence for that date, that is where you go.
           </p>
           <p class="why">
-            Short-lived signed URLs, owner and staff gated, and audited —
-            <code>CustomerLookup</code> already sets the precedent of logging every
-            phone search including the misses. Opening somebody's passport deserves
-            at least that.
+            A Documents button on every rental. The bytes are proxied through the
+            server rather than handed out as presigned URLs — a presigned URL is a
+            bearer token for somebody's passport that survives being forwarded and
+            cannot be audited once issued. Every view writes an
+            <code>AssetAccess</code> row naming who asked.
           </p>
         </div>
       </div>
 
       <div class="item">
-        <span class="n">3</span>
+        <span class="n">1</span>
         <div class="body">
           <div class="tags"><span class="tag money">money</span><span class="tag small">smaller</span></div>
           <h3>The office cannot see what is owed</h3>
@@ -321,7 +324,7 @@
       </div>
 
       <div class="item">
-        <span class="n">4</span>
+        <span class="n">2</span>
         <div class="body">
           <div class="tags"><span class="tag money">money</span><span class="tag small">smaller</span></div>
           <h3>Damage notes have no photographs</h3>
@@ -338,7 +341,7 @@
       </div>
 
       <div class="item">
-        <span class="n">5</span>
+        <span class="n">3</span>
         <div class="body">
           <div class="tags"><span class="tag ops">daily friction</span><span class="tag small">smaller</span></div>
           <h3>Extension requests arrive nowhere</h3>
@@ -351,7 +354,7 @@
       </div>
 
       <div class="item">
-        <span class="n">6</span>
+        <span class="n">4</span>
         <div class="body">
           <div class="tags"><span class="tag ops">daily friction</span><span class="tag big">bigger</span></div>
           <h3>The customer side of the recall feature</h3>
@@ -369,7 +372,7 @@
       </div>
 
       <div class="item">
-        <span class="n">7</span>
+        <span class="n">5</span>
         <div class="body">
           <div class="tags"><span class="tag ops">security</span><span class="tag small">smaller</span></div>
           <h3>Per-rental pickup links</h3>
@@ -430,7 +433,7 @@
   </section>
 
   <footer>
-    <div>Zuriauto · status at <span class="mono">4054ebc</span> on <span class="mono">integrate/backend-plus-return</span></div>
+    <div>Zuriauto · status at <span class="mono">HEAD</span> on <span class="mono">integrate/backend-plus-return</span> · 29 August 2026</div>
     <div>Sibling documents: <span class="mono">release-test-run.html</span> (the happy path), <span class="mono">failure-drills.html</span> (47 refusals), <span class="mono">admin-dashboard-options.html</span> (the three directions).</div>
     <div>Nothing here has been deployed to production. Everything described runs on the preview.</div>
   </footer>

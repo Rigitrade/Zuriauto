@@ -1,5 +1,6 @@
 import {
   CopyObjectCommand,
+  DeleteObjectCommand,
   GetObjectCommand,
   PutObjectCommand,
   S3Client,
@@ -109,6 +110,14 @@ export function createR2Store(): AssetStore {
         if (name === "NoSuchKey" || name === "NotFound") return null;
         throw error;
       }
+    },
+
+    async remove(key) {
+      // S3 DeleteObject is already idempotent — deleting an absent key is a
+      // 204, not an error — so this needs no missing-key branch of its own.
+      await client.send(
+        new DeleteObjectCommand({ Bucket: R2_BUCKET, Key: key })
+      );
     },
 
     async copy(fromKey, toKey, contentType) {

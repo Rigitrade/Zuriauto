@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { day } from "@/components/admin/format";
 import { ReturnReview } from "./ReturnReview";
+import { DocumentsDialog } from "./DocumentsDialog";
+import { FileText } from "lucide-react";
 import type { Labels, Rental } from "@/components/admin/types";
 
 /**
@@ -29,6 +31,7 @@ export function RentalRow({
 }) {
   const [confirming, setConfirming] = useState(false);
   const [reviewing, setReviewing] = useState(false);
+  const [showingDocuments, setShowingDocuments] = useState(false);
   const returned = Boolean(rental.returnSubmittedAt);
 
   return (
@@ -40,6 +43,12 @@ export function RentalRow({
         open={reviewing}
         onClose={() => setReviewing(false)}
         onApprove={onClose}
+      />
+      <DocumentsDialog
+        rental={rental}
+        L={L}
+        open={showingDocuments}
+        onClose={() => setShowingDocuments(false)}
       />
 
       <div className="min-w-0 flex-1">
@@ -73,6 +82,16 @@ export function RentalRow({
 
       {/* Confirmed, because it moves two rows and is an override rather than
           the return protocol. */}
+      <span className="flex shrink-0 flex-wrap items-center gap-2">
+      <button
+        type="button"
+        onClick={() => setShowingDocuments(true)}
+        className="inline-flex h-9 items-center gap-1.5 rounded-md border border-[var(--admin-rule-strong)] px-3 text-sm text-[var(--admin-muted)] transition-colors hover:bg-[var(--admin-sunk)] hover:text-[var(--admin-ink)]"
+      >
+        <FileText className="h-4 w-4" aria-hidden="true" />
+        {L.docs.heading}
+      </button>
+
       {returned ? (
         /* A submitted return is never closed blind. The review modal is the
            only path to the button for these, because this is exactly the case
@@ -115,6 +134,7 @@ export function RentalRow({
           {L.rentals.close}
         </button>
       )}
+      </span>
     </li>
   );
 }

@@ -39,6 +39,29 @@ const de = {
     /** Screen-reader name for the section navigation itself. */
     sections: "Bereiche",
   },
+  docs: {
+    heading: "Dokumente",
+    open: "Öffnen",
+    contract: "Vertrag",
+    returnProtocol: "Rückgabeprotokoll",
+    pdf: "PDF",
+    none: "Keine Dokumente.",
+    deletedOn: "Gelöscht am",
+    retentionNote:
+      "Bilder werden fünf Jahre nach Mietende gelöscht; Verträge zehn Jahre.",
+    /** Kept in one place so a screenshot and a log line agree. */
+    kinds: {
+      PORTRAIT: "Foto",
+      ID_FRONT: "Ausweis Vorderseite",
+      ID_BACK: "Ausweis Rückseite",
+      LICENCE_FRONT: "Führerausweis Vorderseite",
+      LICENCE_BACK: "Führerausweis Rückseite",
+      CONDITION_PHOTO: "Zustandsfoto",
+      SIGNATURE: "Unterschrift",
+      DAMAGE_PHOTO: "Schadenfoto",
+    },
+    audited: "Jeder Zugriff wird protokolliert.",
+  },
   ret: {
     heading: "Rückgabe prüfen",
     submitted: "Eingereicht",
@@ -195,6 +218,29 @@ const en: typeof de = {
     myPassword: "My password",
     /** Screen-reader name for the section navigation itself. */
     sections: "Sections",
+  },
+  docs: {
+    heading: "Documents",
+    open: "Open",
+    contract: "Contract",
+    returnProtocol: "Return protocol",
+    pdf: "PDF",
+    none: "No documents.",
+    deletedOn: "Deleted on",
+    retentionNote:
+      "Images are deleted five years after the rental ends; contracts after ten.",
+    /** Kept in one place so a screenshot and a log line agree. */
+    kinds: {
+      PORTRAIT: "Photo",
+      ID_FRONT: "ID front",
+      ID_BACK: "ID back",
+      LICENCE_FRONT: "Licence front",
+      LICENCE_BACK: "Licence back",
+      CONDITION_PHOTO: "Condition photo",
+      SIGNATURE: "Signature",
+      DAMAGE_PHOTO: "Damage photo",
+    },
+    audited: "Every view is logged.",
   },
   ret: {
     heading: "Review the return",

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { prisma } from "@/lib/db";
+import { sweepExpiredAssets } from "@/lib/admin/retention";
+import { getAssetStore } from "@/lib/storage";
 import { runDailyPasses } from "@/lib/rental/scheduler";
 
 /**
@@ -56,18 +58,40 @@ async function run(request: Request) {
   const startedAt = Date.now();
 
   try {
+    const now = new Date();
     const summary = await runDailyPasses({
       client: prisma,
-      now: new Date(),
+      now,
       baseUrl: baseUrl(request),
     });
 
-    console.log("[cron] daily run", JSON.stringify(summary));
+    /**
+     * Retention, after the passes that send mail.
+     *
+     * Deliberately last, and deliberately not inside runDailyPasses: this is
+     * the only pass that destroys data, and a failure in it must not stop a
+     * customer being reminded their rental ends tomorrow. Its own try/catch
+     * for the same reason — a sweep that cannot reach R2 is worth reporting
+     * and worth retrying tomorrow, and is not a reason to answer 500 to a
+     * cron whose mailing half worked.
+     *
+     * See lib/admin/retention.ts and docs/DATA-RETENTION.md.
+     */
+    let retention: Awaited<ReturnType<typeof sweepExpiredAssets>> | { error: string };
+    try {
+      retention = await sweepExpiredAssets(prisma, getAssetStore(), now);
+    } catch (error) {
+      console.error("[cron] retention sweep failed:", error);
+      retention = { error: String(error) };
+    }
+
+    console.log("[cron] daily run", JSON.stringify({ ...summary, retention }));
 
     return NextResponse.json({
       ok: true,
       ms: Date.now() - startedAt,
       ...summary,
+      retention,
     });
   } catch (error) {
     // Logged and reported, never swallowed: a cron whose failures are silent

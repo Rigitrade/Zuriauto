@@ -1,11 +1,10 @@
 /**
  * Somewhere to put bytes.
  *
- * Deliberately small. `get` arrived with the first real reader — resending a
- * contract whose email never left, which needs the stored PDF because the
- * browser that built it is long gone. There is still no `delete`: nothing
- * deletes an asset yet, and retention (docs/DATA-RETENTION.md) will want a
- * policy rather than a method.
+ * Deliberately small, and each method arrived with a caller. `get` came with
+ * resending a contract whose email never left; `remove` with the retention
+ * sweep, which is what turns docs/DATA-RETENTION.md from a document into
+ * something the system actually does.
  */
 export interface AssetStore {
   put(key: string, body: Uint8Array, contentType: string): Promise<void>;
@@ -28,4 +27,13 @@ export interface AssetStore {
    * retention clock.
    */
   copy(fromKey: string, toKey: string, contentType: string): Promise<void>;
+  /**
+   * Deletes an object. Named `remove` rather than `delete`, which is a
+   * reserved word and cannot be a bare method name in every call position.
+   *
+   * Idempotent: deleting a key that is already gone succeeds. The retention
+   * sweep runs daily and may retry after a partial failure, and an object
+   * that is absent is exactly the state the sweep is trying to reach.
+   */
+  remove(key: string): Promise<void>;
 }
