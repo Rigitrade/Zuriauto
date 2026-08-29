@@ -25,12 +25,16 @@ export function Dialog({
   onClose,
   title,
   closeLabel,
+  wide = false,
   children,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   closeLabel: string;
+  /** For content that is itself a document — a PDF or a scan needs room that
+   *  a form does not. */
+  wide?: boolean;
   children: React.ReactNode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -53,11 +57,12 @@ export function Dialog({
       onClick={(event) => {
         if (event.target === ref.current) onClose();
       }}
-      className="
-        m-auto w-[min(32rem,calc(100vw-2rem))] rounded-2xl border border-[var(--admin-rule)]
+      className={`
+        m-auto rounded-2xl border border-[var(--admin-rule)]
         bg-[var(--admin-surface)] p-0 text-[var(--admin-ink)] shadow-xl
         backdrop:bg-[#14191A]/45
-      "
+        ${wide ? "w-[min(60rem,calc(100vw-2rem))]" : "w-[min(32rem,calc(100vw-2rem))]"}
+      `}
     >
       <div className="flex items-center justify-between gap-4 border-b border-[var(--admin-rule)] px-5 py-3.5">
         <h2 className="text-sm font-semibold">{title}</h2>

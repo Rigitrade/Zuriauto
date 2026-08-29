@@ -153,6 +153,12 @@ describe("the office can reach its documents", () => {
     expect(response.headers.get("content-disposition")).toContain(
       `${contract.contractNumber}.pdf`
     );
+    // The bytes themselves, not just the headers. A route that answers 200
+    // with an empty or mangled body is exactly the failure that looks like
+    // "the PDF will not open" from the outside.
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(
+      new Uint8Array([7])
+    );
 
     const log = await prisma.assetAccess.findMany({
       where: { contractId: contract.id },

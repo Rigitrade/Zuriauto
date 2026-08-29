@@ -42,6 +42,9 @@ const de = {
   docs: {
     heading: "Dokumente",
     open: "Öffnen",
+    preview: "Ansehen",
+    newTab: "In neuem Tab öffnen",
+    closePreview: "Vorschau schliessen",
     contract: "Vertrag",
     returnProtocol: "Rückgabeprotokoll",
     pdf: "PDF",
@@ -222,6 +225,9 @@ const en: typeof de = {
   docs: {
     heading: "Documents",
     open: "Open",
+    preview: "View",
+    newTab: "Open in a new tab",
+    closePreview: "Close preview",
     contract: "Contract",
     returnProtocol: "Return protocol",
     pdf: "PDF",
