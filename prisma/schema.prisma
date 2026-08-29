@@ -315,7 +315,16 @@ model Asset {
 model AssetAccess {
   id String @id @default(cuid())
 
-  assetId  String
+  /// Exactly one of these is set.
+  ///
+  /// The contract PDF is here too, and not as an afterthought: contractPdf.ts
+  /// embeds the portrait, both sides of the ID and both sides of the licence
+  /// into it. A PDF endpoint outside this log would be a way to read every
+  /// identity image in the system without leaving a trace, which would make
+  /// the rest of this table decorative.
+  assetId    String?
+  contractId String?
+
   /// Denormalised on purpose. An account can be deleted; the record of who
   /// looked at somebody's passport should outlive it.
   userId   String
@@ -324,6 +333,7 @@ model AssetAccess {
   createdAt DateTime @default(now())
 
   @@index([assetId])
+  @@index([contractId])
   @@index([createdAt])
 }
 

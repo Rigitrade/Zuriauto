@@ -89,6 +89,45 @@ check against this document:
   its own pass and a decision about what a contract PDF minus its images is
   worth.
 
+## Open conflict: the images survive inside the contract
+
+**Found 29 August 2026, while building the documents view. Needs an owner
+decision; the code currently does the conservative thing, which is nothing.**
+
+`lib/rental/contractPdf.ts` embeds the portrait, both sides of the identity
+document and both sides of the licence into the contract PDF. The PDF is not a
+document *about* those images — it *contains* them.
+
+So the two periods above collide:
+
+- The `Asset` rows holding those images are deleted after **five years**, and
+  the sweep does that correctly.
+- The contract PDF is kept for **ten years** under OR 958f — and for the second
+  five of those, it still holds the same five identity photographs.
+
+The practical retention period for a passport scan is therefore **ten years,
+not five**, and any privacy notice saying otherwise is wrong. The sweep does not
+hide this: it deletes what it says it deletes. The gap is in the policy, not the
+job.
+
+Three ways out, none of them free, and the choice is the owner's:
+
+1. **Accept and document it.** The PDF is the commercial record; the images are
+   part of the signed instrument. Cheapest, and requires the privacy notice to
+   say ten years for identity images.
+2. **Re-render the PDF without images at five years.** Keeps the record and
+   drops the photographs. But the stored PDF is the document the customer
+   signed and received, and replacing it with a differently-rendered file
+   weakens exactly the evidential value the ten-year rule exists to protect.
+3. **Store two PDFs from the start** — one with images on the five-year clock,
+   one without on the ten-year clock. Correct, and the only option that has to
+   be decided *before* the contracts exist, because it cannot be applied
+   retroactively to documents already signed.
+
+Option 3 is the only one with a deadline. It is free today, on an empty
+production database, and impossible for every contract signed before it is
+chosen.
+
 ## Region
 
 Both stores must be in the EU or Switzerland. Neither is verifiable from the

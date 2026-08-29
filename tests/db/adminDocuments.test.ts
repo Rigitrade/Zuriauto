@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { GET as assetGet } from "@/app/api/admin/assets/[id]/route";
 import { GET as listGet } from "@/app/api/admin/rentals/[id]/documents/route";
+import { GET as pdfGet } from "@/app/api/admin/contracts/[id]/pdf/route";
 import { prisma } from "@/lib/db";
 import { ADMIN_COOKIE, issueAdminSession } from "@/lib/admin/session";
 import { hashPassword } from "@/lib/admin/password";
@@ -132,6 +133,42 @@ describe("the office can reach its documents", () => {
     const log = await prisma.assetAccess.findMany({ where: { assetId: asset.id } });
     expect(log).toHaveLength(1);
     expect(log[0].username).toBe("desk");
+  });
+
+  it("serves the signed contract PDF, and logs that too", async () => {
+    // The PDF embeds the portrait, both sides of the ID and both sides of the
+    // licence. An unlogged route to it would be a way to read every identity
+    // image in the system without leaving a trace.
+    const saved = await rental();
+    const cookie = await session("staff", "desk2");
+    const contract = await prisma.contract.findFirstOrThrow({
+      where: { rentalId: saved.rentalId },
+      select: { id: true, contractNumber: true },
+    });
+
+    const response = await pdfGet(req(cookie), params(contract.id));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("application/pdf");
+    expect(response.headers.get("content-disposition")).toContain(
+      `${contract.contractNumber}.pdf`
+    );
+
+    const log = await prisma.assetAccess.findMany({
+      where: { contractId: contract.id },
+    });
+    expect(log).toHaveLength(1);
+    expect(log[0].username).toBe("desk2");
+    expect(log[0].assetId).toBeNull();
+  });
+
+  it("refuses the contract PDF without a session", async () => {
+    const saved = await rental();
+    const contract = await prisma.contract.findFirstOrThrow({
+      where: { rentalId: saved.rentalId },
+      select: { id: true },
+    });
+    expect((await pdfGet(req(), params(contract.id))).status).toBe(401);
   });
 
   it("answers 410 for a document the retention policy removed", async () => {
