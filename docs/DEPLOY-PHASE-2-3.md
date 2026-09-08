@@ -95,12 +95,12 @@ deploy ships a dashboard nobody can sign into. Step 5h is the check that
 would catch it if you don't.
 
 ```bash
-# One Organisation row, the nine fleet vehicles, and the first dashboard
+# One Organisation row, the ten fleet vehicles, and the first dashboard
 # account (only if the three ADMIN_OWNER_* variables above are set).
 DATABASE_URL="<neon pooled url>" pnpm db:seed
 ```
 
-- [ ] Verify: `SELECT count(*) FROM "Car";` returns 9.
+- [ ] Verify: `SELECT count(*) FROM "Car";` returns 10.
 - [ ] Verify: `SELECT username, role FROM "AdminUser";` returns the one owner
       row you expect. Empty here is exactly the failure step 5h is for.
 
@@ -258,7 +258,7 @@ and the now-ignored `?k=` does no harm.
 ```bash
 curl -s https://zuriauto.ch/api/fleet/ | head -c 200
 ```
-Expect nine vehicles.
+Expect ten vehicles.
 
 **b. The write fence holds.**
 
