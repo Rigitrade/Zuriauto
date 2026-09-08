@@ -81,17 +81,21 @@ export const fleet: FleetVehicle[] = [
     model: "BMW 218d",
     plate: "ZH 656 404",
   },
+  {
+    id: "vito-119-zh323239",
+    model: "Mercedes Vito 119",
+    plate: "ZH 323 239",
+  },
 ];
 
 // ---------------------------------------------------------------------
 // OUTSTANDING — chassis numbers.
 //
-// Eight of the nine vehicles have no Fahrgestell-Nr. yet. Add `vin` to each
+// Nine of the ten vehicles have no Fahrgestell-Nr. yet. Add `vin` to each
 // as the office supplies it; nothing else needs changing, and the PDF starts
 // printing the row automatically once the field is present.
 //
-// The client originally described a fleet of ten. Nine are listed here, so one
-// is either still to come or no longer in service.
+// The client originally described a fleet of ten, and ten are now listed.
 // ---------------------------------------------------------------------
 
 /** The vehicles a customer may actually select. */
