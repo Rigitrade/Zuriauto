@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, ExternalLink, FileText, ImageIcon, Lock } from "lucide-react";
 import { Dialog } from "./Dialog";
 import { day } from "@/components/admin/format";
-import type { Labels, Rental } from "@/components/admin/types";
+import type { Labels } from "@/components/admin/types";
 
 /**
  * The documents behind a rental — contract PDFs, identity images, signatures.
@@ -50,13 +50,27 @@ interface Viewing {
   isPdf: boolean;
 }
 
+/**
+ * The two fields this dialog actually reads.
+ *
+ * Narrower than `Rental` on purpose: the documents behind a rental are as
+ * interesting for one that finished last spring as for one that is running,
+ * and the vehicle-history screen has no `endAt`, `contractNumber` or return
+ * report to hand over. Asking for the whole active-rental shape would have
+ * meant inventing those fields to open a dialog that never looks at them.
+ */
+export interface DocumentsSubject {
+  id: string;
+  customerName: string;
+}
+
 export function DocumentsDialog({
   rental,
   L,
   open,
   onClose,
 }: {
-  rental: Rental;
+  rental: DocumentsSubject;
   L: Labels;
   open: boolean;
   onClose: () => void;

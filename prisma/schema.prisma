@@ -380,6 +380,41 @@ model CustomerLookup {
   @@index([createdAt])
 }
 
+/// One row per vehicle-history search, for the same reason CustomerLookup
+/// exists: the screen it backs answers "who had this car on the 12th" with a
+/// past renter's name, mobile and email, and an office tool that can produce
+/// that should be able to say who asked.
+///
+/// Written whether or not anything matched. A run of searches that find
+/// nobody is exactly the shape of somebody walking the fleet, and skipping
+/// those rows would leave the trawl invisible.
+model CarHistoryLookup {
+  id String @id @default(cuid())
+
+  carId String
+
+  /// Denormalised, exactly as on AssetAccess: an account can be disabled or
+  /// deleted, and the record of who read a past renter's contact details has
+  /// to outlive it. The username rather than the display name — two people
+  /// can be called "Ahmed".
+  userId   String
+  username String
+
+  /// The window that was asked about. Both null when the whole history was
+  /// requested, which is a different search from a window that happened to
+  /// match everything.
+  windowFrom DateTime?
+  windowTo   DateTime?
+
+  /// How many periods came back. Zero is the interesting value.
+  matches Int
+
+  createdAt DateTime @default(now())
+
+  @@index([carId, createdAt])
+  @@index([createdAt])
+}
+
 /// The sequence behind ZA-YYYYMMDD-NNNN.
 ///
 /// One row per organisation per day, incremented atomically inside the

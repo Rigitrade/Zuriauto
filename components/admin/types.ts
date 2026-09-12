@@ -62,6 +62,33 @@ export interface Rental {
   returnReport?: ReturnReport | null;
 }
 
+/**
+ * One stretch of a car's life, as `/api/admin/cars/[id]/history/` reports it.
+ *
+ * Unlike `Rental`, which describes something still running, a period is
+ * historical by nature — a fine arrives weeks after the car came back. It
+ * carries its own status because a CANCELLED period means the car never left
+ * the yard, and a row that did not say so would put somebody else's fine on
+ * the person who signed.
+ */
+export interface CarPeriod {
+  id: string;
+  status: string;
+  startAt: string;
+  endAt: string;
+  customerName: string;
+  customerPhone: string;
+  customerEmail: string;
+  contractNumber: string | null;
+}
+
+export interface CarHistory {
+  car: { id: string; slug: string; model: string; plate: string; status: string };
+  /** Null when the whole history was asked for. */
+  window: { from: string; to: string } | null;
+  periods: CarPeriod[];
+}
+
 export interface Account {
   id: string;
   username: string;

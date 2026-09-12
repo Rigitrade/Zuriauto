@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   CarFront,
+  History,
   KeyRound,
   LayoutDashboard,
   Lock,
@@ -16,8 +17,8 @@ import type { Labels, Me } from "@/components/admin/types";
  * Section navigation, in two presentations of one list.
  *
  * A fixed sidebar at desktop widths, and a horizontally scrolling bar under
- * the header below 768px — not a drawer. Five items fit in a bar, and a drawer
- * costs a tap before every navigation while hiding the one thing this
+ * the header below 768px — not a drawer. A handful of items fit in a bar, and
+ * a drawer costs a tap before every navigation while hiding the one thing this
  * navigation exists to push at somebody: the count of work waiting. See
  * decision 6 in docs/superpowers/specs/2026-08-28-admin-dashboard-console-design.md.
  *
@@ -46,6 +47,10 @@ export function railItems(L: Labels, me: Me, attention: number): Item[] {
     },
     { href: "/admin/rentals", label: L.nav.rentals, icon: KeyRound },
     { href: "/admin/vehicles", label: L.nav.fleet, icon: CarFront },
+    // Beside the fleet, because it is a question about a car rather than
+    // about an open rental: the rentals screen deliberately shows only what
+    // is still running, and this one only ever asks about the past.
+    { href: "/admin/history", label: L.nav.history, icon: History },
     {
       href: "/admin/accounts",
       label: L.nav.accounts,
