@@ -12,7 +12,7 @@ import { prisma } from "@/lib/db";
 export async function resetDatabase(): Promise<void> {
   await prisma.$executeRawUnsafe(`
     TRUNCATE TABLE
-      "Asset", "RentalEvent", "Contract", "Rental",
+      "Asset", "RentalEvent", "Contract", "CarNotification", "Rental",
       "Customer", "Car", "ContractCounter", "SubmissionAttempt", "AdminUser",
       -- No foreign key, so CASCADE from another table never reaches it. Every
       -- audit table lands here: they are deliberately detached from the rows

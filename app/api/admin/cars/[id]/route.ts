@@ -70,9 +70,22 @@ export async function PATCH(
         ...(parsed.data.model !== undefined && { model: parsed.data.model }),
         ...(parsed.data.plate !== undefined && { plate: parsed.data.plate }),
         ...(parsed.data.vin !== undefined && { vin: parsed.data.vin || null }),
+        ...(parsed.data.mfkDate !== undefined && {
+          mfkDate: parsed.data.mfkDate
+            ? new Date(`${parsed.data.mfkDate}T00:00:00.000Z`)
+            : null,
+        }),
         ...(status !== undefined && { status }),
       },
-      select: { id: true, slug: true, model: true, plate: true, vin: true, status: true },
+      select: {
+        id: true,
+        slug: true,
+        model: true,
+        plate: true,
+        vin: true,
+        status: true,
+        mfkDate: true,
+      },
     });
     return NextResponse.json(updated);
   } catch (error) {

@@ -27,6 +27,7 @@ import {
 import { asRentalLanguage, type RentalLanguage } from "./labels";
 import {
   chargeDueMail,
+  mfkDueMail,
   officeAlertMail,
   readLifecycleMailConfig,
   rentalEndingMail,
@@ -34,13 +35,17 @@ import {
   type LifecycleMailConfig,
 } from "./lifecycleMail";
 import { endAtDedupeKey, sendOnce, weekDedupeKey } from "./notify";
+import { mfkDedupeKey, sendOnceForCar } from "./carNotify";
 import {
   endingSoonWindow,
   isDueForChargeOverdue,
   isDueForChargeReminder,
   isDueForChargeRequest,
+  isMfkDueSoon,
+  isMfkExpired,
   isRentalEndingSoon,
   isRentalOverdue,
+  mfkDueWindow,
 } from "./passes";
 
 export interface PassSummary {
@@ -49,6 +54,7 @@ export interface PassSummary {
   chargeReminded: number;
   chargeOverdue: number;
   rentalOverdue: number;
+  mfkDue: number;
   mailRetried: number;
 }
 
@@ -542,6 +548,119 @@ export async function mailRetryPass(deps: SchedulerDeps): Promise<number> {
 
 // ---------------------------------------------------------------------
 
+// ---------------------------------------------------------------------
+// 7. The annual technical inspection (MFK).
+//
+// Unlike every pass above it, this one is about a car rather than a rental,
+// which is why it claims its send through carNotify.ts — see the note there
+// about why a nullable rentalId would have broken the idempotency silently.
+// ---------------------------------------------------------------------
+
+export async function mfkDuePass(deps: SchedulerDeps): Promise<number> {
+  const { client, now, mail } = deps;
+  const { to } = mfkDueWindow(now);
+
+  // The coarse filter matches the index on [organisationId, mfkDate]. Open at
+  // the bottom on purpose: an inspection date that went by last month still
+  // needs acting on, and a lower bound would let such a car slip back onto the
+  // road unnoticed.
+  const cars = await client.car.findMany({
+    where: {
+      mfkDate: { not: null, lte: to },
+      // A retired car is already off the road, and moving it to maintenance
+      // would misreport why — the office retired it deliberately.
+      status: { in: ["available", "rented"] },
+    },
+    orderBy: { mfkDate: "asc" },
+    select: {
+      id: true,
+      organisationId: true,
+      model: true,
+      plate: true,
+      status: true,
+      mfkDate: true,
+      rentals: {
+        where: { status: { notIn: ["COMPLETED", "CANCELLED"] } },
+        orderBy: { startAt: "desc" },
+        take: 1,
+        select: {
+          endAt: true,
+          customer: {
+            select: { firstName: true, lastName: true, email: true, phone: true },
+          },
+        },
+      },
+    },
+  });
+
+  let warned = 0;
+
+  for (const car of cars) {
+    const mfkDate = car.mfkDate;
+    if (!mfkDate) continue;
+    // The guard repeats what the query filtered on, so the calendar rule lives
+    // in one pure function rather than half in SQL.
+    if (!isMfkDueSoon(mfkDate, now)) continue;
+
+    const rental = car.rentals[0] ?? null;
+
+    /**
+     * Take an idle car off the road.
+     *
+     * A conditional updateMany whose WHERE repeats the precondition, exactly
+     * as the status transitions above do: it can only succeed on a car that is
+     * still `available`, so it can never clobber a `rented` one and never
+     * double-applies. Run on every pass rather than only alongside the mail —
+     * a car freed without its inspection being recorded is still a car that
+     * must not be rented, and re-asserting is the honest answer. The way out
+     * is entering the new date.
+     */
+    let blocked = false;
+    if (car.status === "available") {
+      const moved = await client.car.updateMany({
+        where: { id: car.id, status: "available" },
+        data: { status: "maintenance" },
+      });
+      blocked = moved.count > 0;
+    }
+
+    if (!mail) continue;
+
+    const message = mfkDueMail({
+      carModel: car.model,
+      plate: car.plate,
+      mfkDate,
+      expired: isMfkExpired(mfkDate, now),
+      rental: rental
+        ? {
+            renterName: renterName(rental.customer),
+            renterEmail: rental.customer.email,
+            renterPhone: rental.customer.phone,
+            endAt: rental.endAt,
+          }
+        : null,
+      blocked,
+    });
+
+    const sent = await sendOnceForCar(
+      client,
+      {
+        organisationId: car.organisationId,
+        carId: car.id,
+        kind: "MFK_DUE",
+        dedupeKey: mfkDedupeKey(mfkDate),
+        to: mail.office,
+      },
+      now,
+      () => sendMail(mail, { to: mail.office, ...message })
+    );
+
+    if (sent) warned += 1;
+  }
+
+  return warned;
+}
+
 export async function runDailyPasses(
   deps: Omit<SchedulerDeps, "mail"> & { mail?: LifecycleMailConfig | null }
 ): Promise<PassSummary> {
@@ -556,6 +675,7 @@ export async function runDailyPasses(
     chargeReminded: await chargeReminderPass(full),
     chargeOverdue: await chargeOverduePass(full),
     rentalOverdue: await rentalOverduePass(full),
+    mfkDue: await mfkDuePass(full),
     mailRetried: await mailRetryPass(full),
   };
 }

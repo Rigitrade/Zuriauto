@@ -117,10 +117,41 @@ describe("statusChangeAllowed", () => {
     expect(statusChangeAllowed("retired", "retired")).toBe(true);
   });
 
-  it("refuses the unused maintenance state in both directions", () => {
-    // Kept in the enum, deliberately unreachable from the UI: the office asked
-    // for one off-road status.
-    expect(statusChangeAllowed("available", "maintenance")).toBe(false);
-    expect(statusChangeAllowed("maintenance", "available")).toBe(false);
+  it("refuses every transition that would fake a handover", () => {
+    // `maintenance` used to be refused here as deliberately unreachable — the
+    // office had asked for a single off-road status. The MFK pass now sets it
+    // by itself when an inspection falls due, so it has to be clearable from
+    // the fleet screen too; see the MFK date suite below. What stays refused
+    // is anything involving `rented`, which is only ever reached by a handover
+    // and only ever left by a rental being closed.
+    expect(statusChangeAllowed("available", "rented")).toBe(false);
+    expect(statusChangeAllowed("rented", "available")).toBe(false);
+    expect(statusChangeAllowed("retired", "rented")).toBe(false);
+    expect(statusChangeAllowed("rented", "retired")).toBe(false);
+  });
+});
+
+describe("MFK date", () => {
+  it("accepts a day and a cleared field, but not a non-date", () => {
+    expect(updateCarSchema.safeParse({ mfkDate: "2026-07-14" }).success).toBe(true);
+    // Empty means "no date recorded", which is a real state: the car simply
+    // never triggers a reminder.
+    expect(updateCarSchema.safeParse({ mfkDate: "" }).success).toBe(true);
+    expect(updateCarSchema.safeParse({ mfkDate: "14.07.2026" }).success).toBe(false);
+    expect(updateCarSchema.safeParse({ mfkDate: "2026-13-45" }).success).toBe(false);
+  });
+
+  it("lets the office take a car to the garage and bring it back", () => {
+    // The MFK pass moves a car to maintenance on its own; without these the
+    // office could see the status but never clear it.
+    expect(statusChangeAllowed("available", "maintenance")).toBe(true);
+    expect(statusChangeAllowed("maintenance", "available")).toBe(true);
+    expect(statusChangeAllowed("maintenance", "retired")).toBe(true);
+    expect(statusChangeAllowed("maintenance", "maintenance")).toBe(true);
+  });
+
+  it("still refuses anything that would fake a handover", () => {
+    expect(statusChangeAllowed("maintenance", "rented")).toBe(false);
+    expect(statusChangeAllowed("rented", "maintenance")).toBe(false);
   });
 });

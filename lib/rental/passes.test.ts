@@ -8,6 +8,9 @@ import {
   isDueForChargeReminder,
   isDueForChargeRequest,
   isRentalOverdue,
+  isMfkDueSoon,
+  isMfkExpired,
+  mfkDueWindow,
   isRentalEndingSoon,
   zurichDayString,
 } from "./passes";
@@ -299,5 +302,75 @@ describe("generateWeeklyCharges", () => {
     expect(() =>
       generateWeeklyCharges({ ...base, weeks: 1, amountCents: -1 })
     ).toThrow();
+  });
+});
+
+describe("MFK — the annual technical inspection", () => {
+  /** `mfkDate` is a date column: Prisma hands it back as UTC midnight. */
+  const mfk = (day: string) => new Date(`${day}T00:00:00.000Z`);
+
+  describe("isMfkDueSoon", () => {
+    it("is due two days before, which is the notice the office asked for", () => {
+      // 07:00 Zurich on the 12th, an inspection on the 14th.
+      expect(isMfkDueSoon(mfk("2026-07-14"), new Date("2026-07-12T05:00:00Z"))).toBe(
+        true
+      );
+    });
+
+    it("is still due the day before and on the day itself", () => {
+      // A window rather than an exact match: a cron that misses Sunday must
+      // still warn on Monday instead of losing the notice entirely.
+      expect(isMfkDueSoon(mfk("2026-07-14"), new Date("2026-07-13T05:00:00Z"))).toBe(
+        true
+      );
+      expect(isMfkDueSoon(mfk("2026-07-14"), new Date("2026-07-14T05:00:00Z"))).toBe(
+        true
+      );
+    });
+
+    it("is not due three days out", () => {
+      expect(isMfkDueSoon(mfk("2026-07-14"), new Date("2026-07-11T05:00:00Z"))).toBe(
+        false
+      );
+    });
+
+    it("counts days on the Zurich calendar, not in UTC", () => {
+      // 23:30 UTC on the 11th is already 01:30 on the 12th in Zurich, which is
+      // two days before the 14th — so the notice is due.
+      expect(isMfkDueSoon(mfk("2026-07-14"), new Date("2026-07-11T23:30:00Z"))).toBe(
+        true
+      );
+    });
+
+    it("stays due once the date has passed", () => {
+      // An expired inspection does not stop being a problem, and this is what
+      // keeps an unrented car blocked rather than quietly freeing it.
+      expect(isMfkDueSoon(mfk("2026-07-14"), new Date("2026-07-20T05:00:00Z"))).toBe(
+        true
+      );
+    });
+  });
+
+  describe("isMfkExpired", () => {
+    it("is expired only after the inspection day is over", () => {
+      expect(isMfkExpired(mfk("2026-07-14"), new Date("2026-07-14T05:00:00Z"))).toBe(
+        false
+      );
+      expect(isMfkExpired(mfk("2026-07-14"), new Date("2026-07-15T05:00:00Z"))).toBe(
+        true
+      );
+    });
+  });
+
+  describe("mfkDueWindow", () => {
+    it("ends at the last moment of the second day ahead", () => {
+      // The coarse database filter. It must not be narrower than the guard, or
+      // the pass would never see rows the predicate would have accepted.
+      const { to } = mfkDueWindow(new Date("2026-07-12T05:00:00Z"));
+      expect(isMfkDueSoon(mfk("2026-07-14"), new Date("2026-07-12T05:00:00Z"))).toBe(
+        true
+      );
+      expect(to.getTime()).toBeGreaterThanOrEqual(mfk("2026-07-14").getTime());
+    });
   });
 });

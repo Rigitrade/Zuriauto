@@ -166,3 +166,59 @@ export function generateWeeklyCharges(opts: {
     };
   });
 }
+
+// ---------------------------------------------------------------------
+// MFK — the annual technical inspection.
+// ---------------------------------------------------------------------
+
+/**
+ * How many days before the inspection the office wants to know.
+ *
+ * Two, so there is time to call a renter back before the date rather than
+ * discover it on the day.
+ */
+export const MFK_NOTICE_DAYS = Number(process.env.MFK_NOTICE_DAYS ?? 2);
+
+/** Whole Zurich calendar days from `now` to `day`. Negative once it is past. */
+function zurichDaysUntil(day: Date, now: Date): number {
+  // Compared as calendar dates, never as instants: "two days before" is a
+  // question about the calendar the office reads, and 47 hours can span two
+  // days or three depending on the time of day.
+  const a = Date.parse(`${zurichDayString(now)}T00:00:00Z`);
+  const b = Date.parse(`${zurichDayString(day)}T00:00:00Z`);
+  return Math.round((b - a) / 86_400_000);
+}
+
+/**
+ * Warn: the inspection is within the notice period, or already past.
+ *
+ * A window rather than an exact "two days before" match, for the reason
+ * REMINDER_LOOKAHEAD_HOURS gives: a cron that misses a day must still warn the
+ * next day instead of losing the notice for a year. Deduping on the inspection
+ * date keeps that to one mail.
+ *
+ * It deliberately stays true after the date has passed. An expired inspection
+ * does not stop being a problem — and this is what keeps an unrented car
+ * blocked instead of quietly becoming available again.
+ */
+export function isMfkDueSoon(mfkDate: Date, now: Date): boolean {
+  return zurichDaysUntil(mfkDate, now) <= MFK_NOTICE_DAYS;
+}
+
+/** The inspection day itself is over and the car has not been re-registered. */
+export function isMfkExpired(mfkDate: Date, now: Date): boolean {
+  return zurichDaysUntil(mfkDate, now) < 0;
+}
+
+/**
+ * The range the MFK pass queries, so the database filter matches the guard.
+ *
+ * Open at the bottom: a date that went by last month still needs acting on, so
+ * there is no lower bound to miss it by.
+ */
+export function mfkDueWindow(now: Date): { to: Date } {
+  const to = new TZDate(now.getTime(), ZURICH);
+  to.setDate(to.getDate() + MFK_NOTICE_DAYS);
+  to.setHours(23, 59, 59, 999);
+  return { to: new Date(to.getTime()) };
+}

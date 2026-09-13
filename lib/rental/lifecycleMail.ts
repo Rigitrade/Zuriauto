@@ -292,3 +292,81 @@ export function officeAlertMail(ctx: {
     ].join("\n"),
   };
 }
+
+/**
+ * `14.07.2026` — a plain calendar day.
+ *
+ * Reads the UTC parts deliberately. `mfkDate` is a DATE column, which Prisma
+ * hands back as midnight UTC; running that through a Zurich formatter would
+ * print the *previous* day west of the meridian and an unwanted "02:00"
+ * besides. A date column has no time to render, so none is rendered.
+ */
+export function formatDay(at: Date): string {
+  const d = String(at.getUTCDate()).padStart(2, "0");
+  const m = String(at.getUTCMonth() + 1).padStart(2, "0");
+  return `${d}.${m}.${at.getUTCFullYear()}`;
+}
+
+/**
+ * The annual technical inspection is due.
+ *
+ * Written to the office, never to a renter: the MFK is the owner's obligation,
+ * and a customer has nothing to do with it.
+ *
+ * Says what the system already did, not only what is due. The office is being
+ * told a car came off the road, and a mail that left them to discover that
+ * from the fleet screen would read as the tool having done something behind
+ * their back.
+ */
+export function mfkDueMail(ctx: {
+  carModel: string;
+  plate: string;
+  mfkDate: Date;
+  expired: boolean;
+  /** Set when the car is out, so the office can call and arrange its return. */
+  rental: {
+    renterName: string;
+    renterEmail: string;
+    renterPhone: string;
+    endAt: Date;
+  } | null;
+  /** True when this run took the car off the road. */
+  blocked: boolean;
+}): { subject: string; text: string } {
+  const when = formatDay(ctx.mfkDate);
+
+  const headline = ctx.expired
+    ? `Die MFK für ${ctx.plate} ist seit ${when} fällig.`
+    : `Die MFK für ${ctx.plate} ist am ${when} fällig.`;
+
+  const outcome = ctx.rental
+    ? [
+        "Das Fahrzeug ist vermietet. Bitte Rückholung mit dem Mieter vereinbaren:",
+        "",
+        `Mieter:    ${ctx.rental.renterName}`,
+        `Telefon:   ${ctx.rental.renterPhone}`,
+        `E-Mail:    ${ctx.rental.renterEmail}`,
+        `Rückgabe:  ${formatZurich(ctx.rental.endAt)}`,
+      ]
+    : ctx.blocked
+      ? [
+          "Das Fahrzeug stand frei und wurde auf «Werkstatt / MFK» gesetzt.",
+          "Es ist damit nicht mehr buchbar.",
+          "",
+          "Nach der Prüfung bitte das neue MFK-Datum erfassen und das",
+          "Fahrzeug wieder auf «Verfügbar» setzen.",
+        ]
+      : ["Das Fahrzeug ist bereits ausser Betrieb."];
+
+  return {
+    subject: `MFK ${ctx.expired ? "überfällig" : "fällig"}: ${ctx.plate} – ${when}`,
+    text: [
+      headline,
+      "",
+      `Fahrzeug:  ${ctx.carModel} (${ctx.plate})`,
+      `MFK:       ${when}`,
+      "",
+      ...outcome,
+    ].join("\n"),
+  };
+}

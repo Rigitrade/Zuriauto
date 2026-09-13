@@ -33,6 +33,11 @@ export interface AdminOverview {
     plate: string;
     vin: string | null;
     status: string;
+    /** The annual technical inspection, `YYYY-MM-DD`, or null when none is
+     *  recorded. A date string rather than an instant: it is a calendar day,
+     *  and sending it as an ISO timestamp invites a timezone shift on a value
+     *  that decides when a car comes off the road. */
+    mfkDate: string | null;
     /** Set when the car is out, so the row can link to the rental. */
     activeRentalId: string | null;
   }[];
@@ -132,6 +137,7 @@ export async function GET(request: Request) {
       plate: true,
       vin: true,
       status: true,
+      mfkDate: true,
       rentals: {
         where: { status: { notIn: ["COMPLETED", "CANCELLED"] } },
         select: { id: true },
@@ -231,6 +237,10 @@ export async function GET(request: Request) {
       plate: car.plate,
       vin: car.vin,
       status: car.status,
+      // Sliced from the ISO string, never formatted through a local Date: a
+      // DATE column is midnight UTC, and reading its local parts west of the
+      // meridian would report the previous day.
+      mfkDate: car.mfkDate ? car.mfkDate.toISOString().slice(0, 10) : null,
       activeRentalId: car.rentals[0]?.id ?? null,
     })),
     rentals: rentals.map((rental) => {

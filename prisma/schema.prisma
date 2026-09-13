@@ -103,11 +103,63 @@ model Car {
   /// Reserved for Phase 6. Nothing is built against it until trackers exist.
   telematicsDeviceId String?
 
-  organisation Organisation @relation(fields: [organisationId], references: [id])
-  rentals      Rental[]
+  /// When this car's annual technical inspection (MFK) falls due.
+  ///
+  /// A date, not an instant: it is a day on a Swiss calendar, and the office
+  /// types it off a letter. Nullable because a car whose date nobody has
+  /// recorded must simply never trigger a reminder — an inspection the system
+  /// invents is worse than one it stays quiet about.
+  ///
+  /// Owned by the office and re-entered after each inspection. Nothing rolls
+  /// it forward automatically: a year is the usual interval but not a
+  /// guaranteed one, and a wrong date here takes a car off the road.
+  mfkDate DateTime? @db.Date
+
+  organisation  Organisation      @relation(fields: [organisationId], references: [id])
+  rentals       Rental[]
+  notifications CarNotification[]
 
   @@unique([organisationId, plate])
   @@unique([organisationId, slug])
+  /// The daily MFK pass's query: the dated cars, soonest first.
+  @@index([organisationId, mfkDate])
+}
+
+/// A message about a car rather than about a rental.
+///
+/// Deliberately its own table rather than a nullable `rentalId` on
+/// Notification. Postgres treats NULLs as *distinct* in a unique index, so
+/// `[NULL, kind, dedupeKey]` would insert over and over and the office would
+/// be told about the same inspection every morning — the idempotency would
+/// fail silently, which is the worst way for it to fail. A separate table
+/// keeps `[carId, kind, dedupeKey]` genuinely unique and leaves the rental
+/// notifications untouched.
+///
+/// The columns mirror Notification for the reason given there: the unique key
+/// guards the *decision* to send, and `sentAt` / `error` / `attempts` record
+/// the *outcome*.
+model CarNotification {
+  id             String @id @default(cuid())
+  organisationId String
+  carId          String
+
+  kind CarNotificationKind
+  /// The inspection date this message is about, as Zurich reckons the day.
+  /// Keyed to the date rather than the run, so correcting an MFK date
+  /// correctly permits a fresh warning — and re-running the pass does not.
+  dedupeKey String
+  to        String
+
+  sentAt   DateTime?
+  error    String?
+  attempts Int       @default(0)
+
+  createdAt DateTime @default(now())
+
+  car Car @relation(fields: [carId], references: [id])
+
+  @@unique([carId, kind, dedupeKey])
+  @@index([sentAt, attempts])
 }
 
 model Customer {
@@ -458,6 +510,11 @@ enum NotificationKind {
 
 enum ActionTokenPurpose {
   MANAGE_RENTAL
+}
+
+/// Why the office is being written to about a car.
+enum CarNotificationKind {
+  MFK_DUE
 }
 
 /// One payable amount against a rental.

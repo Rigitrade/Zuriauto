@@ -63,12 +63,13 @@ export function VehiclesSection() {
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[36rem] text-sm">
+            <table className="w-full min-w-[52rem] text-sm">
               <thead>
                 <tr className="bg-[var(--admin-sunk)] text-left text-xs uppercase tracking-wider text-[var(--admin-faint)]">
                   <th className="px-4 py-2.5 font-medium">{L.fleet.model}</th>
                   <th className="px-4 py-2.5 font-medium">{L.fleet.plate}</th>
                   <th className="px-4 py-2.5 font-medium">{L.fleet.status}</th>
+                  <th className="px-4 py-2.5 font-medium">{L.fleet.mfk}</th>
                   <th className="px-4 py-2.5" />
                 </tr>
               </thead>

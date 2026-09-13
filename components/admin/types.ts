@@ -18,6 +18,11 @@ export interface Car {
   plate: string;
   vin: string | null;
   status: string;
+  /** The annual technical inspection as `YYYY-MM-DD`, or null when none is
+   *  recorded. A day string, not an instant — see the endpoint's note on why a
+   *  DATE column must not travel as an ISO timestamp. Optional so a client
+   *  running against an older deployment degrades to "—" rather than throwing. */
+  mfkDate?: string | null;
   activeRentalId: string | null;
 }
 

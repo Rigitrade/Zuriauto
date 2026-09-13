@@ -18,15 +18,17 @@ export function AddCar({
   const [model, setModel] = useState("");
   const [plate, setPlate] = useState("");
   const [vin, setVin] = useState("");
+  const [mfkDate, setMfkDate] = useState("");
 
   return (
     <form
       onSubmit={async (event) => {
         event.preventDefault();
-        if (await onAdd({ model, plate, vin })) {
+        if (await onAdd({ model, plate, vin, mfkDate })) {
           setModel("");
           setPlate("");
           setVin("");
+          setMfkDate("");
         }
       }}
       // A vertical stack: this lives in a dialog now, not across the top of
@@ -49,6 +51,19 @@ export function AddCar({
         onChange={(e) => setVin(e.target.value)}
         placeholder={L.fleet.vinOptional}
       />
+      {/* Labelled rather than placeholder-only: an empty date input shows the
+          browser's own mm/dd/yyyy, which says nothing about what date is
+          being asked for. */}
+      <label className="grid gap-1">
+        <span className="text-xs text-[var(--admin-muted)]">
+          {L.fleet.mfkOptional}
+        </span>
+        <Input
+          type="date"
+          value={mfkDate}
+          onChange={(e) => setMfkDate(e.target.value)}
+        />
+      </label>
       <button
         type="submit"
         disabled={busy || !model.trim() || !plate.trim()}

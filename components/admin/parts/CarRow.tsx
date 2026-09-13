@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, Wrench } from "lucide-react";
 import { Dialog } from "./Dialog";
+import { mfkStanding } from "@/lib/admin/mfk";
+import { day } from "@/components/admin/format";
 import type { Car, Labels } from "@/components/admin/types";
 
 /**
@@ -48,6 +50,8 @@ export function CarRow({
 
   const rented = car.status === "rented";
   const retired = car.status === "retired";
+  const inGarage = car.status === "maintenance";
+  const standing = mfkStanding(car.mfkDate, new Date());
   const statusLabel =
     L.fleet.statuses[car.status as keyof typeof L.fleet.statuses] ?? car.status;
 
@@ -76,7 +80,7 @@ export function CarRow({
           )}
         </td>
 
-        <td className="px-4 py-3 font-mono text-sm tabular-nums text-[var(--admin-muted)]">
+        <td className="px-4 py-3 font-mono text-sm whitespace-nowrap tabular-nums text-[var(--admin-muted)]">
           {car.plate}
         </td>
 
@@ -89,6 +93,40 @@ export function CarRow({
           >
             {statusLabel}
           </span>
+        </td>
+
+        {/* The inspection date, and how close it is. A date alone would make
+            the office do the arithmetic on ten rows; the word says which ones
+            need them today. */}
+        <td className="px-4 py-3 text-sm whitespace-nowrap tabular-nums">
+          {car.mfkDate ? (
+            <>
+              <span
+                className={
+                  standing === "expired"
+                    ? "font-medium text-[var(--admin-crit)]"
+                    : standing === "due"
+                      ? "font-medium text-[var(--admin-attn)]"
+                      : "text-[var(--admin-muted)]"
+                }
+              >
+                {day(car.mfkDate)}
+              </span>
+              {standing !== "ok" && (
+                <span
+                  className={`mt-0.5 block text-xs ${
+                    standing === "expired"
+                      ? "text-[var(--admin-crit)]"
+                      : "text-[var(--admin-attn)]"
+                  }`}
+                >
+                  {standing === "expired" ? L.fleet.mfkExpired : L.fleet.mfkDue}
+                </span>
+              )}
+            </>
+          ) : (
+            <span className="text-[var(--admin-faint)]">{L.fleet.mfkNone}</span>
+          )}
         </td>
 
         <td className="px-4 py-3">
@@ -104,7 +142,20 @@ export function CarRow({
             {/* A rented car has no status toggle at all: it is freed by closing
                 its rental, so a disabled button here would only invite the
                 question of why it does not work. */}
-            {!rented && (
+            {/* The way back from a status the MFK pass sets by itself. Without
+                it a car blocked for its inspection could never be freed from
+                this screen. */}
+            {!rented && !retired && (
+              <IconButton
+                label={inGarage ? L.fleet.backOnRoad : L.fleet.toGarage}
+                onClick={() => onSave({ status: inGarage ? "available" : "maintenance" })}
+                disabled={busy}
+              >
+                <Wrench className="h-4 w-4" aria-hidden="true" />
+              </IconButton>
+            )}
+
+            {!rented && !inGarage && (
               <button
                 type="button"
                 disabled={busy}
@@ -201,9 +252,13 @@ function EditCarDialog({
   const [model, setModel] = useState(car.model);
   const [plate, setPlate] = useState(car.plate);
   const [vin, setVin] = useState(car.vin ?? "");
+  const [mfkDate, setMfkDate] = useState(car.mfkDate ?? "");
 
   const dirty =
-    model !== car.model || plate !== car.plate || vin !== (car.vin ?? "");
+    model !== car.model ||
+    plate !== car.plate ||
+    vin !== (car.vin ?? "") ||
+    mfkDate !== (car.mfkDate ?? "");
 
   return (
     <Dialog
@@ -214,6 +269,7 @@ function EditCarDialog({
         setModel(car.model);
         setPlate(car.plate);
         setVin(car.vin ?? "");
+        setMfkDate(car.mfkDate ?? "");
         onClose();
       }}
       title={`${car.model} · ${car.plate}`}
@@ -222,13 +278,20 @@ function EditCarDialog({
       <form
         onSubmit={(event) => {
           event.preventDefault();
-          void onSave({ model, plate, vin });
+          void onSave({ model, plate, vin, mfkDate });
         }}
         className="grid gap-3"
       >
         <Field label={L.fleet.model} value={model} onChange={setModel} />
         <Field label={L.fleet.plate} value={plate} onChange={setPlate} mono />
         <Field label={L.fleet.vinOptional} value={vin} onChange={setVin} mono />
+        <Field
+          label={L.fleet.mfkOptional}
+          value={mfkDate}
+          onChange={setMfkDate}
+          type="date"
+        />
+        <p className="text-xs text-[var(--admin-faint)]">{L.fleet.mfkHint}</p>
         <button
           type="submit"
           disabled={busy || !dirty || !model.trim() || !plate.trim()}
@@ -246,16 +309,19 @@ function Field({
   value,
   onChange,
   mono,
+  type,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   mono?: boolean;
+  type?: string;
 }) {
   return (
     <label className="grid gap-1">
       <span className="text-xs text-[var(--admin-muted)]">{label}</span>
       <input
+        type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className={`h-10 rounded-md border border-[var(--admin-rule-strong)] bg-[var(--admin-surface)] px-3 text-sm outline-none focus-visible:border-[var(--admin-accent)] focus-visible:ring-2 focus-visible:ring-[var(--admin-accent)]/20 ${

@@ -8,7 +8,8 @@
 import { z } from "zod";
 import type { CarStatus } from "@/generated/prisma/client";
 
-/** The one off-road state the office asked for. `maintenance` stays unused. */
+/** The off-road state the office chooses by hand. `maintenance` is the other
+ *  one, and is set by the MFK pass as well as from the fleet screen. */
 export const OFF_ROAD = "retired" as const;
 
 /**
@@ -62,10 +63,33 @@ const plateField = z
 const modelField = z.string().trim().min(1, "model").max(100, "model");
 const vinField = z.string().trim().max(40, "vin").optional();
 
+/**
+ * The annual technical inspection, as `<input type="date">` submits it.
+ *
+ * An empty string clears the field, and that is a real state rather than a
+ * mistake: a car whose date nobody has recorded must never trigger a reminder.
+ * Anything else must be a calendar day that actually exists — `2026-13-45`
+ * would otherwise roll forward into a real date and take a car off the road on
+ * a day nobody chose.
+ */
+const mfkDateField = z
+  .string()
+  .trim()
+  .refine(
+    (value) =>
+      value === "" ||
+      (/^\d{4}-\d{2}-\d{2}$/.test(value) &&
+        !Number.isNaN(Date.parse(`${value}T00:00:00.000Z`)) &&
+        new Date(`${value}T00:00:00.000Z`).toISOString().startsWith(value)),
+    { message: "mfkDate" }
+  )
+  .optional();
+
 export const newCarSchema = z.object({
   model: modelField,
   plate: plateField,
   vin: vinField,
+  mfkDate: mfkDateField,
 });
 
 export type NewCar = z.infer<typeof newCarSchema>;
@@ -82,7 +106,8 @@ export const updateCarSchema = z
     model: modelField.optional(),
     plate: plateField.optional(),
     vin: vinField,
-    status: z.enum(["available", OFF_ROAD]).optional(),
+    mfkDate: mfkDateField,
+    status: z.enum(["available", "maintenance", OFF_ROAD]).optional(),
   })
   .refine((value) => Object.keys(value).length > 0, { message: "empty" });
 
@@ -98,9 +123,17 @@ export type UpdateCar = z.infer<typeof updateCarSchema>;
 const ALLOWED = new Set([
   "available>retired",
   "retired>available",
+  // The garage. `maintenance` was unused until the MFK pass started setting it
+  // by itself — and a status the system can apply but the office cannot clear
+  // would strand a car off the road with no way back through the dashboard.
+  "available>maintenance",
+  "maintenance>available",
+  "maintenance>retired",
+  "retired>maintenance",
   // No-ops, so a form that resubmits the current status is not an error.
   "available>available",
   "retired>retired",
+  "maintenance>maintenance",
 ]);
 
 export function statusChangeAllowed(from: CarStatus, to: CarStatus): boolean {
