@@ -50,6 +50,26 @@ const de = {
     damageNone: "Keine sichtbaren Schäden",
     conditionPhotos: "Zustandsfotos (optional)",
     conditionPhotosHint: "Bis zu 4 Fotos des Fahrzeugs",
+    /** Steht in der Fahrzeugauswahl, wenn noch kein Foto hinterlegt ist. */
+    noPhoto: "Noch kein Foto",
+  },
+
+  /**
+   * Wenn die ganze Flotte unterwegs ist.
+   *
+   * Eigener Block statt unter `vehicle`, weil dieselben Texte auch auf der
+   * Buchungsseite stehen, wo es gar keine Fahrzeugauswahl gibt.
+   */
+  availability: {
+    heading: "Zurzeit sind keine Fahrzeuge verfügbar",
+    body: "Tragen Sie Ihre E-Mail-Adresse ein — wir melden uns, sobald ein Fahrzeug frei wird.",
+    emailLabel: "E-Mail-Adresse",
+    emailPlaceholder: "ihre@email.ch",
+    submit: "Benachrichtigen",
+    queued: "Danke — wir melden uns, sobald ein Fahrzeug frei ist.",
+    failed: "Das hat nicht geklappt. Bitte versuchen Sie es erneut.",
+    privacy:
+      "Wir verwenden Ihre Adresse nur für diese eine Benachrichtigung. Abmeldung jederzeit mit einem Klick.",
   },
 
   terms: {
@@ -453,6 +473,20 @@ const en: typeof de = {
     damageNone: "No visible damage",
     conditionPhotos: "Condition photos (optional)",
     conditionPhotosHint: "Up to 4 photos of the vehicle",
+    /** Shown in the picker for a car whose photograph has not arrived yet. */
+    noPhoto: "No photo yet",
+  },
+
+  availability: {
+    heading: "No cars are available right now",
+    body: "Leave your email address and we will write to you as soon as one is free.",
+    emailLabel: "Email address",
+    emailPlaceholder: "you@example.com",
+    submit: "Notify me",
+    queued: "Thank you — we will write to you as soon as a car is free.",
+    failed: "That did not work. Please try again.",
+    privacy:
+      "We use your address for this one notification only. Unsubscribe any time with one click.",
   },
 
   terms: {

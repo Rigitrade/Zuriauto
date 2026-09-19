@@ -1,0 +1,585 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="description" content="Every action in the three-dot menu at the end of a row of the ZURIAUTO fleet table: what each one does, when it appears, whether it acts immediately, and what to expect afterwards.">
+<title>Zuriauto — The Fleet Row Controls</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+  html { -webkit-text-size-adjust: 100%; }
+  :root {
+    --ground: #F1F4F6; --surface: #FFFFFF; --surface-sunk: #E7ECEF;
+    --ink: #13181C; --ink-soft: #56626C; --ink-faint: #8A959E;
+    --rule: #D6DDE2; --rule-strong: #B9C4CB;
+    --accent: #2C3E5C;
+    --ok: #2C6A4E; --ok-soft: #DDEBE3;
+    --warn: #855F0D; --warn-soft: #F3E9D2;
+    --gap: #97292A; --gap-soft: #F2DDDD;
+    --measure: 68ch;
+    --step--1: .8125rem; --step-0: 1rem; --step-1: 1.1875rem;
+    --step-2: 1.5rem; --step-3: 2rem; --step-4: 2.9rem;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0E1216; --surface: #161C21; --surface-sunk: #1D242A;
+      --ink: #E3E9ED; --ink-soft: #97A3AD; --ink-faint: #6C7883;
+      --rule: #252D35; --rule-strong: #37424B;
+      --accent: #93B2DA;
+      --ok: #6DB48D; --ok-soft: #16251D;
+      --warn: #D2A250; --warn-soft: #262013;
+      --gap: #E08787; --gap-soft: #2A1A1A;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0E1216; --surface: #161C21; --surface-sunk: #1D242A;
+    --ink: #E3E9ED; --ink-soft: #97A3AD; --ink-faint: #6C7883;
+    --rule: #252D35; --rule-strong: #37424B;
+    --accent: #93B2DA;
+    --ok: #6DB48D; --ok-soft: #16251D;
+    --warn: #D2A250; --warn-soft: #262013;
+    --gap: #E08787; --gap-soft: #2A1A1A;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  body {
+    background: var(--ground); color: var(--ink);
+    font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+    font-size: var(--step-0); line-height: 1.62; margin: 0;
+    -webkit-font-smoothing: antialiased; padding: 0 1.25rem 6rem;
+  }
+  .wrap { max-width: 62rem; margin: 0 auto; display: flex; flex-direction: column; gap: 3.5rem; }
+  code, .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: .875em; }
+  p code, li code, td code, dd code { background: var(--surface-sunk); border-radius: 3px; padding: .1em .34em; }
+
+  .masthead { padding-top: 4rem; display: flex; flex-direction: column; gap: 1.2rem; }
+  .eyebrow {
+    font-family: "IBM Plex Mono", monospace; font-size: var(--step--1);
+    letter-spacing: .11em; text-transform: uppercase; color: var(--ink-faint);
+    display: flex; flex-wrap: wrap; gap: .55rem;
+  }
+  .eyebrow .bar { color: var(--rule-strong); }
+  h1 {
+    font-family: Newsreader, ui-serif, Georgia, serif; font-weight: 500;
+    font-size: var(--step-4); line-height: 1.06; letter-spacing: -.017em;
+    margin: 0; text-wrap: balance; max-width: 18ch;
+  }
+  .standfirst {
+    font-family: Newsreader, ui-serif, Georgia, serif; font-size: var(--step-2);
+    line-height: 1.44; color: var(--ink-soft); margin: 0; max-width: 52ch; text-wrap: pretty;
+  }
+  .standfirst strong { color: var(--ink); font-weight: 600; }
+
+  section { display: flex; flex-direction: column; gap: 1.4rem; }
+  .sec-head { border-top: 2px solid var(--ink); padding-top: 1rem; display: flex; flex-direction: column; gap: .5rem; }
+  h2 {
+    font-family: Newsreader, ui-serif, Georgia, serif; font-weight: 500;
+    font-size: var(--step-3); line-height: 1.14; letter-spacing: -.012em; margin: 0; text-wrap: balance;
+  }
+  .sec-head p, section > p { margin: 0; color: var(--ink-soft); max-width: var(--measure); text-wrap: pretty; }
+  h3 { font-family: Newsreader, ui-serif, Georgia, serif; font-weight: 600; font-size: var(--step-1); margin: 0; }
+
+  .tablewrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 6px; background: var(--surface); }
+  table { width: 100%; font-size: .9375rem; border-collapse: collapse; }
+  th, td { text-align: left; padding: .7rem .9rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  thead th {
+    font-family: "IBM Plex Mono", monospace; font-size: .6875rem; letter-spacing: .09em;
+    text-transform: uppercase; color: var(--ink-faint); font-weight: 500; background: var(--surface-sunk);
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  .item {
+    display: grid; grid-template-columns: 2.2rem 1fr; gap: 0 1.1rem;
+    padding: 1.35rem 0; border-top: 1px solid var(--rule); align-items: start;
+  }
+  .item:first-of-type { border-top: 1px solid var(--rule-strong); }
+  .item > .n {
+    font-family: "IBM Plex Mono", monospace; font-size: var(--step--1);
+    font-variant-numeric: tabular-nums; color: var(--accent); padding-top: .28rem;
+  }
+  .item > .body { display: flex; flex-direction: column; gap: .6rem; min-width: 0; }
+  .item p { margin: 0; max-width: var(--measure); text-wrap: pretty; }
+  .item p.why { color: var(--ink-soft); font-size: .9375rem; }
+
+  .tags { display: flex; flex-wrap: wrap; gap: .4rem; }
+  .tag {
+    font-family: "IBM Plex Mono", monospace; font-size: .625rem; letter-spacing: .08em;
+    text-transform: uppercase; padding: .18rem .5rem; border-radius: 3px; font-weight: 500;
+  }
+  .tag.money { background: var(--gap-soft); color: var(--gap); }
+  .tag.legal { background: var(--gap-soft); color: var(--gap); }
+  .tag.ops   { background: var(--warn-soft); color: var(--warn); }
+  .tag.small { background: var(--ok-soft); color: var(--ok); }
+  .tag.big   { background: var(--surface-sunk); color: var(--ink-soft); }
+
+  .note, .danger, .good {
+    border-left: 2px solid; padding: .8rem 1rem; border-radius: 0 4px 4px 0;
+    font-size: .9375rem; max-width: var(--measure);
+  }
+  .note { border-color: var(--warn); background: var(--warn-soft); }
+  .danger { border-color: var(--gap); background: var(--gap-soft); }
+  .good { border-color: var(--ok); background: var(--ok-soft); }
+  .note b, .danger b, .good b {
+    display: block; font-family: "IBM Plex Mono", monospace; font-size: .6875rem;
+    letter-spacing: .09em; text-transform: uppercase; margin-bottom: .25rem;
+  }
+  .note b { color: var(--warn); } .danger b { color: var(--gap); } .good b { color: var(--ok); }
+  .note p, .danger p, .good p { margin: .4rem 0 0; }
+  .note p:first-of-type, .danger p:first-of-type, .good p:first-of-type { margin-top: 0; }
+  .note ul, .danger ul, .good ul { margin: .35rem 0 0; padding-left: 1.1rem; }
+
+  footer {
+    border-top: 1px solid var(--rule); padding-top: 1.3rem; color: var(--ink-faint);
+    font-size: var(--step--1); display: flex; flex-direction: column; gap: .4rem;
+  }
+  @media (max-width: 760px) {
+    :root { --step-4: 2.2rem; --step-3: 1.6rem; --step-2: 1.25rem; }
+    .item { grid-template-columns: 1.8rem 1fr; gap: 0 .8rem; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="eyebrow">
+      <span>ZURIAUTO</span><span class="bar">/</span>
+      <span>Fleet screen</span><span class="bar">/</span>
+      <span>19 September 2026</span>
+    </div>
+    <h1>The Fleet Row Controls</h1>
+    <p class="standfirst">
+      Every button at the end of a car's row: what it does, when it appears,
+      whether it acts <strong>immediately</strong> or opens a dialog, and what
+      to expect afterwards. Two of the six are new; the rest were always there
+      and are documented because nothing ever wrote them down.
+    </p>
+  </header>
+
+  <section>
+    <div class="sec-head">
+      <h2>The row at a glance</h2>
+      <p>
+        One button at the end of every row — <strong>⋮</strong>, three dots.
+        Click it and everything you can do to that car opens as a short list,
+        in words.
+      </p>
+    </div>
+
+    <div class="note">
+      <b>What is in the menu</b>
+      <p class="mono" style="font-size:.95rem">
+        ⏱&nbsp; Maintenance<br>
+        ✎&nbsp; Edit<br>
+        ────────────<br>
+        🔧&nbsp; To the garage<br>
+        ⊘&nbsp; Take off the road<br>
+        ────────────<br>
+        🗑&nbsp; Delete
+      </p>
+      <p>
+        <strong>Above the first line — nothing happens to the car.</strong>
+        Both entries open a dialog. You can close it and nothing has changed.
+      </p>
+      <p>
+        <strong>Below it — one click changes the car.</strong> No dialog, no
+        second chance (except delete, which asks). <em>To the garage</em> takes
+        a vehicle out of the booking pool the instant you press it.
+      </p>
+    </div>
+
+    <p>
+      This used to be five separate buttons laid along the row. Two problems
+      with that, both now gone. They were grey glyphs you had to learn — the
+      wrench sat beside the gauge, their tooltips read <em>To the garage</em>
+      and <em>Maintenance</em>, two things that sound identical and do
+      completely different jobs. And they were wide: about 300&nbsp;px of the
+      row, which pushed the table past the width of the page and made the whole
+      thing scroll sideways. The part that scrolled out of sight was the
+      buttons.
+    </p>
+
+    <div class="note">
+      <b>The table no longer scrolls sideways</b>
+      <p>
+        On a desktop screen the fleet table now fits the page as it is. You
+        will still get a sideways scroll on a phone, where eight columns of
+        vehicle data genuinely cannot fit — that is the honest trade against
+        squeezing the plate until it wraps.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Which entries appear, and when</h2>
+      <p>
+        The menu does not always hold all five. An action that cannot legally
+        be taken is <strong>removed rather than greyed out</strong>, so you are
+        never left wondering why a line does nothing. The dividing rules
+        disappear with the entries they were separating.
+      </p>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Car status</th><th>Maintenance</th><th>Edit</th><th>To the garage</th>
+            <th>Take off the road</th><th>Delete</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>Available</strong></td><td>yes</td><td>yes</td><td>yes</td><td>yes</td><td>yes</td></tr>
+          <tr><td><strong>Rented out</strong></td><td>yes</td><td>yes</td><td>—</td><td>—</td><td>—</td></tr>
+          <tr><td><strong>Garage / MFK</strong></td><td>yes</td><td>yes</td><td>yes</td><td>—</td><td>yes</td></tr>
+          <tr><td><strong>Off the road</strong></td><td>yes</td><td>yes</td><td>—</td><td>yes</td><td>yes</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note">
+      <b>Why a rented car has almost no actions</b>
+      <p>
+        A car is <em>Rented out</em> because a signed contract says somebody is
+        driving it. Freeing it from this screen would leave a live rental
+        pointing at a car the booking form is simultaneously offering to the
+        next customer. It is released by closing its rental under
+        <strong>Rentals</strong> — never from here.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>1 — <em>Maintenance</em></h2>
+      <p>Opens the maintenance record. <strong>New.</strong> The one you will use most.</p>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Section</th><th>Fields</th><th>Saves</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Service</strong></td>
+            <td>Mileage &middot; Next service at &middot; Last service at &middot; Service date</td>
+            <td>On <em>Save</em></td>
+          </tr>
+          <tr>
+            <td><strong>Repairs</strong></td>
+            <td>Planned on top, Done below. Each: description, date,
+                mileage, cost, who recorded it</td>
+            <td>Each action immediately</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>What to expect</h3>
+    <ul>
+      <li>A grey summary box shows <em>Read</em> (when the odometer was last
+          read) and the live countdown — <em>in 7'000 km</em>, or red
+          <em>overdue by 1'200 km</em>. It updates as you type, so you can see
+          the warning you are about to create <strong>before</strong> saving.</li>
+      <li><strong>The dialog stays open after each save.</strong> You usually do
+          three things in one visit; closing on the first would mean reopening
+          it three times.</li>
+      <li>The ✓ on a planned repair marks it done <strong>and dates it today</strong>.
+          The ↺ sends it back to planned and clears that date.</li>
+      <li>🗑 on a repair asks once, then deletes it outright. Nothing else in the
+          system points at a repair, so there is nothing to orphan.</li>
+    </ul>
+
+    <div class="good">
+      <b>The rule that keeps the figures honest</b>
+      <p>
+        A service warning appears only when <strong>both</strong> the current
+        reading and the due reading are filled in. One without the other says
+        nothing about whether a car needs a service, so the system stays silent
+        rather than guessing. A blank column means "nobody has told us" — never
+        "this car is fine".
+      </p>
+      <p>
+        The <em>Read</em> date is stamped by the system and only moves when
+        the number actually changes. Re-opening the dialog to fix something else
+        will not re-date an untouched odometer reading to today.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>2 — <em>Edit</em></h2>
+      <p>
+        Opens the car's identity. Rarely needed — typically once, when a plate
+        was mistyped.
+      </p>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Field</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Vehicle photo</strong></td>
+              <td>JPEG, PNG or WebP. Shrunk automatically before upload.
+                  <strong>Saves instantly — it does not wait for Save.</strong></td></tr>
+          <tr><td>Make and model</td><td>Required</td></tr>
+          <tr><td>Plate</td><td>Required. Must be unique across the fleet</td></tr>
+          <tr><td>Chassis no.</td><td>Optional. Printed on the contract when present</td></tr>
+          <tr><td>Next MFK</td><td>Optional. Drives the MFK warning and the email</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>What to expect</h3>
+    <ul>
+      <li>Everything except the photo is written only when you press
+          <em>Save</em>. Closing on <em>Cancel</em> discards typed changes —
+          but <strong>not</strong> a photo you replaced, which is already saved.
+          The dialog says so under the buttons.</li>
+      <li>Entering a plate another car already has is refused with
+          <em>"That plate is already registered."</em>. The dialog stays
+          open with your text intact so you can fix one character.</li>
+      <li>Correcting a plate does <strong>not</strong> break existing contracts.
+          The car keeps its internal identifier; only what is printed changes.</li>
+    </ul>
+
+    <div class="note">
+      <b>Two things that were wrong here, now fixed</b>
+      <p>
+        The pencil's tooltip used to read <em>Save</em> — it was reusing the
+        Save label. Screen readers announced it as a save button, telling a blind
+        user that pressing it would commit something. It now reads
+        <em>Edit</em>.
+      </p>
+      <p>
+        The photo used to live in the maintenance dialog. A photograph is not a
+        service record — it is what the car <em>is</em>, like its plate — so it
+        moved here.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>3 — <em>To the garage</em> / <em>Back on the road</em></h2>
+      <p>
+        Toggles the car between <strong>Available</strong> and
+        <strong>Garage / MFK</strong>. Immediate, no confirmation.
+      </p>
+    </div>
+
+    <h3>What to expect</h3>
+    <ul>
+      <li>The car <strong>disappears from the booking and pickup forms at once</strong>.
+          A customer cannot select it, and no contract can name it.</li>
+      <li>Press it again to bring the car back. The label and tooltip flip to
+          <em>Back on the road</em>.</li>
+      <li>It changes <strong>status only</strong>. It records nothing about what is
+          being done — that is what the gauge is for. Sending a car to the garage
+          and noting why are two separate actions, deliberately.</li>
+    </ul>
+
+    <div class="note">
+      <b>The system uses this button too</b>
+      <p>
+        Two days before a car's MFK falls due, the nightly run moves it to
+        <em>Garage / MFK</em> by itself and emails the office. That is why the
+        wrench also works in reverse — without it, a car the system blocked could
+        never be freed from this screen. After the inspection: enter the new MFK
+        date with the pencil, then press the wrench to put it back on the road.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>4 — <em>Take off the road</em> / <em>Put back on the road</em></h2>
+      <p>
+        Retires a car, or brings a retired one back. Immediate, no confirmation.
+        The heavier of the two status changes, and the one you should reach for
+        least often.
+      </p>
+    </div>
+
+    <h3>Off the road versus Garage — what is the difference?</h3>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th></th><th>Garage / MFK</th><th>Take off the road</th></tr></thead>
+        <tbody>
+          <tr><td>Meaning</td><td>Temporarily off the road</td><td>No longer part of the working fleet</td></tr>
+          <tr><td>Bookable</td><td>No</td><td>No</td></tr>
+          <tr><td>Set by the system</td><td>Yes, for MFK</td><td>Never — only by you</td></tr>
+          <tr><td>Typical use</td><td>Service, repair, inspection</td><td>Sold, written off, returned to the lessor</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      Both hide the car from customers. The difference is what you are telling
+      your colleagues — and the MFK pass respects it: it will not touch a car you
+      have deliberately retired.
+    </p>
+
+    <div class="good">
+      <b>This is the safe alternative to deleting</b>
+      <p>
+        A car with rental history cannot be deleted, and should not be. Retiring
+        it removes it from every customer-facing list while keeping every
+        contract, every invoice and the traffic-fine lookup intact.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>5 — <em>Delete</em></h2>
+      <p>
+        Removes the car permanently. Asks once. Works only in one narrow case.
+      </p>
+    </div>
+
+    <h3>What to expect</h3>
+    <ul>
+      <li>The menu swaps <em>Delete</em> for two new lines,
+          <em>Delete this car?</em> in red and <em>Cancel</em> underneath it.
+          Nothing is deleted until you press the red one, and closing the menu
+          cancels it.</li>
+      <li><strong>It is refused for any car that has ever been rented.</strong>
+          You will see: <em>"This car has rental history and cannot be deleted. Take it off the road instead."</em></li>
+      <li>So in practice it is only for a car somebody has just added by mistake —
+          a mistyped plate entered twice, for example.</li>
+    </ul>
+
+    <div class="danger">
+      <b>Why deletion is deliberately this hard</b>
+      <p>
+        Every rental and every signed contract points at the car's row. Deleting
+        one would break the "who was driving ZH 589 864 on the 12th" lookup you
+        need when a traffic fine arrives weeks later, and would orphan signed
+        documents held under a ten-year retention obligation.
+      </p>
+      <p>
+        <strong>Take off the road is the delete that is safe</strong>, and it is what
+        the refusal message points you at.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>What the row shows you before you click anything</h2>
+      <p>
+        Three columns were added alongside these controls. Each shows a figure
+        and, underneath, the thing you would otherwise have to work out.
+      </p>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Column</th><th>Shows</th><th>Warning states</th></tr></thead>
+        <tbody>
+          <tr><td>Mileage</td><td>Odometer, and the date it was read</td>
+              <td>None — a reading is never "wrong", only stale</td></tr>
+          <tr><td>Service</td><td>The due reading</td>
+              <td><span class="tag ops">amber</span> within 1'000 km ·
+                  <span class="tag legal">red</span> once passed</td></tr>
+          <tr><td>Repairs</td><td>Count of outstanding repairs</td>
+              <td><span class="tag ops">amber chip</span>, or nothing at all when none</td></tr>
+          <tr><td>MFK</td><td>Next MFK date</td>
+              <td><span class="tag ops">amber</span> two days out ·
+                  <span class="tag legal">red</span> once past</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>
+      A dash means nothing has been recorded. It never means the car is fine.
+    </p>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Changed in this round</h2>
+    </div>
+    <div>
+      <div class="item">
+        <span class="n">1</span>
+        <div class="body">
+          <h3>Five buttons became one three-dot menu</h3>
+          <p>
+            The buttons took about 300&nbsp;px at the end of every row, which
+            pushed the fleet table wider than the page and made it scroll
+            sideways — hiding the very buttons you were reaching for. The
+            table now fits a desktop screen, and each action is named in words
+            instead of being a grey glyph to memorise.
+          </p>
+          <div class="tags"><span class="tag ops">fixes the sideways scroll</span></div>
+        </div>
+      </div>
+      <div class="item">
+        <span class="n">2</span>
+        <div class="body">
+          <h3>Deleting can no longer move under your pointer</h3>
+          <p>
+            Pressing delete used to swap one icon for two much wider buttons,
+            pushing the red confirm onto a second line — a destructive
+            control arriving under the pointer at the moment of clicking. The
+            confirmation is now a second row of the menu, and closing the menu
+            cancels it.
+          </p>
+          <div class="tags"><span class="tag ops">was a real hazard</span></div>
+        </div>
+      </div>
+      <div class="item">
+        <span class="n">3</span>
+        <div class="body">
+          <h3>The English labels say MFK, not "inspection"</h3>
+          <p>
+            Translating MFK into "next inspection" invented a second thing to
+            wonder about, sitting as it does one dialog away from a service
+            book. MFK is the word on the certificate and the word the garage
+            uses, so the English column now uses it too.
+          </p>
+          <div class="tags"><span class="tag small">wording</span></div>
+        </div>
+      </div>
+      <div class="item">
+        <span class="n">4</span>
+        <div class="body">
+          <h3>The repair form fits inside its dialog again</h3>
+          <p>
+            <em>Cost CHF</em> was being pushed through the right-hand edge of
+            the maintenance dialog, because three columns plus a date field
+            asked for more width than the dialog has. Two columns now, and the
+            cost box sits on its own line.
+          </p>
+          <div class="tags"><span class="tag ops">layout bug</span></div>
+        </div>
+      </div>
+      <div class="item">
+        <span class="n">5</span>
+        <div class="body">
+          <h3>The photo moved from Maintenance to Edit</h3>
+          <p>
+            A photograph is identity, not a maintenance record. The maintenance
+            dialog is now only Service and Repairs, which makes the dialog you
+            open weekly noticeably shorter.
+          </p>
+          <div class="tags"><span class="tag small">structure</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div>ZURIAUTO — the actions on a fleet row, what they do and when they appear.</div>
+    <div>Fleet screen · 19 September 2026.</div>
+  </footer>
+
+</div>
+</body>
+</html>

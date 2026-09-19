@@ -12,12 +12,17 @@ import { prisma } from "@/lib/db";
 export async function resetDatabase(): Promise<void> {
   await prisma.$executeRawUnsafe(`
     TRUNCATE TABLE
-      "Asset", "RentalEvent", "Contract", "CarNotification", "Rental",
-      "Customer", "Car", "ContractCounter", "SubmissionAttempt", "AdminUser",
+      "Asset", "RentalEvent", "Contract", "CarNotification", "CarRepair",
+      "Rental", "Customer", "Car", "ContractCounter", "SubmissionAttempt",
+      "AdminUser",
       -- No foreign key, so CASCADE from another table never reaches it. Every
       -- audit table lands here: they are deliberately detached from the rows
       -- they describe, which is exactly what stops CASCADE from clearing them.
-      "CustomerLookup", "AssetAccess", "CarHistoryLookup", "Organisation"
+      -- "AvailabilityAlert" is here for the same structural reason rather
+      -- than as an audit table: it names an organisation without a relation
+      -- to one, so nothing cascades into it.
+      "CustomerLookup", "AssetAccess", "CarHistoryLookup",
+      "AvailabilityAlert", "Organisation"
     RESTART IDENTITY CASCADE
   `);
 }

@@ -1,9 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil, Trash2, Wrench } from "lucide-react";
+import { CircleSlash, Gauge, Pencil, Trash2, Wrench } from "lucide-react";
 import { Dialog } from "./Dialog";
+import { CarMaintenance } from "./CarMaintenance";
+import { CarPhotoField } from "./CarPhotoField";
+import { RowMenu, RowMenuItem, RowMenuSeparator } from "./RowMenu";
 import { mfkStanding } from "@/lib/admin/mfk";
+import { formatKm, kmUntilService, serviceStanding } from "@/lib/admin/service";
 import { day } from "@/components/admin/format";
 import type { Car, Labels } from "@/components/admin/types";
 
@@ -38,20 +42,37 @@ export function CarRow({
   busy,
   onSave,
   onDelete,
+  onAddRepair,
+  onUpdateRepair,
+  onDeleteRepair,
+  onUploadPhoto,
+  onRemovePhoto,
 }: {
   car: Car;
   L: Labels;
   busy: boolean;
   onSave: (body: Record<string, string>) => Promise<boolean>;
   onDelete: () => Promise<boolean>;
+  onAddRepair: (body: Record<string, string>) => Promise<boolean>;
+  onUpdateRepair: (id: string, body: Record<string, string>) => Promise<boolean>;
+  onDeleteRepair: (id: string) => Promise<boolean>;
+  onUploadPhoto: (blob: Blob) => Promise<boolean>;
+  onRemovePhoto: () => Promise<boolean>;
 }) {
   const [editing, setEditing] = useState(false);
+  const [maintaining, setMaintaining] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const rented = car.status === "rented";
   const retired = car.status === "retired";
   const inGarage = car.status === "maintenance";
   const standing = mfkStanding(car.mfkDate, new Date());
+  const service = serviceStanding(car);
+  const remaining = kmUntilService(car);
+  const plannedRepairs = (car.repairs ?? []).filter(
+    (repair) => repair.status === "planned"
+  ).length;
   const statusLabel =
     L.fleet.statuses[car.status as keyof typeof L.fleet.statuses] ?? car.status;
 
@@ -68,6 +89,24 @@ export function CarRow({
           if (ok) setEditing(false);
           return ok;
         }}
+        onUploadPhoto={onUploadPhoto}
+        onRemovePhoto={onRemovePhoto}
+      />
+
+      {/* Deliberately stays open after a save. Unlike the edit dialog, which
+          is one correction and done, this one is worked through — a mileage,
+          then a repair ticked off, then another added — and closing it on the
+          first save would make the office reopen it three times. */}
+      <CarMaintenance
+        car={car}
+        L={L}
+        busy={busy}
+        open={maintaining}
+        onClose={() => setMaintaining(false)}
+        onSave={onSave}
+        onAddRepair={onAddRepair}
+        onUpdateRepair={onUpdateRepair}
+        onDeleteRepair={onDeleteRepair}
       />
 
       <tr className="border-t border-[var(--admin-rule)] transition-colors hover:bg-[var(--admin-sunk)]/50">
@@ -93,6 +132,75 @@ export function CarRow({
           >
             {statusLabel}
           </span>
+        </td>
+
+        {/* The odometer, and when somebody last looked at it.
+            A reading with no date is a number the office cannot plan
+            against — 97'000 km read this morning and 97'000 km read in March
+            are different facts about the same car. */}
+        <td className="px-4 py-3 text-sm whitespace-nowrap tabular-nums">
+          {typeof car.currentMileageKm === "number" ? (
+            <>
+              <span className="text-[var(--admin-muted)]">
+                {formatKm(car.currentMileageKm)} km
+              </span>
+              {car.mileageReadAt && (
+                <span className="mt-0.5 block text-xs text-[var(--admin-faint)]">
+                  {day(car.mileageReadAt)}
+                </span>
+              )}
+            </>
+          ) : (
+            <span className="text-[var(--admin-faint)]">{L.fleet.mfkNone}</span>
+          )}
+        </td>
+
+        {/* The next service, as a distance rather than a date: a garage
+            schedules on kilometres and so does the warning. */}
+        <td className="px-4 py-3 text-sm whitespace-nowrap tabular-nums">
+          {typeof car.serviceDueKm === "number" ? (
+            <>
+              <span
+                className={
+                  service === "overdue"
+                    ? "font-medium text-[var(--admin-crit)]"
+                    : service === "due"
+                      ? "font-medium text-[var(--admin-attn)]"
+                      : "text-[var(--admin-muted)]"
+                }
+              >
+                {formatKm(car.serviceDueKm)} km
+              </span>
+              {service !== "none" && service !== "ok" && remaining !== null && (
+                <span
+                  className={`mt-0.5 block text-xs ${
+                    service === "overdue"
+                      ? "text-[var(--admin-crit)]"
+                      : "text-[var(--admin-attn)]"
+                  }`}
+                >
+                  {service === "overdue"
+                    ? L.fleet.serviceOverdue
+                    : `${L.fleet.serviceIn} ${formatKm(remaining)} km`}
+                </span>
+              )}
+            </>
+          ) : (
+            <span className="text-[var(--admin-faint)]">{L.fleet.mfkNone}</span>
+          )}
+        </td>
+
+        {/* Outstanding repairs, as a count. The detail is one click away in
+            the maintenance dialog; what belongs in a table the office scans
+            top-down is whether this car is waiting on anything at all. */}
+        <td className="px-4 py-3 text-sm whitespace-nowrap">
+          {plannedRepairs > 0 ? (
+            <span className="inline-block rounded-full bg-[var(--admin-attn-soft)] px-2.5 py-1 text-xs font-medium text-[var(--admin-attn)] ring-1 ring-inset ring-[var(--admin-attn)]/20">
+              {plannedRepairs} {L.fleet.repairsPlanned.toLowerCase()}
+            </span>
+          ) : (
+            <span className="text-[var(--admin-faint)]">{L.fleet.mfkNone}</span>
+          )}
         </td>
 
         {/* The inspection date, and how close it is. A date alone would make
@@ -129,73 +237,118 @@ export function CarRow({
           )}
         </td>
 
+        {/* Everything you can do to a car, behind one button.
+
+            This was five controls side by side — two icons, a rule, another
+            icon and a text button. They took about 300px, which is why the
+            table needed 76rem and why it scrolled sideways inside the 72rem
+            the shell gives it. Worse, the actions were the part that scrolled
+            out of sight, so the fix for not seeing them was to drag the table
+            left every time.
+
+            In the menu they are also named. The wrench in particular was a
+            grey glyph whose tooltip ("In die Werkstatt") reads almost like the
+            gauge's ("Unterhalt"); the word beside it now says which is which.
+
+            Ordered as they are reached for: the two that open a dialog first,
+            then the two that change the car's status on one click, then the
+            one that destroys it, each group behind a rule. */}
         <td className="px-4 py-3">
-          <div className="flex flex-wrap items-center justify-end gap-1.5">
-            <IconButton
-              label={L.fleet.save}
-              onClick={() => setEditing(true)}
+          <div className="flex justify-end">
+            <RowMenu
+              // The plate, not just "Actions": a screen reader running down
+              // this column would otherwise read the same button ten times.
+              label={`${L.fleet.actions} · ${car.plate}`}
               disabled={busy}
+              open={menuOpen}
+              onOpenChange={(next) => {
+                setMenuOpen(next);
+                // A half-finished deletion does not survive the menu closing.
+                // Reopening it to find the red confirm still armed, one stray
+                // click from going through, is the one state this must not
+                // come back in.
+                if (!next) setConfirmingDelete(false);
+              }}
             >
-              <Pencil className="h-4 w-4" aria-hidden="true" />
-            </IconButton>
-
-            {/* A rented car has no status toggle at all: it is freed by closing
-                its rental, so a disabled button here would only invite the
-                question of why it does not work. */}
-            {/* The way back from a status the MFK pass sets by itself. Without
-                it a car blocked for its inspection could never be freed from
-                this screen. */}
-            {!rented && !retired && (
-              <IconButton
-                label={inGarage ? L.fleet.backOnRoad : L.fleet.toGarage}
-                onClick={() => onSave({ status: inGarage ? "available" : "maintenance" })}
-                disabled={busy}
+              {/* Maintenance before edit: it is opened weekly, and the edit
+                  dialog perhaps once in a car's life. */}
+              <RowMenuItem
+                icon={<Gauge className="h-4 w-4" aria-hidden="true" />}
+                onSelect={() => setMaintaining(true)}
               >
-                <Wrench className="h-4 w-4" aria-hidden="true" />
-              </IconButton>
-            )}
+                {L.fleet.maintenance}
+              </RowMenuItem>
 
-            {!rented && !inGarage && (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => onSave({ status: retired ? "available" : "retired" })}
-                className="h-8 rounded-md border border-[var(--admin-rule-strong)] px-2.5 text-xs font-medium text-[var(--admin-muted)] transition-colors hover:bg-[var(--admin-sunk)] hover:text-[var(--admin-ink)] disabled:opacity-40"
+              <RowMenuItem
+                icon={<Pencil className="h-4 w-4" aria-hidden="true" />}
+                onSelect={() => setEditing(true)}
               >
-                {retired ? L.fleet.reactivate : L.fleet.retire}
-              </button>
-            )}
+                {L.fleet.edit}
+              </RowMenuItem>
 
-            {!rented &&
-              (confirmingDelete ? (
-                <span className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={async () => {
-                      if (!(await onDelete())) setConfirmingDelete(false);
-                    }}
-                    className="h-8 rounded-md bg-[var(--admin-crit)] px-2.5 text-xs font-medium text-white disabled:opacity-40"
-                  >
-                    {L.fleet.deleteConfirm}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setConfirmingDelete(false)}
-                    className="h-8 rounded-md px-2 text-xs text-[var(--admin-muted)] underline"
-                  >
-                    {L.fleet.cancel}
-                  </button>
-                </span>
-              ) : (
-                <IconButton
-                  label={L.fleet.delete}
-                  onClick={() => setConfirmingDelete(true)}
-                  danger
+              {/* A rented car has no status controls at all: it is freed by
+                  closing its rental, so a greyed-out row here would only
+                  invite the question of why it does not work. With them gone
+                  the rule has nothing under it, so it goes too. */}
+              {!rented && <RowMenuSeparator />}
+
+              {/* Also the way back from a status the MFK pass sets by itself.
+                  Without it a car the system blocked for its inspection could
+                  never be freed from this screen. */}
+              {!rented && !retired && (
+                <RowMenuItem
+                  icon={<Wrench className="h-4 w-4" aria-hidden="true" />}
+                  onSelect={() =>
+                    void onSave({ status: inGarage ? "available" : "maintenance" })
+                  }
                 >
-                  <Trash2 className="h-4 w-4" aria-hidden="true" />
-                </IconButton>
-              ))}
+                  {inGarage ? L.fleet.backOnRoad : L.fleet.toGarage}
+                </RowMenuItem>
+              )}
+
+              {!rented && !inGarage && (
+                <RowMenuItem
+                  icon={<CircleSlash className="h-4 w-4" aria-hidden="true" />}
+                  onSelect={() =>
+                    void onSave({ status: retired ? "available" : "retired" })
+                  }
+                >
+                  {retired ? L.fleet.reactivate : L.fleet.retire}
+                </RowMenuItem>
+              )}
+
+              {!rented && <RowMenuSeparator />}
+
+              {/* Two steps, and the second one is a different row of the menu
+                  rather than a button that appears under the pointer. */}
+              {!rented &&
+                (confirmingDelete ? (
+                  <>
+                    <RowMenuItem
+                      danger
+                      disabled={busy}
+                      icon={<Trash2 className="h-4 w-4" aria-hidden="true" />}
+                      onSelect={() => void onDelete()}
+                    >
+                      <span className="font-medium">{L.fleet.deleteConfirm}</span>
+                    </RowMenuItem>
+                    <RowMenuItem keepOpen onSelect={() => setConfirmingDelete(false)}>
+                      <span className="text-[var(--admin-muted)]">
+                        {L.fleet.cancel}
+                      </span>
+                    </RowMenuItem>
+                  </>
+                ) : (
+                  <RowMenuItem
+                    danger
+                    keepOpen
+                    icon={<Trash2 className="h-4 w-4" aria-hidden="true" />}
+                    onSelect={() => setConfirmingDelete(true)}
+                  >
+                    {L.fleet.delete}
+                  </RowMenuItem>
+                ))}
+            </RowMenu>
           </div>
         </td>
       </tr>
@@ -203,37 +356,21 @@ export function CarRow({
   );
 }
 
-function IconButton({
-  label,
-  onClick,
-  disabled,
-  danger,
-  children,
-}: {
-  label: string;
-  onClick: () => void;
-  disabled?: boolean;
-  danger?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      aria-label={label}
-      title={label}
-      className={`grid h-8 w-8 place-items-center rounded-md transition-colors disabled:opacity-40 ${
-        danger
-          ? "text-[var(--admin-faint)] hover:bg-[var(--admin-crit-soft)] hover:text-[var(--admin-crit)]"
-          : "text-[var(--admin-faint)] hover:bg-[var(--admin-sunk)] hover:text-[var(--admin-ink)]"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
-
+/**
+ * What the car *is*: its photograph, its model, its plate, its chassis number
+ * and its MFK date.
+ *
+ * The MFK belongs with those and not with the service figures next door, even
+ * though both are dates about work on a car. This one is not the office's to
+ * decide: it is printed on the inspection certificate, it arrives once every
+ * year or two, and typing it in is part of registering the vehicle. The
+ * service book across the way is the office's own record, rewritten weekly.
+ *
+ * The photograph belongs here rather than with the service figures for the
+ * reason the maintenance dialog now spells out — it is identity, not a record
+ * of work done. It is the one control in this dialog that writes immediately
+ * instead of waiting for Speichern, and it says so.
+ */
 function EditCarDialog({
   car,
   L,
@@ -241,6 +378,8 @@ function EditCarDialog({
   open,
   onClose,
   onSave,
+  onUploadPhoto,
+  onRemovePhoto,
 }: {
   car: Car;
   L: Labels;
@@ -248,6 +387,8 @@ function EditCarDialog({
   open: boolean;
   onClose: () => void;
   onSave: (body: Record<string, string>) => Promise<boolean>;
+  onUploadPhoto: (blob: Blob) => Promise<boolean>;
+  onRemovePhoto: () => Promise<boolean>;
 }) {
   const [model, setModel] = useState(car.model);
   const [plate, setPlate] = useState(car.plate);
@@ -275,12 +416,20 @@ function EditCarDialog({
       title={`${car.model} · ${car.plate}`}
       closeLabel={L.fleet.cancel}
     >
+      <CarPhotoField
+        car={car}
+        L={L}
+        busy={busy}
+        onUpload={onUploadPhoto}
+        onRemove={onRemovePhoto}
+      />
+
       <form
         onSubmit={(event) => {
           event.preventDefault();
           void onSave({ model, plate, vin, mfkDate });
         }}
-        className="grid gap-3"
+        className="mt-4 grid gap-3"
       >
         <Field label={L.fleet.model} value={model} onChange={setModel} />
         <Field label={L.fleet.plate} value={plate} onChange={setPlate} mono />

@@ -32,3 +32,21 @@ const EXTENSIONS: Record<string, string> = {
 export function extensionFor(contentType: string): string {
   return EXTENSIONS[contentType] ?? "bin";
 }
+
+/**
+ * Where a car's photograph lives.
+ *
+ * A separate prefix from `pickup/`, and deliberately so: the retention sweep
+ * walks Asset rows and deletes the objects behind them, and a fleet
+ * photograph has no subject, no consent to expire and no contract to hang
+ * from. Keeping it out of that prefix means an operator reading the bucket
+ * can see at a glance which objects are personal data and which are not.
+ *
+ * The random suffix is what makes a replacement a new key rather than an
+ * overwrite. An overwrite would be served from every CDN and browser cache
+ * that already held the old bytes, and the office would replace a photo and
+ * be told it had not worked.
+ */
+export function carPhotoKey(carId: string, extension: string): string {
+  return `fleet/${carId}/photo-${randomBytes(8).toString("hex")}.${extension}`;
+}

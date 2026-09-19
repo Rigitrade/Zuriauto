@@ -41,14 +41,37 @@ export async function GET(request: Request) {
   const cars = await prisma.car.findMany({
     where: { status },
     orderBy: { slug: "asc" },
-    select: { slug: true, model: true, plate: true, vin: true },
+    select: {
+      slug: true,
+      model: true,
+      plate: true,
+      vin: true,
+      photoUpdatedAt: true,
+    },
   });
 
+  /**
+   * The photograph as a URL the picker can put straight into an `<img>`.
+   *
+   * Built here rather than in the browser so that only cars which actually
+   * have one carry the field: a picker that constructed the URL itself would
+   * have to request every car's photo to discover that eight of them 404, and
+   * a hover preview that flashes a broken image is worse than one that shows
+   * the plate instead.
+   *
+   * The `v` query is the version stamp, which is what lets the photo endpoint
+   * answer with a year-long immutable cache — see the note there. A replaced
+   * photograph is a different URL, so nothing has to expire for the office to
+   * see their change.
+   */
   const vehicles: FleetVehicle[] = cars.map((car) => ({
     id: car.slug,
     model: car.model,
     plate: car.plate,
     vin: car.vin ?? undefined,
+    photoUrl: car.photoUpdatedAt
+      ? `/api/cars/${encodeURIComponent(car.slug)}/photo/?v=${car.photoUpdatedAt.getTime()}`
+      : undefined,
   }));
 
   return NextResponse.json({ vehicles });

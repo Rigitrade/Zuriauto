@@ -1,0 +1,750 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="description" content="Three features built for ZURIAUTO in September 2026: the availability waiting list, car photographs in the vehicle picker, and the fleet maintenance record — what each one does, how it works, and what the office has to do.">
+<title>Zuriauto — Three New Capabilities</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+  html { -webkit-text-size-adjust: 100%; }
+  :root {
+    --ground: #F1F4F6; --surface: #FFFFFF; --surface-sunk: #E7ECEF;
+    --ink: #13181C; --ink-soft: #56626C; --ink-faint: #8A959E;
+    --rule: #D6DDE2; --rule-strong: #B9C4CB;
+    --accent: #2C3E5C;
+    --ok: #2C6A4E; --ok-soft: #DDEBE3;
+    --warn: #855F0D; --warn-soft: #F3E9D2;
+    --gap: #97292A; --gap-soft: #F2DDDD;
+    --measure: 68ch;
+    --step--1: .8125rem; --step-0: 1rem; --step-1: 1.1875rem;
+    --step-2: 1.5rem; --step-3: 2rem; --step-4: 2.9rem;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0E1216; --surface: #161C21; --surface-sunk: #1D242A;
+      --ink: #E3E9ED; --ink-soft: #97A3AD; --ink-faint: #6C7883;
+      --rule: #252D35; --rule-strong: #37424B;
+      --accent: #93B2DA;
+      --ok: #6DB48D; --ok-soft: #16251D;
+      --warn: #D2A250; --warn-soft: #262013;
+      --gap: #E08787; --gap-soft: #2A1A1A;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0E1216; --surface: #161C21; --surface-sunk: #1D242A;
+    --ink: #E3E9ED; --ink-soft: #97A3AD; --ink-faint: #6C7883;
+    --rule: #252D35; --rule-strong: #37424B;
+    --accent: #93B2DA;
+    --ok: #6DB48D; --ok-soft: #16251D;
+    --warn: #D2A250; --warn-soft: #262013;
+    --gap: #E08787; --gap-soft: #2A1A1A;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  body {
+    background: var(--ground); color: var(--ink);
+    font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+    font-size: var(--step-0); line-height: 1.62; margin: 0;
+    -webkit-font-smoothing: antialiased; padding: 0 1.25rem 6rem;
+  }
+  .wrap { max-width: 62rem; margin: 0 auto; display: flex; flex-direction: column; gap: 3.5rem; }
+  code, .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: .875em; }
+  p code, li code, td code, dd code { background: var(--surface-sunk); border-radius: 3px; padding: .1em .34em; }
+
+  .masthead { padding-top: 4rem; display: flex; flex-direction: column; gap: 1.2rem; }
+  .eyebrow {
+    font-family: "IBM Plex Mono", monospace; font-size: var(--step--1);
+    letter-spacing: .11em; text-transform: uppercase; color: var(--ink-faint);
+    display: flex; flex-wrap: wrap; gap: .55rem;
+  }
+  .eyebrow .bar { color: var(--rule-strong); }
+  h1 {
+    font-family: Newsreader, ui-serif, Georgia, serif; font-weight: 500;
+    font-size: var(--step-4); line-height: 1.06; letter-spacing: -.017em;
+    margin: 0; text-wrap: balance; max-width: 18ch;
+  }
+  .standfirst {
+    font-family: Newsreader, ui-serif, Georgia, serif; font-size: var(--step-2);
+    line-height: 1.44; color: var(--ink-soft); margin: 0; max-width: 52ch; text-wrap: pretty;
+  }
+  .standfirst strong { color: var(--ink); font-weight: 600; }
+
+  section { display: flex; flex-direction: column; gap: 1.4rem; }
+  .sec-head { border-top: 2px solid var(--ink); padding-top: 1rem; display: flex; flex-direction: column; gap: .5rem; }
+  h2 {
+    font-family: Newsreader, ui-serif, Georgia, serif; font-weight: 500;
+    font-size: var(--step-3); line-height: 1.14; letter-spacing: -.012em; margin: 0; text-wrap: balance;
+  }
+  .sec-head p, section > p { margin: 0; color: var(--ink-soft); max-width: var(--measure); text-wrap: pretty; }
+  h3 { font-family: Newsreader, ui-serif, Georgia, serif; font-weight: 600; font-size: var(--step-1); margin: 0; }
+
+  .tablewrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 6px; background: var(--surface); }
+  table { width: 100%; font-size: .9375rem; border-collapse: collapse; }
+  th, td { text-align: left; padding: .7rem .9rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  thead th {
+    font-family: "IBM Plex Mono", monospace; font-size: .6875rem; letter-spacing: .09em;
+    text-transform: uppercase; color: var(--ink-faint); font-weight: 500; background: var(--surface-sunk);
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  .item {
+    display: grid; grid-template-columns: 2.2rem 1fr; gap: 0 1.1rem;
+    padding: 1.35rem 0; border-top: 1px solid var(--rule); align-items: start;
+  }
+  .item:first-of-type { border-top: 1px solid var(--rule-strong); }
+  .item > .n {
+    font-family: "IBM Plex Mono", monospace; font-size: var(--step--1);
+    font-variant-numeric: tabular-nums; color: var(--accent); padding-top: .28rem;
+  }
+  .item > .body { display: flex; flex-direction: column; gap: .6rem; min-width: 0; }
+  .item p { margin: 0; max-width: var(--measure); text-wrap: pretty; }
+  .item p.why { color: var(--ink-soft); font-size: .9375rem; }
+
+  .tags { display: flex; flex-wrap: wrap; gap: .4rem; }
+  .tag {
+    font-family: "IBM Plex Mono", monospace; font-size: .625rem; letter-spacing: .08em;
+    text-transform: uppercase; padding: .18rem .5rem; border-radius: 3px; font-weight: 500;
+  }
+  .tag.money { background: var(--gap-soft); color: var(--gap); }
+  .tag.legal { background: var(--gap-soft); color: var(--gap); }
+  .tag.ops   { background: var(--warn-soft); color: var(--warn); }
+  .tag.small { background: var(--ok-soft); color: var(--ok); }
+  .tag.big   { background: var(--surface-sunk); color: var(--ink-soft); }
+
+  .note, .danger, .good {
+    border-left: 2px solid; padding: .8rem 1rem; border-radius: 0 4px 4px 0;
+    font-size: .9375rem; max-width: var(--measure);
+  }
+  .note { border-color: var(--warn); background: var(--warn-soft); }
+  .danger { border-color: var(--gap); background: var(--gap-soft); }
+  .good { border-color: var(--ok); background: var(--ok-soft); }
+  .note b, .danger b, .good b {
+    display: block; font-family: "IBM Plex Mono", monospace; font-size: .6875rem;
+    letter-spacing: .09em; text-transform: uppercase; margin-bottom: .25rem;
+  }
+  .note b { color: var(--warn); } .danger b { color: var(--gap); } .good b { color: var(--ok); }
+  .note p, .danger p, .good p { margin: .4rem 0 0; }
+  .note p:first-of-type, .danger p:first-of-type, .good p:first-of-type { margin-top: 0; }
+  .note ul, .danger ul, .good ul { margin: .35rem 0 0; padding-left: 1.1rem; }
+
+  footer {
+    border-top: 1px solid var(--rule); padding-top: 1.3rem; color: var(--ink-faint);
+    font-size: var(--step--1); display: flex; flex-direction: column; gap: .4rem;
+  }
+  @media (max-width: 760px) {
+    :root { --step-4: 2.2rem; --step-3: 1.6rem; --step-2: 1.25rem; }
+    .item { grid-template-columns: 1.8rem 1fr; gap: 0 .8rem; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="eyebrow">
+      <span>ZURIAUTO</span><span class="bar">/</span>
+      <span>integrate/backend-plus-return</span><span class="bar">/</span>
+      <span>19 September 2026</span>
+    </div>
+    <h1>Three New Capabilities</h1>
+    <p class="standfirst">
+      A <strong>waiting list</strong> for when every car is out, <strong>photographs</strong>
+      in the vehicle picker, and a <strong>maintenance record</strong> that knows about
+      mileage, services and repairs. All three are built and tested; the photographs
+      need one thing from you, and it is listed at the end.
+    </p>
+  </header>
+
+  <section>
+    <div class="sec-head">
+      <h2>What was asked, and what is there</h2>
+      <p>
+        Your three requests, and where each one now lives. Everything in this table
+        works today — the only outstanding item is the photographs themselves, which
+        you said were coming.
+      </p>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>You asked for</th><th>What was built</th><th>Where you see it</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>"Currently no available cars — write your email to get notified upon availability"</td>
+            <td>A waiting list. When the whole fleet is out, the page says so and offers
+                to take an email address. When a car frees up, everybody waiting is
+                written to once.</td>
+            <td><code>/book</code> and <code>/pickup</code>, automatically</td>
+          </tr>
+          <tr>
+            <td>"Car photo displayed when hovering on the car in the dropdown list"</td>
+            <td>The dropdown was rebuilt as a picker that shows each car's photograph —
+                on hover, on keyboard focus, as a thumbnail on every row, and under the
+                field once chosen.</td>
+            <td><code>/pickup</code> and <code>/return</code></td>
+          </tr>
+          <tr>
+            <td>"Add the repairs and the time for the MFK somehow in our dashboard,
+                and a place to add them, the date and details"</td>
+            <td>A maintenance record per car: odometer, last service, next service,
+                MFK, and a repair list with dates, costs and a planned/done state.</td>
+            <td>Fleet screen — new columns and a <em>Maintenance</em> button per car</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="good">
+      <b>Verified</b>
+      <p>
+        <strong>557 tests pass</strong>, across 54 files. <strong>88 of them were
+        written for this work</strong>, and 40 of those run against a real Postgres
+        database rather than a mock — the repair lifecycle, the photo upload and
+        delivery, the waiting list and the daily send are all exercised end to end.
+        The database migration was applied to a real database and checked for drift,
+        the production build compiles, and the linter reports no errors.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>1 — The waiting list</h2>
+      <p>
+        Ten cars and a good week is all it takes for the fleet to be empty. The
+        honest answer then is "nothing today", and a visitor who reads that and
+        closes the tab is lost. This turns that moment into an email address.
+      </p>
+    </div>
+
+    <h3>What the customer sees</h3>
+    <p>
+      Nothing at all, on any normal day. The notice appears <em>only</em> when the
+      system knows the fleet is empty, and it appears in the same breath as the bad
+      news rather than as a second thing to find:
+    </p>
+    <div class="note">
+      <b>On screen</b>
+      <p><strong>No cars are available right now</strong><br>
+      Leave your email address and we will write to you as soon as one is free.</p>
+      <p>[ you@example.com ]&nbsp;&nbsp;[ Notify me ]</p>
+    </div>
+    <p>
+      It is in German and English, following whatever language the visitor is already
+      reading. On <code>/book</code> it sits above the wizard, so it is read before
+      somebody fills in several screens of dates and licence details to reach an answer
+      of "nothing today" — but the form below still works, because a booking is a
+      WhatsApp conversation with you and you may well still want it. On
+      <code>/pickup</code> it replaces the car picker entirely, because an open
+      dropdown with no options tells a customer standing at your desk nothing.
+    </p>
+
+    <h3>One field, and no others</h3>
+    <p>
+      The form asks for an email address and nothing else. No name, no telephone
+      number, no preferred model. Every extra field is one more thing held about
+      somebody who is not yet a customer, and the only thing needed to write to them
+      is the address. Asking twice is treated as asking once — the same address never
+      creates a second row, so a double-click cannot produce two emails.
+    </p>
+
+    <h3>How the notification actually happens</h3>
+    <p>
+      This is the part worth understanding, because it is the part that decides
+      whether anybody ever gets told.
+    </p>
+    <p>
+      A car becoming free is <strong>not an event this system can watch</strong>. A
+      rental ends because somebody presses "close"; a car leaves the garage because
+      somebody edits it; a new car arrives through the fleet form. Three unrelated
+      paths — and wiring a "send the emails now" call into each one means the fourth
+      path, added next year, silently sends nothing.
+    </p>
+    <p>
+      So the daily run asks the only question that is always answerable instead:
+      <em>is anything available right now, and is anybody still waiting to hear it?</em>
+      That stays correct however the car became free, including by a route nobody has
+      thought of yet. The practical consequence is the honest one:
+    </p>
+    <div class="note">
+      <b>Timing</b>
+      <p>
+        Somebody who signs up is written to on the <strong>next daily run</strong>
+        after a car is free — not within seconds. Given that the email says
+        "availability changes through the day, get in touch soon", this is the right
+        trade. If you ever want it immediate, the pass is a single function and can be
+        called from the close-rental button as well.
+      </p>
+    </div>
+
+    <h3>The email</h3>
+    <p>
+      Short, in the language the person signed up in, and it links straight at the
+      booking page. It deliberately <strong>does not name a plate</strong>: the car
+      that is free at nine may be let by lunchtime, and a mail promising
+      ZH 615 132 specifically is a promise the system cannot keep.
+    </p>
+    <p>
+      Every message carries a visible unsubscribe link. That link opens a page with a
+      confirm button rather than unsubscribing on the click itself — mail scanners and
+      corporate antivirus fetch every link in a message to check it, and without the
+      extra step some people would be removed from the list by their own IT
+      department, having never clicked anything. That failure ("I asked to be told and
+      never heard from you") is one nobody would ever diagnose.
+    </p>
+    <p>
+      Nobody is written to twice about the same wait. Once the message has gone the
+      row is marked, so a fleet with one idle car does not mail the whole list every
+      morning.
+    </p>
+
+    <h3>What you see</h3>
+    <p>
+      The fleet screen's heading carries the count when it is not zero — for example
+      <em>Vehicles &middot; 10 &middot; 0 available &middot; 5 people waiting for a car</em>.
+      It is demand you can act on: five people waiting is the argument for getting a
+      car out of the garage today rather than on Friday. On almost every day it is
+      zero, and the heading stays quiet.
+    </p>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>2 — Car photographs</h2>
+      <p>
+        You said the photographs were coming and asked us to be ready for them.
+        Everything around them is built: upload, storage, delivery and display. Adding
+        a picture is now a thirty-second job per car, with no deploy.
+      </p>
+    </div>
+
+    <h3>Why the dropdown had to be replaced</h3>
+    <p>
+      A native dropdown cannot contain an image. An <code>&lt;option&gt;</code> may
+      hold text and nothing else, in every browser, and no amount of styling changes
+      that. Showing a car beside its plate meant building the list by hand — which is
+      not a decision taken lightly, because the native one is keyboard-accessible,
+      screen-reader-correct and renders as the phone's own wheel for free. All of that
+      was rebuilt deliberately: arrow keys, Home and End, Enter, Escape and
+      screen-reader announcements all work.
+    </p>
+    <p>
+      Having built it, the photograph is shown four ways rather than only on hover,
+      because hovering does not exist on the phone your staff actually use at the kerb:
+    </p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Where</th><th>What</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td>Large preview, above the list</td><td>Follows whichever row is highlighted</td>
+              <td>Hovering with a mouse and arrowing with a keyboard highlight the same
+                  thing, so the feature works without a pointer</td></tr>
+          <tr><td>Thumbnail on every row</td><td>Small photo beside the model and plate</td>
+              <td>Works on a touchscreen, where nothing can be hovered</td></tr>
+          <tr><td>Under the closed field</td><td>The chosen car, full width</td>
+              <td>The confirmation of what was picked is the car itself, not a plate to
+                  be recognised</td></tr>
+          <tr><td>Return form too</td><td>The same picker</td>
+              <td>A customer handing back one of six identical Priuses picks the right
+                  row by looking at it, not by reading six plates that differ in one
+                  digit</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Adding a photograph</h3>
+    <p>
+      Fleet screen → the <strong>⋮</strong> menu at the end of a car's row →
+      <em>Edit</em> → <em>Vehicle photo</em> → <em>Choose a photo</em>. That is all;
+      it is live immediately on the booking and return forms, with no deploy and no
+      developer. The photograph sits with the model, the plate and the chassis
+      number because it is part of what the car <em>is</em>, not a record of work
+      done to it.
+    </p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Detail</th><th>Value</th></tr></thead>
+        <tbody>
+          <tr><td>Accepted formats</td><td>JPEG, PNG, WebP</td></tr>
+          <tr><td>Maximum size</td><td class="num">2 MB, after the browser shrinks it</td></tr>
+          <tr><td>Resizing</td><td>Automatic — scaled to 1600px and re-encoded before upload</td></tr>
+          <tr><td>Shape on screen</td><td>Cropped to a wide landscape box, so a photo taken
+              side-on works best</td></tr>
+          <tr><td>Replacing</td><td>Upload another; the previous one is deleted</td></tr>
+          <tr><td>Removing</td><td><em>Remove the photo</em> — the car falls back to the silhouette</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      A photograph straight off a phone is three to six megabytes, and the hosting
+      platform refuses a request that large — so the shrinking is not a nicety.
+      Without it the upload would simply fail on the device you would actually use.
+      HEIC, which is what an iPhone produces by default, is converted by the browser on
+      the way through, so it is not something you have to think about.
+    </p>
+
+    <div class="good">
+      <b>Before the photographs arrive</b>
+      <p>
+        A car with no photograph is <strong>not a broken state and does not look like
+        one</strong>. The row shows a car silhouette and the preview says
+        "No photo yet" in words. Most of the fleet will be in exactly that condition
+        for a while, and the picker reads as deliberate throughout — so you can add the
+        ten photographs one at a time, in any order, whenever they come in.
+      </p>
+    </div>
+
+    <h3>Caching, and why a replacement shows up at once</h3>
+    <p>
+      Each photograph's address carries a version stamp, so browsers are told to keep
+      it for a year and the preview appears instantly rather than reloading on every
+      hover. When you replace a picture the address changes, so the new one appears
+      immediately. You will never be in the position of having replaced a photo and
+      being told it did not work.
+    </p>
+
+    <div class="note">
+      <b>One thing to know about privacy</b>
+      <p>
+        Car photographs are served to anybody who asks, unlike the identity documents,
+        which stay behind a login and are logged on every read. That is deliberate:
+        the pickup form is filled in by a customer who is signed into nothing, and a
+        picture of a car parked outside your office is the same photograph you would
+        put on the front page. <strong>Do not photograph a car with a person, a
+        number plate of a customer's own vehicle, or paperwork visible in the
+        shot.</strong>
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>3 — The maintenance record</h2>
+      <p>
+        Your sketch showed five figures pinned above the fleet table and two lines of
+        repairs pinned below it. Everything in it is there, and the repairs became
+        something rather better than two text boxes — the reasoning is below.
+      </p>
+    </div>
+
+    <h3>The fleet table now</h3>
+    <p>
+      Three columns were added, between Status and MFK. Each one shows the figure and,
+      underneath it, the thing you would otherwise have to work out yourself:
+    </p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Column</th><th>Shows</th><th>And underneath</th></tr></thead>
+        <tbody>
+          <tr><td>Mileage</td><td class="num">100'000 km</td>
+              <td>the date it was read — because 100'000 km read this morning and
+                  100'000 km read in March are different facts about the same car</td></tr>
+          <tr><td>Service</td><td class="num">107'000 km</td>
+              <td>"in 7'000 km", or a red "Service overdue" once the reading is passed</td></tr>
+          <tr><td>Repairs</td><td>2 planned</td>
+              <td>nothing when there is none — an amber chip only when something is owed</td></tr>
+          <tr><td>MFK <span class="tag big">existing</span></td><td class="num">30.11.2026</td>
+              <td>unchanged: "MFK due" two days out, "MFK overdue" after</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Where the figures are entered</h3>
+    <p>
+      The <strong>⋮</strong> menu at the end of every row has a
+      <strong>Maintenance</strong> entry, and it opens one dialog holding the service
+      figures and the repairs. It is a second dialog rather than more fields in the
+      existing edit box, because the two
+      are opened for different reasons: the edit box is for correcting a plate, done
+      once in a car's life, and this one is opened after every service, after every
+      garage visit and every time somebody reads an odometer. Mixing them would mean
+      the frequent job scrolling past the rare one.
+    </p>
+    <p>
+      It also stays open after each save, so you can enter a mileage, tick off a
+      repair and add another without reopening it three times.
+    </p>
+
+    <h3>Why a service is counted in kilometres, not months</h3>
+    <p>
+      A garage schedules on distance, and the odometer is what your staff can read.
+      Deriving a date from an assumed monthly mileage would be wrong in both
+      directions at once: a car that spent a month on the forecourt would be called in
+      early, and a taxi doing 4'000 km a month would sail straight past its interval.
+      So you type the due reading off the garage's sticker, and the system counts down
+      to it. It never invents an interval that could quietly disagree with your
+      windscreen.
+    </p>
+    <div class="note">
+      <b>The system stays silent unless it can be sure</b>
+      <p>
+        A warning appears only when <strong>both</strong> the current reading and the
+        due reading are recorded. One without the other says nothing about whether a
+        car needs a service today, and a screen that guessed would be believed exactly
+        once. A blank column means "nobody has told us", never "this car is fine".
+      </p>
+    </div>
+    <p>
+      The warning starts <strong>1'000 km</strong> before the due reading — roughly a
+      fortnight for a car in daily service, which is long enough to get a garage slot
+      and short enough that the warning still means something when it appears.
+    </p>
+
+    <h3>A reading is dated by the server, and only when it changes</h3>
+    <p>
+      The "read on" date is stamped by the system, never sent by the browser, because
+      the whole value of that date is that it says when somebody actually looked at a
+      dashboard. And it moves only when the number moves: the dialog saves every field
+      it holds, so re-opening it to correct an MFK date would otherwise re-date an
+      untouched odometer reading to today. That is precisely the lie the column exists
+      to prevent, and there is a test asserting it.
+    </p>
+
+    <h3>Repairs — why not two text boxes</h3>
+    <p>
+      Your sketch showed <em>Repairs_done: bumpers, back right wheel replaced</em> and
+      <em>Repairs-planned: windshield</em>. Two text boxes would have been the smaller
+      change and the wrong one. They cannot say when something was done, cannot be
+      sorted, and lose the previous entry every time somebody types over them — and a
+      car's repair history is the first thing an insurer, a buyer or a damage dispute
+      asks for.
+    </p>
+    <p>
+      So each repair is its own entry, and <em>planned</em> and <em>done</em> are one
+      lifecycle rather than two separate lists. Ticking off a planned repair keeps the
+      line that recorded it being planned, so you can later see that the windscreen was
+      flagged in September and replaced in November.
+    </p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Each repair holds</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>What needs doing</td><td>Free text, up to 500 characters. No dropdown of
+              repair types — a list like that is wrong within a week and nobody maintains it</td></tr>
+          <tr><td>Planned for / done on</td><td>A date. Ticking "done" without naming a day
+              dates it today; putting it back to planned clears the date again</td></tr>
+          <tr><td>Odometer</td><td>Optional — places the repair against the service history,
+              not only against the calendar</td></tr>
+          <tr><td>Cost in CHF</td><td>Optional. Left empty when the invoice has not arrived;
+              a zero would claim the repair was free</td></tr>
+          <tr><td>Who recorded it</td><td>Filled in automatically from the signed-in account,
+              and it outlives that account being disabled</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      Outstanding work is listed above the history and never mixed into it: "what still
+      has to happen to this car" is the question the list is opened to answer. A repair
+      entered by mistake can be deleted outright — nothing else in the system points at
+      it, and the common case is a line typed against the wrong vehicle.
+    </p>
+    <p>
+      Recording something already finished is a single checkbox on the add form, for
+      the ordinary case of typing up a garage invoice after the fact.
+    </p>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>What you have to do</h2>
+      <p>
+        Two things, and only the first is required before this can go live.
+      </p>
+    </div>
+
+    <div>
+      <div class="item">
+        <span class="n">1</span>
+        <div class="body">
+          <h3>Deploy — the database gains new columns</h3>
+          <p>
+            One migration,
+            <code>20260919101500_car_maintenance_photo_and_availability_alerts</code>.
+            It only adds things: eight nullable columns on the car table and two new
+            tables. Nothing is dropped, nothing is renamed, and no existing row is
+            rewritten, so it is safe to apply to the live database and there is nothing
+            to back-fill.
+          </p>
+          <p class="why">
+            It runs by itself as part of the deploy — the build already applies pending
+            migrations. It has been applied to a real Postgres and checked for drift.
+          </p>
+          <div class="tags">
+            <span class="tag small">no downtime</span>
+            <span class="tag small">additive only</span>
+            <span class="tag big">runs automatically</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="item">
+        <span class="n">2</span>
+        <div class="body">
+          <h3>Send the photographs, then upload them</h3>
+          <p>
+            Ten cars, one landscape photo each, ideally taken from the front
+            three-quarter angle so the crop looks deliberate. Upload them yourself
+            through the Maintenance dialog whenever they arrive — one at a time is
+            fine, and the fleet looks correct at every point in between.
+          </p>
+          <div class="tags">
+            <span class="tag ops">waiting on you</span>
+            <span class="tag small">no deploy needed</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="item">
+        <span class="n">3</span>
+        <div class="body">
+          <h3>Fill in the service figures as you learn them</h3>
+          <p>
+            Nothing has to be entered for the system to keep working — every figure is
+            optional and a car with none simply shows blanks. The useful order is:
+            the due reading off each car's service sticker, then the odometer at the
+            next handover. The warnings switch themselves on once both exist for a car.
+          </p>
+          <div class="tags"><span class="tag big">at your own pace</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="note">
+      <b>One thing to check on the live site</b>
+      <p>
+        The waiting-list email goes out through the daily run, which is the same
+        mechanism that already sends your rental reminders and the MFK warnings. If
+        that run is healthy, this needs nothing. If the mail settings were ever
+        incomplete, the run now logs a warning naming how many people are waiting and
+        unreachable — rather than failing silently.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>What was deliberately not built</h2>
+      <p>
+        Each of these was considered and left out. They are listed so the boundary is a
+        decision you can see and reverse, rather than an omission you find later.
+      </p>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Not built</th><th>Why</th><th>Cost to add</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>An email when a service falls due</td>
+            <td>You asked for the service and repair information "in our dashboard",
+                and that is where it is. The MFK already emails you; adding a second
+                daily email is a decision about your inbox, not a technical one.</td>
+            <td>Small — the MFK pass is the template</td>
+          </tr>
+          <tr>
+            <td>Instant notification the moment a car frees up</td>
+            <td>It would mean wiring a send into three unrelated places, any one of
+                which could be forgotten later. The daily run cannot be forgotten.</td>
+            <td>Small, and it can be added alongside rather than instead</td>
+          </tr>
+          <tr>
+            <td>Service and repair items in the "needs attention" band</td>
+            <td>That band is the first thing on the screen and currently lists only
+                things costing you a vehicle today. An overdue service is real but not
+                that, and reordering the band is a judgement call worth making with you
+                rather than for you.</td>
+            <td>Small</td>
+          </tr>
+          <tr>
+            <td>Photographs on the public marketing pages</td>
+            <td>Those pages show stock images and marketing copy, and are a separate
+                list from the real fleet on purpose. Wiring real plates into them is a
+                content decision.</td>
+            <td>Medium</td>
+          </tr>
+          <tr>
+            <td>A screen listing everybody on the waiting list</td>
+            <td>The count is on the fleet screen, which is what you can act on. A list
+                of addresses on screen is personal data shown for no operational reason.</td>
+            <td>Small, if you ever want it</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>For whoever maintains this next</h2>
+      <p>
+        A map of what moved, so a later change does not have to be archaeology.
+      </p>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Area</th><th>Files</th></tr></thead>
+        <tbody>
+          <tr><td>Schema and migration</td>
+              <td><code>prisma/schema.prisma</code> —
+                  <code>Car</code> gains the service book and photo columns;
+                  new <code>CarRepair</code> and <code>AvailabilityAlert</code></td></tr>
+          <tr><td>Service arithmetic</td>
+              <td><code>lib/admin/service.ts</code> — pure, mirrors <code>lib/admin/mfk.ts</code></td></tr>
+          <tr><td>Validation</td>
+              <td><code>lib/admin/cars.ts</code> — odometer and repair schemas,
+                  <code>resolveDoneOn</code>; <code>lib/admin/carPhoto.ts</code> — upload rules</td></tr>
+          <tr><td>Waiting list</td>
+              <td><code>lib/rental/availability.ts</code> — schema, token, mail bodies;
+                  <code>availabilityPass</code> in <code>lib/rental/scheduler.ts</code></td></tr>
+          <tr><td>Endpoints</td>
+              <td><code>/api/admin/cars/[id]/repairs/</code>,
+                  <code>/api/admin/cars/[id]/photo/</code>,
+                  <code>/api/cars/[slug]/photo/</code> (public),
+                  <code>/api/availability-alerts/</code></td></tr>
+          <tr><td>Office UI</td>
+              <td><code>components/admin/parts/CarMaintenance.tsx</code> — the dialog;
+                  <code>CarRow.tsx</code> and <code>VehiclesSection.tsx</code> — the columns</td></tr>
+          <tr><td>Customer UI</td>
+              <td><code>components/rental/VehiclePicker.tsx</code>,
+                  <code>AvailabilityNotice.tsx</code>,
+                  <code>UnsubscribeAvailability.tsx</code></td></tr>
+          <tr><td>Tests</td>
+              <td><code>lib/admin/service.test.ts</code>,
+                  <code>lib/admin/carPhoto.test.ts</code>,
+                  <code>lib/rental/availability.test.ts</code>,
+                  <code>tests/db/availabilityPass.test.ts</code>,
+                  <code>tests/db/adminCarMaintenance.test.ts</code>,
+                  <code>tests/db/carPhotoAndAlerts.test.ts</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="good">
+      <b>One pre-existing bug fixed along the way</b>
+      <p>
+        The pickup form treated an empty fleet response as a failed request and fell
+        back to the ten cars compiled into the source — so when every car was genuinely
+        out, it offered all ten as available. That is the one case where the fallback
+        actively lied, and it had to be fixed before "no cars available" could ever be
+        shown truthfully. A failed request still falls back, as it should; an empty
+        answer is now believed.
+      </p>
+    </div>
+  </section>
+
+  <footer>
+    <div>ZURIAUTO — availability alerts, vehicle photographs and the fleet maintenance record.</div>
+    <div>Branch <code>integrate/backend-plus-return</code> · 19 September 2026 · 557 tests passing.</div>
+  </footer>
+
+</div>
+</body>
+</html>

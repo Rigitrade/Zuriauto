@@ -57,3 +57,20 @@ website.rar
 
 # windows/cygwin crash dumps
 *.stackdump
+# The transcribed pre-backend contracts.
+#
+# Real renters' names, birth dates, addresses, phone numbers and email
+# addresses for seven people. Committing it would put that in the git history
+# permanently: readable by everyone with repository access, copied into every
+# clone, and impossible to remove if one of them ever asks to be erased —
+# which the nFADP entitles them to and docs/DATA-RETENTION.md is otherwise
+# careful about.
+#
+# The importer reads this at run time and validates it, rather than
+# importing it as a module: a TypeScript import of an ignored file would
+# break `tsc --noEmit` on a clean clone.
+#
+# The database is where this data belongs. Keep the file locally, run
+# `pnpm db:import-legacy --apply` once, then archive it wherever the signed
+# PDFs themselves are kept.
+/scripts/legacy-contracts.json

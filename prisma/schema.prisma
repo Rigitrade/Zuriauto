@@ -115,14 +115,183 @@ model Car {
   /// guaranteed one, and a wrong date here takes a car off the road.
   mfkDate DateTime? @db.Date
 
+  /// ---------------------------------------------------------------------
+  /// The service book.
+  ///
+  /// Three numbers rather than one "next service" date, because a garage
+  /// schedules on distance and the office reads distance off the dashboard.
+  /// A date would have to be guessed from an assumed monthly mileage, and a
+  /// car that spends a month on the forecourt would be sent for a service it
+  /// does not need — while a taxi doing 4'000 km a month would miss one.
+  ///
+  /// All nullable, and for the reason `mfkDate` is: a car whose figures
+  /// nobody has entered must be silent, not wrong. A service the system
+  /// invents is worse than one it stays quiet about.
+  /// ---------------------------------------------------------------------
+
+  /// The odometer as last read, in kilometres. Whole kilometres: the
+  /// dashboard does not show more and a decimal here would imply a precision
+  /// the reading does not have.
+  currentMileageKm Int?
+
+  /// When `currentMileageKm` was read.
+  ///
+  /// Stored rather than inferred from `updatedAt`, which any edit would move.
+  /// Without it the screen cannot distinguish "97'000 km, read this morning"
+  /// from "97'000 km, read in March" — and the second is a number the office
+  /// should not plan a service against.
+  mileageReadAt DateTime?
+
+  /// The odometer at the last service.
+  serviceDoneKm Int?
+  /// The day of the last service, as the invoice states it.
+  serviceDoneOn DateTime? @db.Date
+  /// The odometer at which the next service falls due.
+  ///
+  /// Typed from the garage's sticker, never computed from an interval: the
+  /// interval differs by model and by how the car is driven, and a number
+  /// this system derived would quietly disagree with the windscreen.
+  serviceDueKm Int?
+
+  /// ---------------------------------------------------------------------
+  /// The photograph shown beside the car in a picker.
+  ///
+  /// A key into the same object store the identity documents use, but
+  /// deliberately *not* an `Asset` row. An Asset belongs to a Contract and is
+  /// on a retention clock that deletes it five years after the rental; a car
+  /// photograph is reference data with no subject, no retention obligation
+  /// and no contract to hang from. Putting it in that table would have meant
+  /// the sweep eventually deleting the fleet's photographs.
+  ///
+  /// Three columns rather than one: the content type is needed to serve the
+  /// bytes back, and the stamp is what the public photo endpoint turns into
+  /// an ETag so a replaced photograph is not served from a cache for a week.
+  /// ---------------------------------------------------------------------
+  photoKey         String?
+  photoContentType String?
+  photoUpdatedAt   DateTime?
+
   organisation  Organisation      @relation(fields: [organisationId], references: [id])
   rentals       Rental[]
   notifications CarNotification[]
+  repairs       CarRepair[]
 
   @@unique([organisationId, plate])
   @@unique([organisationId, slug])
   /// The daily MFK pass's query: the dated cars, soonest first.
   @@index([organisationId, mfkDate])
+}
+
+/// Whether a repair has happened or is still owed.
+enum RepairStatus {
+  planned
+  done
+}
+
+/// One repair, planned or carried out.
+///
+/// A table rather than the two free-text fields the client's sketch showed
+/// ("Repairs_done: bumpers, back right wheel replaced" / "Repairs-planned:
+/// windshield"). Two text boxes cannot answer when something was done, cannot
+/// be sorted, and lose the previous entry every time somebody types over
+/// them — and a car's repair history is exactly what an insurer, a buyer or a
+/// damage dispute asks for.
+///
+/// So each repair is a row, and "planned" and "done" are one lifecycle rather
+/// than two lists: marking a planned repair done keeps the line that recorded
+/// it being planned, which is how the office can later see that the
+/// windscreen was flagged in September and replaced in November.
+model CarRepair {
+  id String @id @default(cuid())
+
+  organisationId String
+  carId          String
+
+  status RepairStatus @default(planned)
+
+  /// What was or will be done, in the office's own words. Free text on
+  /// purpose: a taxonomy of repair types would be wrong within a week and
+  /// nobody would maintain it.
+  details String
+
+  /// The day this is planned for, when one has been agreed. Nullable because
+  /// "the windscreen needs doing" is a real entry before a garage slot exists.
+  plannedFor DateTime? @db.Date
+  /// The day it was carried out. Set when the status becomes `done`, and the
+  /// only thing that makes the repair history a chronology.
+  doneOn     DateTime? @db.Date
+
+  /// The odometer when it was done, so a repair can be placed against the
+  /// service history rather than only against the calendar.
+  mileageKm Int?
+  /// What it cost, in cents, as money is stored everywhere else here.
+  costCents Int?
+
+  /// The account that entered it. Denormalised for the reason AssetAccess
+  /// gives: an account can be disabled, and who recorded a repair should
+  /// outlive it.
+  createdBy String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Cascades, unlike every other relation to Car. A repair is a note about
+  /// a vehicle and has no independent meaning; the delete it cascades from is
+  /// only ever reachable for a car with no rental history at all — see the
+  /// DELETE handler, which refuses anything a contract points at.
+  car Car @relation(fields: [carId], references: [id], onDelete: Cascade)
+
+  /// The fleet screen's query: this car's repairs, newest first.
+  @@index([carId, status, createdAt])
+}
+
+/// Somebody who asked to be told when a car frees up.
+///
+/// The whole fleet can be out at once — ten cars and a good week is all it
+/// takes — and the booking page's honest answer then is "nothing today". A
+/// customer who reads that and leaves is a customer lost to a page that could
+/// have taken their address in one field.
+///
+/// One row per address, rewritten rather than duplicated: somebody who asks
+/// twice is asking once. `notifiedAt` is both the record of the send and the
+/// idempotency — the pass claims a row with a conditional update whose WHERE
+/// repeats `notifiedAt: null`, exactly as the lifecycle passes do, so two
+/// concurrent runs cannot both mail the same person.
+model AvailabilityAlert {
+  id String @id @default(cuid())
+
+  organisationId String
+
+  /// Always stored lowercased and trimmed, as Customer.email is. The unique
+  /// key is on this, so the casing somebody typed cannot create a second row.
+  email String
+
+  /// Which language to write in. The site is German by default and the
+  /// notice is sent without the customer present to switch it.
+  language String @default("de")
+
+  /// The single-use string in the unsubscribe link.
+  ///
+  /// Random and unguessable, so the link in one person's mail cannot be
+  /// edited into another's. Stored in the clear, unlike ActionToken's hash:
+  /// this token authorises removing an address from a mailing list and
+  /// nothing else, and a link that cannot be resolved after a database dump
+  /// would mean an unsubscribe that silently fails.
+  unsubscribeToken String @unique
+
+  /// When the availability mail went out. Null means "still waiting", which
+  /// is what the pass selects on.
+  notifiedAt DateTime?
+  /// Set when the address is removed, by the unsubscribe link or by the
+  /// office. The row survives so that a later re-subscribe is visibly a
+  /// second request rather than a resurrection nobody can see.
+  cancelledAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@unique([organisationId, email])
+  /// The pass's query: everybody still waiting.
+  @@index([organisationId, notifiedAt, cancelledAt])
 }
 
 /// A message about a car rather than about a rental.

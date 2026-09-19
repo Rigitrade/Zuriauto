@@ -26,6 +26,7 @@ import {
   type FuelLevel,
 } from "@/lib/rental/fleet";
 import { asRentalLanguage, labelsFor } from "@/lib/rental/labels";
+import VehiclePicker from "./VehiclePicker";
 import {
   buildReturnNumber,
   PAYMENT_METHODS,
@@ -650,19 +651,24 @@ export default function RentalReturnWizard() {
                 {L.vehicle.heading}
               </h2>
 
+              {/* The same picker the pickup form uses. The photograph earns
+                  its place here too: a customer handing back one of six
+                  identical Priuses picks the right row by looking at it, not
+                  by reading six plates that differ in one digit.
+
+                  No waiting-list notice on this side. An empty list here means
+                  no car is out, and somebody standing at the desk with keys in
+                  their hand does not need an offer to be emailed later — the
+                  required field simply refuses to advance, which is the
+                  behaviour this form already had. */}
               <Field label={L.vehicle.select} error={errors.vehicleId} required>
-                <select
+                <VehiclePicker
+                  vehicles={vehicles}
                   value={form.vehicleId}
-                  onChange={(e) => set("vehicleId", e.target.value)}
-                  className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 md:text-sm"
-                >
-                  <option value="">{L.vehicle.selectPlaceholder}</option>
-                  {vehicles.map((entry) => (
-                    <option key={entry.id} value={entry.id}>
-                      {entry.model} — {entry.plate}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(id) => set("vehicleId", id)}
+                  L={L}
+                  invalid={Boolean(errors.vehicleId)}
+                />
               </Field>
 
               <Field

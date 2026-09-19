@@ -37,6 +37,11 @@ import {
 import { endAtDedupeKey, sendOnce, weekDedupeKey } from "./notify";
 import { mfkDedupeKey, sendOnceForCar } from "./carNotify";
 import {
+  AVAILABILITY_BATCH,
+  availabilityMail,
+  unsubscribeUrl,
+} from "./availability";
+import {
   endingSoonWindow,
   isDueForChargeOverdue,
   isDueForChargeReminder,
@@ -55,6 +60,8 @@ export interface PassSummary {
   chargeOverdue: number;
   rentalOverdue: number;
   mfkDue: number;
+  /** People on the waiting list written to because a car is free. */
+  availabilityNotified: number;
   mailRetried: number;
 }
 
@@ -661,6 +668,100 @@ export async function mfkDuePass(deps: SchedulerDeps): Promise<number> {
   return warned;
 }
 
+// ---------------------------------------------------------------------
+// 8. The waiting list.
+//
+// The one pass that writes to somebody who is not a customer, and the only
+// one whose trigger is a *state* rather than a date: a car becoming free is
+// not an event this system observes. A rental ends when somebody presses
+// "close", a car leaves the garage by an edit, and a new car arrives through
+// the fleet form — three unrelated paths, none of which should have to
+// remember to mail a waiting list.
+//
+// So the pass asks the question that is always answerable instead: is
+// anything available right now, and is anybody still waiting to hear it. That
+// makes it correct however the car became free, including by a route added
+// later that nobody thought to wire up.
+// ---------------------------------------------------------------------
+
+export async function availabilityPass(deps: SchedulerDeps): Promise<number> {
+  const { client, now, mail, baseUrl } = deps;
+
+  // Nothing free, nothing to say. Asked first because it is one indexed count
+  // and it is false on most days the list is non-empty.
+  const available = await client.car.count({ where: { status: "available" } });
+  if (available === 0) return 0;
+
+  const waiting = await client.availabilityAlert.findMany({
+    where: { notifiedAt: null, cancelledAt: null },
+    // Longest wait first. If the batch cap truncates the run, the people who
+    // have been waiting since last week hear before today's arrivals.
+    orderBy: { createdAt: "asc" },
+    take: AVAILABILITY_BATCH,
+    select: {
+      id: true,
+      email: true,
+      language: true,
+      unsubscribeToken: true,
+    },
+  });
+
+  if (waiting.length === 0) return 0;
+
+  // Reported rather than silent: a fleet that is free and a list that is
+  // waiting, with no mailer configured, is a state somebody should fix.
+  if (!mail) {
+    console.warn(
+      `[scheduler] ${waiting.length} availability alert(s) waiting and no mailer configured`
+    );
+    return 0;
+  }
+
+  let sent = 0;
+
+  for (const alert of waiting) {
+    /**
+     * The claim, before the send.
+     *
+     * A conditional updateMany whose WHERE repeats `notifiedAt: null`, exactly
+     * as the status transitions above do — and for a sharper reason here.
+     * Unlike a Notification row, which is inserted and so races on a unique
+     * index, this row already exists; two concurrent runs would both read it
+     * as waiting. Stamping it first means the loser's update matches nothing
+     * and it does not send.
+     *
+     * The cost of claiming first is that a send which then fails leaves the
+     * row marked notified, and that person waits for the next car rather than
+     * being retried. That is the right way round: this is an unsolicited-ish
+     * courtesy mail, and writing to somebody twice is a worse failure than
+     * writing to them once, late.
+     */
+    const claimed = await client.availabilityAlert.updateMany({
+      where: { id: alert.id, notifiedAt: null, cancelledAt: null },
+      data: { notifiedAt: now },
+    });
+    if (claimed.count === 0) continue;
+
+    const message = availabilityMail({
+      language: asRentalLanguage(alert.language),
+      available,
+      bookUrl: `${baseUrl.replace(/\/$/, "")}/book/`,
+      unsubscribeUrl: unsubscribeUrl(baseUrl, alert.unsubscribeToken),
+    });
+
+    try {
+      await sendMail(mail, { to: alert.email, ...message });
+      sent += 1;
+    } catch (error) {
+      // Logged, never rethrown: one bad address must not stop the rest of the
+      // list, and must not fail a cron whose other six passes worked.
+      console.error("[scheduler] availability mail failed:", error);
+    }
+  }
+
+  return sent;
+}
+
 export async function runDailyPasses(
   deps: Omit<SchedulerDeps, "mail"> & { mail?: LifecycleMailConfig | null }
 ): Promise<PassSummary> {
@@ -676,6 +777,7 @@ export async function runDailyPasses(
     chargeOverdue: await chargeOverduePass(full),
     rentalOverdue: await rentalOverduePass(full),
     mfkDue: await mfkDuePass(full),
+    availabilityNotified: await availabilityPass(full),
     mailRetried: await mailRetryPass(full),
   };
 }

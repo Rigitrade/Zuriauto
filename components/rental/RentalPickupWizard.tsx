@@ -55,6 +55,8 @@ import RentalTermsStep, {
   type TermsFormState,
 } from "./RentalTermsStep";
 import { rentalTermsSchema } from "@/lib/rental/terms";
+import AvailabilityNotice from "./AvailabilityNotice";
+import VehiclePicker from "./VehiclePicker";
 import GtcAcceptance from "./GtcAcceptance";
 import PhotoCapture from "./PhotoCapture";
 import SignaturePad from "./SignaturePad";
@@ -290,13 +292,36 @@ export default function RentalPickupWizard() {
     [vehicles, form.vehicleId]
   );
 
+  /**
+   * Whether the fleet endpoint has answered.
+   *
+   * Needed to tell two states apart that used to look identical: "the request
+   * failed, so fall back to the bundled list" and "the request succeeded and
+   * every car is out". The old code treated an empty response as a failure and
+   * kept showing ten cars that were all rented — which is the one case where
+   * the fallback actively lies.
+   */
+  const [fleetLoaded, setFleetLoaded] = useState(false);
+
+  /**
+   * Nothing to hire, as opposed to not knowing yet.
+   *
+   * Both halves matter: `fleetLoaded` rules out a failed request, which falls
+   * back to the bundled list and must not put a "no cars" notice on screen
+   * over a network blip.
+   */
+  const noCarsAvailable = fleetLoaded && vehicles.length === 0;
+
   useEffect(() => {
     let cancelled = false;
     fetch("/api/fleet/")
       .then((response) => (response.ok ? response.json() : null))
       .then((payload) => {
-        if (cancelled || !payload?.vehicles?.length) return;
+        if (cancelled || !payload?.vehicles) return;
+        // Set even when empty. An empty fleet is an answer, not a failure,
+        // and it is the answer that puts the waiting-list form on screen.
         setVehicles(payload.vehicles as FleetVehicle[]);
+        setFleetLoaded(true);
       })
       .catch(() => {
         // Keep the compiled-in list. Logged, not surfaced: the form works.
@@ -971,20 +996,22 @@ export default function RentalPickupWizard() {
                 {L.vehicle.heading}
               </h2>
 
-              <Field label={L.vehicle.select} error={errors.vehicleId} required>
-                <select
-                  value={form.vehicleId}
-                  onChange={(e) => set("vehicleId", e.target.value)}
-                  className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 md:text-sm"
-                >
-                  <option value="">{L.vehicle.selectPlaceholder}</option>
-                  {vehicles.map((entry) => (
-                    <option key={entry.id} value={entry.id}>
-                      {entry.model} — {entry.plate}
-                    </option>
-                  ))}
-                </select>
-              </Field>
+              {/* Nothing free. The picker is replaced rather than shown
+                  empty: an open select with no options tells a customer
+                  standing at the desk nothing about what to do next. */}
+              {noCarsAvailable ? (
+                <AvailabilityNotice L={L} language={language} />
+              ) : (
+                <Field label={L.vehicle.select} error={errors.vehicleId} required>
+                  <VehiclePicker
+                    vehicles={vehicles}
+                    value={form.vehicleId}
+                    onChange={(id) => set("vehicleId", id)}
+                    L={L}
+                    invalid={Boolean(errors.vehicleId)}
+                  />
+                </Field>
+              )}
 
               {vehicle && (
                 <dl className="grid grid-cols-1 gap-2 rounded-lg bg-slate-50 p-4 text-sm sm:grid-cols-2">
@@ -1518,7 +1545,18 @@ export default function RentalPickupWizard() {
               <button
                 type="button"
                 onClick={next}
-                className="inline-flex items-center gap-2 rounded-lg bg-slate-800 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-900"
+                /**
+                 * Disabled on step 1 when there is nothing to hire.
+                 *
+                 * Without this the button is silently dead: the step cannot
+                 * validate without a car, and the error it would raise belongs
+                 * to a field that has been replaced by the waiting-list notice
+                 * — so there is nowhere on screen for it to appear. A button
+                 * that visibly cannot be pressed is the honest version of a
+                 * button that does nothing.
+                 */
+                disabled={step === 1 && noCarsAvailable}
+                className="inline-flex items-center gap-2 rounded-lg bg-slate-800 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-900 disabled:opacity-40"
               >
                 {language === "de" ? "Weiter" : "Next"}
                 <ArrowRight className="h-4 w-4" />

@@ -3,8 +3,11 @@ import {
   OFF_ROAD,
   carSlug,
   newCarSchema,
+  newRepairSchema,
+  resolveDoneOn,
   statusChangeAllowed,
   updateCarSchema,
+  updateRepairSchema,
 } from "./cars";
 
 describe("carSlug", () => {
@@ -153,5 +156,141 @@ describe("MFK date", () => {
   it("still refuses anything that would fake a handover", () => {
     expect(statusChangeAllowed("maintenance", "rented")).toBe(false);
     expect(statusChangeAllowed("rented", "maintenance")).toBe(false);
+  });
+});
+
+describe("updateCarSchema — the service book", () => {
+  it("reads an odometer typed with the separators a Swiss keyboard makes", () => {
+    const parsed = updateCarSchema.safeParse({ currentMileageKm: "100'000" });
+    expect(parsed.success && parsed.data.currentMileageKm).toBe(100_000);
+    // A spreadsheet paste and a phone keypad produce the other two.
+    expect(
+      updateCarSchema.safeParse({ currentMileageKm: "100.000" }).success &&
+        updateCarSchema.parse({ currentMileageKm: "100.000" }).currentMileageKm
+    ).toBe(100_000);
+    expect(
+      updateCarSchema.parse({ currentMileageKm: "100 000" }).currentMileageKm
+    ).toBe(100_000);
+  });
+
+  it("treats an empty figure as cleared, not as zero", () => {
+    // Zero would be a reading, and the service warning would act on it.
+    const parsed = updateCarSchema.parse({ serviceDueKm: "" });
+    expect(parsed.serviceDueKm).toBeNull();
+  });
+
+  it("refuses a reading that is not a whole number of kilometres", () => {
+    expect(updateCarSchema.safeParse({ currentMileageKm: "97'0o0" }).success).toBe(
+      false
+    );
+    expect(updateCarSchema.safeParse({ currentMileageKm: -5 }).success).toBe(false);
+    expect(updateCarSchema.safeParse({ currentMileageKm: 12.5 }).success).toBe(false);
+  });
+
+  it("refuses a figure no car in this fleet could have covered", () => {
+    // The case this exists for: a stuck key on the dashboard figure, which
+    // would park every service warning permanently out of reach.
+    expect(updateCarSchema.safeParse({ serviceDueKm: 9_000_000 }).success).toBe(false);
+  });
+
+  it("refuses a service date that does not exist", () => {
+    // 2026-13-45 parses in JavaScript by rolling forward into a real day.
+    expect(updateCarSchema.safeParse({ serviceDoneOn: "2026-13-45" }).success).toBe(
+      false
+    );
+    expect(updateCarSchema.safeParse({ serviceDoneOn: "2026-02-29" }).success).toBe(
+      false
+    );
+    expect(updateCarSchema.safeParse({ serviceDoneOn: "2026-11-30" }).success).toBe(
+      true
+    );
+  });
+
+  it("still refuses an edit that changes nothing", () => {
+    expect(updateCarSchema.safeParse({}).success).toBe(false);
+  });
+});
+
+describe("newRepairSchema", () => {
+  it("defaults to planned, which is what the office is usually entering", () => {
+    const parsed = newRepairSchema.parse({ details: "Windschutzscheibe" });
+    expect(parsed.status).toBe("planned");
+  });
+
+  it("insists on a description — a repair nobody described is not a record", () => {
+    expect(newRepairSchema.safeParse({ details: "   " }).success).toBe(false);
+  });
+
+  it("reads a cost in francs and stores cents", () => {
+    expect(newRepairSchema.parse({ details: "Stossstange", costChf: "1'250.50" }).costChf).toBe(
+      125_050
+    );
+  });
+
+  it("leaves the cost null when the invoice has not arrived", () => {
+    // A zero would claim the repair was free.
+    expect(newRepairSchema.parse({ details: "Stossstange", costChf: "" }).costChf).toBeNull();
+  });
+
+  it("refuses an amount that is not one", () => {
+    expect(
+      newRepairSchema.safeParse({ details: "Stossstange", costChf: "ca. 300" }).success
+    ).toBe(false);
+  });
+});
+
+describe("updateRepairSchema", () => {
+  it("accepts the one-field edit the row's button sends", () => {
+    expect(updateRepairSchema.safeParse({ status: "done" }).success).toBe(true);
+  });
+
+  it("refuses an edit that changes nothing", () => {
+    expect(updateRepairSchema.safeParse({}).success).toBe(false);
+  });
+});
+
+describe("resolveDoneOn", () => {
+  const today = "2026-09-19";
+
+  it("dates a repair that is being marked done", () => {
+    // Otherwise a done row with no date is invisible in a history read as a
+    // chronology.
+    expect(
+      resolveDoneOn({ status: "done", currentStatus: "planned", today })
+    ).toEqual(new Date("2026-09-19T00:00:00.000Z"));
+  });
+
+  it("does not move a date already recorded when nothing changes", () => {
+    // Undefined means "leave the column alone" — re-saving a done repair to
+    // fix a typo in its description must not re-date it to today.
+    expect(
+      resolveDoneOn({ status: "done", currentStatus: "done", today })
+    ).toBeUndefined();
+    expect(resolveDoneOn({ currentStatus: "done", today })).toBeUndefined();
+  });
+
+  it("lets the office name the day instead", () => {
+    expect(
+      resolveDoneOn({
+        status: "done",
+        currentStatus: "planned",
+        doneOn: "2026-09-12",
+        today,
+      })
+    ).toEqual(new Date("2026-09-12T00:00:00.000Z"));
+  });
+
+  it("clears the date when a repair goes back to planned", () => {
+    // A planned repair still carrying a completion date reads as done to
+    // everything that sorts on it.
+    expect(
+      resolveDoneOn({ status: "planned", currentStatus: "done", today })
+    ).toBeNull();
+  });
+
+  it("honours an explicit clear even on a repair staying done", () => {
+    expect(
+      resolveDoneOn({ currentStatus: "done", doneOn: "", today })
+    ).toBeNull();
   });
 });

@@ -17,6 +17,7 @@
     "test": "vitest run --project unit --passWithNoTests",
     "test:db": "vitest run --project db",
     "test:all": "vitest run --passWithNoTests",
+    "db:import-legacy": "tsx scripts/import-legacy-contracts.ts",
     "db:backfill-charges": "tsx scripts/backfill-charges.ts",
     "db:backfill-phone-keys": "tsx scripts/backfill-phone-keys.ts",
     "admin:password": "tsx scripts/set-admin-password.ts",

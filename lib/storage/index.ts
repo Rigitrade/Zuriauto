@@ -7,7 +7,7 @@ export type { MemoryStore } from "./memory";
 export { createMemoryStore } from "./memory";
 export { uploadAssets } from "./upload";
 export type { PendingUpload, StoredAsset } from "./upload";
-export { assetKey, extensionFor } from "./keys";
+export { assetKey, carPhotoKey, extensionFor } from "./keys";
 
 let cached: AssetStore | null = null;
 

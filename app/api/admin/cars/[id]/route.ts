@@ -43,7 +43,9 @@ export async function PATCH(
 
   const car = await prisma.car.findUnique({
     where: { id },
-    select: { id: true, status: true },
+    // `currentMileageKm` comes back so the read stamp can be moved only when
+    // the reading actually changes — see the note where it is written.
+    select: { id: true, status: true, currentMileageKm: true },
   });
   if (!car) {
     return NextResponse.json({ code: "not-found" }, { status: 404 });
@@ -76,6 +78,44 @@ export async function PATCH(
             : null,
         }),
         ...(status !== undefined && { status }),
+
+        // The service book. Each figure independently optional, because the
+        // office learns them one at a time — the odometer at every handover,
+        // the due reading once a year off a garage's sticker.
+        ...(parsed.data.currentMileageKm !== undefined && {
+          currentMileageKm: parsed.data.currentMileageKm,
+          /**
+           * The read stamp, moved only when the reading itself moved.
+           *
+           * Stamped by the server and never accepted from the client: the
+           * whole value of this column is that it says when somebody actually
+           * looked at the dashboard, and a browser that could set it could
+           * claim a figure from March was read this morning.
+           *
+           * Compared against what is stored, because the maintenance dialog
+           * posts every field it holds. Re-saving it to correct the MFK date
+           * would otherwise re-date an untouched odometer reading to today —
+           * which is precisely the lie this column exists to prevent.
+           *
+           * Cleared alongside the figure: a read time with no reading
+           * describes nothing.
+           */
+          ...(parsed.data.currentMileageKm !== car.currentMileageKm && {
+            mileageReadAt:
+              parsed.data.currentMileageKm === null ? null : new Date(),
+          }),
+        }),
+        ...(parsed.data.serviceDoneKm !== undefined && {
+          serviceDoneKm: parsed.data.serviceDoneKm,
+        }),
+        ...(parsed.data.serviceDueKm !== undefined && {
+          serviceDueKm: parsed.data.serviceDueKm,
+        }),
+        ...(parsed.data.serviceDoneOn !== undefined && {
+          serviceDoneOn: parsed.data.serviceDoneOn
+            ? new Date(`${parsed.data.serviceDoneOn}T00:00:00.000Z`)
+            : null,
+        }),
       },
       select: {
         id: true,
@@ -85,6 +125,11 @@ export async function PATCH(
         vin: true,
         status: true,
         mfkDate: true,
+        currentMileageKm: true,
+        mileageReadAt: true,
+        serviceDoneKm: true,
+        serviceDoneOn: true,
+        serviceDueKm: true,
       },
     });
     return NextResponse.json(updated);

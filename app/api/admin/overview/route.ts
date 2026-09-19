@@ -38,6 +38,44 @@ export interface AdminOverview {
      *  and sending it as an ISO timestamp invites a timezone shift on a value
      *  that decides when a car comes off the road. */
     mfkDate: string | null;
+
+    /**
+     * The service book. Every figure nullable, because the office learns them
+     * one at a time and a car nobody has recorded must read as blank rather
+     * than as zero — a zero would be a reading, and the service warning would
+     * act on it.
+     */
+    currentMileageKm: number | null;
+    /** When the odometer was read, as an instant. Unlike the dates above this
+     *  genuinely is one: it is a moment somebody looked, not a calendar day. */
+    mileageReadAt: string | null;
+    serviceDoneKm: number | null;
+    serviceDoneOn: string | null;
+    serviceDueKm: number | null;
+
+    /** Where the car's photograph is, when it has one. Carries a version
+     *  query, so it can be cached hard and still change on replacement. */
+    photoUrl: string | null;
+
+    /**
+     * Every repair recorded against this car, newest first.
+     *
+     * Carried with the car rather than fetched per row: the fleet screen shows
+     * ten cars, and ten extra requests to fill in two lines each is latency
+     * the office feels on a phone at the desk.
+     */
+    repairs: {
+      id: string;
+      status: string;
+      details: string;
+      plannedFor: string | null;
+      doneOn: string | null;
+      mileageKm: number | null;
+      costCents: number | null;
+      createdBy: string;
+      createdAt: string;
+    }[];
+
     /** Set when the car is out, so the row can link to the rental. */
     activeRentalId: string | null;
   }[];
@@ -91,6 +129,16 @@ export interface AdminOverview {
     returnsAwaiting: number;
     contracts: number;
     mailFailed: number;
+    /**
+     * People who asked to be told when a car frees up and have not been
+     * written to yet.
+     *
+     * On the fleet screen because it is demand the office can act on: five
+     * people waiting is the argument for getting a car out of the garage
+     * today rather than on Friday. Zero on almost every day, and the panel
+     * says nothing then.
+     */
+    waitingForCar: number;
   };
   /**
    * The contracts behind `counts.mailFailed`, so the Overview band can render
@@ -138,6 +186,30 @@ export async function GET(request: Request) {
       vin: true,
       status: true,
       mfkDate: true,
+      currentMileageKm: true,
+      mileageReadAt: true,
+      serviceDoneKm: true,
+      serviceDoneOn: true,
+      serviceDueKm: true,
+      photoUpdatedAt: true,
+      repairs: {
+        // Planned before done, then newest first. What still has to happen is
+        // what the office opens this screen to see; the history is underneath
+        // it rather than mixed through it. RepairStatus is declared
+        // `planned, done`, so ascending puts the outstanding work on top.
+        orderBy: [{ status: "asc" }, { createdAt: "desc" }],
+        select: {
+          id: true,
+          status: true,
+          details: true,
+          plannedFor: true,
+          doneOn: true,
+          mileageKm: true,
+          costCents: true,
+          createdBy: true,
+          createdAt: true,
+        },
+      },
       rentals: {
         where: { status: { notIn: ["COMPLETED", "CANCELLED"] } },
         select: { id: true },
@@ -195,7 +267,7 @@ export async function GET(request: Request) {
     },
   });
 
-  const [contracts, mailFailed, unsent, latest] = await Promise.all([
+  const [contracts, mailFailed, unsent, latest, waitingForCar] = await Promise.all([
     prisma.contract.count({ where: { organisationId: organisation.id } }),
     // A contract that exists but whose email never left. Worth surfacing:
     // until now the only way to notice was reading the column by hand.
@@ -221,6 +293,13 @@ export async function GET(request: Request) {
       orderBy: { signedAt: "desc" },
       select: { signedAt: true },
     }),
+    prisma.availabilityAlert.count({
+      where: {
+        organisationId: organisation.id,
+        notifiedAt: null,
+        cancelledAt: null,
+      },
+    }),
   ]);
 
   const payload: AdminOverview = {
@@ -241,6 +320,31 @@ export async function GET(request: Request) {
       // DATE column is midnight UTC, and reading its local parts west of the
       // meridian would report the previous day.
       mfkDate: car.mfkDate ? car.mfkDate.toISOString().slice(0, 10) : null,
+      currentMileageKm: car.currentMileageKm,
+      // An instant, so it travels as one — the note above is about the DATE
+      // columns, which must not.
+      mileageReadAt: car.mileageReadAt?.toISOString() ?? null,
+      serviceDoneKm: car.serviceDoneKm,
+      serviceDoneOn: car.serviceDoneOn
+        ? car.serviceDoneOn.toISOString().slice(0, 10)
+        : null,
+      serviceDueKm: car.serviceDueKm,
+      photoUrl: car.photoUpdatedAt
+        ? `/api/cars/${encodeURIComponent(car.slug)}/photo/?v=${car.photoUpdatedAt.getTime()}`
+        : null,
+      repairs: car.repairs.map((repair) => ({
+        id: repair.id,
+        status: repair.status,
+        details: repair.details,
+        plannedFor: repair.plannedFor
+          ? repair.plannedFor.toISOString().slice(0, 10)
+          : null,
+        doneOn: repair.doneOn ? repair.doneOn.toISOString().slice(0, 10) : null,
+        mileageKm: repair.mileageKm,
+        costCents: repair.costCents,
+        createdBy: repair.createdBy,
+        createdAt: repair.createdAt.toISOString(),
+      })),
       activeRentalId: car.rentals[0]?.id ?? null,
     })),
     rentals: rentals.map((rental) => {
@@ -295,6 +399,7 @@ export async function GET(request: Request) {
       ).length,
       contracts,
       mailFailed,
+      waitingForCar,
     },
     unsentContracts: unsent.map((contract) => ({
       id: contract.id,

@@ -28,6 +28,19 @@ export interface FleetVehicle {
    */
   vin?: string;
   /**
+   * Where to fetch this car's photograph, when one has been uploaded.
+   *
+   * Only ever set by `/api/fleet/`, never by the list below: these compiled-in
+   * entries are the offline fallback, and a photograph lives in a bucket that
+   * a bundled constant cannot know about. Absent means "no photograph", and
+   * the picker shows the plate instead — which is why the field is optional
+   * rather than a URL that might 404.
+   *
+   * Carries a version query, so it can be cached for a year and still change
+   * the moment the office replaces the picture. See the photo endpoint.
+   */
+  photoUrl?: string;
+  /**
    * Set when a vehicle has no valid plate yet or is out of service.
    * Placeholder entries never reach the picker or a contract.
    */

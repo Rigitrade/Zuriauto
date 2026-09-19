@@ -11,6 +11,8 @@ import { FormData } from "./types";
 import { calculateTotal, calculateTotalDays, isStepValid } from "./utils";
 
 import { waLink } from "@/lib/whatsapp";
+import AvailabilityNotice from "@/components/rental/AvailabilityNotice";
+import { asRentalLanguage, labelsFor } from "@/lib/rental/labels";
 import { buildBookingMessage } from "./whatsappMessage";
 
 import Step1_BookingDetails from "./Step1_BookingDetails";
@@ -56,6 +58,35 @@ const CarBookingWizard: React.FC = () => {
   const totalSteps = 3;
 
   const isInitialMount = useRef(true);
+
+  /**
+   * Whether anything is actually free, asked of the same endpoint the pickup
+   * form uses.
+   *
+   * `null` while the answer is unknown, so the notice does not flash onto the
+   * page for a moment on every load and then vanish. A request that fails
+   * stays `null` and the page says nothing: the booking wizard hands over to
+   * WhatsApp rather than reserving a specific car, so it works perfectly well
+   * without knowing, and inventing "no cars available" from a failed fetch
+   * would turn customers away over a network blip.
+   */
+  const [available, setAvailable] = useState<number | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/fleet/")
+      .then((response) => (response.ok ? response.json() : null))
+      .then((payload) => {
+        if (cancelled || !payload?.vehicles) return;
+        setAvailable((payload.vehicles as unknown[]).length);
+      })
+      .catch(() => {
+        // Left unknown on purpose. See the note above.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const scrollToTop = () => {
     document
@@ -184,6 +215,20 @@ const CarBookingWizard: React.FC = () => {
                 {t("booking:wizard:title").toUpperCase()}
               </h1>
             </div>
+
+            {/* Above the wizard, not inside a step: the point is that it is
+                read before somebody fills in four screens of dates and
+                licence details to reach an answer of "nothing today". The
+                form below stays usable — a booking is a WhatsApp conversation
+                with the office, and they may well still want one. */}
+            {available === 0 && (
+              <div className="mb-8">
+                <AvailabilityNotice
+                  L={labelsFor(asRentalLanguage(currentLanguage))}
+                  language={asRentalLanguage(currentLanguage)}
+                />
+              </div>
+            )}
 
             <StepIndicator currentStep={currentStep} totalSteps={totalSteps} />
 

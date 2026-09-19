@@ -23,7 +23,50 @@ export interface Car {
    *  DATE column must not travel as an ISO timestamp. Optional so a client
    *  running against an older deployment degrades to "—" rather than throwing. */
   mfkDate?: string | null;
+
+  /**
+   * The service book, as `/api/admin/overview/` reports it.
+   *
+   * Every field optional *and* nullable, and the two mean different things.
+   * Optional covers a client running against a deployment from before these
+   * columns existed — the row degrades to "—" rather than throwing. Null is
+   * the live answer "nobody has recorded this", which the screen must show as
+   * a gap rather than as a zero: a zero is a reading, and the service warning
+   * would act on it.
+   */
+  currentMileageKm?: number | null;
+  mileageReadAt?: string | null;
+  serviceDoneKm?: number | null;
+  serviceDoneOn?: string | null;
+  serviceDueKm?: number | null;
+
+  /** The car's photograph, version-stamped. Absent when it has none. */
+  photoUrl?: string | null;
+
+  /** Planned repairs first, then the history, newest first. */
+  repairs?: Repair[];
+
   activeRentalId: string | null;
+}
+
+/**
+ * One repair, planned or carried out.
+ *
+ * `status` is a plain string rather than a union for the reason `Car.status`
+ * is: this is a hand-written mirror of a JSON payload, and a union here would
+ * make an unrecognised value a type error at the one place that should be
+ * handling it gracefully.
+ */
+export interface Repair {
+  id: string;
+  status: string;
+  details: string;
+  plannedFor: string | null;
+  doneOn: string | null;
+  mileageKm: number | null;
+  costCents: number | null;
+  createdBy: string;
+  createdAt: string;
 }
 
 /**
@@ -131,6 +174,10 @@ export interface Overview {
     returnsAwaiting: number;
     contracts: number;
     mailFailed: number;
+    /** People waiting to be told a car is free. Optional so a client running
+     *  against an older deployment degrades to "no one waiting" rather than
+     *  rendering `undefined`. */
+    waitingForCar?: number;
   };
   /** The contracts behind `counts.mailFailed`, newest first, capped at 20.
    *  Optional so a client running against an older deployment degrades by one

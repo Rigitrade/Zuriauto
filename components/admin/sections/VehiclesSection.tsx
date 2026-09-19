@@ -16,6 +16,15 @@ export function VehiclesSection() {
 
   const cars = data?.cars ?? [];
   const available = cars.filter((car) => car.status === "available").length;
+  /**
+   * How many people are waiting to be told a car is free.
+   *
+   * Shown beside the counts rather than as its own panel, because on almost
+   * every day it is zero and a permanent empty panel is furniture. When it is
+   * not zero it is demand the office can act on — five people waiting is the
+   * argument for getting a car out of the garage today rather than on Friday.
+   */
+  const waiting = data?.counts.waitingForCar ?? 0;
 
   return (
     <>
@@ -45,7 +54,10 @@ export function VehiclesSection() {
 
       <Panel
         title={L.fleet.heading}
-        meta={`${cars.length} · ${available} ${L.counts.available.toLowerCase()}`}
+        meta={
+          `${cars.length} · ${available} ${L.counts.available.toLowerCase()}` +
+          (waiting > 0 ? ` · ${waiting} ${L.fleet.waitlistCount}` : "")
+        }
         action={
           <button
             type="button"
@@ -63,12 +75,28 @@ export function VehiclesSection() {
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[52rem] text-sm">
+            {/* 54rem, down from 76rem.
+
+                The service book added three columns and the actions column
+                held five side-by-side controls, which together asked for more
+                width than the shell has to give — `max-w-6xl` is 72rem — so
+                the table scrolled sideways on every screen, including the big
+                one in the office. Folding the actions into a single menu
+                button gave back about 300px and let the rest breathe.
+
+                The floor stays, because a phone is narrower than any of this
+                and eight columns of fleet data will not honestly fit one.
+                There, sideways scrolling is the right trade against a table
+                squeezed into an unreadable one. */}
+            <table className="w-full min-w-[54rem] text-sm">
               <thead>
                 <tr className="bg-[var(--admin-sunk)] text-left text-xs uppercase tracking-wider text-[var(--admin-faint)]">
                   <th className="px-4 py-2.5 font-medium">{L.fleet.model}</th>
                   <th className="px-4 py-2.5 font-medium">{L.fleet.plate}</th>
                   <th className="px-4 py-2.5 font-medium">{L.fleet.status}</th>
+                  <th className="px-4 py-2.5 font-medium">{L.fleet.mileageShort}</th>
+                  <th className="px-4 py-2.5 font-medium">{L.fleet.service}</th>
+                  <th className="px-4 py-2.5 font-medium">{L.fleet.repairs}</th>
                   <th className="px-4 py-2.5 font-medium">{L.fleet.mfk}</th>
                   <th className="px-4 py-2.5" />
                 </tr>
@@ -89,6 +117,41 @@ export function VehiclesSection() {
                     }
                     onDelete={() =>
                       write(`/api/admin/cars/${car.id}/`, { method: "DELETE" })
+                    }
+                    onAddRepair={(body) =>
+                      write(`/api/admin/cars/${car.id}/repairs/`, {
+                        method: "POST",
+                        headers: { "content-type": "application/json" },
+                        body: JSON.stringify(body),
+                      })
+                    }
+                    onUpdateRepair={(repairId, body) =>
+                      write(`/api/admin/cars/${car.id}/repairs/${repairId}/`, {
+                        method: "PATCH",
+                        headers: { "content-type": "application/json" },
+                        body: JSON.stringify(body),
+                      })
+                    }
+                    onDeleteRepair={(repairId) =>
+                      write(`/api/admin/cars/${car.id}/repairs/${repairId}/`, {
+                        method: "DELETE",
+                      })
+                    }
+                    // The one write that is not JSON. The body is the image
+                    // itself — there is exactly one file and no other field,
+                    // so a multipart envelope would be a parser and a
+                    // boundary string bought for nothing.
+                    onUploadPhoto={(blob) =>
+                      write(`/api/admin/cars/${car.id}/photo/`, {
+                        method: "PUT",
+                        headers: { "content-type": blob.type || "image/jpeg" },
+                        body: blob,
+                      })
+                    }
+                    onRemovePhoto={() =>
+                      write(`/api/admin/cars/${car.id}/photo/`, {
+                        method: "DELETE",
+                      })
                     }
                   />
                 ))}
