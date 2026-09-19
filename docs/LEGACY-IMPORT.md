@@ -115,6 +115,23 @@ row to point at. Two consequences, both real:
   sensitive data in the system with none of the automatic expiry the rest of it
   gets.**
 
+### The `pdfKey` half was finished afterwards
+
+On 20.09.2026 the twelve PDFs were uploaded and attached, by
+`scripts/upload-legacy-pdfs.ts` — so the first bullet no longer holds. Opening
+a contract from the dashboard now serves the document the customer actually
+received, and every open is written to `AssetAccess`, exactly as it is for a
+contract signed at the desk.
+
+**The second bullet still holds, and it is the more serious of the two.** A
+contract PDF hangs off `Contract.pdfKey`, which is a column and not an `Asset`
+row, and `sweepExpiredAssets` walks `Asset`. So these documents — five identity
+images apiece — will sit in the bucket after the five years are up, and so will
+every contract PDF the live wizard has ever written. Moving them into R2 did
+not create that gap; it moved the same data from a desktop into a bucket where
+at least the access is logged. Worth closing for all contract PDFs at once,
+rather than as a special case here.
+
 ## Corrections, and where they are not applied
 
 The customer record is corrected; the contract is not. This is the split
