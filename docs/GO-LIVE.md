@@ -116,9 +116,25 @@ Vercel builds `main` and `zuriauto.ch` cuts over. The build runs
    submitting**, and confirm the vehicle picker lists cars from the database.
 6. `/api/health` — all groups green.
 
-### 7. Two days later
+### 7. Two days later — but not before this is settled
 
-Restore the cron entry above, deploy, and watch the first 07:00 run.
+**There is one ACTIVE rental on production that ended on 28.08.2026 and was
+never closed**: a `WEEKLY` rental on the Prius ZH 918 474, signed 21.08 by
+"office" on a private gmail address, carrying six identity images. It predates
+the go-live; it was almost certainly a test of the wizard, but nobody has
+confirmed that and it holds real photographs, so it has been left alone.
+
+It matters because of what the daily pass does with it. `runDailyPasses` mails
+every ACTIVE rental whose `endAt` has passed, and `generateWeeklyCharges`
+raises charges against any rental that is not COMPLETED or CANCELLED. The
+first 07:00 run after the cron returns would therefore send that address an
+overdue notice and begin billing it weekly, three weeks in arrears.
+
+So: **close it, cancel it, or delete it before restoring the cron entry.** Then
+restore the entry at the top of this file, deploy, and watch the first run.
+
+Until then the Prius also shows as "Rented out" on the fleet screen and cannot
+be booked, which is the visible symptom of the same row.
 
 ## Rolling back
 
