@@ -271,12 +271,39 @@ export async function GET(request: Request) {
     prisma.contract.count({ where: { organisationId: organisation.id } }),
     // A contract that exists but whose email never left. Worth surfacing:
     // until now the only way to notice was reading the column by hand.
+    //
+    // `pdfKey` must be present, and that condition is load-bearing rather
+    // than tidy. This band exists to be acted on — every row carries a "send
+    // again" button — and the resend handler refuses outright when there is
+    // no stored document, because there is nothing to attach. A row that can
+    // only ever produce an error is not an alert, it is furniture.
+    //
+    // It became visible the day the pre-backend contracts were imported. Those
+    // twelve have no `pdfKey` (the PDFs sit on a desktop, never uploaded) and
+    // no `mailSentAt` (the import does not send), so they filled the band
+    // permanently — and a thirteenth, genuinely undelivered contract would
+    // have been lost among them. That is the failure mode worth avoiding: an
+    // alert list nobody can empty is one nobody reads.
+    //
+    // Their mail is not actually missing. The build the office used between
+    // 17.08 and 13.09 produced a PDF and mailed it; it simply wrote no row.
+    // The stamp is absent, not the email — see docs/LEGACY-IMPORT.md. Which
+    // is why this filters rather than back-dating `mailSentAt` to invent a
+    // send this system never performed.
     prisma.contract.count({
-      where: { organisationId: organisation.id, mailSentAt: null },
+      where: {
+        organisationId: organisation.id,
+        mailSentAt: null,
+        pdfKey: { not: null },
+      },
     }),
     // The same rows, newest first, for the Overview band.
     prisma.contract.findMany({
-      where: { organisationId: organisation.id, mailSentAt: null },
+      where: {
+        organisationId: organisation.id,
+        mailSentAt: null,
+        pdfKey: { not: null },
+      },
       orderBy: { signedAt: "desc" },
       take: UNSENT_LIMIT,
       select: {
