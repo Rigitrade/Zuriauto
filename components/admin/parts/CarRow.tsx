@@ -1,7 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { CircleSlash, Gauge, Pencil, Trash2, Wrench } from "lucide-react";
+import {
+  CircleSlash,
+  Gauge,
+  KeyRound,
+  Pencil,
+  Trash2,
+  Wrench,
+} from "lucide-react";
 import { Dialog } from "./Dialog";
 import { CarMaintenance } from "./CarMaintenance";
 import { CarPhotoField } from "./CarPhotoField";
@@ -47,11 +54,13 @@ export function CarRow({
   onDeleteRepair,
   onUploadPhoto,
   onRemovePhoto,
+  onMarkOut,
 }: {
   car: Car;
   L: Labels;
   busy: boolean;
   onSave: (body: Record<string, string>) => Promise<boolean>;
+  onMarkOut: (body: Record<string, string>) => Promise<boolean>;
   onDelete: () => Promise<boolean>;
   onAddRepair: (body: Record<string, string>) => Promise<boolean>;
   onUpdateRepair: (id: string, body: Record<string, string>) => Promise<boolean>;
@@ -61,6 +70,7 @@ export function CarRow({
 }) {
   const [editing, setEditing] = useState(false);
   const [maintaining, setMaintaining] = useState(false);
+  const [markingOut, setMarkingOut] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
@@ -107,6 +117,19 @@ export function CarRow({
         onAddRepair={onAddRepair}
         onUpdateRepair={onUpdateRepair}
         onDeleteRepair={onDeleteRepair}
+      />
+
+      <MarkOutDialog
+        car={car}
+        L={L}
+        busy={busy}
+        open={markingOut}
+        onClose={() => setMarkingOut(false)}
+        onMarkOut={async (body) => {
+          const ok = await onMarkOut(body);
+          if (ok) setMarkingOut(false);
+          return ok;
+        }}
       />
 
       <tr className="border-t border-[var(--admin-rule)] transition-colors hover:bg-[var(--admin-sunk)]/50">
@@ -306,6 +329,21 @@ export function CarRow({
                 </RowMenuItem>
               )}
 
+              {/* Only for a car the fleet believes is free. It is the one
+                  action here that creates a rental rather than changing a
+                  status, and it exists because a car that went out on paper
+                  cannot otherwise be handed back: the return form lists cars
+                  that are `rented`, and the return itself needs an open
+                  rental to attach the protocol to. */}
+              {car.status === "available" && (
+                <RowMenuItem
+                  icon={<KeyRound className="h-4 w-4" aria-hidden="true" />}
+                  onSelect={() => setMarkingOut(true)}
+                >
+                  {L.fleet.markOut}
+                </RowMenuItem>
+              )}
+
               {!rented && !inGarage && (
                 <RowMenuItem
                   icon={<CircleSlash className="h-4 w-4" aria-hidden="true" />}
@@ -478,5 +516,143 @@ function Field({
         }`}
       />
     </label>
+  );
+}
+
+/**
+ * Recording that a car is already out, with nothing on paper to say so.
+ *
+ * The office hit this on the first day: vehicles left the yard before the
+ * system existed, the return form lists only cars whose status is `rented`,
+ * and so there was no way to hand them back. Flipping the status alone would
+ * have been worse than nothing — the car would appear in the picker, the
+ * renter would sign a return protocol and be emailed a PDF, and the server
+ * would find no open rental and write none of it down.
+ *
+ * So this creates the missing rental. Three fields, one of them optional,
+ * because the honest answer to "who has it" is often that nobody wrote it
+ * down — and a form that insisted would be answered with a guess.
+ */
+function MarkOutDialog({
+  car,
+  L,
+  busy,
+  open,
+  onClose,
+  onMarkOut,
+}: {
+  car: Car;
+  L: Labels;
+  busy: boolean;
+  open: boolean;
+  onClose: () => void;
+  onMarkOut: (body: Record<string, string>) => Promise<boolean>;
+}) {
+  // Zurich, not the browser: a laptop set to another zone would default the
+  // form to yesterday, and "out since" is the one field nobody re-reads.
+  const today = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Europe/Zurich",
+  }).format(new Date());
+
+  const [renterName, setRenterName] = useState("");
+  const [startAt, setStartAt] = useState(today);
+  const [endAt, setEndAt] = useState("");
+
+  const reversed = endAt !== "" && endAt < startAt;
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      title={`${L.fleet.markOutHeading} · ${car.plate}`}
+      closeLabel={L.fleet.close}
+    >
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          void onMarkOut({
+            // Omitted rather than sent empty: the schema treats the key as
+            // absent, and an empty string would be a name of no characters.
+            ...(renterName.trim() && { renterName: renterName.trim() }),
+            startAt,
+            endAt,
+          });
+        }}
+        className="grid gap-4"
+      >
+        <p className="text-sm text-[var(--admin-muted)]">{L.fleet.markOutHint}</p>
+
+        <label className="grid gap-1">
+          <span className="text-xs text-[var(--admin-muted)]">
+            {L.fleet.markOutRenter}
+          </span>
+          <input
+            value={renterName}
+            onChange={(event) => setRenterName(event.target.value)}
+            maxLength={120}
+            autoFocus
+            className="h-10 w-full min-w-0 rounded-md border border-[var(--admin-rule-strong)] bg-[var(--admin-surface)] px-3 text-sm outline-none focus-visible:border-[var(--admin-accent)] focus-visible:ring-2 focus-visible:ring-[var(--admin-accent)]/20"
+          />
+          <span className="text-xs text-[var(--admin-faint)]">
+            {L.fleet.markOutRenterHint}
+          </span>
+        </label>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="grid min-w-0 gap-1">
+            <span className="text-xs text-[var(--admin-muted)]">
+              {L.fleet.markOutFrom}
+            </span>
+            <input
+              type="date"
+              value={startAt}
+              max={today}
+              onChange={(event) => setStartAt(event.target.value)}
+              className="h-10 w-full min-w-0 rounded-md border border-[var(--admin-rule-strong)] bg-[var(--admin-surface)] px-3 text-sm tabular-nums outline-none focus-visible:border-[var(--admin-accent)] focus-visible:ring-2 focus-visible:ring-[var(--admin-accent)]/20"
+            />
+          </label>
+
+          <label className="grid min-w-0 gap-1">
+            <span className="text-xs text-[var(--admin-muted)]">
+              {L.fleet.markOutUntil}
+            </span>
+            {/* `min` today, matching the server. A date already past would
+                have the daily pass mail the renter an overdue notice the
+                next morning — for a rental the office had only just written
+                down in order to close it. */}
+            <input
+              type="date"
+              value={endAt}
+              min={today}
+              onChange={(event) => setEndAt(event.target.value)}
+              className="h-10 w-full min-w-0 rounded-md border border-[var(--admin-rule-strong)] bg-[var(--admin-surface)] px-3 text-sm tabular-nums outline-none focus-visible:border-[var(--admin-accent)] focus-visible:ring-2 focus-visible:ring-[var(--admin-accent)]/20"
+            />
+          </label>
+        </div>
+
+        {reversed && (
+          <p className="text-xs text-[var(--admin-crit)]">
+            {L.errors.endBeforeStart}
+          </p>
+        )}
+
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="submit"
+            disabled={busy || reversed || startAt === "" || endAt === ""}
+            className="h-10 rounded-md bg-[var(--admin-accent)] px-4 text-sm font-medium text-[var(--admin-accent-ink)] transition-opacity hover:opacity-90 disabled:opacity-40"
+          >
+            {L.fleet.markOut}
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-10 px-3 text-sm text-[var(--admin-muted)] underline"
+          >
+            {L.fleet.cancel}
+          </button>
+        </div>
+      </form>
+    </Dialog>
   );
 }

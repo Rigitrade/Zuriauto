@@ -153,6 +153,17 @@ export function VehiclesSection() {
                         method: "DELETE",
                       })
                     }
+                    // Creates a rental where none exists, so a car that went
+                    // out on paper can be handed back. See the endpoint for
+                    // why a status change on its own would silently lose the
+                    // return protocol.
+                    onMarkOut={(body) =>
+                      write(`/api/admin/cars/${car.id}/mark-out/`, {
+                        method: "POST",
+                        headers: { "content-type": "application/json" },
+                        body: JSON.stringify(body),
+                      })
+                    }
                   />
                 ))}
               </tbody>

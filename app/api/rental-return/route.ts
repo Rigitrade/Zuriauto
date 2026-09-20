@@ -3,6 +3,7 @@ import nodemailer from "nodemailer";
 import { prisma } from "@/lib/db";
 import { buildCustomerEmail } from "@/lib/rental/customerEmail";
 import { labelsFor } from "@/lib/rental/labels";
+import { isPlaceholderEmail } from "@/lib/rental/placeholder";
 import {
   persistReturn,
   type PersistReturnResult,
@@ -348,6 +349,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ code: "send-failed" }, { status: 502 });
   }
   await stampMail(recorded, null);
+
+  // A car marked out by the office has a renter nobody recorded, and that
+  // renter's address is a reserved `.invalid` one that cannot be delivered
+  // anywhere. Skipping the send costs nothing and is honest; attempting it
+  // burns an SMTP round trip and can put a bounce in the office inbox for a
+  // message that was never going to arrive.
+  if (isPlaceholderEmail(meta.customerEmail)) {
+    return NextResponse.json({ delivered: "office" });
+  }
 
   try {
     // Payment links stay in the return confirmation too: an open balance

@@ -162,6 +162,17 @@ const de = {
     toGarage: "In die Werkstatt",
     backOnRoad: "Wieder verfügbar",
 
+    // --- Fahrzeug als vermietet erfassen (ohne Vertrag) ---
+    markOut: "Als vermietet erfassen",
+    markOutHeading: "Fahrzeug als vermietet erfassen",
+    markOutHint:
+      "Für ein Fahrzeug, das bereits unterwegs ist, ohne dass ein Vertrag erfasst wurde. Ohne diesen Eintrag erscheint es im Rückgabeformular nicht — und eine Rückgabe könnte nicht gespeichert werden.",
+    markOutRenter: "Mieter (optional)",
+    markOutRenterHint:
+      "Nur ein Name auf der Miete. Ohne Geburtsdatum, Adresse oder Unterschrift — leer lassen, wenn nicht bekannt.",
+    markOutFrom: "Unterwegs seit",
+    markOutUntil: "Voraussichtliche Rückgabe",
+
     // --- Unterhalt: Kilometerstand, Service, Reparaturen, Foto ---
     maintenance: "Unterhalt",
     maintenanceFor: "Unterhalt –",
@@ -306,6 +317,9 @@ const de = {
     invalid: "Ungültige Eingabe.",
     windowReversed: "Das Enddatum liegt vor dem Startdatum.",
     endBeforeStart: "Die Rückgabe liegt vor dem Beginn.",
+    endInPast: "Die voraussichtliche Rückgabe darf nicht in der Vergangenheit liegen — sonst wird der Mieter morgen früh gemahnt.",
+    notAvailable: "Dieses Fahrzeug ist nicht als verfügbar erfasst.",
+    alreadyOut: "Für dieses Fahrzeug läuft bereits eine Miete.",
     signedPeriod:
       "Der Zeitraum steht auf einem unterschriebenen Vertrag und kann hier nicht geändert werden.",
   },
@@ -458,6 +472,17 @@ const en: typeof de = {
     toGarage: "To the garage",
     backOnRoad: "Back on the road",
 
+    // --- Recording a car as out, with no contract behind it ---
+    markOut: "Mark as rented out",
+    markOutHeading: "Mark this car as rented out",
+    markOutHint:
+      "For a car that is already out with no contract recorded. Without this it does not appear on the return form — and a return could not be saved against it.",
+    markOutRenter: "Renter (optional)",
+    markOutRenterHint:
+      "Just a name on the rental. No birth date, address or signature behind it — leave it empty if you do not know.",
+    markOutFrom: "Out since",
+    markOutUntil: "Expected back",
+
     // --- Maintenance: mileage, service, repairs, photo ---
     maintenance: "Maintenance",
     maintenanceFor: "Maintenance –",
@@ -601,6 +626,9 @@ const en: typeof de = {
     invalid: "Invalid input.",
     windowReversed: "The end date falls before the start date.",
     endBeforeStart: "The return falls before the start.",
+    endInPast: "The expected return cannot be in the past — the renter would be chased tomorrow morning.",
+    notAvailable: "This car is not recorded as available.",
+    alreadyOut: "A rental is already running for this car.",
     signedPeriod:
       "This period is stated on a signed contract and cannot be changed here.",
   },
@@ -646,6 +674,10 @@ export function messageForCode(L: AdminLabels, code: string | undefined): string
     // Not a permission problem, so it must not read like one — the office
     // would go looking for an owner who cannot help either.
     "signed-period": L.errors.signedPeriod,
+    "not-available": L.errors.notAvailable,
+    "already-out": L.errors.alreadyOut,
+    endInPast: L.errors.endInPast,
+    notADay: L.errors.invalid,
     endBeforeStart: L.errors.endBeforeStart,
     notADateTime: L.errors.invalid,
     "bad-request": L.errors.invalid,
