@@ -51,7 +51,32 @@ export async function POST(request: Request) {
     return NextResponse.json({ code: "bad-origin" }, { status: 403 });
   }
 
-  if (await rateLimited(prisma, clientIp(request))) {
+  /**
+   * Its own fence, and a wider one.
+   *
+   * This used to fall through to the default scope, which is `"pickup"` — the
+   * same budget `POST /api/rental-contract` draws on. Five per ten minutes
+   * between them, shared. So an operator who checked a few numbers at the desk
+   * could not then submit the handover they were standing there to complete:
+   * the contract came back 429, with the customer watching. Found on the first
+   * morning in production, where five checks had already spent it.
+   *
+   * A lookup and a submission are not the same act and must not share a
+   * budget. A lookup is cheap, idempotent and expected several times per
+   * customer — one per typo, once per person in a family, again after the
+   * number is corrected. A submission is a signed contract.
+   *
+   * Thirty per ten minutes: generous for a desk that serves a handful of
+   * people an hour, and still a fence — a script walking the number space
+   * needs far more than that to learn anything, and every attempt is recorded
+   * in `CustomerLookup` whether it matched or not.
+   */
+  if (
+    await rateLimited(prisma, clientIp(request), new Date(), {
+      scope: "lookup",
+      max: 30,
+    })
+  ) {
     return NextResponse.json({ code: "rate-limited" }, { status: 429 });
   }
 

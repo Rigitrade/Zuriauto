@@ -114,6 +114,10 @@ const de = {
     lookupFound: "Bestandskunde — {count} Mietverträge seit {since}",
     lookupNone: "Kein Eintrag zu dieser Nummer. Bitte neu erfassen.",
     lookupFailed: "Prüfung nicht möglich. Bitte Daten von Hand erfassen.",
+    lookupBusy:
+      "Zu viele Abfragen. Bitte kurz warten und nochmals «Prüfen» drücken — oder die Daten von Hand erfassen.",
+    lookupLead:
+      "Bestandskunde? Nummer eingeben und «Prüfen» drücken — die Felder unten füllen sich dann von selbst.",
     lookupPick: "Mehrere Einträge zu dieser Nummer — bitte auswählen:",
   },
 
@@ -530,6 +534,10 @@ const en: typeof de = {
     lookupFound: "Returning customer — {count} rentals since {since}",
     lookupNone: "No record for this number. Please enter the details.",
     lookupFailed: "Could not check. Please enter the details by hand.",
+    lookupBusy:
+      "Too many checks just now. Wait a moment and press Check again — or enter the details by hand.",
+    lookupLead:
+      "Been here before? Enter the number and press Check — the fields below then fill in by themselves.",
     lookupPick: "More than one record for this number — please choose:",
   },
 

@@ -260,7 +260,7 @@ export default function RentalPickupWizard() {
   /** The attestation that the originals were seen. Reuse path only. */
   const [identityChecked, setIdentityChecked] = useState(false);
   const [lookupState, setLookupState] = useState<
-    "idle" | "checking" | "none" | "failed"
+    "idle" | "checking" | "none" | "failed" | "busy"
   >("idle");
   /** Set only when one number matched more than one person. */
   const [candidates, setCandidates] = useState<LookupMatch[] | null>(null);
@@ -546,6 +546,13 @@ export default function RentalPickupWizard() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ phone: form.mobile }),
       });
+      // 429 is not a failure, and telling the office it was one is how a
+      // customer already in the database gets typed in by hand. It means the
+      // fence is full for a few minutes; pressing Check again later works.
+      if (response.status === 429) {
+        setLookupState("busy");
+        return;
+      }
       if (!response.ok) throw new Error(String(response.status));
 
       const matches: LookupMatch[] = (await response.json()).matches;
@@ -1136,6 +1143,97 @@ export default function RentalPickupWizard() {
                 {L.details.heading}
               </h2>
 
+              {/* The number genuinely leads the step now.
+                  It used to sit below the name, the birth date and the
+                  address, which made the whole feature pointless in practice:
+                  by the time the operator reached it they had already typed
+                  everything it would have filled in, and pressing Check only
+                  overwrote their own work. Identification comes first, and
+                  the rest of the form is what it fills.
+
+                  The label spans the row rather than the input alone, so the
+                  button sits on the same baseline. It was `mt-7` on an `h-10`
+                  button beside an `h-9` input — two hand-tuned numbers that
+                  never quite matched, and visibly did not. */}
+              <Field label={L.details.mobile} error={errors.mobile} required>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="tel"
+                    value={form.mobile}
+                    onChange={(e) => {
+                      set("mobile", e.target.value);
+                      // A changed number invalidates whatever the last one
+                      // found, including permission to reuse its documents.
+                      setOnFile(null);
+                      setIdentityChecked(false);
+                      setCandidates(null);
+                      setLookupState("idle");
+                    }}
+                    placeholder="+41 79 222 22 22"
+                    autoComplete="tel"
+                  />
+                  <button
+                    type="button"
+                    onClick={checkPhone}
+                    disabled={lookupState === "checking" || !form.mobile.trim()}
+                    className="h-9 shrink-0 rounded-md border border-slate-300 bg-white px-4 text-sm whitespace-nowrap text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    {lookupState === "checking"
+                      ? L.details.lookupChecking
+                      : L.details.lookup}
+                  </button>
+                </div>
+              </Field>
+
+              <p className="-mt-2 text-xs text-slate-500">
+                {L.details.lookupLead}
+              </p>
+
+              {onFile && (
+                <p className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900">
+                  {L.documents.onFile
+                    .replace("{contract}", onFile.contractNumber)
+                    .replace("{signed}", onFile.signedAt)}
+                </p>
+              )}
+              {lookupState === "none" && (
+                <p className="text-sm text-slate-500">{L.details.lookupNone}</p>
+              )}
+              {lookupState === "failed" && (
+                <p className="text-sm text-amber-700">
+                  {L.details.lookupFailed}
+                </p>
+              )}
+              {/* Separated from "failed", because the two call for opposite
+                  things from whoever is holding the phone: one means type it
+                  in yourself, the other means wait a moment and press again.
+                  Told they had failed, the office would retype a customer
+                  they could have had in one press. */}
+              {lookupState === "busy" && (
+                <p className="text-sm text-amber-700">
+                  {L.details.lookupBusy}
+                </p>
+              )}
+
+              {candidates && (
+                <div className="space-y-2 rounded-lg border border-slate-200 p-3">
+                  <p className="text-sm text-slate-700">
+                    {L.details.lookupPick}
+                  </p>
+                  {candidates.map((match) => (
+                    <button
+                      key={match.email}
+                      type="button"
+                      onClick={() => applyMatch(match)}
+                      className="block w-full rounded-md border border-slate-200 px-3 py-2 text-left text-sm transition-colors hover:bg-slate-50"
+                    >
+                      {match.firstName} {match.lastName} ·{" "}
+                      {toTypedDate(match.birthDate)}
+                    </button>
+                  ))}
+                </div>
+              )}
+
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field label={L.details.lastName} error={errors.lastName} required>
                   <Input
@@ -1278,76 +1376,6 @@ export default function RentalPickupWizard() {
                   ))}
                 </select>
               </Field>
-
-              {/* The number leads the step, because it is what identifies a
-                  returning customer — everything below it can be filled in
-                  from one press of Check. */}
-              <div className="flex items-start gap-2">
-                <div className="grow">
-                  <Field label={L.details.mobile} error={errors.mobile} required>
-                    <Input
-                      type="tel"
-                      value={form.mobile}
-                      onChange={(e) => {
-                        set("mobile", e.target.value);
-                        // A changed number invalidates whatever the last one
-                        // found, including permission to reuse its documents.
-                        setOnFile(null);
-                        setIdentityChecked(false);
-                        setCandidates(null);
-                        setLookupState("idle");
-                      }}
-                      placeholder="+41 79 222 22 22"
-                      autoComplete="tel"
-                    />
-                  </Field>
-                </div>
-                <button
-                  type="button"
-                  onClick={checkPhone}
-                  disabled={lookupState === "checking" || !form.mobile.trim()}
-                  className="mt-7 h-10 shrink-0 rounded-md border border-slate-300 bg-white px-4 text-sm text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
-                >
-                  {lookupState === "checking"
-                    ? L.details.lookupChecking
-                    : L.details.lookup}
-                </button>
-              </div>
-
-              {onFile && (
-                <p className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900">
-                  {L.documents.onFile
-                    .replace("{contract}", onFile.contractNumber)
-                    .replace("{signed}", onFile.signedAt)}
-                </p>
-              )}
-              {lookupState === "none" && (
-                <p className="text-sm text-slate-500">{L.details.lookupNone}</p>
-              )}
-              {lookupState === "failed" && (
-                <p className="text-sm text-amber-700">
-                  {L.details.lookupFailed}
-                </p>
-              )}
-
-              {candidates && (
-                <div className="space-y-2 rounded-lg border border-slate-200 p-3">
-                  <p className="text-sm text-slate-700">
-                    {L.details.lookupPick}
-                  </p>
-                  {candidates.map((match) => (
-                    <button
-                      key={match.email}
-                      type="button"
-                      onClick={() => applyMatch(match)}
-                      className="block w-full rounded-md border border-slate-200 px-3 py-2 text-left text-sm transition-colors hover:bg-slate-50"
-                    >
-                      {match.firstName} {match.lastName} ·{" "}
-                      {toTypedDate(match.birthDate)}
-                    </button>
-                  ))}
-                </div>
-              )}
 
               <Field
                 label={L.details.email}
