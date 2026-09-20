@@ -128,6 +128,18 @@ export interface CarPeriod {
   customerPhone: string;
   customerEmail: string;
   contractNumber: string | null;
+  /**
+   * Whether this period's dates may be corrected on screen.
+   *
+   * True only for a rental reconstructed from the pre-backend PDFs, which
+   * state no term and were imported with `endAt = startAt`. False for anything
+   * carrying a contract somebody signed — that document prints its own period,
+   * and the dashboard must not be able to contradict it.
+   *
+   * Optional, so a client running against a deployment from before this
+   * existed simply shows no edit control rather than throwing.
+   */
+  editablePeriod?: boolean;
 }
 
 export interface CarHistory {

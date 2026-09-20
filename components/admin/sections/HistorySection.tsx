@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Search } from "lucide-react";
 import { useAdmin } from "@/components/admin/shell/AdminContext";
+import { messageForCode } from "@/lib/admin/labels";
 import { HistoryPeriod } from "@/components/admin/parts/HistoryPeriod";
 import { Panel } from "@/components/admin/parts/Panel";
 import {
@@ -126,6 +127,42 @@ export function HistorySection() {
     // request per keystroke. The Search button is what applies a window.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [carId, look]);
+
+  /**
+   * Writes a corrected period, then re-reads the car.
+   *
+   * Re-reading rather than patching the row in place, because the list is
+   * ordered by `startAt` — a corrected start can move the row, and a screen
+   * that showed the new dates in the old position would be lying about the
+   * order the car changed hands in.
+   *
+   * The re-read is another audited lookup. That is the right trade: the log is
+   * meant to show who went looking at a renter, and somebody who just edited
+   * one was unquestionably looking.
+   */
+  const savePeriod = useCallback(
+    async (rentalId: string, body: { startAt: string; endAt: string }) => {
+      setFailed(null);
+      try {
+        const response = await fetch(`/api/admin/rentals/${rentalId}/period/`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (!response.ok) {
+          const failure = await response.json().catch(() => ({}));
+          setFailed(messageForCode(L, failure.code));
+          return false;
+        }
+        if (carId) await look(carId, from, to);
+        return true;
+      } catch {
+        setFailed(L.history.failed);
+        return false;
+      }
+    },
+    [L, carId, from, to, look]
+  );
 
   function pick(id: string) {
     setCarId(id);
@@ -303,6 +340,8 @@ export function HistorySection() {
                 period={period}
                 L={L}
                 highlight={windowed}
+                busy={loading}
+                onSavePeriod={(body) => savePeriod(period.id, body)}
               />
             ))}
           </ul>

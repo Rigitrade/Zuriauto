@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/admin/session";
 import { parseWindow } from "@/lib/admin/carHistory";
+import { mayEditPeriod } from "@/lib/admin/rentalPeriod";
 
 /**
  * Who had this car, and when.
@@ -105,6 +106,24 @@ export async function GET(
     },
   });
 
+  // Who wrote each rental's contracts, for the edit guard below. A second
+  // query rather than a nested select, because the row above already takes
+  // only the pickup contract and widening it would fetch a number this screen
+  // has no use for on every other row.
+  const authors = new Map<string, { createdBy: string }[]>();
+  if (rentals.length > 0) {
+    const contracts = await prisma.contract.findMany({
+      where: { rentalId: { in: rentals.map((rental) => rental.id) } },
+      select: { rentalId: true, createdBy: true },
+    });
+    for (const contract of contracts) {
+      if (!contract.rentalId) continue;
+      const list = authors.get(contract.rentalId) ?? [];
+      list.push({ createdBy: contract.createdBy });
+      authors.set(contract.rentalId, list);
+    }
+  }
+
   // Written before the response, and whether or not anything matched: a run of
   // searches that find nobody is exactly the shape of somebody trawling the
   // fleet, and only recording the hits would leave that invisible.
@@ -133,6 +152,10 @@ export async function GET(
       customerPhone: rental.customer.phone,
       customerEmail: rental.customer.email,
       contractNumber: rental.contracts[0]?.contractNumber ?? null,
+      // Whether this row may offer to correct its own dates. Decided here
+      // rather than in the browser: the rule is about evidence, and a client
+      // that guessed it would offer the form and then be refused by the route.
+      editablePeriod: mayEditPeriod(authors.get(rental.id) ?? []),
     })),
   };
 

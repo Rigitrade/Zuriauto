@@ -245,6 +245,16 @@ const de = {
     cancelledHint: "Storniert — das Fahrzeug wurde nie übergeben.",
     audited: "Jede Suche wird protokolliert.",
     failed: "Der Verlauf konnte nicht geladen werden.",
+
+    // --- Zeitraum nachtragen (nur für die aus PDF übernommenen Mieten) ---
+    editPeriod: "Zeitraum nachtragen",
+    editPeriodHeading: "Zeitraum nachtragen",
+    editPeriodHint:
+      "Diese Miete wurde aus einem unterschriebenen PDF übernommen. Das Dokument nennt keinen Zeitraum, deshalb stehen Beginn und Rückgabe auf demselben Moment. Was hier eingetragen wird, steht auf keinem Dokument — es wird protokolliert.",
+    periodStart: "Beginn",
+    periodEnd: "Rückgabe",
+    periodSame: "Beginn und Rückgabe sind identisch — die Rückgabe ist nicht erfasst.",
+    periodSaved: "Zeitraum gespeichert.",
     statuses: {
       ACTIVE: "Laufend",
       EXTENSION_REQUESTED: "Verlängerung angefragt",
@@ -295,6 +305,9 @@ const de = {
     notConfigured: "Server ist nicht eingerichtet.",
     invalid: "Ungültige Eingabe.",
     windowReversed: "Das Enddatum liegt vor dem Startdatum.",
+    endBeforeStart: "Die Rückgabe liegt vor dem Beginn.",
+    signedPeriod:
+      "Der Zeitraum steht auf einem unterschriebenen Vertrag und kann hier nicht geändert werden.",
   },
 };
 
@@ -527,6 +540,16 @@ const en: typeof de = {
     cancelledHint: "Cancelled — the car was never handed over.",
     audited: "Every search is logged.",
     failed: "The history could not be loaded.",
+
+    // --- Filling in a period (only for the rentals taken from the PDFs) ---
+    editPeriod: "Add the period",
+    editPeriodHeading: "Add the period",
+    editPeriodHint:
+      "This rental was taken from a signed PDF. The document states no period, which is why the start and the return sit on the same moment. Anything entered here appears on no document, and is recorded against your name.",
+    periodStart: "Start",
+    periodEnd: "Return",
+    periodSame: "Start and return are the same — the return is not recorded.",
+    periodSaved: "Period saved.",
     statuses: {
       ACTIVE: "Running",
       EXTENSION_REQUESTED: "Extension requested",
@@ -577,6 +600,9 @@ const en: typeof de = {
     notConfigured: "Server is not configured.",
     invalid: "Invalid input.",
     windowReversed: "The end date falls before the start date.",
+    endBeforeStart: "The return falls before the start.",
+    signedPeriod:
+      "This period is stated on a signed contract and cannot be changed here.",
   },
 };
 
@@ -616,6 +642,12 @@ export function messageForCode(L: AdminLabels, code: string | undefined): string
     "not-configured": L.errors.notConfigured,
     invalid: L.errors.invalid,
     "window-reversed": L.errors.windowReversed,
+    // Correcting a period is refused for anything carrying a signed contract.
+    // Not a permission problem, so it must not read like one — the office
+    // would go looking for an owner who cannot help either.
+    "signed-period": L.errors.signedPeriod,
+    endBeforeStart: L.errors.endBeforeStart,
+    notADateTime: L.errors.invalid,
     "bad-request": L.errors.invalid,
     unauthorised: L.errors.signedOut,
     // A photo upload the endpoint refused. Named separately because "too big"
