@@ -418,6 +418,20 @@ async function main() {
             place: "Zurich",
             signedAt,
             pdfKey: null,
+            // Stamped, although this import sends nothing.
+            //
+            // The build the office used between 17.08 and 13.09 produced the
+            // PDF and mailed it; it only failed to write a row. So the mail
+            // did leave, a month ago, and `mailSentAt: null` would assert the
+            // opposite — which the Overview reads as "chase this", offering a
+            // button that re-sends a month-old contract to a real customer.
+            //
+            // `signedAt` because the old flow mailed on signature; nothing
+            // records the delivery to the minute, and inventing a more precise
+            // moment would be a worse lie than an approximate true one. The
+            // row is marked `import:legacy-pdf`, so anybody reading this
+            // timestamp can see which system it came from.
+            mailSentAt: signedAt,
           },
         });
 
@@ -555,6 +569,10 @@ async function main() {
             place: "Zurich",
             signedAt,
             pdfKey: null,
+            // Same reasoning as the pickup above: the old build mailed this
+            // protocol when it was signed, so the stamp records something that
+            // happened rather than something this import did.
+            mailSentAt: signedAt,
           },
         });
 
