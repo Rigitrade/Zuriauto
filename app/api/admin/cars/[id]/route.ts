@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { statusChangeAllowed, updateCarSchema } from "@/lib/admin/cars";
+import { MARKED_OUT_BY } from "@/lib/admin/markOut";
 import { requireAdmin } from "@/lib/admin/session";
+import { isPlaceholderEmail } from "@/lib/rental/placeholder";
 
 /**
  * Editing a car, retiring it, or removing it.
@@ -171,18 +173,71 @@ export async function DELETE(
 
   const car = await prisma.car.findUnique({
     where: { id },
-    select: { id: true, _count: { select: { rentals: true } } },
+    select: {
+      id: true,
+      rentals: {
+        select: {
+          id: true,
+          createdBy: true,
+          customerId: true,
+          _count: { select: { contracts: true } },
+        },
+      },
+    },
   });
   if (!car) {
     return NextResponse.json({ code: "not-found" }, { status: 404 });
   }
 
-  if (car._count.rentals > 0) {
+  /**
+   * A rental the office wrote by hand and nobody ever signed is not history.
+   *
+   * `has-history` protects the question this whole table exists to answer —
+   * who was driving ZH 589 864 on the 12th — and a signed contract is what
+   * makes that answerable. A rental created by the "mark as rented out"
+   * button carries no contract, no charge and a placeholder renter: it
+   * records that somebody pressed a button, and nothing else.
+   *
+   * Without this the button was a one-way door. Press it on the wrong car,
+   * close the rental again, and the car could never be deleted — the mistake
+   * left a permanent mark that only said a mistake had been made. That is how
+   * a test vehicle called ZH 666666 became undeletable.
+   *
+   * Contracts are the discriminator, not the status. A marked-out car that
+   * was properly handed back has a RETURN_ADDENDUM — signed, with mileage and
+   * a signature on it — and that is real history, so it keeps the car.
+   */
+  const disposable = car.rentals.filter(
+    (rental) =>
+      rental.createdBy === MARKED_OUT_BY && rental._count.contracts === 0
+  );
+  if (car.rentals.length > disposable.length) {
     return NextResponse.json({ code: "has-history" }, { status: 409 });
   }
 
   try {
-    await prisma.car.delete({ where: { id: car.id } });
+    await prisma.$transaction(async (tx) => {
+      for (const rental of disposable) {
+        await tx.rentalEvent.deleteMany({ where: { rentalId: rental.id } });
+        await tx.rental.delete({ where: { id: rental.id } });
+        // The placeholder customer exists only to satisfy the rental's
+        // required relation — one per marked-out car, never shared. It goes
+        // with the rental, unless something else has since been hung off it.
+        const others = await tx.rental.count({
+          where: { customerId: rental.customerId },
+        });
+        if (others === 0) {
+          const customer = await tx.customer.findUnique({
+            where: { id: rental.customerId },
+            select: { email: true },
+          });
+          if (isPlaceholderEmail(customer?.email)) {
+            await tx.customer.delete({ where: { id: rental.customerId } });
+          }
+        }
+      }
+      await tx.car.delete({ where: { id: car.id } });
+    });
     return NextResponse.json({ ok: true });
   } catch (error) {
     // The count and delete are separate statements. If a rental is created
