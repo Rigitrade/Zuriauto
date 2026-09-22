@@ -50,3 +50,21 @@ export function extensionFor(contentType: string): string {
 export function carPhotoKey(carId: string, extension: string): string {
   return `fleet/${carId}/photo-${randomBytes(8).toString("hex")}.${extension}`;
 }
+
+/**
+ * Where a car's registration document lives.
+ *
+ * Its own prefix, separate from `fleet/…/photo-…`, and the separation is the
+ * point rather than tidiness: `fleet/` was created so an operator reading the
+ * bucket could see at a glance which objects are personal data and which are
+ * not. A registration certificate names the holder, so it is on the wrong side
+ * of that line from the photograph beside it, and a prefix that says so is
+ * what keeps the distinction legible from the storage console.
+ *
+ * The random suffix is what makes a replacement a new key, exactly as it is
+ * for the photograph — an overwrite would be served from every cache that
+ * already held the old bytes.
+ */
+export function carLicenceKey(carId: string, extension: string): string {
+  return `fleet-docs/${carId}/licence-${randomBytes(8).toString("hex")}.${extension}`;
+}
