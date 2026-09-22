@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { waLink } from "@/lib/whatsapp";
 import { useEffect, useState } from "react";
 
@@ -7,6 +8,7 @@ import { useEffect, useState } from "react";
 const WHATSAPP_URL = waLink();
 
 export default function WhatsAppButton() {
+  const pathname = usePathname();
   const [isVisible, setIsVisible] = useState(false);
 
   // Hold the button back briefly so it animates in rather than
@@ -15,6 +17,23 @@ export default function WhatsAppButton() {
     const timer = setTimeout(() => setIsVisible(true), 1000);
     return () => clearTimeout(timer);
   }, []);
+
+  /**
+   * Not in the office's own console.
+   *
+   * This is a way for a customer to reach ZURIAUTO, and inside `/admin` the
+   * reader *is* ZURIAUTO — it invites the office to message itself. Worse, it
+   * is fixed to the bottom right corner at `z-50`, which on those screens is
+   * where the work is: it covered "Reparatur erfassen" on a car's profile and
+   * the last row of the fleet table, on a page whose whole job is that table.
+   *
+   * Declared in the root layout because every customer page wants it, and the
+   * console is the one branch of the site that does not. Checked here rather
+   * than by moving the button into a marketing layout: `/admin` is a handful
+   * of routes and this is one line, while a second layout is a second place
+   * for the fonts, the toaster and the i18n provider to drift.
+   */
+  if (pathname === "/admin" || pathname.startsWith("/admin/")) return null;
 
   return (
     <button
