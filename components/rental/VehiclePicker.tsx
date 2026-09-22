@@ -70,6 +70,20 @@ export default function VehiclePicker({
 
   const root = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
+  /**
+   * Whether the last highlight came from the keyboard, and where the pointer
+   * was when it last actually moved.
+   *
+   * Both exist to break the same loop. Highlighting a row changes what the
+   * preview shows, the preview is part of the panel, and anything that changes
+   * the panel's geometry slides the rows under a pointer that never moved —
+   * which fires `mouseenter` on a neighbour, which highlights it, which slides
+   * them back. The preview is a fixed height now so it no longer moves things
+   * on its own, but the list still scrolls and the panel still flips above the
+   * field near the bottom of the screen, so the guard stays.
+   */
+  const keyboardNav = useRef(false);
+  const pointer = useRef<{ x: number; y: number } | null>(null);
 
   const selected = useMemo(
     () => vehicles.find((vehicle) => vehicle.id === value),
@@ -81,6 +95,8 @@ export default function VehiclePicker({
   useEffect(() => {
     if (!open) return;
     const index = vehicles.findIndex((vehicle) => vehicle.id === value);
+    keyboardNav.current = true;
+    pointer.current = null;
     setHighlighted(index >= 0 ? index : 0);
   }, [open, value, vehicles]);
 
@@ -107,9 +123,11 @@ export default function VehiclePicker({
   }, [open]);
 
   // Keeps the highlighted row in view when it moved by keyboard. `nearest`
-  // rather than `center`, so arrowing one step does not jump the list.
+  // rather than `center`, so arrowing one step does not jump the list — and
+  // only for the keyboard: scrolling the list under a hovering pointer is the
+  // shake this control used to have.
   useEffect(() => {
-    if (!open || highlighted < 0) return;
+    if (!open || highlighted < 0 || !keyboardNav.current) return;
     const node = listRef.current?.children[highlighted] as HTMLElement | undefined;
     node?.scrollIntoView({ block: "nearest" });
   }, [open, highlighted]);
@@ -129,6 +147,8 @@ export default function VehiclePicker({
       }
       return;
     }
+
+    keyboardNav.current = true;
 
     switch (event.key) {
       case "ArrowDown":
@@ -218,7 +238,19 @@ export default function VehiclePicker({
                     event.preventDefault();
                     choose(index);
                   }}
-                  onMouseEnter={() => setHighlighted(index)}
+                  // `onMouseMove` rather than `onMouseEnter`: a row that slides
+                  // under a pointer which never moved fires `mouseenter` all
+                  // the same, and honouring that is what made the panel
+                  // shake. A real mouse move carries new coordinates.
+                  onMouseMove={(event) => {
+                    const last = pointer.current;
+                    if (last && last.x === event.clientX && last.y === event.clientY) {
+                      return;
+                    }
+                    pointer.current = { x: event.clientX, y: event.clientY };
+                    keyboardNav.current = false;
+                    setHighlighted(index);
+                  }}
                   className={`flex cursor-pointer items-center gap-3 px-3 py-2 ${
                     index === highlighted ? "bg-slate-100" : ""
                   }`}
@@ -245,9 +277,12 @@ export default function VehiclePicker({
         </div>
       )}
 
-      {/* The chosen car, under the closed field. The confirmation of what was
-          picked should be the car itself, not a plate to be recognised. */}
-      {!open && selected?.photoUrl && (
+      {/* The chosen car, under the field. The confirmation of what was picked
+          should be the car itself, not a plate to be recognised. It stays in
+          the flow while the panel is open — the panel floats over it — because
+          removing it would collapse the page by its own height every time the
+          field is opened. */}
+      {selected?.photoUrl && (
         <div className="mt-2 overflow-hidden rounded-lg border border-slate-200">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -273,22 +308,29 @@ function VehiclePreview({
 
   return (
     <div className="border-b border-slate-200 bg-slate-50">
-      {vehicle.photoUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={vehicle.photoUrl}
-          alt={`${vehicle.model} ${vehicle.plate}`}
-          className="h-40 w-full bg-slate-100 object-cover"
-          // Eager, unlike the thumbnails: this one is the whole point of the
-          // panel and a lazy load would make it appear after the pointer has
-          // already moved on.
-        />
-      ) : (
-        <div className="flex h-24 flex-col items-center justify-center gap-1 text-slate-400">
-          <Car className="h-7 w-7" aria-hidden="true" />
-          <span className="text-xs">{L.vehicle.noPhoto}</span>
-        </div>
-      )}
+      {/* One height for both states. A car with a photograph and a car without
+          have to occupy the same box: the preview follows the pointer, and a
+          preview that grows by sixty pixels when it lands on a photographed
+          car pushes the rows down past the pointer, which lands it on another
+          row, which shrinks it again. */}
+      <div className="h-40 w-full bg-slate-100">
+        {vehicle.photoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={vehicle.photoUrl}
+            alt={`${vehicle.model} ${vehicle.plate}`}
+            className="h-full w-full object-cover"
+            // Eager, unlike the thumbnails: this one is the whole point of the
+            // panel and a lazy load would make it appear after the pointer has
+            // already moved on.
+          />
+        ) : (
+          <div className="flex h-full flex-col items-center justify-center gap-1 text-slate-400">
+            <Car className="h-7 w-7" aria-hidden="true" />
+            <span className="text-xs">{L.vehicle.noPhoto}</span>
+          </div>
+        )}
+      </div>
       <div className="flex items-baseline justify-between gap-2 px-3 py-2">
         <span className="truncate text-sm font-medium text-slate-900">
           {vehicle.model}
