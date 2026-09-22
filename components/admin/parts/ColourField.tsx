@@ -43,21 +43,25 @@ export function ColourField({
       <span className="text-xs text-[var(--admin-muted)]">
         {label ?? L.fleet.colourOptional}
       </span>
-      <div className="flex items-center gap-2">
-        {/*
-          A fixed-width box for the dot, occupied or not.
+      {/*
+        The dot sits inside the control, not beside it.
 
-          Without it the select shifts sideways by twenty pixels the first time
-          a colour is chosen — the same class of bug as the picker's resizing
-          preview, arrived at from the other direction.
-        */}
-        <span className="grid h-6 w-6 shrink-0 place-items-center">
+        Beside it, in a flex row, the swatch took its own 32px out of the line
+        and pushed the select that far right of every other field in the
+        dialog — one box indented from the plate above it and the dates below
+        for no reason a reader could see. Inside, the left edges line up and
+        the space is still reserved whether a colour is recorded or not, which
+        was the point of the fixed-width box in the first place: nothing shifts
+        sideways the first time somebody picks one.
+      */}
+      <div className="relative">
+        <span className="pointer-events-none absolute inset-y-0 left-3 grid place-items-center">
           <ColourDot colour={value} language={language} className="h-3.5 w-3.5" />
         </span>
         <select
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          className="h-10 w-full min-w-0 rounded-md border border-[var(--admin-rule-strong)] bg-[var(--admin-surface)] px-3 text-sm outline-none focus-visible:border-[var(--admin-accent)] focus-visible:ring-2 focus-visible:ring-[var(--admin-accent)]/20"
+          className="h-10 w-full min-w-0 rounded-md border border-[var(--admin-rule-strong)] bg-[var(--admin-surface)] py-0 pr-3 pl-9 text-sm outline-none focus-visible:border-[var(--admin-accent)] focus-visible:ring-2 focus-visible:ring-[var(--admin-accent)]/20"
         >
           <option value="">{L.fleet.colourChoose}</option>
           {CAR_COLOURS.map((colour) => (

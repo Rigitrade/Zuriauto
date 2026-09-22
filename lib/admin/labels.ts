@@ -256,6 +256,14 @@ const de = {
     licenceSavesNow:
       "Der Ausweis wird sofort gespeichert – unabhängig von «Speichern».",
 
+    // --- Dokumente ---
+    // Die Überschrift über Foto und Ausweis im Bearbeiten-Dialog, und der
+    // eine Satz, der für beide gilt. Einmal gesagt statt zweimal: zweimal
+    // liest sich wie zwei verschiedene Warnungen.
+    documentsHeading: "Dokumente",
+    documentsSaveNow:
+      "Foto und Ausweis werden sofort gespeichert – unabhängig von «Speichern».",
+
     // --- Fahrzeugprofil ---
     profile: "Fahrzeugprofil",
     profileOpen: "Profil öffnen",
@@ -628,6 +636,13 @@ const en: typeof de = {
     licencePdf: "PDF document",
     licenceSavesNow:
       "The registration is saved straight away — it does not wait for Save.",
+
+    // --- Documents ---
+    // The heading over the photo and the registration in the edit dialog, and
+    // the one sentence that covers both. See the German.
+    documentsHeading: "Documents",
+    documentsSaveNow:
+      "The photo and the registration are saved as soon as you choose a file — they do not wait for Save.",
 
     // --- Car profile ---
     profile: "Car profile",

@@ -38,12 +38,16 @@ export function CarLicenceField({
   busy,
   onUpload,
   onRemove,
+  saveNote = true,
 }: {
   car: Car;
   L: Labels;
   busy: boolean;
   onUpload: (file: Blob) => Promise<boolean>;
   onRemove: () => Promise<boolean>;
+  /** Off when the caller says it once for both documents. See the
+   *  photograph's. */
+  saveNote?: boolean;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const [working, setWorking] = useState(false);
@@ -201,11 +205,12 @@ export function CarLicenceField({
           )}
 
           {/* Said out loud, for the reason the photograph's note is: this is
-              the other control in the dialog that does not wait for
-              Speichern. */}
-          <p className="text-xs text-[var(--admin-faint)]">
-            {L.fleet.licenceSavesNow}
-          </p>
+              the other control that does not wait for Speichern. */}
+          {saveNote && (
+            <p className="text-xs text-[var(--admin-faint)]">
+              {L.fleet.licenceSavesNow}
+            </p>
+          )}
 
           {problem && <p className="text-xs text-[var(--admin-crit)]">{problem}</p>}
         </div>

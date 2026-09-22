@@ -27,12 +27,17 @@ export function CarPhotoField({
   busy,
   onUpload,
   onRemove,
+  saveNote = true,
 }: {
   car: Car;
   L: Labels;
   busy: boolean;
   onUpload: (blob: Blob) => Promise<boolean>;
   onRemove: () => Promise<boolean>;
+  /** Off when the caller states it once for several controls that all write
+   *  immediately — the edit dialog puts this beside the registration, and the
+   *  same sentence twice in one row reads as two different warnings. */
+  saveNote?: boolean;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const [working, setWorking] = useState(false);
@@ -130,12 +135,14 @@ export function CarPhotoField({
             )}
           </div>
 
-          {/* Said out loud, because this is the one control in the dialog that
-              does not wait for Speichern. Somebody who replaces a photo and
-              then closes on Abbrechen has still replaced it. */}
-          <p className="text-xs text-[var(--admin-faint)]">
-            {L.fleet.photoSavesNow}
-          </p>
+          {/* Said out loud, because this control does not wait for Speichern.
+              Somebody who replaces a photo and then closes on Abbrechen has
+              still replaced it. */}
+          {saveNote && (
+            <p className="text-xs text-[var(--admin-faint)]">
+              {L.fleet.photoSavesNow}
+            </p>
+          )}
 
           {problem && <p className="text-xs text-[var(--admin-crit)]">{problem}</p>}
         </div>

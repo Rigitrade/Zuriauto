@@ -50,7 +50,13 @@ export function DateField({
   const [wrong, setWrong] = useState(false);
 
   return (
-    <label className="grid min-w-0 gap-1">
+    // `content-start` keeps the rows packed at the top. Two of these sit side
+    // by side in the edit dialog, one with a hint under it and one without,
+    // and a stretched grid shared out the taller cell's spare height between
+    // its own rows — so the field with no hint hung half an input lower than
+    // the one beside it, and the two labels no longer pointed at the two
+    // boxes.
+    <label className="grid min-w-0 content-start gap-1">
       {label && (
         <span className="text-xs text-[var(--admin-muted)]">{label}</span>
       )}

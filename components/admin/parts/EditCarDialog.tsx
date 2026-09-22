@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Dialog } from "./Dialog";
 import { CarPhotoField } from "./CarPhotoField";
 import { CarLicenceField } from "./CarLicenceField";
@@ -49,6 +49,12 @@ export function EditCarDialog({
   onUploadLicence: (file: Blob) => Promise<boolean>;
   onRemoveLicence: () => Promise<boolean>;
 }) {
+  // The footer's button is not inside the form it submits, so the two need a
+  // name in common. Generated rather than built from the car's id, because
+  // nothing says two of these can never be mounted at once and a duplicate id
+  // would have one car's Speichern commit another's.
+  const formId = useId();
+
   const [model, setModel] = useState(car.model);
   const [plate, setPlate] = useState(car.plate);
   const [vin, setVin] = useState(car.vin ?? "");
@@ -86,34 +92,37 @@ export function EditCarDialog({
       }}
       title={`${car.model} · ${car.plate}`}
       closeLabel={L.fleet.cancel}
+      footer={
+        <button
+          type="submit"
+          // Outside the form it commits, which is what `form` is for. The
+          // alternative — moving the fields into the footer's DOM, or posting
+          // the form from a click handler — trades a one-word attribute for
+          // either a broken layout or a submit that Enter no longer reaches.
+          form={formId}
+          disabled={busy || !dirty || !model.trim() || !plate.trim()}
+          className="h-10 w-full rounded-md bg-[var(--admin-accent)] px-4 text-sm font-medium text-[var(--admin-accent-ink)] transition-opacity hover:opacity-90 disabled:opacity-40"
+        >
+          {L.fleet.save}
+        </button>
+      }
     >
-      <CarPhotoField
-        car={car}
-        L={L}
-        busy={busy}
-        onUpload={onUploadPhoto}
-        onRemove={onRemovePhoto}
-      />
+      {/*
+        What the office types, before what it uploads.
 
-      {/* The papers, under the picture. Both are "what this car is", and both
-          write immediately — the two notes saying so sit one under the other
-          rather than being separated by the fields that do wait for Save. */}
-      <div className="mt-4">
-        <CarLicenceField
-          car={car}
-          L={L}
-          busy={busy}
-          onUpload={onUploadLicence}
-          onRemove={onRemoveLicence}
-        />
-      </div>
-
+        The photograph and the registration used to open the dialog, so the
+        first thing on screen was an empty grey tile and the car's own name was
+        below the fold. The typed facts are why this dialog is opened; the two
+        documents are added once in a car's life and belong after them, under a
+        heading that says what they are.
+      */}
       <form
+        id={formId}
         onSubmit={(event) => {
           event.preventDefault();
           void onSave({ model, plate, vin, colour, mfkDate, mfkLastDate });
         }}
-        className="mt-4 grid gap-3"
+        className="grid gap-3"
       >
         <Field label={L.fleet.model} value={model} onChange={setModel} />
         <Field label={L.fleet.plate} value={plate} onChange={setPlate} mono />
@@ -151,14 +160,46 @@ export function EditCarDialog({
         )}
 
         <p className="text-xs text-[var(--admin-faint)]">{L.fleet.mfkHint}</p>
-        <button
-          type="submit"
-          disabled={busy || !dirty || !model.trim() || !plate.trim()}
-          className="mt-1 h-10 rounded-md bg-[var(--admin-accent)] px-4 text-sm font-medium text-[var(--admin-accent-ink)] transition-opacity hover:opacity-90 disabled:opacity-40"
-        >
-          {L.fleet.save}
-        </button>
       </form>
+
+      {/*
+        The two documents, under one heading and one sentence.
+
+        Both write the moment a file is chosen, which is the one thing about
+        this dialog that has to be said rather than discovered — so it is said
+        once here instead of twice, once under each tile, where two copies of
+        the same warning read as two different ones.
+
+        The last section's own rule is removed: the footer draws its own a few
+        pixels below, and two lines that close the same box is one too many.
+      */}
+      <section className="mt-5 grid gap-3 [&>section:last-of-type]:border-b-0 [&>section:last-of-type]:pb-0">
+        <h3 className="text-xs font-semibold tracking-wider text-[var(--admin-faint)] uppercase">
+          {L.fleet.documentsHeading}
+        </h3>
+
+        <CarPhotoField
+          car={car}
+          L={L}
+          busy={busy}
+          onUpload={onUploadPhoto}
+          onRemove={onRemovePhoto}
+          saveNote={false}
+        />
+
+        <CarLicenceField
+          car={car}
+          L={L}
+          busy={busy}
+          onUpload={onUploadLicence}
+          onRemove={onRemoveLicence}
+          saveNote={false}
+        />
+
+        <p className="text-xs text-[var(--admin-faint)]">
+          {L.fleet.documentsSaveNow}
+        </p>
+      </section>
     </Dialog>
   );
 }
