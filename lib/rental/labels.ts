@@ -86,6 +86,9 @@ const de = {
     end: "Ende",
     endDate: "Datum",
     endTime: "Uhrzeit",
+    // Tag, Monat, Jahr — wie überall sonst im Vertrag. Das native
+    // Datumsfeld zeigt dagegen das Format des Browsers.
+    datePlaceholder: "TT.MM.JJJJ",
     weeklyAmount: "Wochenpreis (CHF)",
     totalAmount: "Gesamtpreis (CHF)",
     deposit: "Kaution (CHF)",
@@ -248,6 +251,8 @@ const de = {
     dueAmount: "Offener Betrag (CHF)",
     dueDate: "Wird bezahlt am",
     dueMethod: "Zahlungsmethode",
+    // Tag, Monat, Jahr, wie im ganzen Protokoll.
+    datePlaceholder: "TT.MM.JJJJ",
     deposit: "Soll Ihnen ein Depot zurückgezahlt werden?",
 
     yes: "Ja",
@@ -507,6 +512,9 @@ const en: typeof de = {
     end: "End",
     endDate: "Date",
     endTime: "Time",
+    // Day, month, year — as everywhere else on the contract. The native date
+    // field shows the browser's format instead.
+    datePlaceholder: "DD.MM.YYYY",
     weeklyAmount: "Weekly price (CHF)",
     totalAmount: "Total price (CHF)",
     deposit: "Deposit (CHF)",
@@ -658,6 +666,8 @@ const en: typeof de = {
     dueAmount: "Open amount (CHF)",
     dueDate: "Will be paid on",
     dueMethod: "Payment method",
+    // Day, month, year, as across the whole protocol.
+    datePlaceholder: "DD.MM.YYYY",
     deposit: "Deposit to be paid back to you?",
 
     yes: "Yes",

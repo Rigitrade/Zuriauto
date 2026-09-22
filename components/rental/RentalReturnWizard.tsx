@@ -15,7 +15,8 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import StepIndicator from "@/components/car-rental/booking/StepIndicator";
-import { Input } from "@/components/ui/input";
+import { Input, inputClasses } from "@/components/ui/input";
+import { TypedDateInput } from "@/components/ui/typed-date-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useI18n } from "@/lib/hooks/use-i18n";
@@ -667,6 +668,7 @@ export default function RentalReturnWizard() {
                   value={form.vehicleId}
                   onChange={(id) => set("vehicleId", id)}
                   L={L}
+                  language={language}
                   invalid={Boolean(errors.vehicleId)}
                 />
               </Field>
@@ -855,15 +857,19 @@ export default function RentalReturnWizard() {
                 </Field>
 
                 <Field label={R.paidOn} error={errors.paidOn}>
-                  {/* Bounded at today, so the picker itself cannot offer a
-                      date on which nothing can have been paid yet. Set only
-                      after mount: this page is prerendered, and a date
-                      computed at build time would not match the browser's. */}
-                  <Input
-                    type="date"
+                  {/* Bounded at today, so nothing can be recorded as paid on
+                      a day that has not happened. Set only after mount: this
+                      page is prerendered, and a date computed at build time
+                      would not match the browser's.
+
+                      Typed DD.MM.YYYY rather than the native control, which
+                      renders in the browser's locale — see TypedDateInput. */}
+                  <TypedDateInput
                     value={form.paidOn}
                     max={now ? todayIso(now) : undefined}
-                    onChange={(e) => set("paidOn", e.target.value)}
+                    onChange={(next) => set("paidOn", next)}
+                    placeholder={R.datePlaceholder}
+                    className={inputClasses}
                   />
                 </Field>
               </div>
@@ -893,11 +899,12 @@ export default function RentalReturnWizard() {
 
                   <Field label={R.dueDate} error={errors.dueDate} required>
                     {/* Today or later: a promise to pay cannot point back. */}
-                    <Input
-                      type="date"
+                    <TypedDateInput
                       value={form.dueDate}
                       min={now ? todayIso(now) : undefined}
-                      onChange={(e) => set("dueDate", e.target.value)}
+                      onChange={(next) => set("dueDate", next)}
+                      placeholder={R.datePlaceholder}
+                      className={inputClasses}
                     />
                   </Field>
 

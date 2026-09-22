@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo } from "react";
-import { Input } from "@/components/ui/input";
+import { Input, inputClasses } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { TypedDateInput } from "@/components/ui/typed-date-input";
 import type { labelsFor } from "@/lib/rental/labels";
 import { formatChf, parseChf } from "@/lib/rental/money";
 import { deriveEndAt, ZURICH } from "@/lib/rental/terms";
@@ -158,10 +159,15 @@ export default function RentalTermsStep({ value, onChange, errors, L }: Props) {
         required
       >
         <div className="grid grid-cols-2 gap-3">
-          <Input
-            type="date"
+          {/* Typed DD.MM.YYYY, not the native date control: that one renders
+              in the browser's locale, so a desk laptop set to English offers
+              MM/DD/YYYY for a date this contract prints the other way round.
+              See TypedDateInput. */}
+          <TypedDateInput
             value={value.startDate}
-            onChange={(e) => set("startDate", e.target.value)}
+            onChange={(next) => set("startDate", next)}
+            placeholder={L.terms.datePlaceholder}
+            className={inputClasses}
           />
           <Input
             type="time"
@@ -202,10 +208,11 @@ export default function RentalTermsStep({ value, onChange, errors, L }: Props) {
           required
         >
           <div className="grid grid-cols-2 gap-3">
-            <Input
-              type="date"
+            <TypedDateInput
               value={value.endDate}
-              onChange={(e) => set("endDate", e.target.value)}
+              onChange={(next) => set("endDate", next)}
+              placeholder={L.terms.datePlaceholder}
+              className={inputClasses}
             />
             <Input
               type="time"

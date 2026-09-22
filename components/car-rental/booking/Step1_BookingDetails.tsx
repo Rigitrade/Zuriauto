@@ -43,7 +43,18 @@ const Step1_BookingDetails: React.FC<Step1Props> = ({
   handleInputChange,
   submissionAttempted,
 }) => {
-  const { t } = useI18n();
+  const { t, currentLanguage } = useI18n();
+
+  /**
+   * The locale these dates are formatted in.
+   *
+   * Never `en-US`, which is what it used to be in all four places below and
+   * which puts the month first — so a booking for the third of December read
+   * back as "Dec 3" to a Swiss customer who had picked 3.12. Both of these put
+   * the day first, which is the convention everywhere this car is rented:
+   * `de-CH` gives "3. Dezember 2026" and `en-GB` gives "3 December 2026".
+   */
+  const dateLocale = currentLanguage === "en" ? "en-GB" : "de-CH";
   const [currentSelection, setCurrentSelection] = useState<"start" | "end">(
     "start"
   );
@@ -326,7 +337,7 @@ const Step1_BookingDetails: React.FC<Step1Props> = ({
                     text={
                       formData.pickupDate
                         ? new Date(formData.pickupDate).toLocaleDateString(
-                            "en-US",
+                            dateLocale,
                             {
                               weekday: "long",
                               year: "numeric",
@@ -383,7 +394,7 @@ const Step1_BookingDetails: React.FC<Step1Props> = ({
                     text={
                       formData.dropoffDate
                         ? new Date(formData.dropoffDate).toLocaleDateString(
-                            "en-US",
+                            dateLocale,
                             {
                               weekday: "long",
                               year: "numeric",
@@ -432,7 +443,7 @@ const Step1_BookingDetails: React.FC<Step1Props> = ({
             <>
               <p className="text-sm text-slate-600">
                 <span className="font-medium">{t("booking:step1:from")}</span>{" "}
-                {new Date(formData.pickupDate).toLocaleDateString("en-US", {
+                {new Date(formData.pickupDate).toLocaleDateString(dateLocale, {
                   month: "short",
                   day: "numeric",
                   year: "numeric",
@@ -447,7 +458,7 @@ const Step1_BookingDetails: React.FC<Step1Props> = ({
               {formData.dropoffDate && (
                 <p className="text-sm text-slate-600">
                   <span className="font-medium">{t("booking:step1:to")}</span>{" "}
-                  {new Date(formData.dropoffDate).toLocaleDateString("en-US", {
+                  {new Date(formData.dropoffDate).toLocaleDateString(dateLocale, {
                     month: "short",
                     day: "numeric",
                     year: "numeric",
