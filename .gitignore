@@ -85,3 +85,10 @@ website.rar
 /.agents/
 /.claude/
 /skills-lock.json
+
+# Screenshots taken by `pnpm shot`.
+#
+# Working images for looking at a change, not a record of one: they are
+# regenerated whenever somebody wants to see a page, and a directory of stale
+# PNGs of an interface that has since moved on is worse than none.
+/screenshots/
