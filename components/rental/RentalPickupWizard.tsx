@@ -1015,6 +1015,7 @@ export default function RentalPickupWizard() {
                     value={form.vehicleId}
                     onChange={(id) => set("vehicleId", id)}
                     L={L}
+                    language={language}
                     invalid={Boolean(errors.vehicleId)}
                   />
                 </Field>

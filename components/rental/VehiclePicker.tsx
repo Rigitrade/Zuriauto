@@ -2,8 +2,10 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Car, Check, ChevronDown } from "lucide-react";
+import { ColourDot } from "@/components/ui/colour-dot";
+import { carColourName } from "@/lib/carColour";
 import type { FleetVehicle } from "@/lib/rental/fleet";
-import type { labelsFor } from "@/lib/rental/labels";
+import type { labelsFor, RentalLanguage } from "@/lib/rental/labels";
 
 /**
  * Choosing a car, with its photograph.
@@ -31,6 +33,12 @@ import type { labelsFor } from "@/lib/rental/labels";
  * the row shows a silhouette and the preview says so in words. Photographs are
  * arriving from the client in batches, so most of the fleet will be in exactly
  * that condition for a while.
+ *
+ * The colour is shown beside every car, as a dot and as a word. "The white
+ * one" is how the office and the customer at the kerb both refer to a fleet of
+ * six identical Priuses — the plate is what the contract needs, not what a
+ * person recognises — and for the cars still waiting on a photograph it is the
+ * only thing on the row that distinguishes them at all.
  */
 
 type Labels = ReturnType<typeof labelsFor>;
@@ -40,6 +48,9 @@ export interface VehiclePickerProps {
   value: string;
   onChange: (id: string) => void;
   L: Labels;
+  /** Which language the colour names are read in. The labels object cannot
+   *  say — it is the strings, not the choice. */
+  language: RentalLanguage;
   /** Marks the control invalid for assistive technology. */
   invalid?: boolean;
   id?: string;
@@ -50,6 +61,7 @@ export default function VehiclePicker({
   value,
   onChange,
   L,
+  language,
   invalid,
   id,
 }: VehiclePickerProps) {
@@ -198,10 +210,15 @@ export default function VehiclePicker({
         onKeyDown={onKeyDown}
         className="flex h-10 w-full items-center justify-between gap-2 rounded-md border border-input bg-transparent px-3 text-left text-base outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 md:text-sm"
       >
-        <span className={selected ? "truncate" : "truncate text-slate-500"}>
-          {selected
-            ? `${selected.model} — ${selected.plate}`
-            : L.vehicle.selectPlaceholder}
+        <span className="flex min-w-0 items-center gap-2">
+          {selected && (
+            <ColourDot colour={selected.colour} language={language} />
+          )}
+          <span className={selected ? "truncate" : "truncate text-slate-500"}>
+            {selected
+              ? `${selected.model} — ${selected.plate}`
+              : L.vehicle.selectPlaceholder}
+          </span>
         </span>
         <ChevronDown
           className="h-4 w-4 shrink-0 text-slate-500"
@@ -214,7 +231,7 @@ export default function VehiclePicker({
           {/* The preview, above the list rather than beside it: the field is
               full width on a phone, and a side-by-side panel would give the
               photograph about eighty pixels. */}
-          <VehiclePreview vehicle={preview} L={L} />
+          <VehiclePreview vehicle={preview} L={L} language={language} />
 
           <ul
             ref={listRef}
@@ -257,11 +274,24 @@ export default function VehiclePicker({
                 >
                   <Thumbnail vehicle={vehicle} />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-slate-900">
-                      {vehicle.model}
+                    <span className="flex items-center gap-1.5">
+                      <ColourDot
+                        colour={vehicle.colour}
+                        language={language}
+                        className="h-2.5 w-2.5"
+                      />
+                      <span className="truncate text-sm font-medium text-slate-900">
+                        {vehicle.model}
+                      </span>
                     </span>
-                    <span className="block truncate font-mono text-xs text-slate-500">
-                      {vehicle.plate}
+                    {/* The plate, and the colour in words beside it. The dot
+                        alone is not a label — these screens are read at a
+                        kerb in daylight, and a colour nobody can name is not
+                        something a customer can confirm. */}
+                    <span className="block truncate text-xs text-slate-500">
+                      <span className="font-mono">{vehicle.plate}</span>
+                      {carColourName(vehicle.colour, language) &&
+                        ` · ${carColourName(vehicle.colour, language)}`}
                     </span>
                   </span>
                   {isSelected && (
@@ -284,12 +314,10 @@ export default function VehiclePicker({
           field is opened. */}
       {selected?.photoUrl && (
         <div className="mt-2 overflow-hidden rounded-lg border border-slate-200">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <SoftImage
             src={selected.photoUrl}
             alt={`${selected.model} ${selected.plate}`}
-            className="h-36 w-full bg-slate-100 object-cover sm:h-44"
-            loading="lazy"
+            className="h-36 bg-slate-100 sm:h-44"
           />
         </div>
       )}
@@ -300,11 +328,15 @@ export default function VehiclePicker({
 function VehiclePreview({
   vehicle,
   L,
+  language,
 }: {
   vehicle: FleetVehicle | undefined;
   L: Labels;
+  language: RentalLanguage;
 }) {
   if (!vehicle) return null;
+
+  const colourName = carColourName(vehicle.colour, language);
 
   return (
     <div className="border-b border-slate-200 bg-slate-50">
@@ -315,14 +347,13 @@ function VehiclePreview({
           row, which shrinks it again. */}
       <div className="h-40 w-full bg-slate-100">
         {vehicle.photoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          // Eager, unlike the thumbnails: this one is the whole point of the
+          // panel, and a lazy load would make it appear after the pointer had
+          // already moved on.
+          <SoftImage
             src={vehicle.photoUrl}
             alt={`${vehicle.model} ${vehicle.plate}`}
-            className="h-full w-full object-cover"
-            // Eager, unlike the thumbnails: this one is the whole point of the
-            // panel and a lazy load would make it appear after the pointer has
-            // already moved on.
+            className="h-full"
           />
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-1 text-slate-400">
@@ -332,27 +363,178 @@ function VehiclePreview({
         )}
       </div>
       <div className="flex items-baseline justify-between gap-2 px-3 py-2">
-        <span className="truncate text-sm font-medium text-slate-900">
-          {vehicle.model}
+        <span className="flex min-w-0 items-center gap-2">
+          <ColourDot colour={vehicle.colour} language={language} />
+          <span className="truncate text-sm font-medium text-slate-900">
+            {vehicle.model}
+          </span>
         </span>
-        <span className="shrink-0 font-mono text-xs text-slate-500">
-          {vehicle.plate}
+        <span className="shrink-0 text-xs text-slate-500">
+          {colourName && <span>{colourName}{" \u00b7 "}</span>}
+          <span className="font-mono">{vehicle.plate}</span>
         </span>
       </div>
     </div>
   );
 }
 
+/**
+ * A photograph that arrives rather than appears.
+ *
+ * The preview follows whichever row is highlighted, so moving down the list
+ * replaces this image once per row. Rendered plainly that is a hard cut: the
+ * box drops to its grey backing for however long the next photograph takes to
+ * arrive, then the new one snaps in. Over six cars it reads as flashing, which
+ * is what it was reported as.
+ *
+ * Two things fix it and both are needed. The previous photograph stays
+ * underneath until the next has finished loading, so the box never empties —
+ * that is what removes the grey flash. And the incoming one fades in over it,
+ * so the swap is a change rather than a cut.
+ *
+ * `key={src}` remounts the element for every new source, which is deliberate:
+ * it is what makes `onLoad` fire again for the next photograph rather than
+ * once for the first.
+ *
+ * The `complete` check is for a cached image, which is most of them after the
+ * first pass through the list. Those can finish before React has attached the
+ * handler, so `onLoad` never fires — and without the check the photograph
+ * would sit at zero opacity indefinitely: invisible, with nothing logged
+ * anywhere to say why.
+ */
+function SoftImage({
+  src,
+  alt,
+  className,
+}: {
+  src: string;
+  alt: string;
+  /** The height, as a utility class. The positioning belongs to this
+   *  component, which stacks two images. */
+  className?: string;
+}) {
+  /**
+   * The source on screen, whether it has arrived, and what to show until it
+   * does — as one object, because they have to change together.
+   *
+   * Three separate `useState`s were the first version of this and they were
+   * wrong: the underlay was cleared by an effect the moment the new
+   * photograph loaded, which is the moment its three-hundred-millisecond fade
+   * *starts*. So the fade ran against the grey backing rather than against the
+   * previous car, and the flash this component exists to remove came back in a
+   * subtler form.
+   *
+   * Adjusted during render rather than in an effect — the pattern React
+   * documents for state derived from a changed prop. An effect would paint one
+   * frame of the new source with the old source's `loaded` flag still true,
+   * which is a flicker of the wrong photograph at full opacity.
+   */
+  const [shown, setShown] = useState({
+    src,
+    loaded: false,
+    /** The last source that was fully visible. */
+    previous: null as string | null,
+  });
+
+  if (shown.src !== src) {
+    setShown({
+      src,
+      loaded: false,
+      // Whatever was actually on screen stays on screen. If the outgoing
+      // source had not finished loading either, the one before it is still
+      // the best thing to hold the space with.
+      previous: shown.loaded ? shown.src : shown.previous,
+    });
+  }
+
+  const node = useRef<HTMLImageElement>(null);
+
+  /**
+   * A cached photograph, which is most of them after one pass through the
+   * list.
+   *
+   * Those can finish before React attaches the handler, so `onLoad` never
+   * fires. Without asking the element directly the image would sit at zero
+   * opacity indefinitely: invisible, with nothing logged anywhere to say why.
+   */
+  useEffect(() => {
+    if (node.current?.complete) {
+      setShown((current) =>
+        current.src === src ? { ...current, loaded: true } : current
+      );
+    }
+  }, [src]);
+
+  return (
+    <span className={`relative block w-full overflow-hidden ${className ?? ""}`}>
+      {/* The outgoing photograph, left mounted for as long as this source is
+          the current one. It costs one extra element and it is what guarantees
+          the fade has something to happen over.
+
+          `aria-hidden`, because however many images are stacked here there is
+          still only one car being described. */}
+      {shown.previous && shown.previous !== src && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={shown.previous}
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      )}
+      {/* `key={src}` remounts the element for every new source, which is
+          deliberate: it is what makes `onLoad` fire again for the next
+          photograph rather than once for the first. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        key={src}
+        ref={node}
+        src={src}
+        alt={alt}
+        onLoad={() =>
+          setShown((current) =>
+            current.src === src ? { ...current, loaded: true } : current
+          )
+        }
+        className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-300 ease-out ${
+          shown.loaded ? "opacity-100" : "opacity-0"
+        }`}
+      />
+    </span>
+  );
+}
+
 function Thumbnail({ vehicle }: { vehicle: FleetVehicle }) {
+  /**
+   * A plain fade-in, not the preview's cross-fade.
+   *
+   * A thumbnail is never replaced — one row, one car, one photograph — so
+   * there is nothing to hold the space for. It only has to stop appearing as a
+   * hard cut when a lazily loaded image arrives after the list is already on
+   * screen.
+   */
+  const node = useRef<HTMLImageElement>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  // Cached, and already finished before the handler was attached. Same case
+  // the preview's note explains at length.
+  useEffect(() => {
+    if (node.current?.complete) setLoaded(true);
+  }, []);
+
   return (
     <span className="grid h-10 w-14 shrink-0 place-items-center overflow-hidden rounded bg-slate-100">
       {vehicle.photoUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
+          ref={node}
           src={vehicle.photoUrl}
           alt=""
-          className="h-full w-full object-cover"
           loading="lazy"
+          onLoad={() => setLoaded(true)}
+          className={`h-full w-full object-cover transition-opacity duration-300 ease-out ${
+            loaded ? "opacity-100" : "opacity-0"
+          }`}
         />
       ) : (
         <Car className="h-4 w-4 text-slate-400" aria-hidden="true" />

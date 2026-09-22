@@ -46,6 +46,7 @@ export async function GET(request: Request) {
       model: true,
       plate: true,
       vin: true,
+      colour: true,
       photoUpdatedAt: true,
     },
   });
@@ -69,6 +70,11 @@ export async function GET(request: Request) {
     model: car.model,
     plate: car.plate,
     vin: car.vin ?? undefined,
+    // The colour, so the picker can show a swatch beside the car. "The white
+    // one" is how the office and the customer at the kerb both refer to a
+    // fleet of six identical Priuses; the plate is what the contract needs,
+    // not what a person recognises.
+    colour: car.colour ?? undefined,
     photoUrl: car.photoUpdatedAt
       ? `/api/cars/${encodeURIComponent(car.slug)}/photo/?v=${car.photoUpdatedAt.getTime()}`
       : undefined,

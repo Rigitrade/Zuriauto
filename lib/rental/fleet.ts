@@ -28,6 +28,17 @@ export interface FleetVehicle {
    */
   vin?: string;
   /**
+   * The car's colour, as one of the slugs in `lib/carColour.ts`.
+   *
+   * Only ever set by `/api/fleet/`, exactly like `photoUrl` and for the same
+   * reason: the entries compiled in below are the offline fallback, and the
+   * office records a colour in the admin console against the database row.
+   * Absent means "nobody has recorded one", and the picker shows no swatch —
+   * which is why this is optional rather than a default that would paint every
+   * car the same.
+   */
+  colour?: string;
+  /**
    * Where to fetch this car's photograph, when one has been uploaded.
    *
    * Only ever set by `/api/fleet/`, never by the list below: these compiled-in
