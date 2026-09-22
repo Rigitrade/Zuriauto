@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 /**
@@ -65,14 +66,41 @@ export function Dialog({
 }) {
   const ref = useRef<HTMLDialogElement>(null);
 
+  /**
+   * Whether the browser is running this, because the panel below is put at the
+   * end of `<body>` and there is no body to put it in on the server.
+   *
+   * Nothing is lost by waiting a frame: a dialog is invisible until something
+   * calls `showModal()`, and that call already happens in an effect.
+   */
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   useEffect(() => {
     const node = ref.current;
     if (!node) return;
     if (open && !node.open) node.showModal();
     if (!open && node.open) node.close();
-  }, [open]);
+  }, [open, mounted]);
 
-  return (
+  if (!mounted) return null;
+
+  /**
+   * At the end of `<body>`, wherever it was written.
+   *
+   * The fleet table declares three of these per row, which put a `<dialog>`
+   * inside a `<tbody>` — markup no parser allows, and React says so: "In HTML,
+   * <dialog> cannot be a child of <tbody>. This will cause a hydration error."
+   * It survived because React builds the node rather than parsing it, so the
+   * browser never got the chance to move it somewhere legal.
+   *
+   * A portal is the fix rather than asking every caller to declare its dialogs
+   * somewhere else. A modal belongs at the end of the document whatever part
+   * of the page opened it — that is what the top layer is for — and a rule
+   * that has to be remembered at nine call sites is a rule that gets broken at
+   * the tenth.
+   */
+  return createPortal(
     <dialog
       ref={ref}
       // Fires for Escape and for the form-method="dialog" close alike, so the
@@ -141,6 +169,7 @@ export function Dialog({
           </div>
         )}
       </div>
-    </dialog>
+    </dialog>,
+    document.body
   );
 }
