@@ -134,6 +134,37 @@ describe("statusChangeAllowed", () => {
   });
 });
 
+describe("colour", () => {
+  it("accepts a slug from the list and a cleared field", () => {
+    expect(updateCarSchema.safeParse({ colour: "white" }).success).toBe(true);
+    // Empty clears it, exactly as it does for a date, and for the same reason:
+    // a colour entered by mistake has to be removable.
+    expect(updateCarSchema.safeParse({ colour: "" }).success).toBe(true);
+  });
+
+  it("refuses free text", () => {
+    // The pickers paint a swatch from this value, and nothing can turn
+    // "Perlmuttweiss" into a colour. An unrecognised value stored here would
+    // render as an empty chip — which reads as "no colour recorded" while the
+    // database says otherwise.
+    expect(updateCarSchema.safeParse({ colour: "Perlmuttweiss" }).success).toBe(
+      false
+    );
+    expect(updateCarSchema.safeParse({ colour: "WHITE" }).success).toBe(false);
+  });
+
+  it("is accepted when a car is added", () => {
+    const parsed = newCarSchema.parse({
+      model: "Toyota Prius",
+      plate: "zh 123 456",
+      colour: "silver",
+      mfkLastDate: "2026-03-05",
+    });
+    expect(parsed.colour).toBe("silver");
+    expect(parsed.mfkLastDate).toBe("2026-03-05");
+  });
+});
+
 describe("MFK date", () => {
   it("accepts a day and a cleared field, but not a non-date", () => {
     expect(updateCarSchema.safeParse({ mfkDate: "2026-07-14" }).success).toBe(true);
@@ -142,6 +173,32 @@ describe("MFK date", () => {
     expect(updateCarSchema.safeParse({ mfkDate: "" }).success).toBe(true);
     expect(updateCarSchema.safeParse({ mfkDate: "14.07.2026" }).success).toBe(false);
     expect(updateCarSchema.safeParse({ mfkDate: "2026-13-45" }).success).toBe(false);
+  });
+
+  it("accepts the previous inspection on the same terms as the next one", () => {
+    expect(updateCarSchema.safeParse({ mfkLastDate: "2026-03-05" }).success).toBe(
+      true
+    );
+    expect(updateCarSchema.safeParse({ mfkLastDate: "" }).success).toBe(true);
+    expect(
+      updateCarSchema.safeParse({ mfkLastDate: "05.03.2026" }).success
+    ).toBe(false);
+    expect(
+      updateCarSchema.safeParse({ mfkLastDate: "2026-02-31" }).success
+    ).toBe(false);
+  });
+
+  it("does not insist the two dates agree", () => {
+    // Deliberately no cross-field rule. A patch carries one field at a time,
+    // so a rule comparing them would fire against whatever is already stored
+    // and refuse a correction halfway through being made. The dialogs warn
+    // instead — the office is holding the certificate and the schema is not.
+    expect(
+      updateCarSchema.safeParse({
+        mfkDate: "2026-01-01",
+        mfkLastDate: "2027-01-01",
+      }).success
+    ).toBe(true);
   });
 
   it("lets the office take a car to the garage and bring it back", () => {

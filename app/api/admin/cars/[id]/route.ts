@@ -74,9 +74,21 @@ export async function PATCH(
         ...(parsed.data.model !== undefined && { model: parsed.data.model }),
         ...(parsed.data.plate !== undefined && { plate: parsed.data.plate }),
         ...(parsed.data.vin !== undefined && { vin: parsed.data.vin || null }),
+        ...(parsed.data.colour !== undefined && {
+          colour: parsed.data.colour || null,
+        }),
         ...(parsed.data.mfkDate !== undefined && {
           mfkDate: parsed.data.mfkDate
             ? new Date(`${parsed.data.mfkDate}T00:00:00.000Z`)
+            : null,
+        }),
+        // The inspection that already happened. Independently optional from
+        // the one that is due: the office types the next date off the
+        // certificate the day it arrives, and fills the previous one in later
+        // from the file.
+        ...(parsed.data.mfkLastDate !== undefined && {
+          mfkLastDate: parsed.data.mfkLastDate
+            ? new Date(`${parsed.data.mfkLastDate}T00:00:00.000Z`)
             : null,
         }),
         ...(status !== undefined && { status }),

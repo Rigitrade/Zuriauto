@@ -146,13 +146,24 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     setData(null);
   }, []);
 
-  /** Every write goes through here, so one place reports failure and
-   *  refetches. The failure message comes from the response's own `code` via
-   *  `messageForCode` — not a static string per call site — so a duplicate
-   *  plate, a refused status change and a stale session each read as what
-   *  they are instead of one shared "something went wrong". */
-  const write = useCallback(
-    async (url: string, init: RequestInit) => {
+  /**
+   * Every write goes through here, so one place reports failure.
+   *
+   * The failure message comes from the response's own `code` via
+   * `messageForCode` — not a static string per call site — so a duplicate
+   * plate, a refused status change and a stale session each read as what they
+   * are instead of one shared "something went wrong".
+   *
+   * Returns the response body, and deliberately does **not** refetch. It is
+   * the half of `write` that a caller needs when the *next* request depends on
+   * what this one created: adding a car with a photograph has to POST the car,
+   * read back its id, and then PUT the bytes to an endpoint that could not
+   * have been named beforehand. Reloading between the two would repaint the
+   * fleet table with a car that has no photograph yet, for about as long as an
+   * upload takes.
+   */
+  const writeJson = useCallback(
+    async <T,>(url: string, init: RequestInit): Promise<T | null> => {
       setBusy(true);
       setMessage(null);
       try {
@@ -167,21 +178,35 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             setMe(null);
             setData(null);
             setMessage(L.errors.signedOut);
-            return false;
+            return null;
           }
           setMessage(messageForCode(L, body.code));
-          return false;
+          return null;
         }
-        await load();
-        return true;
+        // A 204 or an empty body is still a success. `null` is the failure
+        // signal here, so an empty success answers with an empty object.
+        return ((await response.json().catch(() => ({}))) ?? {}) as T;
       } catch {
         setMessage(L.errors.generic);
-        return false;
+        return null;
       } finally {
         setBusy(false);
       }
     },
-    [L, load]
+    [L]
+  );
+
+  /** The common case: write, then repaint from the server. Built on
+   *  `writeJson` so there is one implementation of "what does a failed write
+   *  say to the office". */
+  const write = useCallback(
+    async (url: string, init: RequestInit) => {
+      const body = await writeJson(url, init);
+      if (body === null) return false;
+      await load();
+      return true;
+    },
+    [writeJson, load]
   );
 
   /** Shared by every path that ends the signed-in user's own session after
@@ -270,6 +295,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         message,
         setMessage,
         write,
+        writeJson,
         reload: load,
         loadAccounts,
         endOwnSession,

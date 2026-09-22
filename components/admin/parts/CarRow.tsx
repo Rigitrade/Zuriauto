@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   CircleSlash,
   Gauge,
+  IdCard,
   KeyRound,
   Pencil,
   Trash2,
@@ -11,11 +13,14 @@ import {
 } from "lucide-react";
 import { Dialog } from "./Dialog";
 import { CarMaintenance } from "./CarMaintenance";
-import { CarPhotoField } from "./CarPhotoField";
+import { DateField } from "./DateField";
+import { EditCarDialog } from "./EditCarDialog";
 import { RowMenu, RowMenuItem, RowMenuSeparator } from "./RowMenu";
 import { mfkStanding } from "@/lib/admin/mfk";
 import { formatKm, kmUntilService, serviceStanding } from "@/lib/admin/service";
 import { day } from "@/components/admin/format";
+import { ColourDot } from "@/components/ui/colour-dot";
+import type { AdminLanguage } from "@/lib/admin/labels";
 import type { Car, Labels } from "@/components/admin/types";
 
 /**
@@ -46,6 +51,7 @@ const STATUS_CHIP: Record<string, string> = {
 export function CarRow({
   car,
   L,
+  language,
   busy,
   onSave,
   onDelete,
@@ -54,10 +60,13 @@ export function CarRow({
   onDeleteRepair,
   onUploadPhoto,
   onRemovePhoto,
+  onUploadLicence,
+  onRemoveLicence,
   onMarkOut,
 }: {
   car: Car;
   L: Labels;
+  language: AdminLanguage;
   busy: boolean;
   onSave: (body: Record<string, string>) => Promise<boolean>;
   onMarkOut: (body: Record<string, string>) => Promise<boolean>;
@@ -67,6 +76,8 @@ export function CarRow({
   onDeleteRepair: (id: string) => Promise<boolean>;
   onUploadPhoto: (blob: Blob) => Promise<boolean>;
   onRemovePhoto: () => Promise<boolean>;
+  onUploadLicence: (file: Blob) => Promise<boolean>;
+  onRemoveLicence: () => Promise<boolean>;
 }) {
   const [editing, setEditing] = useState(false);
   const [maintaining, setMaintaining] = useState(false);
@@ -91,6 +102,7 @@ export function CarRow({
       <EditCarDialog
         car={car}
         L={L}
+        language={language}
         busy={busy}
         open={editing}
         onClose={() => setEditing(false)}
@@ -101,6 +113,8 @@ export function CarRow({
         }}
         onUploadPhoto={onUploadPhoto}
         onRemovePhoto={onRemovePhoto}
+        onUploadLicence={onUploadLicence}
+        onRemoveLicence={onRemoveLicence}
       />
 
       {/* Deliberately stays open after a save. Unlike the edit dialog, which
@@ -133,8 +147,21 @@ export function CarRow({
       />
 
       <tr className="border-t border-[var(--admin-rule)] transition-colors hover:bg-[var(--admin-sunk)]/50">
+        {/* The model is the way into the car's profile. A row that opens
+            something on click needs one obvious target rather than a whole
+            clickable row — the row already carries a menu, a status chip and
+            seven columns of figures, and making all of it navigate would put
+            a page change one stray click from every one of them. */}
         <td className="px-4 py-3">
-          <p className="font-medium">{car.model}</p>
+          <div className="flex items-center gap-2">
+            <ColourDot colour={car.colour} language={language} />
+            <Link
+              href={`/admin/vehicles/${car.id}`}
+              className="font-medium underline-offset-2 hover:underline"
+            >
+              {car.model}
+            </Link>
+          </div>
           {car.vin && (
             <p className="mt-0.5 font-mono text-xs text-[var(--admin-faint)]">
               {car.vin}
@@ -293,6 +320,20 @@ export function CarRow({
                 if (!next) setConfirmingDelete(false);
               }}
             >
+              {/* The profile, for somebody who came to the menu rather than
+                  to the model. The same destination the model links to — a
+                  menu that omitted it would make the link the only way in,
+                  and a link is not where people look for "show me
+                  everything". */}
+              <RowMenuItem
+                icon={<IdCard className="h-4 w-4" aria-hidden="true" />}
+                href={`/admin/vehicles/${car.id}`}
+              >
+                {L.fleet.profileOpen}
+              </RowMenuItem>
+
+              <RowMenuSeparator />
+
               {/* Maintenance before edit: it is opened weekly, and the edit
                   dialog perhaps once in a car's life. */}
               <RowMenuItem
@@ -395,131 +436,6 @@ export function CarRow({
 }
 
 /**
- * What the car *is*: its photograph, its model, its plate, its chassis number
- * and its MFK date.
- *
- * The MFK belongs with those and not with the service figures next door, even
- * though both are dates about work on a car. This one is not the office's to
- * decide: it is printed on the inspection certificate, it arrives once every
- * year or two, and typing it in is part of registering the vehicle. The
- * service book across the way is the office's own record, rewritten weekly.
- *
- * The photograph belongs here rather than with the service figures for the
- * reason the maintenance dialog now spells out — it is identity, not a record
- * of work done. It is the one control in this dialog that writes immediately
- * instead of waiting for Speichern, and it says so.
- */
-function EditCarDialog({
-  car,
-  L,
-  busy,
-  open,
-  onClose,
-  onSave,
-  onUploadPhoto,
-  onRemovePhoto,
-}: {
-  car: Car;
-  L: Labels;
-  busy: boolean;
-  open: boolean;
-  onClose: () => void;
-  onSave: (body: Record<string, string>) => Promise<boolean>;
-  onUploadPhoto: (blob: Blob) => Promise<boolean>;
-  onRemovePhoto: () => Promise<boolean>;
-}) {
-  const [model, setModel] = useState(car.model);
-  const [plate, setPlate] = useState(car.plate);
-  const [vin, setVin] = useState(car.vin ?? "");
-  const [mfkDate, setMfkDate] = useState(car.mfkDate ?? "");
-
-  const dirty =
-    model !== car.model ||
-    plate !== car.plate ||
-    vin !== (car.vin ?? "") ||
-    mfkDate !== (car.mfkDate ?? "");
-
-  return (
-    <Dialog
-      open={open}
-      onClose={() => {
-        // Discard on close, so reopening shows what the server holds rather
-        // than a half-typed edit from ten minutes ago.
-        setModel(car.model);
-        setPlate(car.plate);
-        setVin(car.vin ?? "");
-        setMfkDate(car.mfkDate ?? "");
-        onClose();
-      }}
-      title={`${car.model} · ${car.plate}`}
-      closeLabel={L.fleet.cancel}
-    >
-      <CarPhotoField
-        car={car}
-        L={L}
-        busy={busy}
-        onUpload={onUploadPhoto}
-        onRemove={onRemovePhoto}
-      />
-
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          void onSave({ model, plate, vin, mfkDate });
-        }}
-        className="mt-4 grid gap-3"
-      >
-        <Field label={L.fleet.model} value={model} onChange={setModel} />
-        <Field label={L.fleet.plate} value={plate} onChange={setPlate} mono />
-        <Field label={L.fleet.vinOptional} value={vin} onChange={setVin} mono />
-        <Field
-          label={L.fleet.mfkOptional}
-          value={mfkDate}
-          onChange={setMfkDate}
-          type="date"
-        />
-        <p className="text-xs text-[var(--admin-faint)]">{L.fleet.mfkHint}</p>
-        <button
-          type="submit"
-          disabled={busy || !dirty || !model.trim() || !plate.trim()}
-          className="mt-1 h-10 rounded-md bg-[var(--admin-accent)] px-4 text-sm font-medium text-[var(--admin-accent-ink)] transition-opacity hover:opacity-90 disabled:opacity-40"
-        >
-          {L.fleet.save}
-        </button>
-      </form>
-    </Dialog>
-  );
-}
-
-function Field({
-  label,
-  value,
-  onChange,
-  mono,
-  type,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  mono?: boolean;
-  type?: string;
-}) {
-  return (
-    <label className="grid gap-1">
-      <span className="text-xs text-[var(--admin-muted)]">{label}</span>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className={`h-10 rounded-md border border-[var(--admin-rule-strong)] bg-[var(--admin-surface)] px-3 text-sm outline-none focus-visible:border-[var(--admin-accent)] focus-visible:ring-2 focus-visible:ring-[var(--admin-accent)]/20 ${
-          mono ? "font-mono tabular-nums" : ""
-        }`}
-      />
-    </label>
-  );
-}
-
-/**
  * Recording that a car is already out, with nothing on paper to say so.
  *
  * The office hit this on the first day: vehicles left the yard before the
@@ -599,35 +515,28 @@ function MarkOutDialog({
         </label>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <label className="grid min-w-0 gap-1">
-            <span className="text-xs text-[var(--admin-muted)]">
-              {L.fleet.markOutFrom}
-            </span>
-            <input
-              type="date"
-              value={startAt}
-              max={today}
-              onChange={(event) => setStartAt(event.target.value)}
-              className="h-10 w-full min-w-0 rounded-md border border-[var(--admin-rule-strong)] bg-[var(--admin-surface)] px-3 text-sm tabular-nums outline-none focus-visible:border-[var(--admin-accent)] focus-visible:ring-2 focus-visible:ring-[var(--admin-accent)]/20"
-            />
-          </label>
+          <DateField
+            label={L.fleet.markOutFrom}
+            value={startAt}
+            onChange={setStartAt}
+            max={today}
+            placeholder={L.fleet.datePlaceholder}
+            invalidHint={L.fleet.dateInvalid}
+          />
 
-          <label className="grid min-w-0 gap-1">
-            <span className="text-xs text-[var(--admin-muted)]">
-              {L.fleet.markOutUntil}
-            </span>
-            {/* `min` today, matching the server. A date already past would
-                have the daily pass mail the renter an overdue notice the
-                next morning — for a rental the office had only just written
-                down in order to close it. */}
-            <input
-              type="date"
-              value={endAt}
-              min={today}
-              onChange={(event) => setEndAt(event.target.value)}
-              className="h-10 w-full min-w-0 rounded-md border border-[var(--admin-rule-strong)] bg-[var(--admin-surface)] px-3 text-sm tabular-nums outline-none focus-visible:border-[var(--admin-accent)] focus-visible:ring-2 focus-visible:ring-[var(--admin-accent)]/20"
-            />
-          </label>
+          {/* `max` today on the one above and `min` today on this one, both
+              matching the server. A return date already past would have the
+              daily pass mail the renter an overdue notice the next morning —
+              for a rental the office had only just written down in order to
+              close it. */}
+          <DateField
+            label={L.fleet.markOutUntil}
+            value={endAt}
+            onChange={setEndAt}
+            min={today}
+            placeholder={L.fleet.datePlaceholder}
+            invalidHint={L.fleet.dateInvalid}
+          />
         </div>
 
         {reversed && (

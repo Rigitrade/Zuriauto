@@ -41,7 +41,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ code: "not-configured" }, { status: 503 });
   }
 
-  const { model, plate, vin, mfkDate } = parsed.data;
+  const { model, plate, vin, colour, mfkDate, mfkLastDate } = parsed.data;
 
   try {
     const car = await prisma.car.create({
@@ -52,9 +52,13 @@ export async function POST(request: Request) {
         model,
         plate,
         vin: vin || null,
+        colour: colour || null,
         // Empty means "no date recorded", which must be stored as NULL rather
         // than as some epoch date the MFK pass would then act on.
         mfkDate: mfkDate ? new Date(`${mfkDate}T00:00:00.000Z`) : null,
+        mfkLastDate: mfkLastDate
+          ? new Date(`${mfkLastDate}T00:00:00.000Z`)
+          : null,
       },
       select: { id: true, slug: true, plate: true },
     });

@@ -216,6 +216,69 @@ const de = {
     photoFailed: "Das Foto konnte nicht gespeichert werden.",
     photoUploading: "Wird hochgeladen …",
     photoSavesNow: "Das Foto wird sofort gespeichert – unabhängig von «Speichern».",
+
+    // --- Farbe ---
+    //
+    // Eine Auswahlliste, keine Freitextfeld: die Farbe wird bei der
+    // Fahrzeugauswahl als Farbpunkt angezeigt, und «Perlmuttweiss» lässt sich
+    // nicht zeichnen. Siehe lib/carColour.ts.
+    colour: "Farbe",
+    colourOptional: "Farbe (optional)",
+    colourChoose: "Bitte wählen",
+    colourNone: "Keine Farbe erfasst",
+
+    // --- Letzte MFK ---
+    mfkLast: "Letzte MFK",
+    mfkLastOptional: "Letzte MFK (optional)",
+    mfkLastHint:
+      "Das Datum der bereits erfolgten Prüfung. Wird nicht berechnet — steht auf dem Prüfbericht.",
+    mfkLastAfterNext:
+      "Die letzte MFK liegt nach der nächsten. Bitte die beiden Daten prüfen.",
+
+    // --- Fahrzeugausweis ---
+    //
+    // Nicht öffentlich, im Unterschied zum Fahrzeugfoto: der Ausweis nennt
+    // Halter, Erstinverkehrsetzung und Gewichte.
+    licenceHeading: "Fahrzeugausweis",
+    licenceHint:
+      "Foto oder Scan (PDF) des Fahrzeugausweises. Nur für angemeldete Konten sichtbar.",
+    licenceChoose: "Ausweis hinterlegen",
+    licenceReplace: "Ausweis ersetzen",
+    licenceRemove: "Ausweis entfernen",
+    licenceOpen: "Ausweis öffnen",
+    licenceNone: "Kein Fahrzeugausweis hinterlegt.",
+    licenceUploading: "Wird hochgeladen …",
+    licenceFailed: "Der Fahrzeugausweis konnte nicht gespeichert werden.",
+    licenceTooLarge: "Die Datei ist zu gross (max. 5 MB).",
+    licenceWrongType: "Nur JPEG, PNG, WebP oder PDF.",
+    licenceUpdated: "Hinterlegt am",
+    licencePdf: "PDF-Dokument",
+    licenceSavesNow:
+      "Der Ausweis wird sofort gespeichert – unabhängig von «Speichern».",
+
+    // --- Fahrzeugprofil ---
+    profile: "Fahrzeugprofil",
+    profileOpen: "Profil öffnen",
+    profileBack: "Zurück zur Flotte",
+    profileNotFound: "Dieses Fahrzeug gibt es nicht.",
+    profileIdentity: "Fahrzeug",
+    profileInspection: "MFK",
+    profileRentals: "Mietverlauf",
+    profileRentalsNone: "Noch keine Mieten erfasst.",
+    profileRentalsMore: "Vollständigen Verlauf öffnen",
+    profileNothing: "—",
+
+    // --- Datumseingabe ---
+    //
+    // Ein Textfeld statt <input type="date">: das native Feld zeigt das
+    // Format des Browsers, und auf einem englisch eingestellten Rechner ist
+    // das MM/TT/JJJJ. Bei einem Prüfdatum ist das kein Schönheitsfehler.
+    datePlaceholder: "TT.MM.JJJJ",
+    dateInvalid: "Bitte als TT.MM.JJJJ eingeben.",
+
+    // --- Foto beim Hinzufügen ---
+    photoAfterAdd:
+      "Das Foto wird zusammen mit dem Fahrzeug gespeichert.",
     waitlistCount: "Personen warten auf ein freies Fahrzeug",
   },
   rentals: {
@@ -526,6 +589,68 @@ const en: typeof de = {
     photoFailed: "The photo could not be saved.",
     photoUploading: "Uploading …",
     photoSavesNow: "The photo is saved straight away — it does not wait for Save.",
+
+    // --- Colour ---
+    //
+    // A list, not a free-text field: the colour is shown as a swatch when a
+    // car is picked, and "Perlmuttweiss" cannot be painted. See
+    // lib/carColour.ts.
+    colour: "Colour",
+    colourOptional: "Colour (optional)",
+    colourChoose: "Please select",
+    colourNone: "No colour recorded",
+
+    // --- Last MFK ---
+    mfkLast: "Last MFK",
+    mfkLastOptional: "Last MFK (optional)",
+    mfkLastHint:
+      "The date of the inspection that already happened. Never calculated — it is on the report.",
+    mfkLastAfterNext:
+      "The last MFK falls after the next one. Please check both dates.",
+
+    // --- Vehicle registration ---
+    //
+    // Not public, unlike the vehicle photo: the registration names the
+    // holder, the first registration and the weights.
+    licenceHeading: "Vehicle registration",
+    licenceHint:
+      "A photo or scan (PDF) of the registration document. Visible only to signed-in accounts.",
+    licenceChoose: "Add the registration",
+    licenceReplace: "Replace the registration",
+    licenceRemove: "Remove the registration",
+    licenceOpen: "Open the registration",
+    licenceNone: "No registration document on file.",
+    licenceUploading: "Uploading …",
+    licenceFailed: "The registration document could not be saved.",
+    licenceTooLarge: "That file is too large (5 MB max).",
+    licenceWrongType: "JPEG, PNG, WebP or PDF only.",
+    licenceUpdated: "On file since",
+    licencePdf: "PDF document",
+    licenceSavesNow:
+      "The registration is saved straight away — it does not wait for Save.",
+
+    // --- Car profile ---
+    profile: "Car profile",
+    profileOpen: "Open the profile",
+    profileBack: "Back to the fleet",
+    profileNotFound: "There is no such car.",
+    profileIdentity: "Vehicle",
+    profileInspection: "MFK",
+    profileRentals: "Rental history",
+    profileRentalsNone: "No rentals recorded yet.",
+    profileRentalsMore: "Open the full history",
+    profileNothing: "—",
+
+    // --- Typing a date ---
+    //
+    // A text field rather than <input type="date">: the native one shows the
+    // browser's format, and on a machine set to English that is MM/DD/YYYY.
+    // On an inspection date that is not a cosmetic problem.
+    datePlaceholder: "DD.MM.YYYY",
+    dateInvalid: "Please enter it as DD.MM.YYYY.",
+
+    // --- The photo, while adding a car ---
+    photoAfterAdd: "The photo is saved together with the vehicle.",
     waitlistCount: "people waiting for a car",
   },
   rentals: {

@@ -33,6 +33,10 @@ export interface AdminContextValue {
   /** Every write goes through here, so one place reports failure and
    *  refetches. See the note on the implementation in AdminShell. */
   write: (url: string, init: RequestInit) => Promise<boolean>;
+  /** The same failure handling, returning the response body and *not*
+   *  refetching — for a caller whose next request needs an id this one
+   *  created. See the note in AdminShell. */
+  writeJson: <T>(url: string, init: RequestInit) => Promise<T | null>;
   reload: () => Promise<void>;
   loadAccounts: () => Promise<void>;
   endOwnSession: () => void;

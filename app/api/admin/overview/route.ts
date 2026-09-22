@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { isPdfLicence } from "@/lib/admin/carLicence";
 import { requireAdmin } from "@/lib/admin/session";
 
 /**
@@ -38,6 +39,13 @@ export interface AdminOverview {
      *  and sending it as an ISO timestamp invites a timezone shift on a value
      *  that decides when a car comes off the road. */
     mfkDate: string | null;
+    /** The inspection that already happened, `YYYY-MM-DD`. A day string for
+     *  the same reason `mfkDate` is one. */
+    mfkLastDate: string | null;
+
+    /** The colour, as one of the slugs in lib/carColour.ts. Null when nobody
+     *  has recorded it, which the screen shows as a gap rather than guessing. */
+    colour: string | null;
 
     /**
      * The service book. Every figure nullable, because the office learns them
@@ -56,6 +64,21 @@ export interface AdminOverview {
     /** Where the car's photograph is, when it has one. Carries a version
      *  query, so it can be cached hard and still change on replacement. */
     photoUrl: string | null;
+
+    /**
+     * Where the registration document is, when one has been uploaded.
+     *
+     * An admin-only endpoint, unlike `photoUrl` — so it carries no version
+     * query. A version query exists to make a URL cacheable forever, and this
+     * document is served `no-store`; there is nothing for a stamp to bust.
+     * `licenceUpdatedAt` travels separately, because the screen says when the
+     * papers were last replaced.
+     */
+    licenceUrl: string | null;
+    licenceUpdatedAt: string | null;
+    /** Whether what is stored is a PDF, so the screen offers a document link
+     *  rather than trying to render a thumbnail of it. */
+    licenceIsPdf: boolean;
 
     /**
      * Every repair recorded against this car, newest first.
@@ -186,12 +209,20 @@ export async function GET(request: Request) {
       vin: true,
       status: true,
       mfkDate: true,
+      mfkLastDate: true,
+      colour: true,
       currentMileageKm: true,
       mileageReadAt: true,
       serviceDoneKm: true,
       serviceDoneOn: true,
       serviceDueKm: true,
       photoUpdatedAt: true,
+      // The key is not sent to the client — only whether there is one, and
+      // what type it is, which is what the screen needs to decide between a
+      // thumbnail and a document link.
+      licenceKey: true,
+      licenceContentType: true,
+      licenceUpdatedAt: true,
       repairs: {
         // Planned before done, then newest first. What still has to happen is
         // what the office opens this screen to see; the history is underneath
@@ -347,6 +378,10 @@ export async function GET(request: Request) {
       // DATE column is midnight UTC, and reading its local parts west of the
       // meridian would report the previous day.
       mfkDate: car.mfkDate ? car.mfkDate.toISOString().slice(0, 10) : null,
+      mfkLastDate: car.mfkLastDate
+        ? car.mfkLastDate.toISOString().slice(0, 10)
+        : null,
+      colour: car.colour,
       currentMileageKm: car.currentMileageKm,
       // An instant, so it travels as one — the note above is about the DATE
       // columns, which must not.
@@ -359,6 +394,13 @@ export async function GET(request: Request) {
       photoUrl: car.photoUpdatedAt
         ? `/api/cars/${encodeURIComponent(car.slug)}/photo/?v=${car.photoUpdatedAt.getTime()}`
         : null,
+      // By id, not by slug: this endpoint is behind the admin session and the
+      // id is what every other admin write to a car already uses.
+      licenceUrl: car.licenceKey
+        ? `/api/admin/cars/${encodeURIComponent(car.id)}/licence/`
+        : null,
+      licenceUpdatedAt: car.licenceUpdatedAt?.toISOString() ?? null,
+      licenceIsPdf: isPdfLicence(car.licenceContentType),
       repairs: car.repairs.map((repair) => ({
         id: repair.id,
         status: repair.status,

@@ -11,7 +11,7 @@ import { Panel } from "@/components/admin/parts/Panel";
 /** Every car in every status — unlike /api/fleet, which shows only what can
  *  be rented. Managing a retired car is the point of this screen. */
 export function VehiclesSection() {
-  const { L, data, busy, write } = useAdmin();
+  const { L, language, data, busy, write, writeJson, reload } = useAdmin();
   const [adding, setAdding] = useState(false);
 
   const cars = data?.cars ?? [];
@@ -36,18 +36,52 @@ export function VehiclesSection() {
       >
         <AddCar
           L={L}
+          language={language}
           busy={busy}
-          onAdd={async (body) => {
-            const ok = await write("/api/admin/cars/", {
-              method: "POST",
-              headers: { "content-type": "application/json" },
-              body: JSON.stringify(body),
-            });
+          /**
+           * Two requests, because the photograph cannot be addressed until
+           * the car exists — `PUT /api/admin/cars/[id]/photo/` needs an id
+           * that POST is what produces.
+           *
+           * `writeJson` rather than `write` for the first one, so the id
+           * comes back and the table is not repainted between the two: a
+           * refetch in the middle would show the new car without its
+           * photograph for as long as the upload takes, which reads as the
+           * upload having failed.
+           */
+          onAdd={async (body, photo) => {
+            const created = await writeJson<{ id: string }>(
+              "/api/admin/cars/",
+              {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify(body),
+              }
+            );
             // Stays open on failure so the typed plate is still there to
             // correct — a duplicate plate is the common case, and retyping the
             // whole car to fix one character would be its own annoyance.
-            if (ok) setAdding(false);
-            return ok;
+            if (!created) return false;
+
+            /**
+             * The photograph, if one was chosen.
+             *
+             * A failure here is reported but does not undo the car: it exists,
+             * it is correct, and it is missing a picture that can be added
+             * from Edit in one click. Deleting a freshly created vehicle
+             * because its photo upload timed out would be a far worse answer.
+             */
+            if (photo) {
+              await writeJson(`/api/admin/cars/${created.id}/photo/`, {
+                method: "PUT",
+                headers: { "content-type": photo.type || "image/jpeg" },
+                body: photo,
+              });
+            }
+
+            await reload();
+            setAdding(false);
+            return true;
           }}
         />
       </Dialog>
@@ -107,6 +141,7 @@ export function VehiclesSection() {
                     key={car.id}
                     car={car}
                     L={L}
+                    language={language}
                     busy={busy}
                     onSave={(body) =>
                       write(`/api/admin/cars/${car.id}/`, {
@@ -150,6 +185,24 @@ export function VehiclesSection() {
                     }
                     onRemovePhoto={() =>
                       write(`/api/admin/cars/${car.id}/photo/`, {
+                        method: "DELETE",
+                      })
+                    }
+                    // The registration document, the same way and for the
+                    // same reason: one file, no other field. Its endpoint is
+                    // admin-only, unlike the photograph's — see the note
+                    // there.
+                    onUploadLicence={(file) =>
+                      write(`/api/admin/cars/${car.id}/licence/`, {
+                        method: "PUT",
+                        headers: {
+                          "content-type": file.type || "application/pdf",
+                        },
+                        body: file,
+                      })
+                    }
+                    onRemoveLicence={() =>
+                      write(`/api/admin/cars/${car.id}/licence/`, {
                         method: "DELETE",
                       })
                     }

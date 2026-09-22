@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import * as Menu from "@radix-ui/react-dropdown-menu";
 import { EllipsisVertical } from "lucide-react";
 
@@ -77,6 +78,7 @@ export function RowMenu({
 export function RowMenuItem({
   icon,
   onSelect,
+  href,
   disabled,
   danger,
   /** Keeps the menu open after the click. For the first half of a two-step
@@ -85,31 +87,61 @@ export function RowMenuItem({
   children,
 }: {
   icon?: React.ReactNode;
-  onSelect: () => void;
+  onSelect?: () => void;
+  /**
+   * Makes the item navigate rather than act.
+   *
+   * A real `<a>`, by way of `asChild`, and not a `router.push()` in an
+   * `onSelect`. An item that goes somewhere should behave like every other
+   * link in the console: middle-click opens a tab, the status bar shows where
+   * it leads, and ctrl-click does what somebody expects. A handler that
+   * navigates programmatically silently breaks all three, which is how a
+   * "profile" entry becomes something the office cannot open beside the fleet
+   * list they are working through.
+   */
+  href?: string;
   disabled?: boolean;
   danger?: boolean;
   keepOpen?: boolean;
   children: React.ReactNode;
 }) {
+  const className = `flex cursor-pointer items-center gap-2.5 rounded-md px-2.5 py-2 text-sm outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-40 ${
+    danger
+      ? "text-[var(--admin-crit)] data-[highlighted]:bg-[var(--admin-crit-soft)]"
+      : "text-[var(--admin-ink)] data-[highlighted]:bg-[var(--admin-sunk)]"
+  }`;
+
+  /* A fixed box whether or not there is a glyph in it, so the words of an
+     item without an icon still line up with the words above it. */
+  const body = (
+    <>
+      <span className="grid h-4 w-4 shrink-0 place-items-center text-[var(--admin-faint)]">
+        {icon}
+      </span>
+      {children}
+    </>
+  );
+
+  if (href) {
+    return (
+      <Menu.Item disabled={disabled} asChild>
+        <Link href={href} className={className}>
+          {body}
+        </Link>
+      </Menu.Item>
+    );
+  }
+
   return (
     <Menu.Item
       disabled={disabled}
       onSelect={(event) => {
         if (keepOpen) event.preventDefault();
-        onSelect();
+        onSelect?.();
       }}
-      className={`flex cursor-pointer items-center gap-2.5 rounded-md px-2.5 py-2 text-sm outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-40 ${
-        danger
-          ? "text-[var(--admin-crit)] data-[highlighted]:bg-[var(--admin-crit-soft)]"
-          : "text-[var(--admin-ink)] data-[highlighted]:bg-[var(--admin-sunk)]"
-      }`}
+      className={className}
     >
-      {/* A fixed box whether or not there is a glyph in it, so the words of
-          an item without an icon still line up with the words above it. */}
-      <span className="grid h-4 w-4 shrink-0 place-items-center text-[var(--admin-faint)]">
-        {icon}
-      </span>
-      {children}
+      {body}
     </Menu.Item>
   );
 }

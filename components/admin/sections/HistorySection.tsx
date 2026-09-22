@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { ArrowLeft, Search } from "lucide-react";
 import { useAdmin } from "@/components/admin/shell/AdminContext";
 import { messageForCode } from "@/lib/admin/labels";
+import { DateField } from "@/components/admin/parts/DateField";
 import { HistoryPeriod } from "@/components/admin/parts/HistoryPeriod";
 import { Panel } from "@/components/admin/parts/Panel";
 import {
@@ -35,8 +37,20 @@ import type { CarHistory } from "@/components/admin/types";
 export function HistorySection() {
   const { L, data } = useAdmin();
 
+  /**
+   * A car may be named in the URL, which is how the car profile links here.
+   *
+   * Read once as the initial state rather than watched, on purpose: somebody
+   * who then picks a different car from the search box must not be dragged
+   * back to the one in the address bar. The parameter is an opening position,
+   * not a binding.
+   */
+  const params = useSearchParams();
+
   const [query, setQuery] = useState("");
-  const [carId, setCarId] = useState<string | null>(null);
+  const [carId, setCarId] = useState<string | null>(
+    () => params.get("car") || null
+  );
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
 
@@ -64,10 +78,11 @@ export function HistorySection() {
   /**
    * Asks the server about the car currently picked.
    *
-   * The window is built here rather than in the inputs so that a half-typed
-   * date never reaches the URL: `<input type="date">` reports "2026-07-0"
-   * while somebody is still typing, and dayStart refuses it rather than
-   * searching a date nobody meant.
+   * The window is built here rather than in the inputs, and `dayStart`
+   * refuses anything that is not a date rather than searching a day nobody
+   * meant. Belt and braces since the fields became `DateField`, which only
+   * reports a complete date — but the guard is what makes that a detail of the
+   * input rather than something this depends on.
    */
   const look = useCallback(
     async (id: string, fromDay: string, toDay: string) => {
@@ -258,28 +273,29 @@ export function HistorySection() {
     >
       <div className="border-b border-[var(--admin-rule)] px-4 py-4">
         <div className="flex flex-wrap items-end gap-3">
-          <label className="flex flex-col gap-1">
-            <span className="text-xs font-medium text-[var(--admin-muted)]">
-              {L.history.from}
-            </span>
-            <input
-              type="date"
+          {/* Typed as DD.MM.YYYY, like every other date in the console — a
+              native date input would offer MM/DD/YYYY on an English-language
+              browser, and a traffic fine is looked up by a date somebody is
+              reading off a letter. The fixed widths keep the two boxes from
+              stretching the toolbar. */}
+          <div className="w-36">
+            <DateField
+              label={L.history.from}
               value={from}
-              onChange={(event) => setFrom(event.target.value)}
-              className="h-9 rounded-md border border-[var(--admin-rule-strong)] bg-[var(--admin-surface)] px-2.5 text-sm outline-none focus:border-[var(--admin-accent)]"
+              onChange={setFrom}
+              placeholder={L.fleet.datePlaceholder}
+              invalidHint={L.fleet.dateInvalid}
             />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-xs font-medium text-[var(--admin-muted)]">
-              {L.history.to}
-            </span>
-            <input
-              type="date"
+          </div>
+          <div className="w-36">
+            <DateField
+              label={L.history.to}
               value={to}
-              onChange={(event) => setTo(event.target.value)}
-              className="h-9 rounded-md border border-[var(--admin-rule-strong)] bg-[var(--admin-surface)] px-2.5 text-sm outline-none focus:border-[var(--admin-accent)]"
+              onChange={setTo}
+              placeholder={L.fleet.datePlaceholder}
+              invalidHint={L.fleet.dateInvalid}
             />
-          </label>
+          </div>
 
           <button
             type="button"

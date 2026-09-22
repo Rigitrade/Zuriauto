@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Check, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { Dialog } from "./Dialog";
+import { DateField } from "./DateField";
 import { day } from "@/components/admin/format";
 import { formatKm, kmUntilService, serviceStanding } from "@/lib/admin/service";
 import { formatChf } from "@/lib/rental/money";
@@ -143,6 +144,8 @@ function ServiceFields({
           label={L.fleet.serviceDoneOn}
           value={doneOn}
           onChange={setDoneOn}
+          placeholder={L.fleet.datePlaceholder}
+          invalidHint={L.fleet.dateInvalid}
         />
 
         <p className="text-xs text-[var(--admin-faint)] sm:col-span-2">
@@ -484,6 +487,8 @@ function AddRepair({
           label={alreadyDone ? L.fleet.repairDoneOn : L.fleet.repairPlannedFor}
           value={when}
           onChange={setWhen}
+          placeholder={L.fleet.datePlaceholder}
+          invalidHint={L.fleet.dateInvalid}
         />
         <NumberField
           label={L.fleet.repairMileage}
@@ -571,31 +576,3 @@ function NumberField({
   );
 }
 
-function DateField({
-  label,
-  value,
-  onChange,
-  disabled,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  disabled?: boolean;
-}) {
-  return (
-    // Same `min-w-0` pair as the number field, and this is the one that needs
-    // it: a date input carries the widest intrinsic size of anything on the
-    // form, because the browser draws the whole mask and a calendar button
-    // whether or not there is room.
-    <label className="grid min-w-0 gap-1">
-      <span className="text-xs text-[var(--admin-muted)]">{label}</span>
-      <input
-        type="date"
-        value={value}
-        disabled={disabled}
-        onChange={(event) => onChange(event.target.value)}
-        className="h-10 w-full min-w-0 rounded-md border border-[var(--admin-rule-strong)] bg-[var(--admin-surface)] px-3 text-sm tabular-nums outline-none focus-visible:border-[var(--admin-accent)] focus-visible:ring-2 focus-visible:ring-[var(--admin-accent)]/20 disabled:opacity-40"
-      />
-    </label>
-  );
-}

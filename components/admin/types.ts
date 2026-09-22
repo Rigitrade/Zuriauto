@@ -23,6 +23,13 @@ export interface Car {
    *  DATE column must not travel as an ISO timestamp. Optional so a client
    *  running against an older deployment degrades to "—" rather than throwing. */
   mfkDate?: string | null;
+  /** The inspection that already happened, `YYYY-MM-DD`. Optional and
+   *  nullable for the reasons `mfkDate` is both. */
+  mfkLastDate?: string | null;
+
+  /** The colour, as one of the slugs in `lib/carColour.ts`. Null when nobody
+   *  has recorded one — the screen shows a gap, never a guessed swatch. */
+  colour?: string | null;
 
   /**
    * The service book, as `/api/admin/overview/` reports it.
@@ -42,6 +49,17 @@ export interface Car {
 
   /** The car's photograph, version-stamped. Absent when it has none. */
   photoUrl?: string | null;
+
+  /**
+   * The registration document (Fahrzeugausweis), when one has been uploaded.
+   *
+   * No version stamp, unlike `photoUrl`: the endpoint serves it `no-store`,
+   * so there is no cache for a stamp to bust. `licenceIsPdf` decides whether
+   * the screen renders a thumbnail or offers a document link.
+   */
+  licenceUrl?: string | null;
+  licenceUpdatedAt?: string | null;
+  licenceIsPdf?: boolean;
 
   /** Planned repairs first, then the history, newest first. */
   repairs?: Repair[];

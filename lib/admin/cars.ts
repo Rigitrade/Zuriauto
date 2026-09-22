@@ -7,6 +7,7 @@
 
 import { z } from "zod";
 import type { CarStatus } from "@/generated/prisma/client";
+import { CAR_COLOUR_SLUGS } from "@/lib/carColour";
 import { parseChf } from "@/lib/rental/money";
 
 /** The off-road state the office chooses by hand. `maintenance` is the other
@@ -92,6 +93,25 @@ function dayField(name: string) {
 }
 
 const mfkDateField = dayField("mfkDate");
+const mfkLastDateField = dayField("mfkLastDate");
+
+/**
+ * The colour, as one of the slugs in lib/carColour.ts.
+ *
+ * Validated against that list rather than accepted as free text, because the
+ * pickers paint a swatch from it — an unrecognised value would render as an
+ * empty chip, which reads as "no colour recorded" while the database says
+ * otherwise. The empty string clears it, exactly as it does for every date
+ * field here and for the same reason: "nobody has recorded this" is a real
+ * state and has to stay reachable.
+ */
+const colourField = z
+  .string()
+  .trim()
+  .refine((value) => value === "" || CAR_COLOUR_SLUGS.includes(value), {
+    message: "colour",
+  })
+  .optional();
 
 /**
  * An odometer reading, as the maintenance dialog submits it.
@@ -135,7 +155,9 @@ export const newCarSchema = z.object({
   model: modelField,
   plate: plateField,
   vin: vinField,
+  colour: colourField,
   mfkDate: mfkDateField,
+  mfkLastDate: mfkLastDateField,
 });
 
 export type NewCar = z.infer<typeof newCarSchema>;
@@ -152,7 +174,9 @@ export const updateCarSchema = z
     model: modelField.optional(),
     plate: plateField.optional(),
     vin: vinField,
+    colour: colourField,
     mfkDate: mfkDateField,
+    mfkLastDate: mfkLastDateField,
     status: z.enum(["available", "maintenance", OFF_ROAD]).optional(),
 
     /// The service book. Every field independently optional, because the
