@@ -47,7 +47,56 @@ try {
   // Not parseable as a URL. Say nothing rather than risk printing credentials.
 }
 
-console.log(`[build] applying pending migrations to ${where}`);
+/**
+ * The same database, reached without the connection pooler.
+ *
+ * `prisma migrate deploy` takes a session-scoped advisory lock so that two
+ * builds cannot migrate at once. Over a pooler that guarantee inverts. The
+ * lock is taken on a *server* connection, the client session ends when the
+ * build does, and the pooler keeps that backend and hands it to the
+ * application — still holding the lock, now answering ordinary queries. Every
+ * later migration then waits ten seconds for a lock nothing will ever release
+ * and fails the build.
+ *
+ * That is not a theory. It happened on 2026-09-22: backend pid 667, state
+ * idle, holding 72707369, last query a `SELECT` on `Contract`. Two deploys
+ * failed on it and the third had to be unstuck by hand.
+ *
+ * An explicit variable wins, because a host that is not Neon's will not follow
+ * Neon's naming. Failing that, Neon's own convention: the pooled endpoint is
+ * the direct one with `-pooler` inserted, so taking it out again gives the
+ * connection migrations need. Anything else is left exactly as it is — a URL
+ * this does not recognise is not a URL to start rewriting.
+ */
+function unpooled(connection) {
+  const explicit =
+    process.env.DIRECT_URL ??
+    process.env.DATABASE_URL_UNPOOLED ??
+    process.env.POSTGRES_URL_NON_POOLING;
+  if (explicit) return { url: explicit, why: "DIRECT_URL" };
+
+  try {
+    const parsed = new URL(connection);
+    if (!parsed.hostname.includes("-pooler.")) return { url: connection, why: null };
+    parsed.hostname = parsed.hostname.replace("-pooler.", ".");
+    return { url: parsed.toString(), why: "without the pooler" };
+  } catch {
+    return { url: connection, why: null };
+  }
+}
+
+const direct = unpooled(url);
+let migrateWhere = where;
+try {
+  migrateWhere = new URL(direct.url).host;
+} catch {
+  // Unparseable. Keep the host printed above rather than risk a password.
+}
+
+console.log(
+  `[build] applying pending migrations to ${migrateWhere}` +
+    (direct.why ? ` (${direct.why})` : "")
+);
 
 const result = spawnSync(
   process.execPath,
@@ -60,7 +109,10 @@ const result = spawnSync(
     "migrate",
     "deploy",
   ],
-  { stdio: "inherit", env: process.env }
+  // Only for this child. The application's own `DATABASE_URL` keeps pointing
+  // at the pooler, which is the right endpoint for everything that is not a
+  // migration: many short connections are what a pooler is for.
+  { stdio: "inherit", env: { ...process.env, DATABASE_URL: direct.url } }
 );
 
 if (result.status !== 0) {
