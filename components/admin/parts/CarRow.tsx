@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   CircleSlash,
   Gauge,
@@ -79,6 +80,7 @@ export function CarRow({
   onUploadLicence: (file: Blob) => Promise<boolean>;
   onRemoveLicence: () => Promise<boolean>;
 }) {
+  const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [maintaining, setMaintaining] = useState(false);
   const [markingOut, setMarkingOut] = useState(false);
@@ -146,12 +148,52 @@ export function CarRow({
         }}
       />
 
-      <tr className="border-t border-[var(--admin-rule)] transition-colors hover:bg-[var(--admin-sunk)]/50">
-        {/* The model is the way into the car's profile. A row that opens
-            something on click needs one obvious target rather than a whole
-            clickable row — the row already carries a menu, a status chip and
-            seven columns of figures, and making all of it navigate would put
-            a page change one stray click from every one of them. */}
+      {/*
+        The whole row opens the car, not just its model.
+
+        This was one link on the model, on the reasoning that a row carrying a
+        menu and seven columns of figures should not navigate from any of them.
+        The office read it the other way round: a table where every row leads
+        somewhere has no reason to make you find the one word that does, and
+        aiming at a model name is work on a laptop trackpad.
+
+        Three things keep the stray click from becoming a page change. Anything
+        that is itself a control — the menu, its items, the model's own link —
+        stops the click before it reaches here. A click that ends a text
+        selection is somebody copying a plate, not opening a car. And a
+        modifier or a middle click is left alone, so the link still opens in a
+        new tab the way a link should.
+      */}
+      <tr
+        onClick={(event) => {
+          if (event.defaultPrevented) return;
+          if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+            return;
+          }
+          // The menu is a React portal. Its markup sits outside this row in
+          // the DOM, but a React event still travels up the component tree, so
+          // a click on "Löschen" arrives here as surely as a click on the
+          // plate — and without this it would also navigate. The roles are
+          // what the menu's own elements carry; the tags cover the row's
+          // controls and the model's link.
+          if (
+            event.target instanceof Element &&
+            event.target.closest(
+              "a,button,input,select,textarea,label,dialog," +
+                "[role='menu'],[role='menuitem'],[role='dialog']"
+            )
+          ) {
+            return;
+          }
+          if (window.getSelection()?.toString()) return;
+          router.push(`/admin/vehicles/${car.id}`);
+        }}
+        className="cursor-pointer border-t border-[var(--admin-rule)] transition-colors hover:bg-[var(--admin-sunk)]/50"
+      >
+        {/* Still a real link, and still the row's only tab stop. The click
+            handler above is a convenience for the pointer; a keyboard reaches
+            the profile here, and this is what a middle click opens in a new
+            tab. */}
         <td className="px-4 py-3">
           <div className="flex items-center gap-2">
             <ColourDot colour={car.colour} language={language} />
