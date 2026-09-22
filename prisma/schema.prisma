@@ -115,6 +115,32 @@ model Car {
   /// guaranteed one, and a wrong date here takes a car off the road.
   mfkDate DateTime? @db.Date
 
+  /// When this car's last technical inspection actually took place.
+  ///
+  /// A second date rather than a history table, because the office asked for
+  /// "the previous MFK" and that is what this is: the one fact that makes
+  /// `mfkDate` checkable. A car whose next inspection is in eleven months and
+  /// whose last one was three years ago has had its date typed wrong, and
+  /// without this column nothing on the screen could say so.
+  ///
+  /// Nothing derives one from the other. Two years is the usual interval for a
+  /// car of this age and it is not a rule — a date this system inferred would
+  /// quietly disagree with the certificate in the glovebox.
+  mfkLastDate DateTime? @db.Date
+
+  /// The car's colour, as the vehicle registration states it.
+  ///
+  /// One of the slugs in lib/carColour.ts, not free text, and that is a
+  /// trade made on purpose. Free text would carry "Perlmuttweiss" exactly as
+  /// the papers print it, but the pickup and return pickers show this as a
+  /// swatch beside the car, and no code can turn an arbitrary German compound
+  /// into a colour to paint. A closed list renders, sorts and translates; the
+  /// Fahrzeugausweis states a base colour anyway.
+  ///
+  /// Nullable, like every other fact the office fills in over time: a car
+  /// whose colour nobody has recorded shows no swatch, which is honest.
+  colour String?
+
   /// ---------------------------------------------------------------------
   /// The service book.
   ///
@@ -151,7 +177,7 @@ model Car {
   /// Typed from the garage's sticker, never computed from an interval: the
   /// interval differs by model and by how the car is driven, and a number
   /// this system derived would quietly disagree with the windscreen.
-  serviceDueKm Int?
+  serviceDueKm  Int?
 
   /// ---------------------------------------------------------------------
   /// The photograph shown beside the car in a picker.
@@ -170,6 +196,24 @@ model Car {
   photoKey         String?
   photoContentType String?
   photoUpdatedAt   DateTime?
+
+  /// ---------------------------------------------------------------------
+  /// The vehicle registration document (Fahrzeugausweis).
+  ///
+  /// Three columns mirroring the photograph above, and served by a completely
+  /// different endpoint. The photograph is a picture of a car on a forecourt
+  /// and is public — the pickup form shows it to a customer who is signed into
+  /// nothing. This is the registration certificate: it names the holder, the
+  /// first registration and the weights, and it is the document a stolen-car
+  /// ring would want. It is admin-only, and the difference between the two is
+  /// the reason they are not one pair of columns with a `kind`.
+  ///
+  /// A PDF is accepted as well as an image, unlike the photograph, because the
+  /// office scans this one — see lib/admin/carLicence.ts.
+  /// ---------------------------------------------------------------------
+  licenceKey         String?
+  licenceContentType String?
+  licenceUpdatedAt   DateTime?
 
   organisation  Organisation      @relation(fields: [organisationId], references: [id])
   rentals       Rental[]
@@ -281,7 +325,7 @@ model AvailabilityAlert {
 
   /// When the availability mail went out. Null means "still waiting", which
   /// is what the pass selects on.
-  notifiedAt DateTime?
+  notifiedAt  DateTime?
   /// Set when the address is removed, by the unsubscribe link or by the
   /// office. The row survives so that a later re-subscribe is visibly a
   /// second request rather than a resurrection nobody can see.
@@ -312,7 +356,7 @@ model CarNotification {
   organisationId String
   carId          String
 
-  kind CarNotificationKind
+  kind      CarNotificationKind
   /// The inspection date this message is about, as Zurich reckons the day.
   /// Keyed to the date rather than the run, so correcting an MFK date
   /// correctly permits a fresh warning — and re-running the pass does not.
