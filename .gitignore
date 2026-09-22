@@ -74,3 +74,14 @@ website.rar
 # `pnpm db:import-legacy --apply` once, then archive it wherever the signed
 # PDFs themselves are kept.
 /scripts/legacy-contracts.json
+
+# Skills and agent definitions installed by the local tooling.
+#
+# Copied in by whichever assistant is running — they are that tool's cache,
+# not this project's source, and they change with the tool rather than with
+# the code. Committing them would make every clone carry one developer's
+# choice of editor, and the lockfile beside them would conflict on every
+# machine that refreshed at a different hour.
+/.agents/
+/.claude/
+/skills-lock.json
