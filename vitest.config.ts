@@ -21,7 +21,10 @@ export default defineConfig({
         plugins: [tsconfigPaths()],
         test: {
           name: "unit",
-          include: ["lib/**/*.test.ts"],
+          // `components/` as well as `lib/`, for the rules about markup that
+          // no type checker enforces — see components/admin/parts/Dialog.test.ts,
+          // which reads the source rather than rendering it.
+          include: ["lib/**/*.test.ts", "components/**/*.test.ts"],
           environment: "node",
         },
       },
