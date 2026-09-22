@@ -147,10 +147,19 @@ describe("POST /api/customers/lookup", () => {
   it("rate-limits repeated lookups", async () => {
     await seedOneRental();
     let last = 200;
-    // RATE_LIMIT.max is 5, so the sixth is refused.
-    for (let attempt = 0; attempt < 7; attempt += 1) {
+    let refusedAt = 0;
+    // Thirty per ten minutes, in this route's own `lookup` scope, so the
+    // thirty-first is refused — not RATE_LIMIT.max, which is the handover
+    // budget this route deliberately stopped sharing: an operator who checked
+    // a few numbers at the desk could then not submit the contract they were
+    // standing there to complete. See the route.
+    for (let attempt = 0; attempt < 31; attempt += 1) {
       last = (await POST(request({ phone: "079 123 45 67" }))).status;
+      if (last === 429 && refusedAt === 0) refusedAt = attempt + 1;
     }
     expect(last).toBe(429);
+    // And nothing before it was, so this pins where the fence is rather than
+    // merely that one exists somewhere below thirty-one.
+    expect(refusedAt).toBe(31);
   });
 });
