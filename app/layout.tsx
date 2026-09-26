@@ -162,6 +162,43 @@ export const metadata: Metadata = {
   },
 };
 
+/**
+ * Keeps the page alive under the browser's own translation.
+ *
+ * Safari's and Chrome's "Translate this page" swap each text node for a new
+ * one (Chrome wraps it in `<font>`), behind React's back. React still holds
+ * the original node, so the next time it removes or inserts beside one — the
+ * pickup wizard leaving step 1 for step 2 — the DOM throws `NotFoundError`
+ * ("The object can not be found here" on iOS) and the whole page is replaced
+ * by Next's "Application error", losing the contract in progress. The office
+ * hit exactly this on a phone translating the wizard to French.
+ *
+ * Blocking translation with `translate="no"` was the alternative, and the
+ * wrong one: French is the one language a customer reads the terms in that
+ * the interface does not offer.
+ *
+ * So the two calls tolerate a node that has already moved: removing one that
+ * is no longer a child is a no-op, and inserting before one that is no longer
+ * a child appends. The cost is that text React later changes may stay in the
+ * translated wording until the next render of its parent — cosmetic, where
+ * the alternative is losing a half-filled contract with the customer waiting.
+ */
+const TRANSLATION_GUARD = `(function () {
+  if (typeof Node !== "function" || !Node.prototype) return;
+  var remove = Node.prototype.removeChild;
+  Node.prototype.removeChild = function (child) {
+    if (child.parentNode !== this) return child;
+    return remove.apply(this, arguments);
+  };
+  var insert = Node.prototype.insertBefore;
+  Node.prototype.insertBefore = function (node, reference) {
+    if (reference && reference.parentNode !== this) {
+      return insert.call(this, node, null);
+    }
+    return insert.apply(this, arguments);
+  };
+})();`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -340,6 +377,10 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className="scroll-smooth">
       <head>
+        {/* Must run before React hydrates, so a plain inline script rather
+            than next/script. See TRANSLATION_GUARD. */}
+        <script dangerouslySetInnerHTML={{ __html: TRANSLATION_GUARD }} />
+
         {/* Enhanced Structured Data */}
         <script
           type="application/ld+json"
