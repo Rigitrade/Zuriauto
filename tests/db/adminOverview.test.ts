@@ -214,7 +214,7 @@ describe("GET /api/admin/overview", () => {
     expect(body.counts.contracts).toBe(0);
     expect(body.latestContractAt).toBeNull();
   });
-it("marks a rental whose return the renter has submitted", async () => {
+it("leaves nothing waiting once the renter has submitted the return", async () => {
     const org = await ensureOrganisation(prisma);
     await seedFleet(prisma, org.id);
     const store = createMemoryStore();
@@ -242,15 +242,13 @@ it("marks a rental whose return the renter has submitted", async () => {
 
     const body = await (await GET(await signedIn())).json();
 
-    expect(body.counts.returnsAwaiting).toBe(1);
-    // Still an active rental as far as the office is concerned: the car is not
-    // free until somebody confirms.
-    expect(body.counts.activeRentals).toBe(1);
-    expect(body.counts.rented).toBe(1);
-
-    const rental = body.rentals[0];
-    expect(rental.returnSubmittedAt).toBeTruthy();
-    expect(rental.returnContractNumber).toBe("ZR-20260914-513925-A1B2");
+    // The return closed the rental itself (the owner's decision of
+    // 2026-09-30), so there is no approval for the bell to ask for and the car
+    // is counted as available again.
+    expect(body.counts.returnsAwaiting).toBe(0);
+    expect(body.counts.activeRentals).toBe(0);
+    expect(body.counts.rented).toBe(0);
+    expect(body.rentals).toHaveLength(0);
   });
 
   it("reports no awaiting returns while every car is simply out", async () => {

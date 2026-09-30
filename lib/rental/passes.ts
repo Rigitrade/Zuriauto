@@ -222,3 +222,21 @@ export function mfkDueWindow(now: Date): { to: Date } {
   to.setHours(23, 59, 59, 999);
   return { to: new Date(to.getTime()) };
 }
+
+/**
+ * Whether a charge is still chased once the renter's return closed the rental.
+ *
+ * A weekly charge falls due at the start of its week, so a week that had begun
+ * before the car came back was driven and is owed; one that had not is not
+ * requested. Week 0 is the balance the renter declared on the return form,
+ * which by its nature falls due afterwards. `returnedAt` is null for a rental
+ * not closed by a return, which this rule does not touch.
+ */
+export function isOwedAfterReturn(
+  charge: { weekNumber: number; dueDate: Date },
+  returnedAt: Date | null
+): boolean {
+  if (returnedAt === null) return true;
+  if (charge.weekNumber === 0) return true;
+  return charge.dueDate.getTime() < returnedAt.getTime();
+}

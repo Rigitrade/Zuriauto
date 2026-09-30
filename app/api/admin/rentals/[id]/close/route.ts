@@ -1,15 +1,16 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/admin/session";
+import { closeRental, RentalAlreadyClosed } from "@/lib/rental/closeRental";
 
 /**
  * Marking a rental finished and returning its car to the fleet.
  *
  * An administrative override, and labelled as one. This is NOT the return
  * protocol: the return wizard records mileage, fuel level, damage and a
- * signature, and produces a document. This exists because until now the only
- * way to free a car that had come back was hand-written SQL, which the office
- * cannot be asked to run.
+ * signature, produces a document, and since 2026-09-30 closes the rental by
+ * itself. This is for a car that came back without one — and for returns
+ * submitted before that change, which are still waiting here.
  *
  * Both rows move in one transaction. Half of this — a completed rental whose
  * car is still `rented`, or a freed car whose rental is still active — is worse
@@ -59,71 +60,39 @@ export async function POST(
     );
   }
 
+  // A return submitted before returns closed their own rentals is still
+  // waiting here, and its declared balance is raised on this close. See
+  // lib/rental/closeRental.ts.
   const settlement = rental.contracts[0];
-  const owed =
-    settlement?.hasDuePayment && settlement.dueAmountCents
-      ? settlement.dueAmountCents
-      : null;
 
-  await prisma.$transaction(async (tx) => {
-    /**
-     * The balance the renter declared becomes something the system will chase.
-     *
-     * Before this, "I still owe 200 francs, due the 30th" was text inside a
-     * PDF: no Charge row, so the scheduler never reminded anybody and the
-     * office never got an alert. The money simply depended on somebody
-     * remembering.
-     *
-     * Raised here rather than in persistReturn on purpose. The office reads
-     * the figure in the review modal first, so nobody is chased over a number
-     * a customer typed and no one checked — confirming the return *is* the
-     * check.
-     *
-     * weekNumber 0 because the weekly schedule is 1-based: a settlement is not
-     * week zero of anything, and the number keeps it out of that sequence
-     * while @@unique([rentalId, weekNumber]) makes a retried close idempotent
-     * rather than billing twice.
-     */
-    if (owed !== null) {
-      await tx.charge.createMany({
-        data: [
-          {
-            organisationId: rental.organisationId,
-            rentalId: rental.id,
-            weekNumber: 0,
-            // No date given means it is owed now, not never.
-            dueDate: settlement?.dueDate ?? new Date(),
-            amountCents: owed,
-          },
-        ],
-        skipDuplicates: true,
-      });
-    }
-
-    await tx.rental.update({
-      where: { id: rental.id },
-      data: { status: "COMPLETED" },
-    });
-    await tx.car.update({
-      where: { id: rental.carId },
-      data: { status: "available" },
-    });
-    await tx.rentalEvent.create({
-      data: {
+  try {
+    await prisma.$transaction((tx) =>
+      closeRental(tx, {
+        organisationId: rental.organisationId,
         rentalId: rental.id,
-        // `manual` on purpose: a later reconciliation has to be able to tell an
-        // override from a rental closed by the return flow.
-        type: "rental.closed.manual",
-        payload: {
-          closedBy: user.username,
-          closedByName: user.displayName,
-          // On the event, so a later reconciliation can see the charge was
-          // raised by this close rather than by the weekly schedule.
-          settlementCents: owed,
+        carId: rental.carId,
+        fromStatuses: ["ACTIVE", "EXTENSION_REQUESTED", "RETURN_SUBMITTED"],
+        settlement:
+          settlement?.hasDuePayment && settlement.dueAmountCents
+            ? { amountCents: settlement.dueAmountCents, dueDate: settlement.dueDate }
+            : null,
+        event: {
+          // `manual` on purpose: a later reconciliation has to be able to tell
+          // an override from a rental closed by the return flow.
+          type: "rental.closed.manual",
+          payload: { closedBy: user.username, closedByName: user.displayName },
         },
-      },
-    });
-  });
+        now: new Date(),
+      })
+    );
+  } catch (error) {
+    // Closed between the read above and this write — by a second click, or by
+    // the renter's return landing in the same moment.
+    if (error instanceof RentalAlreadyClosed) {
+      return NextResponse.json({ code: "already-closed" }, { status: 409 });
+    }
+    throw error;
+  }
 
   return NextResponse.json({ ok: true, rentalId: rental.id });
 }

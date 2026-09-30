@@ -116,7 +116,15 @@ async function fleetSlugs(): Promise<string[]> {
   return body.vehicles.map((v: { id: string }) => v.id);
 }
 
-/** A rental whose renter has submitted a return declaring what is still owed. */
+/**
+ * A return submitted before returns closed their own rentals, still waiting.
+ *
+ * Until 2026-09-30 a return left the rental in RETURN_SUBMITTED and the car
+ * `rented`, and the office's close raised the declared balance. Those rentals
+ * are still in the database, so the close must still settle them. Built by
+ * recording a return today and winding it back to that state: the addendum
+ * stays, the close it made is undone.
+ */
 async function returnedRentalOwing(
   owing: { dueAmountChf?: number; dueDate?: string }
 ): Promise<string> {
@@ -138,6 +146,20 @@ async function returnedRentalOwing(
     pdf: { body: new Uint8Array([11]) },
     store,
   });
+  await prisma.$transaction([
+    prisma.charge.deleteMany({ where: { rentalId: saved.rentalId, weekNumber: 0 } }),
+    prisma.rentalEvent.deleteMany({
+      where: { rentalId: saved.rentalId, type: "rental.closed.return" },
+    }),
+    prisma.rental.update({
+      where: { id: saved.rentalId },
+      data: { status: "RETURN_SUBMITTED" },
+    }),
+    prisma.car.updateMany({
+      where: { slug: details.vehicleId },
+      data: { status: "rented" },
+    }),
+  ]);
   return saved.rentalId;
 }
 
@@ -185,6 +207,38 @@ describe("POST /api/admin/rentals/[id]/close", () => {
     expect(events.map((event) => event.type)).toContain("rental.closed.manual");
   });
 
+  it("stops chasing the weekly charges of a rental closed by hand", async () => {
+    // Unchanged by returns closing their own rentals: the office closing one
+    // still means the chasing stops.
+    const saved = await activeRental();
+    await POST(await request(), params(saved.rentalId));
+
+    const { weeklyChargePass } = await import("@/lib/rental/scheduler");
+    const issued = await weeklyChargePass({
+      client: prisma,
+      now: new Date("2026-09-30T12:00:00.000Z"),
+      baseUrl: "https://example.test",
+      mail: null,
+    });
+    expect(issued).toBe(0);
+  });
+
+  it("refuses a return submitted after the rental was closed", async () => {
+    const saved = await activeRental();
+    await POST(await request(), params(saved.rentalId));
+
+    const result = await persistReturn({
+      organisationId: (await ensureOrganisation(prisma)).id,
+      details: returnDetails,
+      vehicleSlug: details.vehicleId,
+      returnNumber: "ZR-20260914-513925-LATE",
+      uploads: [],
+      pdf: { body: new Uint8Array([11]) },
+      store: createMemoryStore(),
+    });
+    expect(result).toEqual({ recorded: false, reason: "no-open-rental" });
+  });
+
   it("refuses a second close", async () => {
     const saved = await activeRental();
     await POST(await request(), params(saved.rentalId));
@@ -219,11 +273,20 @@ describe("POST /api/admin/rentals/[id]/close", () => {
  * chase. Until this existed, "I still owe 200 francs, due the 30th" was text
  * inside a PDF: no Charge, so no reminder, no office alert, nothing.
  *
- * It is raised on confirmation rather than at submission on purpose — the
- * office reads the figure in the review modal first, so nobody is chased over
- * a number a customer typed and no one checked.
+ * A return now raises it itself when it closes the rental (see
+ * tests/db/persistReturn.test.ts). These cover the returns recorded before
+ * that, which are still waiting for this close.
  */
-describe("closing a rental settles the return's declared balance", () => {
+describe("closing a waiting return settles its declared balance", () => {
+  it("frees the car of a return that was waiting", async () => {
+    const rentalId = await returnedRentalOwing({});
+    expect(await fleetSlugs()).not.toContain("prius-zh513925");
+
+    const response = await POST(await request(), params(rentalId));
+    expect(response.status).toBe(200);
+    expect(await fleetSlugs()).toContain("prius-zh513925");
+  });
+
   it("raises a charge for the outstanding amount", async () => {
     const rentalId = await returnedRentalOwing({
       dueAmountChf: 200,

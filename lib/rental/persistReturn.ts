@@ -7,18 +7,22 @@
  *
  * What differs is who is holding the phone. A pickup is submitted by the office
  * behind `APPLY_SECRET`; a return is submitted by the renter, from a public
- * form, with no credential anybody can be relied on to have. That single fact
- * decides the two rules below.
+ * form, with no credential anybody can be relied on to have.
  *
  *   1. The rental is found from the car, never supplied by the caller. A car
  *      has at most one rental that is neither COMPLETED nor CANCELLED, because
  *      `persistPickup` refuses a second handover of a car already `rented`.
- *   2. **The car is not freed here.** The rental moves to RETURN_SUBMITTED and
- *      the car stays `rented` until the office confirms in /admin. Setting a
- *      car `available` from an unfenced form would let anyone who can read a
- *      numberplate put a car somebody is driving back into the picker — which
- *      is the state `app/api/admin/rentals/[id]/close/route.ts` exists to
- *      avoid, because the next customer can then sign a contract for it.
+ *   2. **The return closes the rental and frees the car.** The owner's
+ *      decision of 2026-09-30: no car waits for the office's approval. Until
+ *      then the rental moved to RETURN_SUBMITTED and the car stayed `rented`
+ *      until somebody confirmed in /admin.
+ *
+ *      The cost is accepted, not overlooked: the form is unfenced, so anyone
+ *      who can pick a rented car in it can make that car bookable again. The
+ *      office learns of every return by mail within the minute, with the
+ *      mileage and email checks below, and that mail is now the check.
+ *
+ * The close itself is `closeRental`, shared with the office's close button.
  *
  * See docs/superpowers/specs/2026-08-28-return-persistence-design.md.
  */
@@ -27,6 +31,7 @@ import { randomUUID } from "node:crypto";
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { assetKey, uploadAssets, type AssetStore } from "@/lib/storage";
+import { closeRental, RentalAlreadyClosed, RETURN_CLOSE_EVENT } from "./closeRental";
 import { normaliseEmail } from "./customers";
 import { fuelLevelToDb } from "./fleet";
 import type { ReturnDetails } from "./returnSchema";
@@ -60,13 +65,16 @@ const OPEN_STATUSES = ["ACTIVE", "EXTENSION_REQUESTED"] as const;
 /**
  * The statuses the rental lookup considers.
  *
- * Wider than `OPEN_STATUSES` by RETURN_SUBMITTED on purpose. A second
- * submission has to *find* the rental its first submission already moved,
- * otherwise the honest "you have already returned this" is reported as the
- * misleading "no rental is out on this car" — which reads like the return was
- * never recorded at all. The write stays guarded by `OPEN_STATUSES`.
+ * Wider than `OPEN_STATUSES` on purpose. A second submission has to *find* the
+ * rental its first submission already closed, otherwise the honest "you have
+ * already returned this" is reported as the misleading "no rental is out on
+ * this car" — which reads like the return was never recorded at all. The
+ * write stays guarded by `OPEN_STATUSES`.
+ *
+ * RETURN_SUBMITTED is only reached by returns recorded before 2026-09-30,
+ * which are still waiting for the office.
  */
-const FINDABLE_STATUSES = [...OPEN_STATUSES, "RETURN_SUBMITTED"] as const;
+const FINDABLE_STATUSES = [...OPEN_STATUSES, "RETURN_SUBMITTED", "COMPLETED"] as const;
 
 export interface ReturnUpload {
   /** SIGNATURE for the renter's, and for the optional counter-signature. */
@@ -101,6 +109,8 @@ export type PersistReturnResult =
       mileageBelowPickup: boolean;
       /** Whether the submitted address matches the customer on file. */
       emailMatchesCustomer: boolean;
+      /** The balance the renter declared, now a charge. Null if none. */
+      settlementCents: number | null;
     }
   /**
    * Nothing was written, and that is not an error. The caller still emails the
@@ -139,6 +149,7 @@ export async function persistReturn(
     orderBy: { startAt: "desc" },
     select: {
       id: true,
+      status: true,
       customer: { select: { email: true } },
       contracts: {
         orderBy: { signedAt: "asc" },
@@ -150,6 +161,11 @@ export async function persistReturn(
 
   if (rental.contracts.some((contract) => contract.kind === "RETURN_ADDENDUM")) {
     return { recorded: false, reason: "already-returned" };
+  }
+  // The newest rental on this car was closed by hand, without a return form:
+  // there is nothing out to return.
+  if (rental.status === "COMPLETED") {
+    return { recorded: false, reason: "no-open-rental" };
   }
 
   const pickup = rental.contracts.find((contract) => contract.kind === "PICKUP");
@@ -171,22 +187,34 @@ export async function persistReturn(
   const pdfKey = assetKey(submissionId, "RETURN_PDF", "pdf");
   await store.put(pdfKey, input.pdf.body, "application/pdf");
 
-  const written = await writeReturn({
-    organisationId,
-    rentalId: rental.id,
-    returnNumber: input.returnNumber,
-    details,
-    pdfKey,
-    stored,
-    now,
-    event: {
-      submissionId,
-      pickupMileageKm,
-      distanceKm,
-      mileageBelowPickup,
-      emailMatchesCustomer,
-    },
-  });
+  let written: Awaited<ReturnType<typeof writeReturn>>;
+  try {
+    written = await writeReturn({
+      organisationId,
+      rentalId: rental.id,
+      carId: car.id,
+      returnNumber: input.returnNumber,
+      details,
+      pdfKey,
+      stored,
+      now,
+      event: {
+        submissionId,
+        pickupMileageKm,
+        distanceKm,
+        mileageBelowPickup,
+        emailMatchesCustomer,
+      },
+    });
+  } catch (error) {
+    // Two submissions both passed the checks above; the other one closed the
+    // rental first and this transaction rolled back whole. The uploads just
+    // made are orphans under their own prefix, which is what the prefix is for.
+    if (error instanceof RentalAlreadyClosed) {
+      return { recorded: false, reason: "already-returned" };
+    }
+    throw error;
+  }
 
   return {
     recorded: true,
@@ -196,12 +224,14 @@ export async function persistReturn(
     distanceKm,
     mileageBelowPickup,
     emailMatchesCustomer,
+    settlementCents: written.settlementCents,
   };
 }
 
 interface WriteReturnInput {
   organisationId: string;
   rentalId: string;
+  carId: string;
   returnNumber: string;
   details: ReturnDetails;
   pdfKey: string;
@@ -224,9 +254,13 @@ interface WriteReturnInput {
  * and losing the return to it would be much worse than a stored number that
  * carries a `-2` and an event explaining itself.
  */
-async function writeReturn(
-  input: WriteReturnInput
-): Promise<{ contractId: string; contractNumber: string }> {
+interface Written {
+  contractId: string;
+  contractNumber: string;
+  settlementCents: number | null;
+}
+
+async function writeReturn(input: WriteReturnInput): Promise<Written> {
   try {
     return await writeOnce(input, input.returnNumber);
   } catch (error) {
@@ -245,7 +279,7 @@ async function writeReturn(
 async function writeOnce(
   input: WriteReturnInput,
   contractNumber: string
-): Promise<{ contractId: string; contractNumber: string }> {
+): Promise<Written> {
   const { organisationId, rentalId, details, now } = input;
 
   return prisma.$transaction(async (tx) => {
@@ -275,9 +309,7 @@ async function writeOnce(
         paymentMethods: details.paymentMethods,
         paidAmountCents: toCents(details.paidAmountChf),
         paidOn: isoDate(details.paidOn),
-        // Recorded as a claim, not a debt. It becomes a Charge only when the
-        // office confirms the return — nobody is chased over a number a
-        // customer typed and nobody checked.
+        // Also raised as a Charge by the close below, so it is chased.
         hasDuePayment: yesNo(details.hasDuePayment),
         dueAmountCents: toCents(details.dueAmountChf),
         dueDate: isoDate(details.dueDate),
@@ -344,16 +376,30 @@ async function writeOnce(
       },
     });
 
-    // Conditional, with the precondition repeated in the WHERE — the Phase 3
-    // pattern. Two submissions can both read an open rental; only one of them
-    // can move it.
-    await tx.rental.updateMany({
-      where: { id: rentalId, status: { in: [...OPEN_STATUSES] } },
-      data: { status: "RETURN_SUBMITTED" },
+    // Conditional on the rental still being open, inside closeRental. Two
+    // submissions can both read an open rental; only one of them can close
+    // it, and the other throws and takes this whole transaction with it.
+    const dueCents = toCents(details.dueAmountChf);
+    const closed = await closeRental(tx, {
+      organisationId,
+      rentalId,
+      carId: input.carId,
+      fromStatuses: OPEN_STATUSES,
+      settlement:
+        yesNo(details.hasDuePayment) && dueCents
+          ? { amountCents: dueCents, dueDate: isoDate(details.dueDate) ?? null }
+          : null,
+      event: {
+        type: RETURN_CLOSE_EVENT,
+        payload: { contractNumber, submissionId: input.event.submissionId },
+      },
+      now,
     });
 
-    // The car is deliberately untouched. See the note at the top of this file.
-
-    return { contractId: contract.id, contractNumber };
+    return {
+      contractId: contract.id,
+      contractNumber,
+      settlementCents: closed.settlementCents,
+    };
   });
 }

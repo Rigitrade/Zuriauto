@@ -15,7 +15,7 @@
  * is what lets the tests drive a rental through three weeks in milliseconds.
  */
 
-import type { PrismaClient } from "@/generated/prisma/client";
+import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { PAYMENT_URL } from "@/lib/payment";
 import { getPaymentProvider } from "@/lib/payments";
 import {
@@ -34,6 +34,7 @@ import {
   sendMail,
   type LifecycleMailConfig,
 } from "./lifecycleMail";
+import { RETURN_CLOSE_EVENT } from "./closeRental";
 import { endAtDedupeKey, sendOnce, weekDedupeKey } from "./notify";
 import { mfkDedupeKey, sendOnceForCar } from "./carNotify";
 import {
@@ -46,6 +47,7 @@ import {
   isDueForChargeOverdue,
   isDueForChargeReminder,
   isDueForChargeRequest,
+  isOwedAfterReturn,
   isMfkDueSoon,
   isMfkExpired,
   isRentalEndingSoon,
@@ -213,18 +215,35 @@ export async function preEndReminderPass(deps: SchedulerDeps): Promise<number> {
 // ---------------------------------------------------------------------
 
 /**
- * The rental statuses whose charges are still chased.
+ * The rentals whose charges are still chased.
  *
  * RETURN_SUBMITTED is in the list and that is the whole point of the list.
- * From Phase 4 the renter can move their own rental into it by submitting the
- * return form, and money owed for a week already driven does not stop being
- * owed because the car is back — so filtering on ACTIVE alone would let a
- * renter switch off their own payment reminders.
+ * The renter could move their own rental into it by submitting the return
+ * form, and money owed for a week already driven does not stop being owed
+ * because the car is back — so filtering on ACTIVE alone would let a renter
+ * switch off their own payment reminders.
  *
- * COMPLETED is deliberately absent: closing a rental is the office's own act,
- * and stopping the chasing is part of what they mean by it.
+ * From 2026-09-30 the return form closes the rental outright, so the same
+ * argument now covers a COMPLETED rental closed *by a return*: which of its
+ * charges are still owed is `isOwedAfterReturn`. A rental the office closed by
+ * hand is still absent — stopping the chasing is part of what they mean by it.
  */
-const CHARGEABLE_RENTAL_STATUSES = ["ACTIVE", "RETURN_SUBMITTED"] as const;
+const chargeableRental = {
+  OR: [
+    { status: { in: ["ACTIVE", "RETURN_SUBMITTED"] } },
+    { status: "COMPLETED", events: { some: { type: RETURN_CLOSE_EVENT } } },
+  ],
+} satisfies Prisma.RentalWhereInput;
+
+/** `rentalInclude`, plus when a return closed the rental, if one did. */
+const chargeRentalInclude = {
+  ...rentalInclude,
+  events: {
+    where: { type: RETURN_CLOSE_EVENT },
+    select: { createdAt: true },
+    take: 1,
+  },
+} as const;
 
 export async function weeklyChargePass(deps: SchedulerDeps): Promise<number> {
   const { client, now, mail } = deps;
@@ -232,15 +251,17 @@ export async function weeklyChargePass(deps: SchedulerDeps): Promise<number> {
   const candidates = await client.charge.findMany({
     where: {
       status: "SCHEDULED",
-      rental: { status: { in: [...CHARGEABLE_RENTAL_STATUSES] } },
+      rental: chargeableRental,
     },
-    include: { rental: { include: rentalInclude } },
+    include: { rental: { include: chargeRentalInclude } },
   });
 
   let count = 0;
 
   for (const charge of candidates) {
     if (!isDueForChargeRequest(charge, now)) continue;
+    // A week that had not started when the renter brought the car back.
+    if (!isOwedAfterReturn(charge, charge.rental.events[0]?.createdAt ?? null)) continue;
 
     const { rental } = charge;
     const reference = `${rental.car.plate} W${charge.weekNumber}`;
@@ -322,9 +343,9 @@ export async function chargeReminderPass(deps: SchedulerDeps): Promise<number> {
   const candidates = await client.charge.findMany({
     where: {
       status: "REQUESTED",
-      rental: { status: { in: [...CHARGEABLE_RENTAL_STATUSES] } },
+      rental: chargeableRental,
     },
-    include: { rental: { include: rentalInclude } },
+    include: { rental: { include: chargeRentalInclude } },
   });
 
   let count = 0;
@@ -379,9 +400,9 @@ export async function chargeOverduePass(deps: SchedulerDeps): Promise<number> {
   const candidates = await client.charge.findMany({
     where: {
       status: "REMINDED",
-      rental: { status: { in: [...CHARGEABLE_RENTAL_STATUSES] } },
+      rental: chargeableRental,
     },
-    include: { rental: { include: rentalInclude } },
+    include: { rental: { include: chargeRentalInclude } },
   });
 
   let count = 0;

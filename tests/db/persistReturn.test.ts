@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { GET as fleetGet } from "@/app/api/fleet/route";
 import { prisma } from "@/lib/db";
+import { weeklyChargePass } from "@/lib/rental/scheduler";
 import { persistPickup, type PickupUpload } from "@/lib/rental/persistPickup";
 import { persistReturn, type ReturnUpload } from "@/lib/rental/persistReturn";
 import type { ContractDetails } from "@/lib/rental/schema";
@@ -96,7 +98,8 @@ function submitReturn(
   organisationId: string,
   store: MemoryStore,
   overrides: Partial<ReturnDetails> = {},
-  returnNumber = "ZR-20260914-513925-A1B2"
+  returnNumber = "ZR-20260914-513925-A1B2",
+  now?: Date
 ) {
   return persistReturn({
     organisationId,
@@ -106,7 +109,16 @@ function submitReturn(
     uploads: returnUploads,
     pdf: returnPdf,
     store,
+    now,
   });
+}
+
+/** The public picker's default scope: available cars only. */
+async function pickerSlugs(): Promise<string[]> {
+  const body = await (
+    await fleetGet(new Request("https://zuriauto.ch/api/fleet/"))
+  ).json();
+  return body.vehicles.map((v: { id: string }) => v.id);
 }
 
 describe("the return protocol reaches columns, not only the PDF", () => {
@@ -189,7 +201,7 @@ describe("persistReturn", () => {
     expect(contract.pdfKey).toBeTruthy();
   });
 
-  it("moves the rental to RETURN_SUBMITTED", async () => {
+  it("closes the rental, with no approval waiting", async () => {
     const { organisationId, store } = await ready();
     const pickup = await rentalOut(organisationId, store);
 
@@ -198,19 +210,103 @@ describe("persistReturn", () => {
     const rental = await prisma.rental.findUniqueOrThrow({
       where: { id: pickup.rentalId },
     });
-    expect(rental.status).toBe("RETURN_SUBMITTED");
+    expect(rental.status).toBe("COMPLETED");
+
+    // Told apart from the office's own close by its event.
+    const types = (
+      await prisma.rentalEvent.findMany({ where: { rentalId: pickup.rentalId } })
+    ).map((event) => event.type);
+    expect(types).toContain("rental.closed.return");
+    expect(types).not.toContain("rental.closed.manual");
   });
 
-  it("leaves the car rented, so an unfenced form cannot make it bookable", async () => {
+  it("frees the car, so the next customer can pick it", async () => {
     const { organisationId, store } = await ready();
     await rentalOut(organisationId, store);
+    expect(await pickerSlugs()).not.toContain(VEHICLE);
 
     await submitReturn(organisationId, store);
 
     const car = await prisma.car.findFirstOrThrow({
       where: { organisationId, slug: VEHICLE },
     });
-    expect(car.status).toBe("rented");
+    expect(car.status).toBe("available");
+    expect(await pickerSlugs()).toContain(VEHICLE);
+  });
+
+  it("raises the balance the renter declared as a charge", async () => {
+    const { organisationId, store } = await ready();
+    const pickup = await rentalOut(organisationId, store);
+
+    const result = await submitReturn(organisationId, store, {
+      fullyPaid: "no",
+      hasDuePayment: "yes",
+      dueAmountChf: 200,
+      dueDate: "2026-09-30",
+      dueMethod: "bank",
+    });
+    if (!result.recorded) throw new Error("expected a recorded return");
+    expect(result.settlementCents).toBe(20_000);
+
+    const settlements = await prisma.charge.findMany({
+      where: { rentalId: pickup.rentalId, weekNumber: 0 },
+    });
+    expect(settlements).toHaveLength(1);
+    expect(settlements[0].amountCents).toBe(20_000);
+    expect(settlements[0].status).toBe("SCHEDULED");
+    expect(settlements[0].dueDate.toISOString().slice(0, 10)).toBe("2026-09-30");
+  });
+
+  it("raises no charge when the renter owed nothing", async () => {
+    const { organisationId, store } = await ready();
+    const pickup = await rentalOut(organisationId, store);
+
+    const result = await submitReturn(organisationId, store);
+    if (!result.recorded) throw new Error("expected a recorded return");
+    expect(result.settlementCents).toBeNull();
+
+    expect(
+      await prisma.charge.count({ where: { rentalId: pickup.rentalId, weekNumber: 0 } })
+    ).toBe(0);
+  });
+
+  it("closes the rental once when two returns race", async () => {
+    const { organisationId, store } = await ready();
+    const pickup = await rentalOut(organisationId, store);
+
+    // Both read an open rental before either writes: the double tap on a slow
+    // connection. Only one may close it, and the other must leave nothing.
+    const results = await Promise.all([
+      submitReturn(organisationId, store, { hasDuePayment: "yes", dueAmountChf: 100 }, "ZR-20260914-513925-AAAA"),
+      submitReturn(organisationId, store, { hasDuePayment: "yes", dueAmountChf: 100 }, "ZR-20260914-513925-BBBB"),
+    ]);
+
+    expect(results.filter((result) => result.recorded)).toHaveLength(1);
+    expect(results.filter((result) => !result.recorded)).toEqual([
+      { recorded: false, reason: "already-returned" },
+    ]);
+    expect(await prisma.contract.count({ where: { kind: "RETURN_ADDENDUM" } })).toBe(1);
+    expect(
+      await prisma.rentalEvent.count({
+        where: { rentalId: pickup.rentalId, type: "rental.closed.return" },
+      })
+    ).toBe(1);
+    expect(
+      await prisma.charge.count({ where: { rentalId: pickup.rentalId, weekNumber: 0 } })
+    ).toBe(1);
+  });
+
+  it("reports no-open-rental when the newest rental was closed by hand", async () => {
+    const { organisationId, store } = await ready();
+    const pickup = await rentalOut(organisationId, store);
+    // The office's close without a return form, as the admin endpoint does.
+    await prisma.$transaction([
+      prisma.rental.update({ where: { id: pickup.rentalId }, data: { status: "COMPLETED" } }),
+      prisma.car.updateMany({ where: { organisationId, slug: VEHICLE }, data: { status: "available" } }),
+    ]);
+
+    const result = await submitReturn(organisationId, store);
+    expect(result).toEqual({ recorded: false, reason: "no-open-rental" });
   });
 
   it("stores the signature and the return PDF under one prefix", async () => {
@@ -404,36 +500,6 @@ describe("persistReturn", () => {
     expect(second.contractNumber).toBe(`${taken}-2`);
   });
 
-  it("lets the office close a recorded return with the existing endpoint", async () => {
-    const { organisationId, store } = await ready();
-    const pickup = await rentalOut(organisationId, store);
-    await submitReturn(organisationId, store);
-
-    // What /api/admin/rentals/[id]/close does, which must still accept a
-    // rental sitting in RETURN_SUBMITTED.
-    const rental = await prisma.rental.findUniqueOrThrow({
-      where: { id: pickup.rentalId },
-      select: { status: true, carId: true },
-    });
-    expect(rental.status).not.toBe("COMPLETED");
-    expect(rental.status).not.toBe("CANCELLED");
-
-    await prisma.$transaction(async (tx) => {
-      await tx.rental.update({
-        where: { id: pickup.rentalId },
-        data: { status: "COMPLETED" },
-      });
-      await tx.car.update({
-        where: { id: rental.carId },
-        data: { status: "available" },
-      });
-    });
-
-    const car = await prisma.car.findUniqueOrThrow({
-      where: { id: rental.carId },
-    });
-    expect(car.status).toBe("available");
-  });
 });
 
 describe("a submitted return and the money still owed", () => {
@@ -442,12 +508,11 @@ describe("a submitted return and the money still owed", () => {
     const pickup = await rentalOut(organisationId, store);
     await submitReturn(organisationId, store);
 
-    // Week 1 falls due while the rental sits in RETURN_SUBMITTED.
+    // Week 1 was driven, and is chased although the return closed the rental.
     const charge = await prisma.charge.findFirstOrThrow({
       where: { rentalId: pickup.rentalId, weekNumber: 1 },
     });
 
-    const { weeklyChargePass } = await import("@/lib/rental/scheduler");
     const issued = await weeklyChargePass({
       client: prisma,
       now: new Date(charge.dueDate.getTime() + 60_000),
@@ -462,5 +527,61 @@ describe("a submitted return and the money still owed", () => {
       where: { id: charge.id },
     });
     expect(after.status).toBe("REQUESTED");
+  });
+
+  it("does not request a week that had not started when the car came back", async () => {
+    const { organisationId, store } = await ready();
+    // Four weeks from 17.08, due 17.08, 24.08, 31.08 and 07.09 — returned on
+    // 26.08, during week 2.
+    const pickup = await rentalOut(organisationId, store);
+    await submitReturn(
+      organisationId,
+      store,
+      {},
+      "ZR-20260826-513925-A1B2",
+      new Date("2026-08-26T10:00:00.000Z")
+    );
+
+    await weeklyChargePass({
+      client: prisma,
+      now: new Date("2026-09-10T10:00:00.000Z"),
+      baseUrl: "https://example.test",
+      mail: null,
+    });
+
+    const charges = await prisma.charge.findMany({
+      where: { rentalId: pickup.rentalId, weekNumber: { gt: 0 } },
+      orderBy: { weekNumber: "asc" },
+    });
+    expect(charges.map((charge) => [charge.weekNumber, charge.status])).toEqual([
+      [1, "REQUESTED"],
+      [2, "REQUESTED"],
+      [3, "SCHEDULED"],
+      [4, "SCHEDULED"],
+    ]);
+  });
+
+  it("chases the balance the renter declared, after the return", async () => {
+    const { organisationId, store } = await ready();
+    const pickup = await rentalOut(organisationId, store);
+    await submitReturn(
+      organisationId,
+      store,
+      { hasDuePayment: "yes", dueAmountChf: 200, dueDate: "2026-09-30" },
+      "ZR-20260826-513925-C3D4",
+      new Date("2026-08-26T10:00:00.000Z")
+    );
+
+    await weeklyChargePass({
+      client: prisma,
+      now: new Date("2026-09-30T12:00:00.000Z"),
+      baseUrl: "https://example.test",
+      mail: null,
+    });
+
+    const settlement = await prisma.charge.findFirstOrThrow({
+      where: { rentalId: pickup.rentalId, weekNumber: 0 },
+    });
+    expect(settlement.status).toBe("REQUESTED");
   });
 });

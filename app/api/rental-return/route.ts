@@ -221,7 +221,7 @@ function officeNotes(recorded: PersistReturnResult | null): string[] {
   if (recorded === null) {
     return [
       "NOT RECORDED — this return was emailed but not written to the database.",
-      "Close the rental by hand in /admin.",
+      "The car is still marked rented: close the rental by hand in /admin.",
     ];
   }
 
@@ -234,7 +234,14 @@ function officeNotes(recorded: PersistReturnResult | null): string[] {
         ];
   }
 
-  const notes = ["RECORDED — confirm it in /admin to free the car."];
+  // Nothing waits for the office any more, so this mail is the check: the
+  // car is already back in the picker when it arrives.
+  const notes = ["RECORDED — the rental is closed and the car is available again."];
+  if (recorded.settlementCents !== null) {
+    notes.push(
+      `Still owed, as the renter declared it: CHF ${(recorded.settlementCents / 100).toFixed(2)} — recorded as a charge.`
+    );
+  }
   if (recorded.distanceKm !== null) {
     notes.push(`Distance driven: ${recorded.distanceKm} km.`);
   }

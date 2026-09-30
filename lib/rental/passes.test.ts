@@ -7,6 +7,7 @@ import {
   isDueForChargeOverdue,
   isDueForChargeReminder,
   isDueForChargeRequest,
+  isOwedAfterReturn,
   isRentalOverdue,
   isMfkDueSoon,
   isMfkExpired,
@@ -372,5 +373,38 @@ describe("MFK — the annual technical inspection", () => {
       );
       expect(to.getTime()).toBeGreaterThanOrEqual(mfk("2026-07-14").getTime());
     });
+  });
+});
+
+/**
+ * A return closes its own rental, and closing is what used to stop the
+ * chasing. So the renter's own form must not switch off payment for weeks
+ * already driven — while the weeks that never started are not requested.
+ */
+describe("isOwedAfterReturn", () => {
+  const returnedAt = at("2026-09-01T10:00:00.000Z");
+
+  it("keeps every charge of a rental that is still open", () => {
+    expect(
+      isOwedAfterReturn({ weekNumber: 4, dueDate: at("2026-09-07T08:00:00.000Z") }, null)
+    ).toBe(true);
+  });
+
+  it("keeps a week that started before the car came back", () => {
+    expect(
+      isOwedAfterReturn({ weekNumber: 3, dueDate: at("2026-08-31T08:00:00.000Z") }, returnedAt)
+    ).toBe(true);
+  });
+
+  it("drops a week that had not started when the car came back", () => {
+    expect(
+      isOwedAfterReturn({ weekNumber: 4, dueDate: at("2026-09-07T08:00:00.000Z") }, returnedAt)
+    ).toBe(false);
+  });
+
+  it("keeps the declared settlement, which falls due after the return", () => {
+    expect(
+      isOwedAfterReturn({ weekNumber: 0, dueDate: at("2026-09-30T00:00:00.000Z") }, returnedAt)
+    ).toBe(true);
   });
 });
