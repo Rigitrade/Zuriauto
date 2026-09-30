@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ADMIN_LANGUAGE_KEY,
   asAdminLanguage,
@@ -12,8 +12,14 @@ import type { Account, Me, Overview } from "@/components/admin/types";
 import { usePathname } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { attentionItems } from "@/lib/admin/attention";
+import {
+  REFRESH_INTERVAL_MS,
+  shouldRefresh,
+  titleWithCount,
+} from "@/lib/admin/notifications";
 import { AdminProvider } from "./AdminContext";
 import { LanguageToggle } from "./LanguageToggle";
+import { NotificationBell } from "./NotificationBell";
 import { isCurrent, Rail, railItems } from "./Rail";
 import { SignIn } from "./SignIn";
 
@@ -68,13 +74,17 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const load = useCallback(async () => {
-    const response = await fetch("/api/admin/overview/");
+  const load = useCallback(async (options?: { background?: boolean }) => {
+    const response = await fetch("/api/admin/overview/", { cache: "no-store" });
     if (response.status === 401) {
       setSignedIn(false);
       setData(null);
       return;
     }
+    // A background refresh keeps what is on screen when the server hiccups.
+    // Painting an error body as the overview would blank every section over a
+    // request nobody asked for.
+    if (options?.background && !response.ok) return;
     setSignedIn(true);
     const body = (await response.json()) as Overview;
     setData(body);
@@ -88,6 +98,40 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Read by the refresh timer rather than listed as a dependency, so a save
+  // starting and ending does not tear the interval down and restart it.
+  const busyRef = useRef(busy);
+  busyRef.current = busy;
+
+  /**
+   * Re-reads the overview on its own while somebody is signed in.
+   *
+   * This is what makes the bell a notification rather than a number that is
+   * only true at page load: a return submitted on a renter's phone reaches an
+   * office that has had /admin open since the morning. Coming back to the tab
+   * refreshes at once, so the pause while hidden costs nothing.
+   */
+  useEffect(() => {
+    if (!signedIn) return;
+
+    const refresh = () => {
+      if (!shouldRefresh({ hidden: document.hidden, busy: busyRef.current })) return;
+      // Swallowed: a dropped connection on a background tick is not worth a
+      // message, and the next tick or the next write will try again.
+      load({ background: true }).catch(() => {});
+    };
+
+    const timer = window.setInterval(refresh, REFRESH_INTERVAL_MS);
+    const onVisible = () => {
+      if (!document.hidden) refresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [signedIn, load]);
 
   /** Owners only — the endpoint refuses staff anyway, so this is a
    *  convenience rather than the fence. Depends on `me?.role` rather than
@@ -253,6 +297,18 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     [L, me, endOwnSession]
   );
 
+  // The same selector the band renders from, so the bell, the badge and the
+  // band can never disagree about how much work there is. A badge saying 3
+  // above a band showing 2 would teach the office to stop believing both.
+  const now = new Date();
+  const waiting = signedIn && data ? attentionItems(data, now) : [];
+
+  // The count in the tab title, for an office working in another tab. Re-run
+  // on navigation too, in case a page ever sets a title of its own.
+  useEffect(() => {
+    document.title = titleWithCount(document.title, waiting.length);
+  }, [waiting.length, pathname]);
+
   if (signedIn === null) {
     return (
       <main className="grid min-h-screen place-items-center bg-[var(--admin-ground)] p-6">
@@ -274,10 +330,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // The same selector the band renders from, so the badge and the band can
-  // never disagree about how much work there is. A badge saying 3 above a band
-  // showing 2 would teach the office to stop believing both.
-  const attention = data ? attentionItems(data, new Date()).length : 0;
+  const attention = waiting.length;
 
   const items = railItems(L, me, attention);
   const current = items.find((item) => isCurrent(pathname, item.href));
@@ -346,6 +399,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                 </h1>
               </div>
               <div className="flex shrink-0 items-center gap-3">
+                <NotificationBell items={waiting} L={L} now={now} />
                 <LanguageToggle language={language} onChoose={chooseLanguage} />
                 <button
                   type="button"

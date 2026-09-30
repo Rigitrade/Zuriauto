@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Check } from "lucide-react";
 import type { AttentionItem } from "@/lib/admin/attention";
 import type { Labels } from "@/components/admin/types";
-import { day } from "@/components/admin/format";
+import { attentionDetail, attentionTitle } from "./attentionText";
 
 /**
  * What needs a person, at the top of the console.
@@ -65,9 +65,11 @@ export function AttentionBand({
           >
             <div className="min-w-0">
               <p className="text-sm font-semibold">
-                {title(item, L)} — {item.customerName}
+                {attentionTitle(item, L)} — {item.customerName}
               </p>
-              <p className="mt-0.5 text-xs text-[var(--admin-faint)]">{detail(item, L, now)}</p>
+              <p className="mt-0.5 text-xs text-[var(--admin-faint)]">
+                {attentionDetail(item, L, now)}
+              </p>
             </div>
             <div className="flex shrink-0 items-center gap-2">
               {item.kind === "return" && (
@@ -94,32 +96,6 @@ export function AttentionBand({
       </ul>
     </section>
   );
-}
-
-function title(item: AttentionItem, L: Labels): string {
-  if (item.kind === "return") return L.overview.confirmReturn;
-  if (item.kind === "ending") return L.overview.endsToday;
-  return L.overview.mailNotDelivered;
-}
-
-function detail(item: AttentionItem, L: Labels, now: Date): string {
-  if (item.kind === "mail") {
-    return [item.contractNumber, item.at ? day(item.at) : null]
-      .filter(Boolean)
-      .join(" · ");
-  }
-
-  const parts = [item.carModel, item.carPlate].filter(Boolean);
-  if (item.at) {
-    const overdue =
-      item.kind === "ending" && Date.parse(item.at) < now.getTime();
-    parts.push(
-      `${item.kind === "return" ? L.overview.returnsOn : ""} ${day(item.at)}${
-        overdue ? ` · ${L.overview.overdue}` : ""
-      }`.trim()
-    );
-  }
-  return parts.join(" · ");
 }
 
 /**

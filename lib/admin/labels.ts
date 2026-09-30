@@ -114,6 +114,13 @@ const de = {
     noReturnsToday: "Heute keine Rückgaben.",
     returnsOn: "Rückgabe",
   },
+  bell: {
+    /** The button's name for a screen reader, with and without work. */
+    label: "Benachrichtigungen",
+    waiting: "offen",
+    heading: "Zu erledigen",
+    empty: "Nichts offen.",
+  },
   counts: {
     available: "Verfügbar",
     rented: "Vermietet",
@@ -489,6 +496,12 @@ const en: typeof de = {
     today: "Today",
     noReturnsToday: "No returns today.",
     returnsOn: "Returns",
+  },
+  bell: {
+    label: "Notifications",
+    waiting: "waiting",
+    heading: "Needs you",
+    empty: "Nothing is waiting for you.",
   },
   counts: {
     available: "Available",
