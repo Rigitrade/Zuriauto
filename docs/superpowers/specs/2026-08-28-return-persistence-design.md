@@ -125,6 +125,13 @@ The figure is deliberately not sent back to the browser to fill the form's
 optional field. That would let anyone who can select a plate read its current
 mileage from an unfenced endpoint.
 
+> **Superseded 2026-10-02 by the owner's decision.** Choosing a car now fills
+> in the renter's name, email and pickup mileage from its open rental, through
+> `POST /api/rental-return/prefill`. The exposure described above is accepted:
+> anyone who opens /return can read who has each rented car. The endpoint is
+> origin-checked and rate-limited, and answers those four fields and nothing
+> else. See `lib/rental/returnPrefill.ts`.
+
 ### 7. One return per rental
 
 A second submission for a rental that already has a `RETURN_ADDENDUM` is

@@ -247,6 +247,74 @@ export default function RentalReturnWizard() {
     [vehicles, form.vehicleId]
   );
 
+  /**
+   * What the last prefill wrote, so choosing a different car replaces it
+   * without overwriting anything the renter typed themselves.
+   */
+  const [prefilled, setPrefilled] = useState<Partial<FormState>>({});
+
+  /**
+   * Fills the renter step and the pickup mileage from the car's open rental.
+   *
+   * Every field stays editable, and a field the renter has already changed is
+   * left alone. A failed or empty lookup leaves the form as it was before this
+   * existed: typed by hand.
+   */
+  useEffect(() => {
+    if (!form.vehicleId) return;
+    let cancelled = false;
+    fetch("/api/rental-return/prefill/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ vehicleId: form.vehicleId }),
+    })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((payload) => {
+        if (cancelled) return;
+        const found = payload?.prefill as {
+          firstName: string;
+          lastName: string;
+          email: string;
+          pickupMileageKm: number | null;
+        } | null | undefined;
+        const next: Partial<FormState> = found
+          ? {
+              firstName: found.firstName,
+              lastName: found.lastName,
+              email: found.email,
+              mileagePickupKm:
+                found.pickupMileageKm === null
+                  ? ""
+                  : String(found.pickupMileageKm),
+            }
+          : {};
+        setForm((current) => {
+          const updated = { ...current };
+          for (const key of [
+            "firstName",
+            "lastName",
+            "email",
+            "mileagePickupKm",
+          ] as const) {
+            // Ours to replace: empty, or still exactly what we put there.
+            const untouched =
+              current[key] === "" || current[key] === prefilled[key];
+            if (untouched) updated[key] = next[key] ?? "";
+          }
+          return updated;
+        });
+        setPrefilled(next);
+      })
+      .catch(() => {
+        // The renter types the fields, as they always could.
+      });
+    return () => {
+      cancelled = true;
+    };
+    // `prefilled` is read, not watched: the lookup belongs to the car.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.vehicleId]);
+
   // Ticks so a form left open does not show a stamp that disagrees with the
   // one the PDF records at submit. Set after mount for hydration's sake.
   const [now, setNow] = useState<Date | null>(null);

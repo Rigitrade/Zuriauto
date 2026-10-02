@@ -60,7 +60,7 @@ function isoDate(value: string | undefined): Date | undefined {
 const UNIQUE_VIOLATION = "P2002";
 
 /** The statuses from which a return may still be recorded. */
-const OPEN_STATUSES = ["ACTIVE", "EXTENSION_REQUESTED"] as const;
+export const OPEN_STATUSES = ["ACTIVE", "EXTENSION_REQUESTED"] as const;
 
 /**
  * The statuses the rental lookup considers.
