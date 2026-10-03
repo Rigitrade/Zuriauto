@@ -176,3 +176,10 @@ describe("extractFields — an offence that wraps onto the next line", () => {
     expect(extractFields(text, null, "de").offenceText.value).toBe("Überschreiten der Höchstgeschwindigkeit");
   });
 });
+
+describe("extractFields — stray marks before a value", () => {
+  it("drops the quote OCR leaves after a label", () => {
+    const text = "Übertretungsort‘ Lufingen, Zürcherstrasse Datum / Zeit 02.07.2026 10:00";
+    expect(extractFields(text, null, "de").location.value).toBe("Lufingen, Zürcherstrasse");
+  });
+});

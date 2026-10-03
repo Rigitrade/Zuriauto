@@ -46,7 +46,9 @@ function labelled(
       const next = stop.exec(value);
       if (next && next.index > 0) value = value.slice(0, next.index);
     }
-    return { line, value: value.replace(/^[\s:.\-–]+/, "").trim() };
+    // Also the quote OCR leaves where a label's last letter touched a mark:
+    // "Übertretungsort‘ Lufingen".
+    return { line, value: value.replace(/^[\s:.\-–'‘’"„“]+/, "").trim() };
   }
   return null;
 }

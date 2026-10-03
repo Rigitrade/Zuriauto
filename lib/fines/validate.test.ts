@@ -108,3 +108,20 @@ describe("requiredFieldsProblem", () => {
     expect(requiredFieldsProblem({ ...sample(), kind: "UNREADABLE" }, "MISSING")).toBe("FIELDS_MISSING");
   });
 });
+
+describe("validateExtraction — legibility is judged on the value, not its line", () => {
+  it("does not doubt a clean value because of garbage elsewhere on its line", () => {
+    // The OCR read Ahmed's green marker box as "[", "Und" and friends, with
+    // confidence 0. The place and the time themselves read cleanly.
+    const confidence = (raw: string) => (/Und|\[/.test(raw) ? 0 : 92);
+    const x = validateExtraction(sample(), { now: NOW, wordConfidence: confidence });
+    expect(x.location.status).toBe("READ");
+    expect(x.violationTime.status).toBe("READ");
+  });
+
+  it("still doubts the value's own illegible words", () => {
+    const confidence = (raw: string) => (raw.includes("Lufingen") ? 12 : 92);
+    const x = validateExtraction(sample(), { now: NOW, wordConfidence: confidence });
+    expect(x.location.status).toBe("DOUBTFUL");
+  });
+});

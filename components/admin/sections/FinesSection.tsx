@@ -217,7 +217,7 @@ export function FinesSection() {
                     onClick={() => go({ fine: row.id })}
                     className="cursor-pointer border-t border-[var(--admin-rule)] transition-colors hover:bg-[var(--admin-sunk)]/50"
                   >
-                    <td className="px-4 py-3 tabular-nums">
+                    <td className="whitespace-nowrap px-4 py-3 tabular-nums">
                       <a
                         href={`/admin/fines/?tab=${tab}&fine=${row.id}`}
                         onClick={(e) => e.preventDefault()}
@@ -226,9 +226,9 @@ export function FinesSection() {
                         {row.violationAt ? zurich(row.violationAt, row.violationTimeKnown) : "—"}
                       </a>
                     </td>
-                    <td className="px-4 py-3">{row.plate ?? "—"}</td>
+                    <td className="whitespace-nowrap px-4 py-3">{row.plate ?? "—"}</td>
                     <td className="px-4 py-3">{row.renterName ?? "—"}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">
+                    <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">
                       {row.amountCents !== null ? `CHF ${formatChf(row.amountCents)}` : "—"}
                     </td>
                     <td className="px-4 py-3">
@@ -237,7 +237,7 @@ export function FinesSection() {
                         <span className="block text-xs text-[var(--admin-attn)]">{label("reason", row.reviewReason)}</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 tabular-nums text-[var(--admin-faint)]">
+                    <td className="whitespace-nowrap px-4 py-3 tabular-nums text-[var(--admin-faint)]">
                       {row.dueDate ? zurich(row.dueDate, false) : "—"}
                     </td>
                   </tr>

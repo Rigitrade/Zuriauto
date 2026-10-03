@@ -9,6 +9,7 @@
  */
 
 import { zurichDayString } from "@/lib/rental/passes";
+import { NUMERIC_DATE, TIME } from "./dates";
 import type { Check, Extraction, Field, FieldStatus } from "./types";
 
 /** A fine is not paid by post two years after the fact. */
@@ -32,6 +33,20 @@ function doubt<T>(f: Field<T>): Field<T> {
 
 function daysBetween(fromIso: string, toIso: string): number {
   return (Date.parse(`${toIso}T00:00:00Z`) - Date.parse(`${fromIso}T00:00:00Z`)) / 86_400_000;
+}
+
+/**
+ * The words a value was printed as — and only those. Judging the whole line
+ * would doubt a clean date because a marker stroke beside it read as garbage
+ * with confidence 0, which is what happened on Ahmed's sample.
+ */
+function printedForm(key: string, value: string, snippet: string): string {
+  if (key === "plateText") return value.replace(" ", "");
+  if (key === "violationDate") return NUMERIC_DATE.exec(snippet)?.[0] ?? value;
+  if (key === "violationTime") {
+    return TIME.exec(snippet.replace(NUMERIC_DATE, " "))?.[0] ?? value;
+  }
+  return value;
 }
 
 export function validateExtraction(
@@ -86,9 +101,7 @@ export function validateExtraction(
     for (const key of ["plateText", "violationDate", "violationTime", "location"] as const) {
       const f = x[key];
       if (f.source !== "ocr" || f.status !== "READ" || !f.snippet || !f.value) continue;
-      // The raw text the value was read from: the plate "ZH 949636" as
-      // printed, the date as the line printed it.
-      const raw = key === "plateText" ? String(f.value).replace(" ", "") : f.snippet;
+      const raw = printedForm(key, String(f.value), f.snippet);
       const confidence = ctx.wordConfidence(raw);
       if (confidence !== null && confidence < LOW_WORD_CONFIDENCE) {
         record(`${key}-legible`, false, `word confidence ${confidence} < ${LOW_WORD_CONFIDENCE}`);
