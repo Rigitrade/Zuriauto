@@ -14,7 +14,8 @@ export async function resetDatabase(): Promise<void> {
     TRUNCATE TABLE
       "Asset", "RentalEvent", "Contract", "CarNotification", "CarRepair",
       "Rental", "Customer", "Car", "ContractCounter", "SubmissionAttempt",
-      "AdminUser",
+      "AdminUser", "FineNotification", "FineEvent", "FinePaymentProof",
+      "FineDocument", "Fine",
       -- No foreign key, so CASCADE from another table never reaches it. Every
       -- audit table lands here: they are deliberately detached from the rows
       -- they describe, which is exactly what stops CASCADE from clearing them.
