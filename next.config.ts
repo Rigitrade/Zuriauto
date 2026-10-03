@@ -33,9 +33,9 @@ const nextConfig: NextConfig = {
   // which no import points at, so file tracing would leave it out of every
   // function that reads letters or payment screenshots.
   outputFileTracingIncludes: {
-    "/api/admin/fines/**": ["./lib/fines/tessdata/**"],
-    "/api/fines/**": ["./lib/fines/tessdata/**"],
-    "/api/cron/**": ["./lib/fines/tessdata/**"],
+    "/api/admin/fines/**": ["./lib/fines/tessdata/**", "./node_modules/zxing-wasm/dist/reader/zxing_reader.wasm"],
+    "/api/fines/**": ["./lib/fines/tessdata/**", "./node_modules/zxing-wasm/dist/reader/zxing_reader.wasm"],
+    "/api/cron/**": ["./lib/fines/tessdata/**", "./node_modules/zxing-wasm/dist/reader/zxing_reader.wasm"],
   },
 
   async redirects() {

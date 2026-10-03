@@ -8,12 +8,41 @@
  * ZXing (C++, compiled to WebAssembly) rather than a pure-JS decoder: the
  * QR-bill's code is dense and carries the Swiss cross over its centre, which
  * the lighter decoders give up on.
+ *
+ * The WebAssembly is read from node_modules. Left to its default, the library
+ * fetches it from jsDelivr on every cold start — every letter would fail
+ * whenever that host did, and code would run that nobody had installed. The
+ * file is traced into the functions by `outputFileTracingIncludes`.
  */
 
-import { readBarcodes } from "zxing-wasm/reader";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+import { prepareZXingModule, readBarcodes } from "zxing-wasm/reader";
 import type { PageImage } from "./raster";
 
+export const ZXING_WASM = join(
+  process.cwd(),
+  "node_modules",
+  "zxing-wasm",
+  "dist",
+  "reader",
+  "zxing_reader.wasm"
+);
+
+let prepared: Promise<unknown> | null = null;
+
+function prepare(): Promise<unknown> {
+  prepared ??= readFile(ZXING_WASM).then((wasm) =>
+    prepareZXingModule({
+      overrides: { wasmBinary: wasm.buffer.slice(wasm.byteOffset, wasm.byteOffset + wasm.byteLength) },
+      fireImmediately: true,
+    })
+  );
+  return prepared;
+}
+
 export async function decodeQrCodes(page: PageImage): Promise<string[]> {
+  await prepare();
   const results = await readBarcodes(
     {
       // The same bytes; the canvas types them over ArrayBufferLike.
