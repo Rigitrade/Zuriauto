@@ -13,7 +13,7 @@ export async function readProofText(bytes: Uint8Array, contentType: string): Pro
   if (contentType === "application/pdf") {
     const [page] = await rasterisePdf(bytes, { maxPages: 1 });
     if (!page) return "";
-    return (await recognise(await page.ocrPng(), ["deu"])).text;
+    return (await recognise(await page.ocrPng(), ["deu"], "sparse")).text;
   }
-  return (await recognise(Buffer.from(bytes), ["deu"])).text;
+  return (await recognise(Buffer.from(bytes), ["deu"], "sparse")).text;
 }

@@ -11,7 +11,7 @@
  */
 
 import { join } from "node:path";
-import { createWorker } from "tesseract.js";
+import { createWorker, PSM } from "tesseract.js";
 
 export type OcrLanguage = "deu" | "fra" | "ita";
 
@@ -30,9 +30,21 @@ export interface OcrResult {
 
 export const TESSDATA_DIR = join(process.cwd(), "lib", "fines", "tessdata");
 
+/**
+ *  page    a letter, read as one block of text. Tried against automatic
+ *          layout on 2026-10-03: the clean letters read the same, Ahmed's
+ *          photographed sample lost its date line.
+ *  sparse  a phone screenshot: a few lines of very different sizes. Left to
+ *          its default, Tesseract dropped the large "CHF 40.00" of a TWINT
+ *          confirmation and kept everything around it.
+ * Set explicitly either way, so a library upgrade cannot change it silently.
+ */
+export type OcrLayout = "page" | "sparse";
+
 export async function recognise(
   png: Buffer,
-  languages: OcrLanguage[]
+  languages: OcrLanguage[],
+  layout: OcrLayout = "page"
 ): Promise<OcrResult> {
   const worker = await createWorker(languages, 1, {
     langPath: TESSDATA_DIR,
@@ -40,6 +52,9 @@ export async function recognise(
     gzip: false,
   });
   try {
+    await worker.setParameters({
+      tessedit_pageseg_mode: layout === "sparse" ? PSM.SPARSE_TEXT : PSM.SINGLE_BLOCK,
+    });
     const { data } = await worker.recognize(png, {}, { text: true, blocks: true });
     const words: OcrWord[] = [];
     for (const block of data.blocks ?? []) {

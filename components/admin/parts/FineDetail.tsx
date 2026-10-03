@@ -317,6 +317,9 @@ export function FineDetail({
               >
                 {editing === "car" ? (
                   <select value={draft} onChange={(e) => setDraft(e.target.value)} className="h-9 rounded-md border border-[var(--admin-rule-strong)] bg-transparent px-2 text-sm">
+                    {/* Empty first, so a fine with no car does not look as
+                        though the first car in the list were chosen. */}
+                    <option value="">—</option>
                     {(data?.cars ?? []).map((car) => (
                       <option key={car.id} value={car.id}>
                         {car.plate} · {car.model}
