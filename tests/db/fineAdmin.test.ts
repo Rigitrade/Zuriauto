@@ -359,3 +359,48 @@ describe("fineAttentionCounts", () => {
     });
   });
 });
+
+describe("changing who a sent fine belongs to", () => {
+  it("sends it back to review and kills the first renter's link", async () => {
+    // Review finding: the office reassigned a sent fine and it stayed
+    // NOTIFIED with the new renter — Anna's link still worked, and a
+    // reminder would have gone to Luca for a fine nobody had sent him.
+    const { fine, anna, luca, cookie } = await fineInReview({ status: "NOTIFIED", reviewReason: null });
+    await prisma.fine.update({ where: { id: fine.id }, data: { rentalId: anna.id, customerId: anna.customerId } });
+    await prisma.actionToken.create({
+      data: {
+        organisationId: fine.organisationId, rentalId: anna.id, fineId: fine.id, purpose: "FINE_PAYMENT",
+        tokenHash: "x".repeat(64), expiresAt: new Date("2027-01-01T00:00:00Z"),
+      },
+    });
+
+    await act(await post(`/api/admin/fines/${fine.id}/actions/`, { action: "assign", rentalId: luca.id }, cookie), params(fine.id));
+
+    expect(await prisma.fine.findUniqueOrThrow({ where: { id: fine.id } })).toMatchObject({
+      status: "NEEDS_REVIEW",
+      rentalId: luca.id,
+    });
+    expect(await prisma.actionToken.count({ where: { fineId: fine.id, usedAt: null } })).toBe(0);
+  });
+
+  it("does the same when a correction moves it to another renter", async () => {
+    const { fine, anna, cookie } = await fineInReview({ status: "PROOF_SUBMITTED", reviewReason: null });
+    await prisma.fine.update({ where: { id: fine.id }, data: { rentalId: anna.id, customerId: anna.customerId } });
+
+    await act(
+      await post(`/api/admin/fines/${fine.id}/actions/`, { action: "correct", field: "violationAt", value: "2026-07-20T12:00" }, cookie),
+      params(fine.id)
+    );
+
+    expect((await prisma.fine.findUniqueOrThrow({ where: { id: fine.id } })).status).toBe("NEEDS_REVIEW");
+  });
+
+  it("keeps a fee already settled when the renter does not change", async () => {
+    const { fine, anna, cookie } = await fineInReview({ handlingFeeCents: 2000, handlingFeeStatus: "PAID" });
+    await prisma.fine.update({ where: { id: fine.id }, data: { rentalId: anna.id, customerId: anna.customerId } });
+
+    await act(await post(`/api/admin/fines/${fine.id}/actions/`, { action: "assign", rentalId: anna.id }, cookie), params(fine.id));
+
+    expect((await prisma.fine.findUniqueOrThrow({ where: { id: fine.id } })).handlingFeeStatus).toBe("PAID");
+  });
+});

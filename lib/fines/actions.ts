@@ -91,15 +91,22 @@ async function assignRental(client: PrismaClient, fineId: string, rentalId: stri
     where: { id: rentalId },
     select: { customerId: true, customer: { select: { email: true } } },
   });
-  const fee = await feeOf(client, rentalId);
+  const current = await client.fine.findUniqueOrThrow({
+    where: { id: fineId },
+    select: { rentalId: true },
+  });
+  // The fee belongs to the renter. Recomputed only when the renter changes,
+  // so a fee already paid or waived survives re-confirming the same one.
+  const fee = current.rentalId === rentalId ? null : await feeOf(client, rentalId);
   await client.fine.update({
     where: { id: fineId },
     data: {
       rentalId,
       customerId: rental.customerId,
       reviewReason: isPlaceholderEmail(rental.customer.email) ? "NO_CUSTOMER_EMAIL" : null,
-      handlingFeeCents: fee,
-      handlingFeeStatus: fee > 0 ? "DUE" : "NONE",
+      ...(fee === null
+        ? {}
+        : { handlingFeeCents: fee, handlingFeeStatus: fee > 0 ? "DUE" : "NONE" }),
     },
   });
 }
@@ -302,5 +309,21 @@ export async function applyFineAction(
   }
 
   await recordEvent(client, fineId, `office.${action.action}`, { ...action }, actor, now);
+
+  // A fine already with a renter that now belongs to somebody else: back to
+  // review, and the first renter's link stops working. Sending to the new
+  // renter is a deliberate act — nobody gets a reminder for a fine they were
+  // never told about, and the first renter's proof cannot settle it.
+  if (fine.status === "NOTIFIED" || fine.status === "PROOF_SUBMITTED") {
+    const after = await client.fine.findUniqueOrThrow({ where: { id: fineId }, select: { rentalId: true } });
+    if (after.rentalId !== fine.rentalId) {
+      await client.fine.update({ where: { id: fineId }, data: { status: "NEEDS_REVIEW" } });
+      await burnFineTokens(client, fineId, now);
+      await recordEvent(client, fineId, "office.renter-changed", {
+        from: fine.rentalId,
+        to: after.rentalId,
+      }, actor, now);
+    }
+  }
   return result;
 }
