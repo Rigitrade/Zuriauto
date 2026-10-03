@@ -32,6 +32,8 @@ export interface FineMailContext {
   payUrl: string;
   /** A Mahnung: the deadline is close or past. */
   reminder: boolean;
+  /** Our own nudge before the deadline — not a Mahnung, and never called one. */
+  dueSoon?: boolean;
 }
 
 /** `02.07.2026, 10:00` — the four-digit year letters print, Zurich time. */
@@ -60,11 +62,16 @@ export function fineNoticeMail(ctx: FineMailContext): { subject: string; text: s
 
   if (ctx.language === "en") {
     return {
-      subject: `${ctx.reminder ? "Reminder: " : ""}Traffic fine for ${ctx.plate} of ${day}`,
+      subject:
+        ctx.dueSoon && due
+          ? `Reminder: fine for ${ctx.plate} – due ${due}`
+          : `${ctx.reminder ? "Reminder: " : ""}Traffic fine for ${ctx.plate} of ${day}`,
       text: [
         `Hello ${ctx.firstName}`,
         "",
-        ctx.reminder
+        ctx.dueSoon
+          ? `The fine below is still open. Please pay it${due ? ` by ${due}` : ""}.`
+          : ctx.reminder
           ? `The fine below has not been paid yet, and the issuer has sent a reminder. Please pay it now${due ? `, by ${due} at the latest` : ""}.`
           : `We have received a fine for the ${ctx.carModel} (${ctx.plate}), which you were renting at the time.`,
         "",
@@ -98,11 +105,16 @@ export function fineNoticeMail(ctx: FineMailContext): { subject: string; text: s
   }
 
   return {
-    subject: `${ctx.reminder ? "Mahnung: " : ""}Busse für ${ctx.plate} vom ${day}`,
+    subject:
+      ctx.dueSoon && due
+        ? `Erinnerung: Busse für ${ctx.plate} – zahlbar bis ${due}`
+        : `${ctx.reminder ? "Mahnung: " : ""}Busse für ${ctx.plate} vom ${day}`,
     text: [
       `Guten Tag ${ctx.firstName}`,
       "",
-      ctx.reminder
+      ctx.dueSoon
+        ? `Die folgende Busse ist noch offen. Bitte bezahlen Sie sie${due ? ` bis ${due}` : ""}.`
+        : ctx.reminder
         ? `Die folgende Busse ist noch nicht bezahlt, und wir haben eine Mahnung erhalten. Bitte bezahlen Sie sie jetzt${due ? `, spätestens bis ${due}` : ""}.`
         : `Wir haben eine Busse für den ${ctx.carModel} (${ctx.plate}) erhalten, den Sie zu diesem Zeitpunkt gemietet hatten.`,
       "",

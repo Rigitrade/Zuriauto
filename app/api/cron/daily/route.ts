@@ -19,7 +19,8 @@ import { runDailyPasses } from "@/lib/rental/scheduler";
  */
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+// The fines retry pass reads letters, tens of seconds each.
+export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
 /** Vercel Cron sends `Authorization: Bearer $CRON_SECRET`. */

@@ -33,7 +33,9 @@ export function fineDeps(now: Date = new Date()): FineDeps {
     store: notify.store,
     reader: freeReader,
     now,
-    notify: (fineId, reason) => notifyRenter(notify, fineId, reason),
+    notify: async (fineId, reason) => {
+      await notifyRenter(notify, fineId, reason);
+    },
   };
 }
 

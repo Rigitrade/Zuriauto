@@ -20,8 +20,9 @@ import type { Extraction } from "./types";
  *  reminder  a Mahnung for a fine the renter has not settled
  *  reopened  a Mahnung after the fine was thought paid — renter and office
  *  office    a Mahnung for a fine the office closed another way
+ *  dueSoon   our own nudge a week before the deadline (the daily run)
  */
-export type NotifyReason = "notice" | "reminder" | "reopened" | "office";
+export type NotifyReason = "notice" | "reminder" | "reopened" | "office" | "dueSoon";
 
 export interface FineDeps {
   client: PrismaClient;

@@ -145,9 +145,9 @@ export async function alertOffice(
   detail?: string,
   /** Distinguishes alerts of one kind, e.g. one per proof submitted. */
   dedupeSuffix?: string
-): Promise<void> {
-  if (!deps.mail) return;
-  await sendFineOnce(
+): Promise<"sent" | "already" | "failed"> {
+  if (!deps.mail) return "failed";
+  return sendFineOnce(
     deps,
     {
       fineId: fine.id,
@@ -175,20 +175,28 @@ export async function notifyRenter(
   reason: NotifyReason,
   /** A deliberate resend from the office brings its own key. */
   options: { dedupeKey?: string } = {}
-): Promise<void> {
+): Promise<"sent" | "already" | "failed" | "skipped"> {
   const { client, now } = deps;
   const fine = await loadFine(client, fineId);
 
   if (reason === "office") {
-    await alertOffice(deps, fine, "closedReminder", "Eine Mahnung ist für diese Busse eingegangen.");
-    return;
+    return alertOffice(deps, fine, "closedReminder", "Eine Mahnung ist für diese Busse eingegangen.");
   }
-  if (!fine.customer || !fine.car || !fine.rentalId || fine.violationAt === null) return;
+  if (!fine.customer || !fine.car || !fine.rentalId || fine.violationAt === null) return "skipped";
 
   const kind: FineNotificationKind =
-    reason === "notice" ? "FINE_NOTICE" : reason === "reminder" ? "FINE_REMINDER" : "FINE_REOPENED";
+    reason === "notice"
+      ? "FINE_NOTICE"
+      : reason === "reopened"
+        ? "FINE_REOPENED"
+        : "FINE_REMINDER";
   const dedupeKey =
-    options.dedupeKey ?? (reason === "notice" ? "notice" : `level-${fine.reminderLevel}`);
+    options.dedupeKey ??
+    (reason === "notice"
+      ? "notice"
+      : reason === "dueSoon"
+        ? `due-${fine.dueDate?.toISOString().slice(0, 10) ?? "none"}`
+        : `level-${fine.reminderLevel}`);
   const to = fine.customer.email;
 
   const outcome = await sendFineOnce(deps, { fineId, kind, dedupeKey, to }, async () => {
@@ -212,13 +220,14 @@ export async function notifyRenter(
       fineNumber: fine.fineNumber,
       feeCents: fine.handlingFeeStatus === "DUE" ? fine.handlingFeeCents : 0,
       payUrl: finePayUrl(deps.baseUrl, token),
-      reminder: reason === "reminder" || fine.reminderLevel > 0,
+      reminder: reason === "reminder" || (reason !== "dueSoon" && fine.reminderLevel > 0),
+      dueSoon: reason === "dueSoon",
     };
     const body = reason === "reopened" ? fineReopenedMail(ctx) : fineNoticeMail(ctx);
     return { to, ...body, attachments: await letterAttachments(deps.store, fine, reason !== "notice") };
   });
 
-  if (outcome === "already") return;
+  if (outcome === "already") return "already";
 
   if (outcome === "failed") {
     await burnFineTokens(client, fineId, now);
@@ -228,7 +237,7 @@ export async function notifyRenter(
     });
     await recordEvent(client, fineId, "renter.mail-failed", { reason, to }, null, now);
     await alertOffice(deps, fine, "mailFailed", `Empfänger: ${to}`);
-    return;
+    return "failed";
   }
 
   if (reason === "notice") {
@@ -243,4 +252,5 @@ export async function notifyRenter(
   if (reason === "reopened") {
     await alertOffice(deps, fine, "reopened", "Der Absender meldet die Busse als unbezahlt.");
   }
+  return "sent";
 }

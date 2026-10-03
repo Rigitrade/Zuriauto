@@ -117,3 +117,14 @@ describe("office mails", () => {
     expect(mail.text).toContain("u2");
   });
 });
+
+describe("the due-date reminder", () => {
+  it("reminds without calling it a Mahnung — the issuer has not sent one", () => {
+    const de = fineNoticeMail({ ...CTX, dueSoon: true });
+    expect(de.subject).toBe("Erinnerung: Busse für ZH 513 925 – zahlbar bis 04.10.2026");
+    expect(de.text).not.toContain("Mahnung erhalten");
+    const en = fineNoticeMail({ ...CTX, language: "en", dueSoon: true });
+    expect(en.subject).toBe("Reminder: fine for ZH 513 925 – due 04.10.2026");
+    expect(en.text).toContain("still open");
+  });
+});
