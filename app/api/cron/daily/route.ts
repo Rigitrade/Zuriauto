@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { prisma } from "@/lib/db";
 import { sweepExpiredAssets } from "@/lib/admin/retention";
+import { sweepExpiredFineFiles } from "@/lib/fines/retention";
 import { getAssetStore } from "@/lib/storage";
 import { runDailyPasses } from "@/lib/rental/scheduler";
 
@@ -86,13 +87,24 @@ async function run(request: Request) {
       retention = { error: String(error) };
     }
 
-    console.log("[cron] daily run", JSON.stringify({ ...summary, retention }));
+    // Fines' payment screenshots and letters, on their own clocks — and in
+    // their own try for the same reason as the sweep above.
+    let fineRetention: Awaited<ReturnType<typeof sweepExpiredFineFiles>> | { error: string };
+    try {
+      fineRetention = await sweepExpiredFineFiles(prisma, getAssetStore(), now);
+    } catch (error) {
+      console.error("[cron] fines retention sweep failed:", error);
+      fineRetention = { error: String(error) };
+    }
+
+    console.log("[cron] daily run", JSON.stringify({ ...summary, retention, fineRetention }));
 
     return NextResponse.json({
       ok: true,
       ms: Date.now() - startedAt,
       ...summary,
       retention,
+      fineRetention,
     });
   } catch (error) {
     // Logged and reported, never swallowed: a cron whose failures are silent

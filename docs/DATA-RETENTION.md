@@ -89,6 +89,25 @@ check against this document:
   its own pass and a decision about what a contract PDF minus its images is
   worth.
 
+## Traffic fines
+
+**Added 2026-10-03** with the fines feature
+(`docs/superpowers/specs/2026-10-03-traffic-fines-design.md`). Enforced by
+`lib/fines/retention.ts`, run by the daily job after the asset sweep.
+
+- **Payment screenshots: five years** after the fine is closed. A renter's
+  screenshot can show their bank, account and balance — personal data, the
+  five-year rule.
+- **Fine letters and fine records: ten years** after the fine is closed. They
+  are the basis of the GTC handling fee, a commercial record under OR 958f,
+  like the contract PDF.
+
+"Closed" is paid, handled otherwise or void. The clock starts at payment, or
+at the fine's last change for the other two; an open fine is never swept.
+Letters are read on our own servers (phase 1); nothing about a fine is sent
+to an outside service. If the AI fallback of phase 2 is switched on, this
+section and the privacy notice must say so before it is.
+
 ## Open conflict: the images survive inside the contract
 
 **Found 29 August 2026, while building the documents view. Needs an owner
