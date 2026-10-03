@@ -18,6 +18,26 @@ const nextConfig: NextConfig = {
   // Keeps URLs as /GTC/ and /book/, matching the deployed site.
   trailingSlash: true,
 
+  // The fine reader's native and WebAssembly parts. Bundling them breaks
+  // what each loads at run time — the canvas binary, pdfjs' worker, the
+  // decoder's .wasm and Tesseract's worker script — so they are required
+  // from node_modules as they ship.
+  serverExternalPackages: [
+    "pdfjs-dist",
+    "@napi-rs/canvas",
+    "tesseract.js",
+    "zxing-wasm",
+  ],
+
+  // Tesseract reads its trained data from lib/fines/tessdata at run time,
+  // which no import points at, so file tracing would leave it out of every
+  // function that reads letters or payment screenshots.
+  outputFileTracingIncludes: {
+    "/api/admin/fines/**": ["./lib/fines/tessdata/**"],
+    "/api/fines/**": ["./lib/fines/tessdata/**"],
+    "/api/cron/**": ["./lib/fines/tessdata/**"],
+  },
+
   async redirects() {
     return [
       // The contract form now lives at /pickup/. Links to both earlier paths
