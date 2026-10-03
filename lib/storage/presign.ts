@@ -44,7 +44,9 @@ export async function uploadTarget(
       credentials: { accessKeyId: R2_ACCESS_KEY_ID, secretAccessKey: R2_SECRET_ACCESS_KEY },
     });
     const url = await getSignedUrl(
-      client,
+      // The presigner and the client resolve separate copies of @smithy's
+      // types under pnpm; the object is the same at run time.
+      client as unknown as Parameters<typeof getSignedUrl>[0],
       new PutObjectCommand({ Bucket: R2_BUCKET, Key: key, ContentType: contentType }),
       { expiresIn: PRESIGN_SECONDS }
     );

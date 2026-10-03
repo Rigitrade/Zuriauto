@@ -40,7 +40,7 @@ async function uploaded(bytes: Uint8Array, cookie: string) {
     new Request(`https://zuriauto.ch${url}`, {
       method: "PUT",
       headers: { "content-type": "application/pdf", cookie },
-      body: bytes,
+      body: new Blob([bytes as Uint8Array<ArrayBuffer>]),
     }),
     { params: Promise.resolve({ key: key.split("/") }) }
   );
