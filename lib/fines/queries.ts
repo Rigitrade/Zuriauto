@@ -51,7 +51,7 @@ export async function listFines(client: PrismaClient, tab: FineTab, now: Date) {
       ? await client.fineDocument.findMany({
           where: { status: { in: ["UPLOADED", "PROCESSING", "FAILED"] } },
           orderBy: { uploadedAt: "desc" },
-          select: { id: true, status: true, attempts: true, error: true, uploadedAt: true, uploadedByName: true },
+          select: { id: true, status: true, attempts: true, error: true, uploadedAt: true, uploadedByName: true, claimedAt: true },
         })
       : [];
 

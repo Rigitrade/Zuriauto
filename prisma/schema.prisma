@@ -976,6 +976,9 @@ model FineDocument {
 
   status      FineDocumentStatus @default(UPLOADED)
   attempts    Int                @default(0)
+  /// When the current reading began. A PROCESSING claim older than ten
+  /// minutes belongs to a run that died, and may be taken over.
+  claimedAt   DateTime?
   error       String?
   processedAt DateTime?
 

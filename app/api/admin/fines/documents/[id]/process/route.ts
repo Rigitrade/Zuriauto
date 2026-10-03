@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/admin/session";
+import { STALE_CLAIM_MS } from "@/lib/fines/process";
 import { runFineDocument } from "@/lib/fines/run";
 import { afterResponse } from "@/lib/fines/schedule";
 
@@ -24,7 +25,14 @@ export async function POST(
   }
   const { id } = await params;
   const reset = await prisma.fineDocument.updateMany({
-    where: { id, status: { in: ["UPLOADED", "FAILED"] } },
+    where: {
+      id,
+      // Waiting, failed, or a reading that died mid-way.
+      OR: [
+        { status: { in: ["UPLOADED", "FAILED"] } },
+        { status: "PROCESSING", claimedAt: { lt: new Date(Date.now() - STALE_CLAIM_MS) } },
+      ],
+    },
     data: { attempts: 0 },
   });
   if (reset.count === 0) {

@@ -4,8 +4,10 @@
  * Four passes, each idempotent the scheduler's way — a send is claimed
  * before it is made, so running the day twice sends nothing twice:
  *
- *   retry     letters left unread an hour after upload, or failed, up to
- *             three attempts — the upload's own after() may have died
+ *   retry     letters left unread an hour after upload, failed, or whose
+ *             reading died — one a run, three attempts each. Run by the cron
+ *             route last, after retention, not by runDailyPasses: a letter
+ *             that outlasts the time limit must not cost the day the rest
  *   due soon  the renter, once, a week before the deadline, if they have
  *             not confirmed payment
  *   overdue   the office, once, when a sent fine passes its deadline with no
@@ -19,7 +21,7 @@ import { zurichDayString } from "@/lib/rental/passes";
 import { recordEvent } from "./events";
 import { officeFineDigestMail } from "./mail";
 import { alertOffice, fineAdminUrl, notifyRenter, type NotifyDeps } from "./notify";
-import { MAX_ATTEMPTS, processFineDocument } from "./process";
+import { claimable, processFineDocument } from "./process";
 import type { FineReader } from "./reader";
 
 export interface FinePassDeps extends NotifyDeps {
@@ -30,8 +32,11 @@ const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 /** A letter is left to its own after() this long before the pass takes it. */
 export const RETRY_AFTER_MS = HOUR_MS;
-/** Reading is slow; a daily run reads a handful and leaves the rest. */
-export const RETRY_BATCH = 5;
+/**
+ * One letter a run. Reading is slow — tens of seconds a page — and the cron
+ * shares its time limit with everything else; the next day reads the next.
+ */
+export const RETRY_BATCH = 1;
 export const DUE_SOON_DAYS = 7;
 
 function day(iso: string): Date {
@@ -41,8 +46,7 @@ function day(iso: string): Date {
 export async function fineDocumentRetryPass(deps: FinePassDeps): Promise<number> {
   const documents = await deps.client.fineDocument.findMany({
     where: {
-      status: { in: ["UPLOADED", "FAILED"] },
-      attempts: { lt: MAX_ATTEMPTS },
+      ...claimable(deps.now),
       uploadedAt: { lte: new Date(deps.now.getTime() - RETRY_AFTER_MS) },
     },
     orderBy: { uploadedAt: "asc" },

@@ -53,6 +53,22 @@ async function world(now: Date) {
 }
 
 describe("fineDocumentRetryPass", () => {
+  it("reads one letter a run, including one whose reading died", async () => {
+    const now = new Date("2026-10-03T12:00:00Z");
+    const { org, store, deps } = await world(now);
+    const stuck = await letterDocument(org.id, store, 0);
+    await prisma.fineDocument.update({
+      where: { id: stuck.id },
+      data: { status: "PROCESSING", attempts: 1, claimedAt: new Date("2026-10-03T09:00:00Z"), uploadedAt: new Date("2026-10-03T09:00:00Z") },
+    });
+    const waiting = await letterDocument(org.id, store, 1);
+    await prisma.fineDocument.update({ where: { id: waiting.id }, data: { uploadedAt: new Date("2026-10-03T10:00:00Z") } });
+
+    expect(await fineDocumentRetryPass(deps)).toBe(1);
+    expect((await prisma.fineDocument.findUniqueOrThrow({ where: { id: stuck.id } })).status).toBe("PROCESSED");
+    expect((await prisma.fineDocument.findUniqueOrThrow({ where: { id: waiting.id } })).status).toBe("UPLOADED");
+  });
+
   it("reads letters left unread for an hour, and gives up after three attempts", async () => {
     const now = new Date("2026-10-03T12:00:00Z");
     const { org, store, deps } = await world(now);
@@ -151,7 +167,10 @@ describe("runDailyPasses", () => {
       },
     });
 
-    expect(summary).toMatchObject({ fineLettersRead: 0, fineDueSoon: 0, fineOverdue: 0, fineDigest: 1 });
+    expect(summary).toMatchObject({ fineDueSoon: 0, fineOverdue: 0, fineDigest: 1 });
+    // Reading letters is not part of it: the cron route does that last, after
+    // retention, so a slow letter cannot cost the day its other passes.
+    expect(summary).not.toHaveProperty("fineLettersRead");
     expect(sent.map((m) => m.subject)).toContain("1 Busse zu prüfen");
   });
 });

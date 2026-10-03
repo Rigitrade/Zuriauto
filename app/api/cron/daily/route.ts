@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { prisma } from "@/lib/db";
 import { sweepExpiredAssets } from "@/lib/admin/retention";
+import { fineDocumentRetryPass } from "@/lib/fines/passes";
+import { freeReader } from "@/lib/fines/reader";
 import { sweepExpiredFineFiles } from "@/lib/fines/retention";
+import { readLifecycleMailConfig } from "@/lib/rental/lifecycleMail";
 import { getAssetStore } from "@/lib/storage";
 import { runDailyPasses } from "@/lib/rental/scheduler";
 
@@ -97,7 +100,28 @@ async function run(request: Request) {
       fineRetention = { error: String(error) };
     }
 
-    console.log("[cron] daily run", JSON.stringify({ ...summary, retention, fineRetention }));
+    // Last of all: re-reading a fine letter that was never read. It is the
+    // slow step — tens of seconds a page — so it runs after everything else
+    // has been done and reported, and reads one letter a day at most.
+    let fineLettersRead: number | { error: string };
+    try {
+      fineLettersRead = await fineDocumentRetryPass({
+        client: prisma,
+        now,
+        baseUrl: baseUrl(request),
+        mail: readLifecycleMailConfig(),
+        store: getAssetStore(),
+        reader: freeReader,
+      });
+    } catch (error) {
+      console.error("[cron] fines retry failed:", error);
+      fineLettersRead = { error: String(error) };
+    }
+
+    console.log(
+      "[cron] daily run",
+      JSON.stringify({ ...summary, retention, fineRetention, fineLettersRead })
+    );
 
     return NextResponse.json({
       ok: true,
@@ -105,6 +129,7 @@ async function run(request: Request) {
       ...summary,
       retention,
       fineRetention,
+      fineLettersRead,
     });
   } catch (error) {
     // Logged and reported, never swallowed: a cron whose failures are silent

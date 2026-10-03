@@ -180,3 +180,28 @@ describe("processFineDocument", () => {
     expect(await prisma.fine.count()).toBe(1);
   });
 });
+
+describe("a reading that died", () => {
+  it("is taken over once its claim is ten minutes old", async () => {
+    // Review finding: a function killed mid-read left the letter PROCESSING
+    // for good — no retry, no "process again", the list polling forever.
+    const { org, document, deps } = await setup(readerFor(NOTICE_FOR_PRIUS));
+    await seedRental(org.id, { signedAt: new Date("2026-06-01T08:10:00Z") });
+    await prisma.fineDocument.update({
+      where: { id: document.id },
+      data: { status: "PROCESSING", attempts: 1, claimedAt: new Date(NOW.getTime() - 20 * 60_000) },
+    });
+
+    expect(await processFineDocument(deps, document.id)).toBe("processed");
+  });
+
+  it("is left alone while another run may still be reading it", async () => {
+    const { document, deps } = await setup(readerFor(NOTICE_FOR_PRIUS));
+    await prisma.fineDocument.update({
+      where: { id: document.id },
+      data: { status: "PROCESSING", attempts: 1, claimedAt: new Date(NOW.getTime() - 2 * 60_000) },
+    });
+
+    expect(await processFineDocument(deps, document.id)).toBe("skipped");
+  });
+});

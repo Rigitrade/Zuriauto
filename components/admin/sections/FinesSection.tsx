@@ -41,6 +41,17 @@ interface Pending {
   error: string | null;
   uploadedAt: string;
   uploadedByName: string;
+  claimedAt: string | null;
+}
+
+/** A reading this old died with its function; see STALE_CLAIM_MS. */
+const STALE_MS = 10 * 60 * 1000;
+
+function canRetry(d: Pending): boolean {
+  return (
+    d.status === "FAILED" ||
+    (d.status === "PROCESSING" && !!d.claimedAt && Date.now() - Date.parse(d.claimedAt) > STALE_MS)
+  );
 }
 
 interface Listing {
@@ -176,7 +187,7 @@ export function FinesSection() {
                     </span>
                     {d.error && <span className="block text-xs text-[var(--admin-faint)]">{d.error}</span>}
                   </span>
-                  {d.status === "FAILED" && (
+                  {canRetry(d) && (
                     <button
                       type="button"
                       disabled={busy}

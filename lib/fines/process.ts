@@ -15,6 +15,24 @@ export type { FineDeps } from "./attach";
 
 export const MAX_ATTEMPTS = 3;
 
+/**
+ * A reading takes a minute or two. A PROCESSING claim older than this
+ * belongs to a function that was killed — a timeout, memory — and may be
+ * taken over; otherwise the letter would sit "being read" for good.
+ */
+export const STALE_CLAIM_MS = 10 * 60 * 1000;
+
+/** Letters a run may claim: waiting, failed, or abandoned mid-read. */
+export function claimable(now: Date): Prisma.FineDocumentWhereInput {
+  return {
+    attempts: { lt: MAX_ATTEMPTS },
+    OR: [
+      { status: { in: ["UPLOADED", "FAILED"] } },
+      { status: "PROCESSING", claimedAt: { lt: new Date(now.getTime() - STALE_CLAIM_MS) } },
+    ],
+  };
+}
+
 export async function processFineDocument(
   deps: FineDeps,
   documentId: string
@@ -22,12 +40,8 @@ export async function processFineDocument(
   const { client, store, reader, now } = deps;
 
   const claimed = await client.fineDocument.updateMany({
-    where: {
-      id: documentId,
-      status: { in: ["UPLOADED", "FAILED"] },
-      attempts: { lt: MAX_ATTEMPTS },
-    },
-    data: { status: "PROCESSING", attempts: { increment: 1 } },
+    where: { id: documentId, ...claimable(now) },
+    data: { status: "PROCESSING", claimedAt: now, attempts: { increment: 1 } },
   });
   if (claimed.count === 0) return "skipped";
 

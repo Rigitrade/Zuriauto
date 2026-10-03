@@ -19,7 +19,6 @@ import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import type { NotifyDeps } from "@/lib/fines/notify";
 import {
   fineDigestPass,
-  fineDocumentRetryPass,
   fineDueSoonPass,
   fineOverduePass,
   type FinePassDeps,
@@ -75,8 +74,6 @@ export interface PassSummary {
   /** People on the waiting list written to because a car is free. */
   availabilityNotified: number;
   mailRetried: number;
-  /** Fine letters the retry pass read. */
-  fineLettersRead: number;
   fineDueSoon: number;
   fineOverdue: number;
   /** Fines listed in the office's review digest. */
@@ -828,7 +825,6 @@ export async function runDailyPasses(
     mfkDue: await mfkDuePass(full),
     availabilityNotified: await availabilityPass(full),
     mailRetried: await mailRetryPass(full),
-    fineLettersRead: await fineDocumentRetryPass(fines),
     fineDueSoon: await fineDueSoonPass(fines),
     fineOverdue: await fineOverduePass(fines),
     fineDigest: await fineDigestPass(fines),
