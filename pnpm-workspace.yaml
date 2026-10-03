@@ -7,9 +7,11 @@
 #   @prisma/engines - downloads the query engine binary
 #   prisma          - the CLI's own postinstall
 #   esbuild         - the transformer behind vitest
+#   tesseract.js    - denied: its postinstall only prints a funding notice
 allowBuilds:
   '@prisma/engines': true
   esbuild: true
   prisma: true
   sharp: true
+  tesseract.js: false
   unrs-resolver: true
