@@ -24,7 +24,9 @@ describe("uploadTarget", () => {
     const target = await uploadTarget("fines/d1/letter-ab.pdf", "application/pdf", {
       NODE_ENV: "development",
     });
-    expect(target.url).toBe("/api/admin/fines/uploads/local/fines/d1/letter-ab.pdf/");
+    // No trailing slash: next.config.ts would 308 a file-like path ending in
+    // ".pdf/" to drop it, and the PUT would travel twice.
+    expect(target.url).toBe("/api/admin/fines/uploads/local/fines/d1/letter-ab.pdf");
   });
 
   it("refuses to accept files nowhere in production", async () => {

@@ -34,7 +34,7 @@ async function uploaded(bytes: Uint8Array, cookie: string) {
   const slotResponse = await slot(await json("/api/admin/fines/uploads/", { sha256: hash, bytes: bytes.length }, cookie));
   expect(slotResponse.status).toBe(200);
   const { documentId, key, url } = await slotResponse.json();
-  expect(url).toBe(`/api/admin/fines/uploads/local/${key}/`);
+  expect(url).toBe(`/api/admin/fines/uploads/local/${key}`);
 
   const put = await localPut(
     new Request(`https://zuriauto.ch${url}`, {

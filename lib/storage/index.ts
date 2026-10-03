@@ -9,7 +9,13 @@ export { uploadAssets } from "./upload";
 export type { PendingUpload, StoredAsset } from "./upload";
 export { assetKey, carLicenceKey, carPhotoKey, extensionFor } from "./keys";
 
-let cached: AssetStore | null = null;
+/**
+ * On globalThis rather than in a module variable: a dev server re-evaluates
+ * modules on every edit, and a module-held memory store became a new, empty
+ * store for whichever route was recompiled — an upload landed in one and the
+ * next request read another. The Prisma client is kept the same way.
+ */
+const holder = globalThis as unknown as { __zuriautoAssetStore?: AssetStore };
 
 /**
  * The store this process should use.
@@ -19,11 +25,11 @@ let cached: AssetStore | null = null;
  * success would be far worse than one that will not start.
  */
 export function getAssetStore(): AssetStore {
-  if (cached) return cached;
+  if (holder.__zuriautoAssetStore) return holder.__zuriautoAssetStore;
 
   if (process.env.R2_BUCKET) {
-    cached = createR2Store();
-    return cached;
+    holder.__zuriautoAssetStore = createR2Store();
+    return holder.__zuriautoAssetStore;
   }
 
   if (process.env.NODE_ENV === "production") {
@@ -35,6 +41,6 @@ export function getAssetStore(): AssetStore {
   console.warn(
     "[storage] R2 is not configured — uploads are held in memory and lost on restart."
   );
-  cached = createMemoryStore();
-  return cached;
+  holder.__zuriautoAssetStore = createMemoryStore();
+  return holder.__zuriautoAssetStore;
 }

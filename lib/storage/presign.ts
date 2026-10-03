@@ -56,5 +56,7 @@ export async function uploadTarget(
   if (env.NODE_ENV === "production") {
     throw new Error("R2 is not configured. Refusing to accept files with nowhere to put them.");
   }
-  return { url: `/api/admin/fines/uploads/local/${key}/`, headers };
+  // No trailing slash: the key ends in ".pdf", and next.config.ts would 308
+  // a file-like path ending in a slash.
+  return { url: `/api/admin/fines/uploads/local/${key}`, headers };
 }
