@@ -3,7 +3,8 @@ import { prisma } from "@/lib/db";
 import { notifyRenter, type NotifyDeps, type SentMail } from "@/lib/fines/notify";
 import { submitProof } from "@/lib/fines/proofSubmit";
 import { createMemoryStore } from "@/lib/storage";
-import { FINE_NOW, seedOrganisation, seedRental } from "./fineHelpers";
+import { processFineDocument } from "@/lib/fines/process";
+import { FINE_NOW, fakeReader, letterDocument, priusLetter, seedOrganisation, seedRental } from "./fineHelpers";
 
 /** What the OCR reads off whatever screenshot the test submits. */
 let screenshotText = "";
@@ -100,9 +101,26 @@ describe("submitProof", () => {
     expect(await prisma.finePaymentProof.count()).toBe(1);
   });
 
-  it("refuses a link whose fine was reopened by a Mahnung", async () => {
-    const { fine, deps, token } = await notifiedFine();
-    await prisma.fine.update({ where: { id: fine.id }, data: { status: "NEEDS_REVIEW", reviewReason: "REMINDER_AFTER_PAID" } });
+  it("refuses the link sent before a Mahnung reopened the fine", async () => {
+    const { fine, deps, token, store } = await notifiedFine();
+    await prisma.fine.update({ where: { id: fine.id }, data: { status: "PAID", paidAt: FINE_NOW, paidVia: "OFFICE" } });
+    // The Mahnung arrives and is processed the real way: it matches the fine
+    // by its payment reference and reopens it.
+    const document = await letterDocument(fine.organisationId, store, 0);
+    await processFineDocument(
+      {
+        client: prisma,
+        store,
+        reader: fakeReader([priusLetter("reminder")]),
+        now: FINE_NOW,
+        notify: async (fineId, reason) => {
+          await notifyRenter(deps, fineId, reason);
+        },
+      },
+      document.id
+    );
+    expect((await prisma.fine.findUniqueOrThrow({ where: { id: fine.id } })).reviewReason).toBe("REMINDER_AFTER_PAID");
+
     expect((await submitProof(deps, { token, ...IMAGE, paidOn: null }, async () => PAID_SCREENSHOT)).ok).toBe(false);
   });
 
@@ -157,5 +175,34 @@ describe("POST /api/fines/proof", () => {
     expect((await POST(form({ token, file: big }))).status).toBe(413);
     const html = new File(["<html>"], "s.html", { type: "text/html" });
     expect((await POST(form({ token, file: html }))).status).toBe(415);
+  });
+});
+
+describe("the link in the reopened mail", () => {
+  beforeEach(() => {
+    screenshotText = PAID_SCREENSHOT;
+  });
+
+  it("works, and puts the proof in front of the office instead of marking it paid", async () => {
+    // Review finding: the reopened mail asked for a bank confirmation through
+    // a link that opened "this link no longer works".
+    const { fine, deps, sent } = await notifiedFine();
+    await prisma.fine.update({
+      where: { id: fine.id },
+      data: { status: "NEEDS_REVIEW", reviewReason: "REMINDER_AFTER_PAID", reminderLevel: 1 },
+    });
+    await notifyRenter(deps, fine.id, "reopened");
+    const reopened = sent.find((m) => m.subject.includes("noch offen"))!;
+    const token = /\?t=([A-Za-z0-9_-]+)/.exec(reopened.text)![1];
+
+    const result = await submitProof(deps, { token, ...IMAGE, paidOn: null }, async () => PAID_SCREENSHOT);
+
+    expect(result).toEqual({ ok: true, verdict: "MATCH" });
+    // The issuer says unpaid and the renter says paid: a person decides.
+    expect(await prisma.fine.findUniqueOrThrow({ where: { id: fine.id } })).toMatchObject({
+      status: "PROOF_SUBMITTED",
+      paidAt: null,
+    });
+    expect(sent.at(-1)?.to).toBe("office@zuriauto.ch");
   });
 });

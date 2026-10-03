@@ -22,6 +22,18 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 /** States in which the renter may still tell us they paid. */
 export const PAYABLE_STATUSES = ["NOTIFIED", "PROOF_SUBMITTED"] as const;
 
+/**
+ * Payable, or reopened by a Mahnung after it was thought paid: the reopened
+ * mail asks the renter for their bank confirmation through this link, so the
+ * link has to open. (Review finding: it opened "no longer works".)
+ */
+export function isPayable(fine: { status: string; reviewReason: string | null }): boolean {
+  return (
+    (PAYABLE_STATUSES as readonly string[]).includes(fine.status) ||
+    (fine.status === "NEEDS_REVIEW" && fine.reviewReason === "REMINDER_AFTER_PAID")
+  );
+}
+
 export function finePayUrl(baseUrl: string, token: string): string {
   return `${baseUrl.replace(/\/$/, "")}/fines/pay/?t=${token}`;
 }
@@ -75,12 +87,12 @@ export async function resolveFinePaymentToken(
       purpose: true,
       expiresAt: true,
       usedAt: true,
-      fine: { select: { id: true, status: true } },
+      fine: { select: { id: true, status: true, reviewReason: true } },
     },
   });
   if (!row || row.purpose !== "FINE_PAYMENT" || !row.fine || !tokenIsUsable(row, now)) {
     return { ok: false };
   }
-  if (!(PAYABLE_STATUSES as readonly string[]).includes(row.fine.status)) return { ok: false };
+  if (!isPayable(row.fine)) return { ok: false };
   return { ok: true, tokenId: row.id, fineId: row.fine.id };
 }

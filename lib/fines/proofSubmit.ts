@@ -69,7 +69,11 @@ export async function submitProof(
     },
   });
 
-  if (verdict === "MATCH") {
+  // The issuer has said this fine is unpaid. A matching screenshot does not
+  // overrule it on its own: a person compares the two.
+  const contested = fine.reviewReason === "REMINDER_AFTER_PAID";
+
+  if (verdict === "MATCH" && !contested) {
     // Conditional: two screenshots verified at once mark it paid once.
     const moved = await client.fine.updateMany({
       where: { id: fine.id, status: { in: ["NOTIFIED", "PROOF_SUBMITTED"] } },
@@ -111,7 +115,7 @@ export async function submitProof(
   }
 
   await client.fine.updateMany({
-    where: { id: fine.id, status: "NOTIFIED" },
+    where: { id: fine.id, status: { in: ["NOTIFIED", "NEEDS_REVIEW"] } },
     data: { status: "PROOF_SUBMITTED" },
   });
   await recordEvent(client, fine.id, "proof.submitted", { proofId: proof.id, verdict }, null, now);
@@ -119,9 +123,11 @@ export async function submitProof(
     deps,
     fine,
     "proof",
-    verdict === "UNREADABLE"
-      ? "Der Screenshot war nicht lesbar."
-      : "Betrag oder Referenz waren auf dem Screenshot nicht zu finden.",
+    contested
+      ? "Der Absender hat gemahnt; der Mieter sendet einen Zahlungsnachweis."
+      : verdict === "UNREADABLE"
+        ? "Der Screenshot war nicht lesbar."
+        : "Betrag oder Referenz waren auf dem Screenshot nicht zu finden.",
     proof.id
   );
   return { ok: true, verdict };
