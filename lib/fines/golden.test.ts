@@ -108,6 +108,13 @@ describe("the free reader on clean letters", () => {
       expect(x.violationTime).toMatchObject({ value: expected.time, status: "READ" });
       if (expected.location) expect(x.location.value).toBe(expected.location);
       if (expected.offenceCode) expect(x.offenceCode.value).toBe(expected.offenceCode);
+      // The wording wraps onto a second line on the German letters; the
+      // renter's email once quoted only the first half.
+      if (expected.language === "de" && expected.issuerKind === "POLICE") {
+        expect(x.offenceText.value).toBe(
+          "Überschreiten allgemeiner, fahrzeugbedingter oder signalisierter Höchstgeschwindigkeit innerorts"
+        );
+      }
       expect(x.dueDate.value).toBe(expected.dueDate);
 
       // With the plate found in the fleet, nothing would stop it going out.

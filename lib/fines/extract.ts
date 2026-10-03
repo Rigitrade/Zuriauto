@@ -183,15 +183,58 @@ function placeFrom(lines: string[]): Field<string> {
   return found && value ? field(value, "READ", "ocr", snippetOf(found.line)) : missing();
 }
 
+const TRAILING_AMOUNT = /\s+\d+[.,]\d{2}\s*$/;
+
+/** A line that starts something else rather than continuing a description. */
+function isLabelledLine(line: string): boolean {
+  // "Höchstgeschwindigkeit" is a speed label and also the offence's own
+  // wording; it labels a line only when a km/h value follows.
+  const speedLabels = [LABELS.speedMeasured, LABELS.speedLimit];
+  return (
+    STOP_LABELS.some(
+      (label) => label.test(line) && (!speedLabels.includes(label) || /\d+\s*km/i.test(line))
+    ) ||
+    LABELS.total.test(line) ||
+    LABELS.offence.test(line) ||
+    LABELS.fineNumber.test(line) ||
+    LABELS.dueDate.test(line)
+  );
+}
+
+/**
+ * The offence's wording, which letters wrap. Two shapes, both seen on real
+ * letters: the description runs on to a second line that ends with the
+ * amount, or the amount sits on the first line and a word or two wraps
+ * below it ("… Höchstgeschwindigkeit 40.00" / "innerorts"). Up to two
+ * continuation lines are joined, stopping at anything labelled.
+ */
+function wrappedDescription(lines: string[], start: number, first: string): string {
+  const parts = [first];
+  for (let next = start + 1; next <= start + 2 && next < lines.length; next += 1) {
+    const line = lines[next].trim();
+    if (!line || isLabelledLine(line)) break;
+    const hadAmount = TRAILING_AMOUNT.test(parts.join(" "));
+    // After the amount, only a short wrapped tail belongs to the offence.
+    if (hadAmount && (line.length > 40 || /\d/.test(line))) break;
+    parts.push(line);
+    if (!hadAmount && TRAILING_AMOUNT.test(line)) break;
+  }
+  return parts
+    .map((part) => part.replace(TRAILING_AMOUNT, ""))
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function offenceFrom(lines: string[]): { code: Field<string>; text: Field<string> } {
-  for (const line of lines) {
+  for (const [index, line] of lines.entries()) {
     const label = LABELS.offence.exec(line);
     if (!label) continue;
     const rest = line.slice(label.index + label[0].length);
     const match = /^\s*(\d{3})(?:\.(\d{1,2}))?(?:\.?([a-z]))?\b\s*(.*)$/.exec(rest);
     if (!match) continue;
     const code = [match[1], match[2], match[3]].filter(Boolean).join(".");
-    const description = match[4].replace(/\s+\d+[.,]\d{2}\s*$/, "").trim();
+    const description = wrappedDescription(lines, index, match[4]);
     const snippet = snippetOf(line);
     return {
       code: field(code, "READ", "ocr", snippet),

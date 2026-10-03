@@ -151,3 +151,28 @@ describe("extractFields — not a fine", () => {
     expect(extractFields("  \n ", null, null).kind).toBe("UNREADABLE");
   });
 });
+
+describe("extractFields — an offence that wraps onto the next line", () => {
+  it("joins the wrapped description, before the amount", () => {
+    const text = [
+      "Ziffer 303.1.a Überschreiten allgemeiner, fahrzeugbedingter oder",
+      "signalisierter Höchstgeschwindigkeit innerorts    40.00",
+      "Total Bussenbetrag CHF 40.00",
+      "Kontrollschild ZH 513925",
+    ].join("\n");
+    expect(extractFields(text, null, "de").offenceText.value).toBe(
+      "Überschreiten allgemeiner, fahrzeugbedingter oder signalisierter Höchstgeschwindigkeit innerorts"
+    );
+  });
+
+  it("joins a word that wrapped after the amount, as on Ahmed's letter", () => {
+    expect(extractFields(KAPO_ZH_OCR, null, "de").offenceText.value).toBe(
+      "Überschreiten allgemeiner, fahrzeugbedingter oder signalisierter Höchstgeschwindigkeit innerorts"
+    );
+  });
+
+  it("does not swallow the next labelled line", () => {
+    const text = "Ziffer 303.1.a Überschreiten der Höchstgeschwindigkeit 40.00\nKontrollschild ZH 513925";
+    expect(extractFields(text, null, "de").offenceText.value).toBe("Überschreiten der Höchstgeschwindigkeit");
+  });
+});
