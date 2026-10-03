@@ -596,6 +596,8 @@ model AssetAccess {
   contractId String?
   /// A scanned fine letter. See lib/fines.
   fineDocumentId String?
+  /// A renter's payment screenshot — it can show their bank details.
+  finePaymentProofId String?
 
   /// Denormalised on purpose. An account can be deleted; the record of who
   /// looked at somebody's passport should outlive it.
@@ -607,6 +609,7 @@ model AssetAccess {
   @@index([assetId])
   @@index([contractId])
   @@index([fineDocumentId])
+  @@index([finePaymentProofId])
   @@index([createdAt])
 }
 

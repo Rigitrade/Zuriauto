@@ -172,7 +172,9 @@ export async function alertOffice(
 export async function notifyRenter(
   deps: NotifyDeps,
   fineId: string,
-  reason: NotifyReason
+  reason: NotifyReason,
+  /** A deliberate resend from the office brings its own key. */
+  options: { dedupeKey?: string } = {}
 ): Promise<void> {
   const { client, now } = deps;
   const fine = await loadFine(client, fineId);
@@ -185,7 +187,8 @@ export async function notifyRenter(
 
   const kind: FineNotificationKind =
     reason === "notice" ? "FINE_NOTICE" : reason === "reminder" ? "FINE_REMINDER" : "FINE_REOPENED";
-  const dedupeKey = reason === "notice" ? "notice" : `level-${fine.reminderLevel}`;
+  const dedupeKey =
+    options.dedupeKey ?? (reason === "notice" ? "notice" : `level-${fine.reminderLevel}`);
   const to = fine.customer.email;
 
   const outcome = await sendFineOnce(deps, { fineId, kind, dedupeKey, to }, async () => {
