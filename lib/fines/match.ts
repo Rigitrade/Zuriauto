@@ -25,7 +25,8 @@ export type ReviewReason =
   | "NO_RENTAL_AT_TIME"
   | "HANDOVER_BOUNDARY"
   | "OVERLAPPING_RENTALS"
-  | "NO_CUSTOMER_EMAIL";
+  | "NO_CUSTOMER_EMAIL"
+  | "PROBABLE_DUPLICATE";
 
 export interface MatchResult {
   carId: string | null;
