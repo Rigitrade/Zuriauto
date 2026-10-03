@@ -109,3 +109,26 @@ export async function closeAt(
     })
   );
 }
+
+export const ADMIN_SECRET = "test-admin-secret";
+
+/** A signed-in office user's cookie header, as the dashboard sends it. */
+export async function adminCookie(): Promise<string> {
+  process.env.ADMIN_SECRET = ADMIN_SECRET;
+  const { hashPassword } = await import("@/lib/admin/password");
+  const { ADMIN_COOKIE, issueAdminSession } = await import("@/lib/admin/session");
+  const org = await ensureOrganisation(prisma);
+  const user = await prisma.adminUser.upsert({
+    where: { organisationId_username: { organisationId: org.id, username: "ahmed" } },
+    update: {},
+    create: {
+      organisationId: org.id,
+      username: "ahmed",
+      displayName: "Eng Ahmed",
+      role: "staff",
+      passwordHash: await hashPassword("Sommer2026!"),
+    },
+    select: { id: true },
+  });
+  return `${ADMIN_COOKIE}=${issueAdminSession(user.id)}`;
+}
