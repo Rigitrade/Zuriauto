@@ -9,6 +9,8 @@ import {
   isLetterKeyOf,
 } from "@/lib/fines/keys";
 import { pdfPageCount } from "@/lib/fines/raster";
+import { runFineDocument } from "@/lib/fines/run";
+import { afterResponse } from "@/lib/fines/schedule";
 import { getAssetStore } from "@/lib/storage";
 
 /**
@@ -25,6 +27,9 @@ import { getAssetStore } from "@/lib/storage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// Reading a letter — two OCR passes over up to ten pages — runs in after(),
+// inside this invocation's time budget.
+export const maxDuration = 300;
 
 function isUniqueViolation(error: unknown): boolean {
   return (error as { code?: string })?.code === "P2002";
@@ -108,5 +113,10 @@ export async function POST(request: Request) {
     await store.put(key, bytes, LETTER_CONTENT_TYPE);
   }
 
-  return NextResponse.json({ documentId }, { status: 201 });
+  // Read after the response: the office sees the letter listed at once and
+  // its result a few seconds later. If this cannot be scheduled, the daily
+  // retry pass reads it.
+  const scheduled = afterResponse(() => runFineDocument(documentId));
+
+  return NextResponse.json({ documentId, scheduled }, { status: 201 });
 }
