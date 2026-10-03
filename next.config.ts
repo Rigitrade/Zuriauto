@@ -29,9 +29,10 @@ const nextConfig: NextConfig = {
     "zxing-wasm",
   ],
 
-  // Tesseract reads its trained data from lib/fines/tessdata at run time,
-  // which no import points at, so file tracing would leave it out of every
-  // function that reads letters or payment screenshots.
+  // Tesseract reads its trained data from lib/fines/tessdata at run time, and
+  // the QR decoder its WebAssembly from node_modules — files no import points
+  // at, so file tracing would leave them out of every function that reads
+  // letters or payment screenshots.
   outputFileTracingIncludes: {
     "/api/admin/fines/**": ["./lib/fines/tessdata/**", "./node_modules/zxing-wasm/dist/reader/zxing_reader.wasm"],
     "/api/fines/**": ["./lib/fines/tessdata/**", "./node_modules/zxing-wasm/dist/reader/zxing_reader.wasm"],
