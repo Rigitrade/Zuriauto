@@ -10,7 +10,7 @@ import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import type { AssetStore } from "@/lib/storage";
 import { recordEvent } from "./events";
 import { handlingFeeCents } from "./fee";
-import { matchFine, type MatchResult, type ReviewReason } from "./match";
+import { matchFine, type MatchResult } from "./match";
 import { offenceWording } from "./offences";
 import type { FineReader, ReadResult } from "./reader";
 import type { Extraction } from "./types";

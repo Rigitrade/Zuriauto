@@ -116,6 +116,12 @@ async function loadFine(client: PrismaClient, fineId: string) {
 
 type LoadedFine = Awaited<ReturnType<typeof loadFine>>;
 
+/** What an office alert needs to say about a fine. */
+export type AlertableFine = Pick<LoadedFine, "id" | "reminderLevel" | "fineNumber"> & {
+  car: { plate: string } | null;
+  customer: { firstName: string; lastName: string } | null;
+};
+
 async function letterAttachments(store: AssetStore, fine: LoadedFine, newestFirst: boolean) {
   const plate = (fine.car?.plate ?? "fahrzeug").replace(/\s/g, "");
   const documents = newestFirst ? [...fine.documents].reverse() : fine.documents;
@@ -134,9 +140,11 @@ async function letterAttachments(store: AssetStore, fine: LoadedFine, newestFirs
 
 export async function alertOffice(
   deps: NotifyDeps,
-  fine: LoadedFine,
+  fine: AlertableFine,
   kind: OfficeFineAlertKind,
-  detail?: string
+  detail?: string,
+  /** Distinguishes alerts of one kind, e.g. one per proof submitted. */
+  dedupeSuffix?: string
 ): Promise<void> {
   if (!deps.mail) return;
   await sendFineOnce(
@@ -144,7 +152,7 @@ export async function alertOffice(
     {
       fineId: fine.id,
       kind: "OFFICE_ALERT",
-      dedupeKey: `${kind}-${fine.reminderLevel}`,
+      dedupeKey: `${kind}-${dedupeSuffix ?? fine.reminderLevel}`,
       to: deps.mail.office,
     },
     async () => ({

@@ -35,7 +35,7 @@ export interface FineMailContext {
 }
 
 /** `02.07.2026, 10:00` — the four-digit year letters print, Zurich time. */
-function moment(at: Date, withTime: boolean): string {
+export function formatFineMoment(at: Date, withTime: boolean): string {
   const parts = new Intl.DateTimeFormat("de-CH", {
     timeZone: "Europe/Zurich",
     day: "2-digit",
@@ -53,8 +53,8 @@ function chf(cents: number): string {
 }
 
 export function fineNoticeMail(ctx: FineMailContext): { subject: string; text: string } {
-  const day = moment(ctx.violationAt, false);
-  const when = moment(ctx.violationAt, ctx.timeKnown);
+  const day = formatFineMoment(ctx.violationAt, false);
+  const when = formatFineMoment(ctx.violationAt, ctx.timeKnown);
   const due = ctx.dueDate ? formatDay(ctx.dueDate) : null;
   const reference = ctx.fineNumber ?? "";
 
@@ -136,7 +136,7 @@ export function fineNoticeMail(ctx: FineMailContext): { subject: string; text: s
 }
 
 export function fineReopenedMail(ctx: FineMailContext): { subject: string; text: string } {
-  const day = moment(ctx.violationAt, false);
+  const day = formatFineMoment(ctx.violationAt, false);
   if (ctx.language === "en") {
     return {
       subject: `The fine for ${ctx.plate} of ${day} is still unpaid`,
@@ -174,7 +174,7 @@ export function fineReopenedMail(ctx: FineMailContext): { subject: string; text:
 }
 
 export function fineThanksMail(ctx: FineMailContext): { subject: string; text: string } {
-  const day = moment(ctx.violationAt, false);
+  const day = formatFineMoment(ctx.violationAt, false);
   if (ctx.language === "en") {
     return {
       subject: `Payment confirmed: fine for ${ctx.plate} of ${day}`,
