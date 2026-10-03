@@ -330,3 +330,32 @@ describe("POST /api/admin/fines/documents/[id]/process", () => {
     expect(await prisma.fineDocument.findUniqueOrThrow({ where: { id: failed.id } })).toMatchObject({ status: "FAILED", attempts: 0 });
   });
 });
+
+describe("fineAttentionCounts", () => {
+  it("counts fines in review, proofs to check, and sent fines past their deadline", async () => {
+    const { fineAttentionCounts } = await import("@/lib/fines/queries");
+    const { org, fine } = await fineInReview();
+    const base = { organisationId: org.id, amountCents: 1000 };
+    await prisma.fine.createMany({
+      data: [
+        { ...base, status: "PROOF_SUBMITTED" },
+        { ...base, status: "NOTIFIED", dueDate: new Date("2026-09-01T00:00:00Z") },
+        { ...base, status: "NOTIFIED", dueDate: new Date("2026-12-01T00:00:00Z") },
+        { ...base, status: "PAID", dueDate: new Date("2026-09-01T00:00:00Z") },
+      ],
+    });
+    await prisma.fineDocument.create({
+      data: {
+        organisationId: org.id, storageKey: "fines/d9/letter.pdf", sha256: "9".repeat(64), bytes: 1, pages: 1,
+        uploadedById: "u1", uploadedByName: "Eng Ahmed", status: "FAILED", attempts: 3,
+      },
+    });
+    expect(fine.status).toBe("NEEDS_REVIEW");
+    expect(await fineAttentionCounts(prisma, new Date("2026-10-03T12:00:00Z"))).toEqual({
+      // The fine in review, and the letter that failed for good.
+      review: 2,
+      proof: 1,
+      overdue: 1,
+    });
+  });
+});

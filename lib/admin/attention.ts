@@ -24,9 +24,11 @@ export interface AttentionSource {
   /** Absent on a deployment older than the field. Treated as empty rather
    *  than as an error: losing one row beats the Overview throwing. */
   unsentContracts?: UnsentContract[];
+  /** Absent before the fines feature, and treated as nothing waiting. */
+  fineAttention?: { review: number; proof: number; overdue: number };
 }
 
-export type AttentionKind = "return" | "ending" | "mail";
+export type AttentionKind = "return" | "ending" | "mail" | "fine";
 
 export interface AttentionItem {
   kind: AttentionKind;
@@ -41,6 +43,8 @@ export interface AttentionItem {
   carModel?: string;
   /** The moment the row is about — returned at, or due at. */
   at?: string;
+  /** How many fines the row stands for. */
+  count?: number;
 }
 
 /** Rentals ending within this window are worth surfacing. */
@@ -96,5 +100,10 @@ export function attentionItems(
     at: contract.signedAt,
   }));
 
-  return [...returns, ...endings, ...mail];
+  const fines = source.fineAttention;
+  const fineCount = fines ? fines.review + fines.proof + fines.overdue : 0;
+  const fine: AttentionItem[] =
+    fineCount > 0 ? [{ kind: "fine", key: "fine:waiting", customerName: "", count: fineCount }] : [];
+
+  return [...returns, ...endings, ...mail, ...fine];
 }

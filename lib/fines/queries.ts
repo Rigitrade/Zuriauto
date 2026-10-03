@@ -136,3 +136,21 @@ export async function fineDetail(client: PrismaClient, fineId: string) {
 
   return { fine, documents: fine.documents, proofs: fine.proofs, events: fine.events, candidates };
 }
+
+/**
+ * What the bell counts: fines the system would not send, letters it could
+ * not read after every attempt, proofs to check, and sent fines past their
+ * deadline with no word from the renter.
+ */
+export async function fineAttentionCounts(client: PrismaClient, now: Date) {
+  const today = new Date(`${new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Zurich" }).format(now)}T00:00:00Z`);
+  const [review, failedLetters, proof, overdue] = await Promise.all([
+    client.fine.count({ where: { status: "NEEDS_REVIEW" } }),
+    // 3 is MAX_ATTEMPTS in process.ts, not imported: that module pulls in the
+    // reader, and the overview endpoint has no business loading Tesseract.
+    client.fineDocument.count({ where: { status: "FAILED", attempts: { gte: 3 } } }),
+    client.fine.count({ where: { status: "PROOF_SUBMITTED" } }),
+    client.fine.count({ where: { status: "NOTIFIED", dueDate: { lt: today } } }),
+  ]);
+  return { review: review + failedLetters, proof, overdue };
+}

@@ -12,10 +12,15 @@ import { day } from "@/components/admin/format";
 export function attentionTitle(item: AttentionItem, L: Labels): string {
   if (item.kind === "return") return L.overview.confirmReturn;
   if (item.kind === "ending") return L.overview.endsToday;
+  if (item.kind === "fine") return L.overview.finesWaiting;
   return L.overview.mailNotDelivered;
 }
 
 export function attentionDetail(item: AttentionItem, L: Labels, now: Date): string {
+  if (item.kind === "fine") {
+    const count = item.count ?? 0;
+    return `${count} ${count === 1 ? L.overview.fineOne : L.overview.fineMany}`;
+  }
   if (item.kind === "mail") {
     return [item.contractNumber, item.at ? day(item.at) : null]
       .filter(Boolean)
@@ -38,5 +43,6 @@ export function attentionDetail(item: AttentionItem, L: Labels, now: Date): stri
 /** Where the item's action lives. A failed mail is resent from the band on
  *  the Overview; the other two are handled on the rentals list. */
 export function attentionHref(item: AttentionItem): string {
+  if (item.kind === "fine") return "/admin/fines/?tab=review";
   return item.kind === "mail" ? "/admin" : "/admin/rentals";
 }
