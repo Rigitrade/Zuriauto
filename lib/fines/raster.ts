@@ -90,23 +90,38 @@ export async function pdfPageCount(bytes: Uint8Array): Promise<number> {
   }
 }
 
-export async function rasterisePdf(
+/**
+ * The longest edge a page is rendered at, whatever the PDF says its size is.
+ * A4 at 300 DPI is 3508 px. Some scanner apps write the page size in pixels
+ * as points; taken at its word, such a page would be a 10333×14617 canvas —
+ * about 600 MB of pixels for one page.
+ */
+export const MAX_EDGE_PX = 3600;
+
+/**
+ * Renders the pages one at a time and hands each to `fn` before the next
+ * is drawn, so a ten-page letter holds one page of pixels, not ten.
+ */
+export async function forEachPage(
   bytes: Uint8Array,
+  fn: (page: PageImage, index: number) => Promise<void>,
   opts: { dpi?: number; maxPages?: number } = {}
-): Promise<PageImage[]> {
+): Promise<number> {
   const dpi = opts.dpi ?? 300;
   const maxPages = opts.maxPages ?? MAX_PAGES;
   const task = open(bytes);
 
   try {
     const pdf = await task.promise;
-    const pages: PageImage[] = [];
-    for (let number = 1; number <= Math.min(pdf.numPages, maxPages); number += 1) {
+    const count = Math.min(pdf.numPages, maxPages);
+    for (let number = 1; number <= count; number += 1) {
       const page = await pdf.getPage(number);
-      const viewport = page.getViewport({ scale: dpi / 72 });
+      const natural = page.getViewport({ scale: 1 });
+      const scale = Math.min(dpi / 72, MAX_EDGE_PX / Math.max(natural.width, natural.height));
+      const viewport = page.getViewport({ scale });
       const canvas = createCanvas(
-        Math.ceil(viewport.width),
-        Math.ceil(viewport.height)
+        Math.floor(viewport.width),
+        Math.floor(viewport.height)
       );
       const context = canvas.getContext("2d");
       // A scan with a transparent background would read as black to the
@@ -120,24 +135,39 @@ export async function rasterisePdf(
       }).promise;
 
       const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
-      pages.push({
-        width: canvas.width,
-        height: canvas.height,
-        rgba: data,
-        png: async () => canvas.encode("png"),
-        ocrPng: async () => {
-          const grey = createCanvas(canvas.width, canvas.height);
-          const greyContext = grey.getContext("2d");
-          const image = greyContext.createImageData(canvas.width, canvas.height);
-          image.data.set(stretchToGrey(data));
-          greyContext.putImageData(image, 0, 0);
-          return grey.encode("png");
+      await fn(
+        {
+          width: canvas.width,
+          height: canvas.height,
+          rgba: data,
+          png: async () => canvas.encode("png"),
+          ocrPng: async () => {
+            const grey = createCanvas(canvas.width, canvas.height);
+            const greyContext = grey.getContext("2d");
+            const image = greyContext.createImageData(canvas.width, canvas.height);
+            image.data.set(stretchToGrey(data));
+            greyContext.putImageData(image, 0, 0);
+            return grey.encode("png");
+          },
         },
-      });
+        number - 1
+      );
       page.cleanup();
     }
-    return pages;
+    return count;
   } finally {
     await task.destroy();
   }
+}
+
+/** Every page at once — for a single page, or for tests. */
+export async function rasterisePdf(
+  bytes: Uint8Array,
+  opts: { dpi?: number; maxPages?: number } = {}
+): Promise<PageImage[]> {
+  const pages: PageImage[] = [];
+  await forEachPage(bytes, async (page) => {
+    pages.push(page);
+  }, opts);
+  return pages;
 }

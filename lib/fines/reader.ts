@@ -10,9 +10,9 @@
 import { extractFields } from "./extract";
 import { detectLanguage } from "./language";
 import { recognise, type OcrLanguage, type OcrWord } from "./ocr";
-import { pickQrBill } from "./qrBill";
+import { parseQrBill, pickQrBill } from "./qrBill";
 import { decodeQrCodes } from "./qrDecode";
-import { rasterisePdf } from "./raster";
+import { forEachPage } from "./raster";
 import type { Extraction, FineLanguage } from "./types";
 import { validateExtraction } from "./validate";
 
@@ -56,30 +56,35 @@ export const freeReader: FineReader = {
   name: "free-v1",
 
   async read(pdf, now) {
-    const pages = await rasterisePdf(pdf);
-
+    // One page at a time, released before the next is drawn: a ten-page
+    // letter holds one page of pixels, not ten.
     const qrTexts: string[] = [];
-    for (const page of pages) qrTexts.push(...(await decodeQrCodes(page)));
-    const qr = pickQrBill(qrTexts);
-    const qrText = qrTexts.find((text) => text.startsWith("SPC")) ?? null;
-
-    // Pass one only when the slip does not already name the language: with
-    // all three models loaded the OCR is worse, so its text is used for
-    // nothing but the vote.
-    let language = qr ? detectLanguage("", qr) : null;
-    if (!language && pages.length > 0) {
-      const first = await recognise(await pages[0].ocrPng(), ["deu", "fra", "ita"]);
-      language = detectLanguage(first.text, qr);
-    }
-
-    const model = TESSERACT[language ?? "de"];
     const texts: string[] = [];
     const words: OcrWord[] = [];
-    for (const page of pages) {
-      const result = await recognise(await page.ocrPng(), [model]);
+    let language: FineLanguage | null = null;
+
+    const pages = await forEachPage(pdf, async (page, index) => {
+      qrTexts.push(...(await decodeQrCodes(page)));
+
+      if (index === 0) {
+        // Pass one only when the slip does not already name the language:
+        // with all three models loaded the OCR is worse, so its text is used
+        // for nothing but the vote.
+        const slip = pickQrBill(qrTexts);
+        language = slip ? detectLanguage("", slip) : null;
+        if (!language) {
+          const first = await recognise(await page.ocrPng(), ["deu", "fra", "ita"]);
+          language = detectLanguage(first.text, slip);
+        }
+      }
+
+      const result = await recognise(await page.ocrPng(), [TESSERACT[language ?? "de"]]);
       texts.push(result.text);
       words.push(...result.words);
-    }
+    });
+
+    const qr = pickQrBill(qrTexts);
+    const qrText = qrTexts.find((text) => parseQrBill(text) !== null) ?? null;
     const ocrText = texts.join("\n");
 
     const extraction = validateExtraction(extractFields(ocrText, qr, language), {
@@ -87,6 +92,6 @@ export const freeReader: FineReader = {
       wordConfidence: confidenceLookup(words),
     });
 
-    return { qrText, ocrText, language, extraction, pages: pages.length };
+    return { qrText, ocrText, language, extraction, pages };
   },
 };
