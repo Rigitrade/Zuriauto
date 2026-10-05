@@ -24,6 +24,7 @@
     "mail:up": "docker compose up -d mail",
     "mail:open": "node -e \"console.log('http://localhost:8025')\"",
     "db:upload-legacy-pdfs": "tsx scripts/upload-legacy-pdfs.ts",
+    "gtc:pdf": "tsx scripts/build-gtc-pdfs.ts",
     "shot": "tsx scripts/screenshot.ts"
   },
   "dependencies": {

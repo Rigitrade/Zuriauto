@@ -142,6 +142,10 @@ export async function persistPickup(
           gtcVersion: details.gtcVersion,
           gtcLanguage: details.gtcLanguage,
           acceptedAt: new Date(details.acceptedAt),
+          truthfulInfoConfirmedAt: new Date(details.truthfulInfoConfirmedAt),
+          deceptionNoticeConfirmedAt: new Date(
+            details.deceptionNoticeConfirmedAt
+          ),
           place: details.place,
           signedAt: now,
           pdfKey,

@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Three flags linking to the signed GTC PDFs, one per language.
+ * Three flags linking to the GTC PDFs of the current version, one per language.
  *
  * Flags are inline SVG rather than emoji: Windows does not render regional
  * indicator pairs as flags, so emoji would show as "DE" / "GB" / "FR" text on a
@@ -17,6 +17,8 @@
  * it during export, leaving the directory lower-cased. A case-sensitive host
  * would then 404 on /GTC/.
  */
+
+import { gtcPdfPath } from "@/locales/gtc";
 
 type Version = {
   code: "de" | "en" | "fr";
@@ -73,19 +75,19 @@ const VERSIONS: Version[] = [
   {
     code: "de",
     label: "Deutsch",
-    file: "/gtc-pdf/gtc-zuriauto-2026-07-30-de.pdf",
+    file: gtcPdfPath("de"),
     Flag: GermanFlag,
   },
   {
     code: "en",
     label: "English",
-    file: "/gtc-pdf/gtc-zuriauto-2026-07-30-en.pdf",
+    file: gtcPdfPath("en"),
     Flag: BritishFlag,
   },
   {
     code: "fr",
     label: "Français",
-    file: "/gtc-pdf/gtc-zuriauto-2026-07-30-fr.pdf",
+    file: gtcPdfPath("fr"),
     Flag: FrenchFlag,
   },
 ];

@@ -1,12 +1,15 @@
-// AUTO-GENERATED from the signed GTC PDFs supplied 2026-07-29. Do not hand-edit.
+// The terms, in the three languages a renter can read them in.
 //
-//   AGB_GTC_Zuriauto_07.2026_DE.pdf
-//   GTC_Zuriauto_30.07.2026_EN.pdf
-//   GTC_Zuriauto_30.07.2026_FR.pdf
+// Articles 1–10 and 12 were generated from the signed GTC PDFs of 30.07.2026
+// (AGB_GTC_Zuriauto_07.2026_DE.pdf, GTC_Zuriauto_30.07.2026_EN.pdf,
+// GTC_Zuriauto_30.07.2026_FR.pdf), where article 12 was numbered 11. Article
+// 11 was added for the version of 06.10.2026 from the lessor's German text of
+// 05.10.2026, translated here into English and French.
 //
-// Every paragraph, list item and table cell below was verified to occur in the
-// source documents. To change the terms, replace the PDFs and regenerate rather
-// than editing this file, so the site cannot drift from the signed documents.
+// This file is now the source and the published PDFs are built from it
+// (`pnpm gtc:pdf`), so the website, the PDFs and the contract appendix cannot
+// drift apart. Changing the wording is a new version: change GTC_DATE and every
+// `updated` line with it, then rebuild the PDFs.
 
 export type GtcBlock =
   | { kind: "p"; text: string }
@@ -42,12 +45,22 @@ export const GTC_ENTITY = "Rigitrade AG";
  * carry the same date; the German and French files print it in this exact
  * DD.MM.YYYY form.
  */
-export const GTC_DATE = "30.07.2026";
+export const GTC_DATE = "06.10.2026";
+
+/**
+ * Where the current version's PDF is published (built by `pnpm gtc:pdf`). The
+ * date is in the name so a new version is a new file, and a link to an earlier
+ * version keeps opening the terms it pointed at.
+ */
+export function gtcPdfPath(language: GtcLanguage): string {
+  const [day, month, year] = GTC_DATE.split(".");
+  return `/gtc-pdf/gtc-zuriauto-${year}-${month}-${day}-${language}.pdf`;
+}
 
 const gtc: Record<GtcLanguage, GtcDocument> = {
   "de": {
     "title": "AGB Allgemeine Geschäftsbedingungen",
-    "updated": "Updated 30.07.2026 / AK",
+    "updated": "Updated 06.10.2026 / AK",
     "sections": [
       {
         "num": "1",
@@ -301,6 +314,40 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
       },
       {
         "num": "11",
+        "title": "Wahrheitsgemässe Angaben und Täuschung",
+        "blocks": [
+          {
+            "kind": "sub",
+            "title": "11.1 Wahrheitsgemässe Angaben"
+          },
+          {
+            "kind": "p",
+            "text": "Der Mieter bestätigt mit seiner Unterschrift, dass sämtliche von ihm gemachten Angaben sowie sämtliche eingereichten Ausweisdokumente, Bewilligungen, Führerausweise und sonstigen Unterlagen vollständig, wahrheitsgemäss und gültig sind. Dies gilt insbesondere für Angaben zur Person, Identität, Wohn- und Zustelladresse, Kontaktangaben und Zahlungsfähigkeit sowie für sämtliche Angaben und Unterlagen, die für die Prüfung der Mietberechtigung und die Fahrzeugüberlassung erforderlich sind."
+          },
+          {
+            "kind": "p",
+            "text": "Der Mieter verpflichtet sich, die Vermieterin unverzüglich über Änderungen dieser Verhältnisse zu informieren und auf Verlangen jederzeit aktuelle Nachweise über seine Identität, seinen Wohnsitz, seine Erreichbarkeit und seine Nutzungsberechtigung vorzulegen."
+          },
+          {
+            "kind": "sub",
+            "title": "11.2 Täuschung und Haftung"
+          },
+          {
+            "kind": "p",
+            "text": "Dem Mieter ist bekannt, dass die wahrheitsgemässe Angabe seiner Identität, seiner Wohn- und Zustelladresse, seiner Erreichbarkeit, seiner Zahlungsfähigkeit sowie der für die Fahrzeugüberlassung erforderlichen Voraussetzungen eine wesentliche Geschäftsgrundlage für den Vertragsabschluss und die Überlassung des Fahrzeugs bildet."
+          },
+          {
+            "kind": "p",
+            "text": "Vorsätzlich falsche oder irreführende Angaben sowie gefälschte oder ungültige Unterlagen – insbesondere wenn diese dazu dienen, die Identität, den Wohnsitz, die Erreichbarkeit oder die Zahlungsfähigkeit des Mieters zu verschleiern oder die Vermieterin dadurch zur Überlassung des Fahrzeugs zu veranlassen – können eine arglistige Täuschung darstellen und strafrechtliche Folgen haben, insbesondere wegen Betrugs gemäss Art. 146 StGB oder Urkundenfälschung gemäss Art. 251 StGB, sofern die gesetzlichen Voraussetzungen erfüllt sind."
+          },
+          {
+            "kind": "p",
+            "text": "Der Mieter haftet nach den gesetzlichen Bestimmungen für sämtliche Schäden, Kosten und Aufwendungen, die der Vermieterin infolge falscher, unvollständiger oder irreführender Angaben oder Unterlagen entstehen. Dies umfasst insbesondere Mietausfälle, Kosten der Fahrzeugrückführung, administrative Aufwände sowie Inkasso- und Rechtsverfolgungskosten, soweit diese gesetzlich geschuldet und vom Mieter zu ersetzen sind."
+          }
+        ]
+      },
+      {
+        "num": "12",
         "title": "Allgemeine Bestimmungen",
         "blocks": [
           {
@@ -329,7 +376,7 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
   },
   "en": {
     "title": "General Terms & Conditions (GTC)",
-    "updated": "Updated: 30 July 2026 / AK",
+    "updated": "Updated: 6 October 2026 / AK",
     "sections": [
       {
         "num": "1",
@@ -701,6 +748,40 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
       },
       {
         "num": "11",
+        "title": "Truthful Information & Deception",
+        "blocks": [
+          {
+            "kind": "sub",
+            "title": "11.1 Truthful Information"
+          },
+          {
+            "kind": "p",
+            "text": "By signing, the Renter confirms that all information the Renter has provided and all identity documents, permits, driving licences and other documents the Renter has submitted are complete, truthful and valid. This applies in particular to information on the Renter's person, identity, residential and postal address, contact details and solvency, and to all information and documents required to assess the Renter's eligibility to rent and to hand over the vehicle."
+          },
+          {
+            "kind": "p",
+            "text": "The Renter undertakes to inform the Lessor without delay of any change in these circumstances and, upon request, to provide current proof of the Renter's identity, residence, reachability and entitlement to use the vehicle at any time."
+          },
+          {
+            "kind": "sub",
+            "title": "11.2 Deception & Liability"
+          },
+          {
+            "kind": "p",
+            "text": "The Renter acknowledges that truthful information on the Renter's identity, residential and postal address, reachability and solvency, and on the requirements for handing over the vehicle, forms an essential basis for concluding the contract and handing over the vehicle."
+          },
+          {
+            "kind": "p",
+            "text": "Intentionally false or misleading information and forged or invalid documents – in particular where they serve to conceal the Renter's identity, residence, reachability or solvency, or thereby to induce the Lessor to hand over the vehicle – may constitute wilful deception and may have criminal consequences, in particular for fraud under Art. 146 of the Swiss Criminal Code (StGB) or forgery of documents under Art. 251 StGB, provided the statutory requirements are met."
+          },
+          {
+            "kind": "p",
+            "text": "The Renter is liable in accordance with the statutory provisions for all damage, costs and expenses incurred by the Lessor as a result of false, incomplete or misleading information or documents. This includes in particular loss of rental income, costs of recovering the vehicle, administrative expenses, and collection and legal costs, insofar as these are owed by law and are to be reimbursed by the Renter."
+          }
+        ]
+      },
+      {
+        "num": "12",
         "title": "General Provisions",
         "blocks": [
           {
@@ -757,7 +838,7 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
   },
   "fr": {
     "title": "Conditions Générales de Location (CGV)",
-    "updated": "Mise à jour : 30.07.2026 / AK",
+    "updated": "Mise à jour : 06.10.2026 / AK",
     "sections": [
       {
         "num": "1",
@@ -1146,6 +1227,40 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
       },
       {
         "num": "11",
+        "title": "Exactitude des informations et tromperie",
+        "blocks": [
+          {
+            "kind": "sub",
+            "title": "11.1 Exactitude des informations"
+          },
+          {
+            "kind": "p",
+            "text": "Par sa signature, le Locataire confirme que toutes les informations qu'il a fournies ainsi que tous les documents d'identité, autorisations, permis de conduire et autres documents qu'il a remis sont complets, véridiques et valables. Cela vaut en particulier pour les informations relatives à sa personne, à son identité, à son adresse de domicile et à son adresse postale, à ses coordonnées et à sa solvabilité, ainsi que pour toutes les informations et tous les documents nécessaires à l'examen de son droit de louer et à la remise du véhicule."
+          },
+          {
+            "kind": "p",
+            "text": "Le Locataire s'engage à informer sans délai le Loueur de toute modification de ces circonstances et à fournir à tout moment, sur demande, des justificatifs actuels de son identité, de son domicile, de sa joignabilité et de son droit d'utiliser le véhicule."
+          },
+          {
+            "kind": "sub",
+            "title": "11.2 Tromperie et responsabilité"
+          },
+          {
+            "kind": "p",
+            "text": "Le Locataire sait que l'indication véridique de son identité, de son adresse de domicile et de son adresse postale, de sa joignabilité, de sa solvabilité ainsi que des conditions requises pour la remise du véhicule constitue une base essentielle de la conclusion du contrat et de la remise du véhicule."
+          },
+          {
+            "kind": "p",
+            "text": "Des indications intentionnellement fausses ou trompeuses ainsi que des documents falsifiés ou non valables – en particulier lorsqu'ils servent à dissimuler l'identité, le domicile, la joignabilité ou la solvabilité du Locataire ou à amener ainsi le Loueur à remettre le véhicule – peuvent constituer un dol et entraîner des conséquences pénales, notamment pour escroquerie selon l'art. 146 CP ou faux dans les titres selon l'art. 251 CP, pour autant que les conditions légales soient remplies."
+          },
+          {
+            "kind": "p",
+            "text": "Le Locataire répond, conformément aux dispositions légales, de tous les dommages, frais et dépenses que le Loueur subit en raison d'informations ou de documents faux, incomplets ou trompeurs. Cela comprend notamment les pertes de loyer, les frais de rapatriement du véhicule, les charges administratives ainsi que les frais d'encaissement et de poursuite judiciaire, dans la mesure où ceux-ci sont dus en vertu de la loi et doivent être remboursés par le Locataire."
+          }
+        ]
+      },
+      {
+        "num": "12",
         "title": "Dispositions générales",
         "blocks": [
           {

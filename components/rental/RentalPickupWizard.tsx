@@ -29,6 +29,10 @@ import {
 } from "@/lib/rental/fleet";
 import { asRentalLanguage, labelsFor } from "@/lib/rental/labels";
 import {
+  GTC_CONFIRMATIONS,
+  type GtcConfirmationKey,
+} from "@/lib/rental/gtcConfirmations";
+import {
   COUNTRIES,
   DEFAULT_COUNTRY,
   PRIORITY_COUNT,
@@ -271,6 +275,11 @@ export default function RentalPickupWizard() {
   const [signature, setSignature] = useState<string | null>(null);
   const [gtcAccepted, setGtcAccepted] = useState(false);
   const [acceptedAt, setAcceptedAt] = useState<string | null>(null);
+  /** When each GTC Art. 11 box was ticked; null while it is not. */
+  const [confirmedAt, setConfirmedAt] = useState<
+    Record<GtcConfirmationKey, string | null>
+  >({ truthfulInfoConfirmedAt: null, deceptionNoticeConfirmedAt: null });
+  const allConfirmed = GTC_CONFIRMATIONS.every(({ key }) => confirmedAt[key]);
   /**
    * Which language version of the terms the customer reads, independent of the
    * interface language. Recorded on the contract, so it must be the version
@@ -434,6 +443,23 @@ export default function RentalPickupWizard() {
     }
   }
 
+  function confirmArticle(key: GtcConfirmationKey, confirmed: boolean) {
+    setConfirmedAt((prev) => {
+      const next = {
+        ...prev,
+        [key]: confirmed ? new Date().toISOString() : null,
+      };
+      if (GTC_CONFIRMATIONS.every(({ key }) => next[key])) {
+        setErrors((errs) => {
+          const rest = { ...errs };
+          delete rest.confirm;
+          return rest;
+        });
+      }
+      return next;
+    });
+  }
+
   function validateStep(target: number): boolean {
     const found: Record<string, string> = {};
 
@@ -511,6 +537,7 @@ export default function RentalPickupWizard() {
 
     if (target === 5) {
       if (!gtcAccepted) found.gtc = L.errors.gtc;
+      if (!allConfirmed) found.confirm = L.errors.confirm;
       if (!signature) found.signature = L.errors.signature;
     }
 
@@ -673,6 +700,9 @@ export default function RentalPickupWizard() {
       // The version read, not the interface language.
       gtcLanguage,
       acceptedAt: acceptedAt ?? new Date().toISOString(),
+      // No fallback, unlike acceptedAt: an unticked box must fail the schema.
+      truthfulInfoConfirmedAt: confirmedAt.truthfulInfoConfirmedAt ?? "",
+      deceptionNoticeConfirmedAt: confirmedAt.deceptionNoticeConfirmedAt ?? "",
       place: form.place,
     });
 
@@ -695,6 +725,8 @@ export default function RentalPickupWizard() {
         totalWeeks: 2,
         startAt: 2,
         endAt: 2,
+        truthfulInfoConfirmedAt: 5,
+        deceptionNoticeConfirmedAt: 5,
       };
       // Fallback is 3, not 2: the customer-details step moved down one.
       setStep(ownerOfField[Object.keys(found)[0]] ?? 3);
@@ -1491,7 +1523,18 @@ export default function RentalPickupWizard() {
                 onGtcLanguageChange={setGtcLanguage}
                 accepted={gtcAccepted}
                 onAcceptedChange={acceptGtc}
+                confirmed={{
+                  truthfulInfoConfirmedAt: !!confirmedAt.truthfulInfoConfirmedAt,
+                  deceptionNoticeConfirmedAt:
+                    !!confirmedAt.deceptionNoticeConfirmedAt,
+                }}
+                onConfirmedChange={confirmArticle}
                 error={errors.gtc}
+                confirmError={
+                  errors.confirm ||
+                  errors.truthfulInfoConfirmedAt ||
+                  errors.deceptionNoticeConfirmedAt
+                }
               />
 
               <div className="space-y-2">
@@ -1500,7 +1543,7 @@ export default function RentalPickupWizard() {
                 </h3>
                 <SignaturePad
                   language={language}
-                  disabled={!gtcAccepted}
+                  disabled={!gtcAccepted || !allConfirmed}
                   onChange={(dataUrl) => {
                     setSignature(dataUrl);
                     if (dataUrl) {

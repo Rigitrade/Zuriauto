@@ -16,8 +16,14 @@ import {
   StandardFonts,
   rgb,
 } from "pdf-lib";
-import gtc, { GTC_DATE, GTC_ENTITY, type GtcLanguage } from "@/locales/gtc";
+import gtc, {
+  GTC_DATE,
+  GTC_ENTITY,
+  type GtcDocument,
+  type GtcLanguage,
+} from "@/locales/gtc";
 import { fuelLevelToFraction, type FleetVehicle } from "./fleet";
+import { GTC_CONFIRMATIONS, type GtcConfirmationKey } from "./gtcConfirmations";
 import { labelsFor, type RentalLanguage } from "./labels";
 import { formatChf } from "./money";
 import type { ContractDetails } from "./schema";
@@ -297,6 +303,44 @@ export class Writer {
 }
 
 /**
+ * Typesets the articles of the terms. Shared by the contract's appendix and
+ * the downloadable GTC (`gtcPdf.ts`), so the two cannot set them differently.
+ */
+export function writeGtcSections(w: Writer, gtcDoc: GtcDocument): void {
+  for (const section of gtcDoc.sections) {
+    w.ensure(40);
+    w.gap(8);
+    w.text(`${section.num} ${section.title}`, { size: 10.5, font: w.bold });
+    w.gap(4);
+
+    for (const block of section.blocks) {
+      switch (block.kind) {
+        case "sub":
+          w.gap(4);
+          w.text(block.title, { size: 9.5, font: w.bold });
+          w.gap(2);
+          break;
+        case "p":
+          w.text(block.text, { size: 9, leading: 1.4 });
+          w.gap(4);
+          break;
+        case "list":
+          for (const item of block.items) {
+            w.text(`- ${item}`, { size: 9, indent: 10, leading: 1.4 });
+          }
+          w.gap(4);
+          break;
+        case "table":
+          if (block.head) w.row(block.head[0], block.head[1]);
+          for (const [left, right] of block.rows) w.row(left, right);
+          w.gap(4);
+          break;
+      }
+    }
+  }
+}
+
+/**
  * Tells an uploaded PDF apart from a compressed JPEG. The spec requires the
  * `%PDF-` marker but allows junk ahead of it, so the first kilobyte is
  * scanned rather than just position zero.
@@ -328,6 +372,21 @@ export function toIsoDate(date: Date): string {
 
 export function formatTime(date: Date): string {
   return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+/**
+ * The GTC Art. 11 confirmations as printed under the acceptance, one line each
+ * with the article it names and when the box was ticked.
+ */
+export function confirmationLines(
+  details: Pick<ContractDetails, GtcConfirmationKey>,
+  language: RentalLanguage
+): string[] {
+  const L = labelsFor(language).gtc;
+  return GTC_CONFIRMATIONS.map(({ key, ref }) => {
+    const at = formatDateTime(new Date(details[key]));
+    return `${L.article} ${ref} ${L.short} – ${L.confirmations[key].title}: ${L.confirmedOn} ${at}`;
+  });
 }
 
 export function formatMileage(km: number): string {
@@ -479,6 +538,10 @@ export async function buildContractPdf(
   w.field(L.gtcVersion, `${details.gtcVersion} (${GTC_DATE})`);
   w.field(L.gtcLanguage, details.gtcLanguage.toUpperCase());
   w.field(L.acceptedAt, formatDateTime(new Date(details.acceptedAt)));
+  w.gap(6);
+  for (const line of confirmationLines(details, language)) {
+    w.text(line, { size: 10 });
+  }
 
   // --- Signature -------------------------------------------------------
   const signature = await doc.embedPng(input.signaturePng);
@@ -587,38 +650,7 @@ export async function buildContractPdf(
     w.gap(6);
     w.text(`${gtcDoc.title} — ${gtcDoc.updated}`, { size: 9, color: MUTED });
     w.gap(10);
-
-    for (const section of gtcDoc.sections) {
-      w.ensure(40);
-      w.gap(8);
-      w.text(`${section.num} ${section.title}`, { size: 10.5, font: bold });
-      w.gap(4);
-
-      for (const block of section.blocks) {
-        switch (block.kind) {
-          case "sub":
-            w.gap(4);
-            w.text(block.title, { size: 9.5, font: bold });
-            w.gap(2);
-            break;
-          case "p":
-            w.text(block.text, { size: 9, leading: 1.4 });
-            w.gap(4);
-            break;
-          case "list":
-            for (const item of block.items) {
-              w.text(`- ${item}`, { size: 9, indent: 10, leading: 1.4 });
-            }
-            w.gap(4);
-            break;
-          case "table":
-            if (block.head) w.row(block.head[0], block.head[1]);
-            for (const [left, right] of block.rows) w.row(left, right);
-            w.gap(4);
-            break;
-        }
-      }
-    }
+    writeGtcSections(w, gtcDoc);
   }
 
   // --- Footers ---------------------------------------------------------

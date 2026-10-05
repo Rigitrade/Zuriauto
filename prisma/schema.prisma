@@ -476,6 +476,12 @@ model Contract {
   gtcLanguage String
   acceptedAt  DateTime
 
+  /// When the renter ticked each GTC Art. 11 box (truthful information;
+  /// deception and liability), from the GTC of 06.10.2026. Null on contracts
+  /// signed before then and on return addenda, which ask neither.
+  truthfulInfoConfirmedAt    DateTime?
+  deceptionNoticeConfirmedAt DateTime?
+
   place    String   @default("")
   signedAt DateTime @default(now())
 

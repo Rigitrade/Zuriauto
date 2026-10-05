@@ -162,8 +162,25 @@ const de = {
     intro: "Bitte lesen Sie die AGB und bestätigen Sie diese.",
     languageLabel: "Sprache der AGB",
     accept: "Ich habe die AGB gelesen und akzeptiere sie.",
-    locked: "Bitte akzeptieren Sie zuerst die AGB.",
+    locked: "Bitte akzeptieren Sie zuerst die AGB und bestätigen Sie Art. 11.",
     version: "Fassung",
+    /** "Art. 11.1 AGB" — how a confirmation names the article it points at. */
+    article: "Art.",
+    short: "AGB",
+    readArticle: "Artikel lesen",
+    confirmedOn: "bestätigt am",
+    confirmations: {
+      truthfulInfoConfirmedAt: {
+        title: "Wahrheitsgemässe Angaben",
+        statement:
+          "Ich bestätige, dass alle meine Angaben und eingereichten Dokumente vollständig, wahrheitsgemäss und gültig sind, und melde Änderungen unverzüglich.",
+      },
+      deceptionNoticeConfirmedAt: {
+        title: "Täuschung und Haftung",
+        statement:
+          "Mir ist bekannt, dass falsche Angaben oder gefälschte Unterlagen strafbar sein können (Betrug, Urkundenfälschung) und dass ich für den daraus entstehenden Schaden hafte.",
+      },
+    },
   },
 
   signature: {
@@ -355,6 +372,7 @@ const de = {
       "Bitte fotografieren Sie die Rückseite Ihres Führerausweises.",
     signature: "Bitte unterschreiben Sie.",
     gtc: "Bitte akzeptieren Sie die AGB.",
+    confirm: "Bitte bestätigen Sie beide Punkte zu Art. 11 der AGB.",
     paymentMethod: "Bitte wählen Sie mindestens eine Zahlungsmethode.",
     dueDate: "Bitte wählen Sie ein Datum.",
     amount: "Bitte geben Sie einen gültigen Betrag ein.",
@@ -584,8 +602,24 @@ const en: typeof de = {
     intro: "Please read the GTC and confirm your acceptance.",
     languageLabel: "Language of the terms",
     accept: "I have read and accept the GTC.",
-    locked: "Please accept the GTC first.",
+    locked: "Please accept the GTC and confirm Art. 11 first.",
     version: "Version",
+    article: "Art.",
+    short: "GTC",
+    readArticle: "Read article",
+    confirmedOn: "confirmed on",
+    confirmations: {
+      truthfulInfoConfirmedAt: {
+        title: "Truthful information",
+        statement:
+          "I confirm that all information and documents I have provided are complete, truthful and valid, and I will report any change without delay.",
+      },
+      deceptionNoticeConfirmedAt: {
+        title: "Deception and liability",
+        statement:
+          "I understand that false information or forged documents can be a criminal offence (fraud, forgery) and that I am liable for any resulting damage.",
+      },
+    },
   },
 
   signature: {
@@ -766,6 +800,7 @@ const en: typeof de = {
     licenceBackPhoto: "Please photograph the back of your driving licence.",
     signature: "Please sign.",
     gtc: "Please accept the GTC.",
+    confirm: "Please confirm both points on Art. 11 of the GTC.",
     paymentMethod: "Please select at least one payment method.",
     dueDate: "Please choose a date.",
     amount: "Please enter a valid amount.",

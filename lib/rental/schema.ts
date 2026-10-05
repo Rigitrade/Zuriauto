@@ -13,6 +13,8 @@ import { rentalTermsSchema } from "./terms";
 
 const required = (message: string) => z.string().trim().min(1, message);
 
+const confirmedAt = () => z.iso.datetime({ message: "confirm" });
+
 /** Contract data as captured by the form. Images are carried separately. */
 export const contractDetailsSchema = z.object({
   vehicleId: required("vehicle"),
@@ -57,6 +59,12 @@ export const contractDetailsSchema = z.object({
   gtcLanguage: z.enum(["de", "en", "fr"]),
   /** ISO timestamp recorded the moment the box was ticked. */
   acceptedAt: z.string().min(1),
+  /**
+   * When each of the GTC Art. 11 boxes was ticked (`gtcConfirmations.ts`).
+   * Required, like gtcAccepted: the time is the proof the box was ticked.
+   */
+  truthfulInfoConfirmedAt: confirmedAt(),
+  deceptionNoticeConfirmedAt: confirmedAt(),
   place: z.string().trim().max(100).default(""),
 });
 

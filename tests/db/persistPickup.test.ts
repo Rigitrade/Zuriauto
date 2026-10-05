@@ -30,6 +30,8 @@ const details: ContractDetails = {
   gtcVersion: "2026-07-31",
   gtcLanguage: "de",
   acceptedAt: "2026-08-17T08:00:00.000Z",
+  truthfulInfoConfirmedAt: "2026-08-17T08:00:10.000Z",
+  deceptionNoticeConfirmedAt: "2026-08-17T08:00:20.000Z",
   place: "Zurich",
 };
 
@@ -96,6 +98,25 @@ describe("persistPickup", () => {
     const contract = await prisma.contract.findFirstOrThrow();
     expect(contract.pdfKey).toBeTruthy();
     expect(store.objects.has(contract.pdfKey!)).toBe(true);
+  });
+
+  it("records when each GTC Art. 11 box was ticked", async () => {
+    const { organisationId, store } = await ready();
+    await persistPickup({
+      organisationId,
+      details,
+      vehicleSlug: details.vehicleId,
+      uploads,
+      pdf,
+      store,
+    });
+    const contract = await prisma.contract.findFirstOrThrow();
+    expect(contract.truthfulInfoConfirmedAt?.toISOString()).toBe(
+      details.truthfulInfoConfirmedAt
+    );
+    expect(contract.deceptionNoticeConfirmedAt?.toISOString()).toBe(
+      details.deceptionNoticeConfirmedAt
+    );
   });
 
   it("derives endAt from the weekly term", async () => {

@@ -28,6 +28,8 @@ const base: ContractDetails = {
   gtcVersion: "2026-07-31",
   gtcLanguage: "de",
   acceptedAt: "2026-08-17T08:00:00.000Z",
+  truthfulInfoConfirmedAt: "2026-08-17T08:00:10.000Z",
+  deceptionNoticeConfirmedAt: "2026-08-17T08:00:20.000Z",
   place: "Zurich",
 };
 
