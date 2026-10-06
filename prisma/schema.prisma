@@ -86,6 +86,8 @@ model Organisation {
   contracts  Contract[]
   counters   ContractCounter[]
   adminUsers AdminUser[]
+  fines         Fine[]
+  fineDocuments FineDocument[]
 }
 
 model Car {
@@ -219,6 +221,7 @@ model Car {
   rentals       Rental[]
   notifications CarNotification[]
   repairs       CarRepair[]
+  fines         Fine[]
 
   @@unique([organisationId, plate])
   @@unique([organisationId, slug])
@@ -405,6 +408,7 @@ model Customer {
 
   organisation Organisation @relation(fields: [organisationId], references: [id])
   rentals      Rental[]
+  fines        Fine[]
 
   @@unique([organisationId, email])
   @@index([organisationId, phoneKey])
@@ -447,6 +451,7 @@ model Rental {
   events        RentalEvent[]
   charges       Charge[]
   notifications Notification[]
+  fines         Fine[]
   tokens        ActionToken[]
 
   @@index([organisationId, status, endAt])
@@ -595,6 +600,10 @@ model AssetAccess {
   /// the rest of this table decorative.
   assetId    String?
   contractId String?
+  /// A scanned fine letter. See lib/fines.
+  fineDocumentId String?
+  /// A renter's payment screenshot — it can show their bank details.
+  finePaymentProofId String?
 
   /// Denormalised on purpose. An account can be deleted; the record of who
   /// looked at somebody's passport should outlive it.
@@ -605,6 +614,8 @@ model AssetAccess {
 
   @@index([assetId])
   @@index([contractId])
+  @@index([fineDocumentId])
+  @@index([finePaymentProofId])
   @@index([createdAt])
 }
 
@@ -729,6 +740,8 @@ enum NotificationKind {
 
 enum ActionTokenPurpose {
   MANAGE_RENTAL
+  /// The renter confirming they paid a traffic fine. See lib/fines/token.ts.
+  FINE_PAYMENT
 }
 
 /// Why the office is being written to about a car.
@@ -815,7 +828,12 @@ model ActionToken {
 
   rental Rental @relation(fields: [rentalId], references: [id])
 
+  /// Set for FINE_PAYMENT: the fine the link confirms payment of.
+  fineId String?
+  fine   Fine?   @relation(fields: [fineId], references: [id])
+
   @@index([rentalId, purpose])
+  @@index([fineId])
 }
 
 // ---------------------------------------------------------------------
@@ -859,4 +877,260 @@ model AdminUser {
 
   @@unique([organisationId, username])
   @@index([organisationId, disabledAt])
+}
+
+// ---------------------------------------------------------------------
+// Traffic fines — read from scanned letters and routed to the renter.
+// See docs/superpowers/specs/2026-10-03-traffic-fines-design.md.
+// ---------------------------------------------------------------------
+
+enum FineDocumentStatus {
+  UPLOADED
+  PROCESSING
+  PROCESSED
+  FAILED
+}
+
+enum FineDocumentKind {
+  NOTICE
+  REMINDER
+  NOT_A_FINE
+  UNREADABLE
+}
+
+enum FineIssuerKind {
+  POLICE
+  PRIVATE
+}
+
+enum FineStatus {
+  /// The system would not act alone; `reviewReason` says why.
+  NEEDS_REVIEW
+  /// The renter was emailed and has not confirmed payment.
+  NOTIFIED
+  /// The renter sent a screenshot the system could not verify.
+  PROOF_SUBMITTED
+  PAID
+  /// Company paid, driver nominated to the police, disputed — with a note.
+  HANDLED_OTHERWISE
+  /// Uploaded twice or by mistake.
+  VOID
+}
+
+enum FineReviewReason {
+  FIELDS_MISSING
+  FIELDS_DOUBTFUL
+  QR_DISAGREES
+  NOT_A_FINE
+  PLATE_NOT_IN_FLEET
+  PLATE_AMBIGUOUS
+  NO_RENTAL_AT_TIME
+  HANDOVER_BOUNDARY
+  OVERLAPPING_RENTALS
+  NO_CUSTOMER_EMAIL
+  PROBABLE_DUPLICATE
+  REMINDER_AFTER_PAID
+  MAIL_FAILED
+  PROCESSING_FAILED
+}
+
+enum FineFeeStatus {
+  NONE
+  DUE
+  PAID
+  WAIVED
+}
+
+enum FinePaidVia {
+  PROOF_VERIFIED
+  PROOF_CHECKED_BY_OFFICE
+  OFFICE
+}
+
+enum FineProofVerdict {
+  MATCH
+  MISMATCH
+  UNREADABLE
+}
+
+enum FineNotificationKind {
+  FINE_NOTICE
+  FINE_REMINDER
+  FINE_REOPENED
+  FINE_PAID
+  OFFICE_ALERT
+  OFFICE_DIGEST
+}
+
+/// One uploaded letter. A fine may have several: the notice and its
+/// reminders.
+model FineDocument {
+  id             String @id @default(cuid())
+  organisationId String
+
+  storageKey String @unique
+  /// The same scan twice is refused at upload.
+  sha256     String
+  bytes      Int
+  pages      Int
+
+  /// Denormalised, as in AssetAccess: an account can be deleted, the record of
+  /// who uploaded a letter should not go with it.
+  uploadedById   String
+  uploadedByName String
+  uploadedAt     DateTime @default(now())
+
+  status      FineDocumentStatus @default(UPLOADED)
+  attempts    Int                @default(0)
+  /// When the current reading began. A PROCESSING claim older than ten
+  /// minutes belongs to a run that died, and may be taken over.
+  claimedAt   DateTime?
+  error       String?
+  processedAt DateTime?
+
+  kind     FineDocumentKind?
+  /// de, fr or it.
+  language String?
+  /// "free-v1" in phase 1; "claude" when the fallback reads it.
+  reader   String?
+  /// The QR-bill payload, verbatim.
+  qrText   String?
+  /// Everything the OCR read — evidence, and lets the rules be re-run.
+  ocrText  String?
+  /// Every field with its value, status, source and snippet, and every check.
+  extraction Json?
+
+  fineId String?
+
+  organisation Organisation @relation(fields: [organisationId], references: [id])
+  fine         Fine?        @relation(fields: [fineId], references: [id])
+
+  @@unique([organisationId, sha256])
+  @@index([status, uploadedAt])
+  @@index([fineId])
+}
+
+/// One offence.
+model Fine {
+  id             String @id @default(cuid())
+  organisationId String
+
+  issuerKind       FineIssuerKind?
+  issuerName       String?
+  issuerIban       String?
+  /// The issuer's own number — OB-Nr., Referenz.
+  fineNumber       String?
+  /// The QR reference, as decoded.
+  paymentReference String?
+
+  /// The current amount: a reminder can raise it.
+  amountCents Int?
+  currency    String @default("CHF")
+
+  violationAt        DateTime?
+  violationTimeKnown Boolean   @default(true)
+  location           String?
+  offenceCode        String?
+  offenceTextOriginal String?
+  offenceTextDe      String?
+  offenceTextEn      String?
+  speedMeasuredKmh   Int?
+  speedLimitKmh      Int?
+
+  /// Days on a Swiss calendar, as the letter prints them.
+  letterDate DateTime? @db.Date
+  dueDate    DateTime? @db.Date
+
+  reminderLevel       Int     @default(0)
+  firstSeenAsReminder Boolean @default(false)
+
+  carId      String?
+  rentalId   String?
+  customerId String?
+
+  status       FineStatus        @default(NEEDS_REVIEW)
+  reviewReason FineReviewReason?
+
+  handlingFeeCents  Int           @default(0)
+  handlingFeeStatus FineFeeStatus @default(NONE)
+
+  notifiedAt DateTime?
+  paidAt     DateTime?
+  paidVia    FinePaidVia?
+  closedById String?
+  closedNote String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organisation  Organisation       @relation(fields: [organisationId], references: [id])
+  car           Car?               @relation(fields: [carId], references: [id])
+  rental        Rental?            @relation(fields: [rentalId], references: [id])
+  customer      Customer?          @relation(fields: [customerId], references: [id])
+  documents     FineDocument[]
+  proofs        FinePaymentProof[]
+  events        FineEvent[]
+  notifications FineNotification[]
+  tokens        ActionToken[]
+
+  @@index([organisationId, status])
+  @@index([organisationId, paymentReference])
+  @@index([organisationId, issuerIban, fineNumber])
+  @@index([carId, violationAt])
+  @@index([status, dueDate])
+}
+
+/// A renter's screenshot of their payment.
+model FinePaymentProof {
+  id     String @id @default(cuid())
+  fineId String
+
+  storageKey  String           @unique
+  contentType String
+  bytes       Int
+  submittedAt DateTime         @default(now())
+  /// The date the renter says they paid, if given.
+  paidOn      DateTime?        @db.Date
+  ocrText     String?
+  verdict     FineProofVerdict
+  checkedById String?
+  checkedAt   DateTime?
+  accepted    Boolean?
+
+  fine Fine @relation(fields: [fineId], references: [id])
+
+  @@index([fineId])
+}
+
+/// The fine's timeline: every transition, email and correction.
+model FineEvent {
+  id        String   @id @default(cuid())
+  fineId    String
+  type      String
+  payload   Json?
+  /// Null for the system.
+  actorId   String?
+  actorName String?
+  createdAt DateTime @default(now())
+
+  fine Fine @relation(fields: [fineId], references: [id])
+
+  @@index([fineId, createdAt])
+}
+
+/// Once-only emails about a fine — the Notification pattern, keyed by fine.
+model FineNotification {
+  id        String               @id @default(cuid())
+  fineId    String
+  kind      FineNotificationKind
+  dedupeKey String
+  to        String
+  sentAt    DateTime?
+  error     String?
+  attempts  Int                  @default(0)
+  createdAt DateTime             @default(now())
+
+  fine Fine @relation(fields: [fineId], references: [id])
+
+  @@unique([fineId, kind, dedupeKey])
 }

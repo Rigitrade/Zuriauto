@@ -8,6 +8,7 @@ import {
   KeyRound,
   LayoutDashboard,
   Lock,
+  Receipt,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -51,6 +52,9 @@ export function railItems(L: Labels, me: Me, attention: number): Item[] {
     // about an open rental: the rentals screen deliberately shows only what
     // is still running, and this one only ever asks about the past.
     { href: "/admin/history", label: L.nav.history, icon: History },
+    // Beside the history screen, which used to be how a fine reached its
+    // renter: somebody looked the plate up there by hand.
+    { href: "/admin/fines", label: L.nav.fines, icon: Receipt },
     {
       href: "/admin/accounts",
       label: L.nav.accounts,

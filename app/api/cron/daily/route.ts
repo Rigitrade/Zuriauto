@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { prisma } from "@/lib/db";
 import { sweepExpiredAssets } from "@/lib/admin/retention";
+import { fineDocumentRetryPass } from "@/lib/fines/passes";
+import { freeReader } from "@/lib/fines/reader";
+import { sweepExpiredFineFiles } from "@/lib/fines/retention";
+import { readLifecycleMailConfig } from "@/lib/rental/lifecycleMail";
 import { getAssetStore } from "@/lib/storage";
 import { runDailyPasses } from "@/lib/rental/scheduler";
 
@@ -19,7 +23,8 @@ import { runDailyPasses } from "@/lib/rental/scheduler";
  */
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+// The fines retry pass reads letters, tens of seconds each.
+export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
 /** Vercel Cron sends `Authorization: Bearer $CRON_SECRET`. */
@@ -85,13 +90,46 @@ async function run(request: Request) {
       retention = { error: String(error) };
     }
 
-    console.log("[cron] daily run", JSON.stringify({ ...summary, retention }));
+    // Fines' payment screenshots and letters, on their own clocks — and in
+    // their own try for the same reason as the sweep above.
+    let fineRetention: Awaited<ReturnType<typeof sweepExpiredFineFiles>> | { error: string };
+    try {
+      fineRetention = await sweepExpiredFineFiles(prisma, getAssetStore(), now);
+    } catch (error) {
+      console.error("[cron] fines retention sweep failed:", error);
+      fineRetention = { error: String(error) };
+    }
+
+    // Last of all: re-reading a fine letter that was never read. It is the
+    // slow step — tens of seconds a page — so it runs after everything else
+    // has been done and reported, and reads one letter a day at most.
+    let fineLettersRead: number | { error: string };
+    try {
+      fineLettersRead = await fineDocumentRetryPass({
+        client: prisma,
+        now,
+        baseUrl: baseUrl(request),
+        mail: readLifecycleMailConfig(),
+        store: getAssetStore(),
+        reader: freeReader,
+      });
+    } catch (error) {
+      console.error("[cron] fines retry failed:", error);
+      fineLettersRead = { error: String(error) };
+    }
+
+    console.log(
+      "[cron] daily run",
+      JSON.stringify({ ...summary, retention, fineRetention, fineLettersRead })
+    );
 
     return NextResponse.json({
       ok: true,
       ms: Date.now() - startedAt,
       ...summary,
       retention,
+      fineRetention,
+      fineLettersRead,
     });
   } catch (error) {
     // Logged and reported, never swallowed: a cron whose failures are silent

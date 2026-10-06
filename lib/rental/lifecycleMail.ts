@@ -50,7 +50,14 @@ export function readLifecycleMailConfig(): LifecycleMailConfig | null {
  */
 export async function sendMail(
   config: LifecycleMailConfig,
-  message: { to: string; subject: string; text: string; replyTo?: string }
+  message: {
+    to: string;
+    subject: string;
+    text: string;
+    replyTo?: string;
+    /** The fines mails carry the issuer's letter, for its payment slip. */
+    attachments?: { filename: string; content: Uint8Array; contentType: string }[];
+  }
 ): Promise<void> {
   const transport = nodemailer.createTransport({
     host: config.host,
@@ -62,7 +69,14 @@ export async function sendMail(
     socketTimeout: 20_000,
   });
 
-  await transport.sendMail({ from: config.from, ...message });
+  await transport.sendMail({
+    from: config.from,
+    ...message,
+    attachments: message.attachments?.map((attachment) => ({
+      ...attachment,
+      content: Buffer.from(attachment.content),
+    })),
+  });
 }
 
 /** `18.08.2026, 10:00` — how Switzerland writes it. */

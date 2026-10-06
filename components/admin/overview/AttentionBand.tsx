@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Check } from "lucide-react";
 import type { AttentionItem } from "@/lib/admin/attention";
 import type { Labels } from "@/components/admin/types";
-import { attentionDetail, attentionTitle } from "./attentionText";
+import { attentionDetail, attentionHref, attentionTitle } from "./attentionText";
 
 /**
  * What needs a person, at the top of the console.
@@ -65,7 +65,8 @@ export function AttentionBand({
           >
             <div className="min-w-0">
               <p className="text-sm font-semibold">
-                {attentionTitle(item, L)} — {item.customerName}
+                {attentionTitle(item, L)}
+                {item.customerName ? ` — ${item.customerName}` : ""}
               </p>
               <p className="mt-0.5 text-xs text-[var(--admin-faint)]">
                 {attentionDetail(item, L, now)}
@@ -84,7 +85,7 @@ export function AttentionBand({
                 />
               ) : (
                 <Link
-                  href="/admin/rentals"
+                  href={attentionHref(item)}
                   className="h-9 shrink-0 rounded-md border border-[var(--admin-rule-strong)] px-3 text-sm leading-[2.125rem] text-[var(--admin-muted)] transition-colors hover:bg-[var(--admin-sunk)] hover:text-[var(--admin-ink)]"
                 >
                   {item.kind === "return" ? L.rentals.close : L.overview.open}

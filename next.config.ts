@@ -1,5 +1,9 @@
 import type { NextConfig } from "next";
 
+/** The QR decoder's WebAssembly where pnpm actually stores it. */
+const ZXING_WASM_REAL =
+  "./node_modules/.pnpm/zxing-wasm@*/node_modules/zxing-wasm/dist/reader/zxing_reader.wasm";
+
 const nextConfig: NextConfig = {
   // No `output: "export"`. A static export cannot contain route handlers, and
   // the booking form needs one to send mail on Vercel, which has no PHP
@@ -17,6 +21,33 @@ const nextConfig: NextConfig = {
 
   // Keeps URLs as /GTC/ and /book/, matching the deployed site.
   trailingSlash: true,
+
+  // The fine reader's native and WebAssembly parts. Bundling them breaks
+  // what each loads at run time — the canvas binary, pdfjs' worker, the
+  // decoder's .wasm and Tesseract's worker script — so they are required
+  // from node_modules as they ship.
+  serverExternalPackages: [
+    "pdfjs-dist",
+    "@napi-rs/canvas",
+    "tesseract.js",
+    "zxing-wasm",
+  ],
+
+  // Tesseract reads its trained data from lib/fines/tessdata at run time, and
+  // the QR decoder its WebAssembly from node_modules — files no import points
+  // at, so file tracing would leave them out of every function that reads
+  // letters or payment screenshots.
+  //
+  // The .wasm by its real path under .pnpm, never through node_modules/zxing-wasm:
+  // that is a pnpm symlink, and a file listed beneath a symlinked directory makes
+  // Vercel reject the whole deployment ("invalid deployment package"). The
+  // symlink itself still arrives — tracing the zxing-wasm import recreates it —
+  // so the code reads the file by its short path as before.
+  outputFileTracingIncludes: {
+    "/api/admin/fines/**": ["./lib/fines/tessdata/**", ZXING_WASM_REAL],
+    "/api/fines/**": ["./lib/fines/tessdata/**", ZXING_WASM_REAL],
+    "/api/cron/**": ["./lib/fines/tessdata/**", ZXING_WASM_REAL],
+  },
 
   async redirects() {
     return [

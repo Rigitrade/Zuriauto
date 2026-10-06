@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { isPdfLicence } from "@/lib/admin/carLicence";
 import { requireAdmin } from "@/lib/admin/session";
+import { fineAttentionCounts } from "@/lib/fines/queries";
 
 /**
  * Everything the fleet page shows, in one call.
@@ -178,6 +179,8 @@ export interface AdminOverview {
     signedAt: string;
   }[];
   latestContractAt: string | null;
+  /** Traffic fines waiting for the office — the bell's fourth source. */
+  fineAttention: { review: number; proof: number; overdue: number };
 }
 
 /** Enough to act on this morning. The count beside it reports the true total,
@@ -360,6 +363,8 @@ export async function GET(request: Request) {
     }),
   ]);
 
+  const fineAttention = await fineAttentionCounts(prisma, new Date());
+
   const payload: AdminOverview = {
     me: {
       id: user.id,
@@ -484,6 +489,7 @@ export async function GET(request: Request) {
       signedAt: contract.signedAt.toISOString(),
     })),
     latestContractAt: latest?.signedAt.toISOString() ?? null,
+    fineAttention,
   };
 
   return NextResponse.json(payload);

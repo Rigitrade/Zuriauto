@@ -214,6 +214,8 @@ export interface Overview {
    *  row rather than throwing. */
   unsentContracts?: UnsentContract[];
   latestContractAt: string | null;
+  /** Absent on a deployment older than the fines feature. */
+  fineAttention?: { review: number; proof: number; overdue: number };
 }
 
 export type Labels = ReturnType<typeof labelsFor>;

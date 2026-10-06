@@ -136,3 +136,31 @@ describe("attentionItems", () => {
     expect(items.map((i) => i.kind)).toEqual(["return"]);
   });
 });
+
+describe("attentionItems — fines", () => {
+  it("raises one item for fines waiting for the office, counting all of them", () => {
+    const items = attentionItems(
+      source({ fineAttention: { review: 2, proof: 1, overdue: 0 } }),
+      NOW
+    );
+    expect(items).toEqual([
+      { kind: "fine", key: "fine:waiting", customerName: "", count: 3 },
+    ]);
+  });
+
+  it("raises nothing when no fine is waiting, or the field is absent", () => {
+    expect(attentionItems(source({ fineAttention: { review: 0, proof: 0, overdue: 0 } }), NOW)).toEqual([]);
+    expect(attentionItems(source(), NOW)).toEqual([]);
+  });
+
+  it("puts fines after the jobs that cost a car today", () => {
+    const items = attentionItems(
+      source({
+        rentals: [rental({ returnSubmittedAt: "2026-08-28T08:00:00.000Z" })],
+        fineAttention: { review: 1, proof: 0, overdue: 0 },
+      }),
+      NOW
+    );
+    expect(items.map((i) => i.kind)).toEqual(["return", "fine"]);
+  });
+});

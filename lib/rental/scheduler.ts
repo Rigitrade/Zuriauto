@@ -16,6 +16,15 @@
  */
 
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
+import type { NotifyDeps } from "@/lib/fines/notify";
+import {
+  fineDigestPass,
+  fineDueSoonPass,
+  fineOverduePass,
+  type FinePassDeps,
+} from "@/lib/fines/passes";
+import { freeReader } from "@/lib/fines/reader";
+import { getAssetStore } from "@/lib/storage";
 import { PAYMENT_URL } from "@/lib/payment";
 import { getPaymentProvider } from "@/lib/payments";
 import {
@@ -65,6 +74,10 @@ export interface PassSummary {
   /** People on the waiting list written to because a car is free. */
   availabilityNotified: number;
   mailRetried: number;
+  fineDueSoon: number;
+  fineOverdue: number;
+  /** Fines listed in the office's review digest. */
+  fineDigest: number;
 }
 
 export interface SchedulerDeps {
@@ -784,11 +797,23 @@ export async function availabilityPass(deps: SchedulerDeps): Promise<number> {
 }
 
 export async function runDailyPasses(
-  deps: Omit<SchedulerDeps, "mail"> & { mail?: LifecycleMailConfig | null }
+  deps: Omit<SchedulerDeps, "mail"> & {
+    mail?: LifecycleMailConfig | null;
+    /** Tests capture the fines mails instead of sending them. */
+    fineSend?: NotifyDeps["send"];
+  }
 ): Promise<PassSummary> {
   const full: SchedulerDeps = {
-    ...deps,
+    client: deps.client,
+    now: deps.now,
+    baseUrl: deps.baseUrl,
     mail: deps.mail === undefined ? readLifecycleMailConfig() : deps.mail,
+  };
+  const fines: FinePassDeps = {
+    ...full,
+    store: getAssetStore(),
+    reader: freeReader,
+    send: deps.fineSend,
   };
 
   return {
@@ -800,5 +825,8 @@ export async function runDailyPasses(
     mfkDue: await mfkDuePass(full),
     availabilityNotified: await availabilityPass(full),
     mailRetried: await mailRetryPass(full),
+    fineDueSoon: await fineDueSoonPass(fines),
+    fineOverdue: await fineOverduePass(fines),
+    fineDigest: await fineDigestPass(fines),
   };
 }
