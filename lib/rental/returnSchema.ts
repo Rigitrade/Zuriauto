@@ -8,6 +8,7 @@
 
 import { z } from "zod";
 import { FUEL_LEVELS } from "./fleet";
+import { MILEAGE_MAX_KM } from "./mileage";
 
 /**
  * How the customer settled the rental. Checkboxes on the form, since a rental
@@ -46,7 +47,7 @@ export const returnDetailsSchema = z
       .number({ message: "mileage" })
       .int("mileage")
       .min(0, "mileage")
-      .max(2_000_000, "mileage"),
+      .max(MILEAGE_MAX_KM, "mileage"),
     /**
      * Mileage at handover, as on the paper protocol, so the document shows
      * the distance driven. Optional until Phase 2 can read it from the
@@ -56,7 +57,7 @@ export const returnDetailsSchema = z
       .number({ message: "mileage" })
       .int("mileage")
       .min(0, "mileage")
-      .max(2_000_000, "mileage")
+      .max(MILEAGE_MAX_KM, "mileage")
       .optional(),
     papersInside: yesNo,
     keyReturned: yesNo,
@@ -190,7 +191,7 @@ export const returnMetaSchema = z.object({
   customerEmail: z.email().max(200),
   vehicleLabel: z.string().trim().min(1).max(200),
   plate: z.string().trim().min(1).max(40),
-  mileageKm: z.number().int().min(0).max(2_000_000),
+  mileageKm: z.number().int().min(0).max(MILEAGE_MAX_KM),
   language: z.enum(["de", "en"]),
 });
 

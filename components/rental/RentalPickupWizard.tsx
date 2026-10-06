@@ -28,6 +28,7 @@ import {
   type FuelLevel,
 } from "@/lib/rental/fleet";
 import { asRentalLanguage, labelsFor } from "@/lib/rental/labels";
+import { parseMileageKm } from "@/lib/rental/mileage";
 import {
   GTC_CONFIRMATIONS,
   type GtcConfirmationKey,
@@ -487,7 +488,7 @@ export default function RentalPickupWizard() {
 
     if (checks("vehicle")) {
       if (!vehicle) found.vehicleId = L.errors.vehicle;
-      if (!/^\d{1,7}$/.test(form.mileageKm.replace(/[\s'.]/g, ""))) {
+      if (parseMileageKm(form.mileageKm) === null) {
         found.mileageKm = L.errors.mileage;
       }
     }
@@ -717,7 +718,8 @@ export default function RentalPickupWizard() {
 
     const parsed = contractDetailsSchema.safeParse({
       vehicleId: form.vehicleId,
-      mileageKm: Number(form.mileageKm.replace(/[\s'.]/g, "")),
+      // Null if unreadable; the schema refuses it with the mileage message.
+      mileageKm: parseMileageKm(form.mileageKm),
       fuelLevel: form.fuelLevel,
       existingDamage: form.existingDamage,
       terms: toRentalTerms(terms),

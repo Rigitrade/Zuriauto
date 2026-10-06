@@ -27,6 +27,7 @@ import {
   type FuelLevel,
 } from "@/lib/rental/fleet";
 import { asRentalLanguage, labelsFor } from "@/lib/rental/labels";
+import { parseMileageKm } from "@/lib/rental/mileage";
 import VehiclePicker from "./VehiclePicker";
 import {
   buildReturnNumber,
@@ -354,25 +355,18 @@ export default function RentalReturnWizard() {
 
     if (target === 1) {
       if (!vehicle) found.vehicleId = L.errors.vehicle;
-      if (!/^\d{1,7}$/.test(form.mileageKm.replace(/[\s'.]/g, ""))) {
-        found.mileageKm = L.errors.mileage;
-      }
+      const returned = parseMileageKm(form.mileageKm);
+      if (returned === null) found.mileageKm = L.errors.mileage;
       // Optional, so only a non-empty value is checked.
-      if (
-        form.mileagePickupKm.trim() &&
-        !/^\d{1,7}$/.test(form.mileagePickupKm.replace(/[\s'.]/g, ""))
-      ) {
-        found.mileagePickupKm = L.errors.mileage;
-      }
+      const collected = form.mileagePickupKm.trim()
+        ? parseMileageKm(form.mileagePickupKm)
+        : undefined;
+      if (collected === null) found.mileagePickupKm = L.errors.mileage;
       // A car cannot return with fewer kilometres than it left with. Checked
       // only once both readings parse, so the message is about the comparison
       // rather than about a half-typed number.
-      if (!found.mileageKm && !found.mileagePickupKm && form.mileagePickupKm.trim()) {
-        const returned = Number(form.mileageKm.replace(/[\s'.]/g, ""));
-        const collected = Number(form.mileagePickupKm.replace(/[\s'.]/g, ""));
-        if (returned < collected) {
-          found.mileageKm = L.errors.mileageBelowPickup;
-        }
+      if (returned !== null && collected != null && returned < collected) {
+        found.mileageKm = L.errors.mileageBelowPickup;
       }
     }
 
@@ -446,9 +440,10 @@ export default function RentalReturnWizard() {
 
     const parsed = returnDetailsSchema.safeParse({
       vehicleId: form.vehicleId,
-      mileageKm: Number(form.mileageKm.replace(/[\s'.]/g, "")),
+      // Null if unreadable; the schema refuses it with the mileage message.
+      mileageKm: parseMileageKm(form.mileageKm),
       mileagePickupKm: form.mileagePickupKm.trim()
-        ? Number(form.mileagePickupKm.replace(/[\s'.]/g, ""))
+        ? parseMileageKm(form.mileagePickupKm)
         : undefined,
       papersInside: form.papersInside,
       keyReturned: form.keyReturned,

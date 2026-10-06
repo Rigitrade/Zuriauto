@@ -9,6 +9,7 @@
 import { z } from "zod";
 import { isKnownCountry } from "./countries";
 import { FUEL_LEVELS } from "./fleet";
+import { MILEAGE_MAX_KM } from "./mileage";
 import { rentalTermsSchema } from "./terms";
 
 const required = (message: string) => z.string().trim().min(1, message);
@@ -22,8 +23,7 @@ export const contractDetailsSchema = z.object({
     .number({ message: "mileage" })
     .int("mileage")
     .min(0, "mileage")
-    // A car reading over two million km is a typo, not a vehicle.
-    .max(2_000_000, "mileage"),
+    .max(MILEAGE_MAX_KM, "mileage"),
   fuelLevel: z.enum(FUEL_LEVELS),
   existingDamage: z.string().trim().max(2000).default(""),
 
@@ -94,7 +94,7 @@ export const contractMetaSchema = z.object({
   customerEmail: z.email().max(200),
   vehicleLabel: z.string().trim().min(1).max(200),
   plate: z.string().trim().min(1).max(40),
-  mileageKm: z.number().int().min(0).max(2_000_000),
+  mileageKm: z.number().int().min(0).max(MILEAGE_MAX_KM),
   language: z.enum(["de", "en"]),
 
   /**
