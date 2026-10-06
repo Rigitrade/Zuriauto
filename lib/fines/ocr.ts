@@ -13,6 +13,22 @@
 import { join } from "node:path";
 import { createWorker, PSM } from "tesseract.js";
 
+/**
+ * A path into Tesseract's worker for file tracing — never taken.
+ *
+ * tesseract.js starts its worker with `new Worker(path.join(__dirname, …))`.
+ * The tracer copies that one file into the function but nothing it requires —
+ * the engine in tesseract.js-core, the feature check that picks one — so on
+ * Vercel the worker would die as it started. An import the tracer can see
+ * makes it follow the worker's own requires and keep pnpm's links between the
+ * packages. Running it here would start a worker script on the main thread,
+ * hence a condition no deployment sets.
+ */
+if (process.env.FINES_TRACE_ONLY === "never") {
+  // @ts-expect-error -- tesseract.js ships no types for its worker script.
+  void import("tesseract.js/src/worker-script/node/index.js");
+}
+
 export type OcrLanguage = "deu" | "fra" | "ita";
 
 export interface OcrWord {

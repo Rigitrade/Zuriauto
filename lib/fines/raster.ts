@@ -14,6 +14,20 @@
 
 import { createCanvas } from "@napi-rs/canvas";
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
+// @ts-expect-error -- pdfjs ships no types for its worker module.
+import * as pdfjsWorker from "pdfjs-dist/legacy/build/pdf.worker.mjs";
+
+/**
+ * pdfjs' worker, handed over rather than found.
+ *
+ * In Node pdfjs runs its worker in-process, loading it with
+ * `import("./pdf.worker.mjs")` through a variable. File tracing cannot follow
+ * that, so on Vercel the file was not in the function, every PDF failed to
+ * open, and the upload answered "not a PDF" — for a scan or a photo alike.
+ * pdfjs looks at `globalThis.pdfjsWorker` first; this static import is one
+ * the tracer does follow.
+ */
+(globalThis as { pdfjsWorker?: unknown }).pdfjsWorker = pdfjsWorker;
 
 export interface PageImage {
   width: number;
