@@ -59,7 +59,9 @@ describe("imageLetterPdf", () => {
     const pdf = await imageLetterPdf(await jpeg(600, 800), letterPageSize(600, 800));
     expect(new TextDecoder().decode(pdf.slice(0, 5))).toBe("%PDF-");
     expect(await pdfPageCount(pdf)).toBe(1);
-  });
+    // The first test in the file to load pdfjs pays for it: over five seconds
+    // in a full run.
+  }, 60_000);
 
   it("is the same bytes for the same photo, so a second drop is caught as a duplicate", async () => {
     const photo = await jpeg(600, 800);
