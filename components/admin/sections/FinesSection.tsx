@@ -12,9 +12,11 @@ import { formatChf } from "@/lib/rental/money";
 /**
  * Traffic fines: drop the scans in, deal with what the system would not.
  *
- * The review tab opens first, because it is the only one that needs anybody.
- * Everything that went out on its own sits under Open until the renter
- * confirms payment. The share of last month's letters that went out with
+ * All opens first, so a letter is in front of the office wherever it went:
+ * with Review first, one that went out on its own was out of sight under
+ * Open. The alerts and the morning digest still link straight to Review,
+ * the one tab that needs anybody. Everything that went out on its own sits
+ * under Open until the renter confirms payment. The share of last month's letters that went out with
  * nobody looking is on the header: it is the number that decides whether
  * reading letters with AI would be worth paying for.
  */
@@ -76,7 +78,7 @@ export function FinesSection() {
   const params = useSearchParams();
   const router = useRouter();
 
-  const tab = (["review", "open", "paid", "all"].includes(params.get("tab") ?? "") ? params.get("tab") : "review") as Tab;
+  const tab = (["review", "open", "paid", "all"].includes(params.get("tab") ?? "") ? params.get("tab") : "all") as Tab;
   const fineId = params.get("fine");
 
   const [listing, setListing] = useState<Listing | null>(null);
@@ -123,10 +125,10 @@ export function FinesSection() {
   }
 
   const tabs: [Tab, string][] = [
+    ["all", F.tabAll],
     ["review", F.tabReview],
     ["open", F.tabOpen],
     ["paid", F.tabPaid],
-    ["all", F.tabAll],
   ];
 
   return (
