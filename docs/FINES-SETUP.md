@@ -54,8 +54,12 @@ owner, separate from this feature.
 1. **Scan before anyone writes on the letter.** Handwriting and marker boxes
    are read as text; a box over the plate makes the plate unreadable.
    One letter per PDF; 300 DPI, colour or greyscale.
-2. **Bussen → drop the PDFs in.** Several at once is fine. Each line shows its
-   progress; reading takes a minute or less per letter.
+   A photo works too (JPEG or PNG; HEIC only from Safari): the page flat, the
+   whole letter in the frame, in good light. It becomes a one-page PDF in the
+   browser before it is uploaded. A forwarded WhatsApp image is small and
+   blurred, and usually ends up under Prüfen.
+2. **Bussen → drop the PDFs or photos in.** Several at once is fine. Each line
+   shows its progress; reading takes a minute or less per letter.
 3. Clean letters go to the renter on their own: email in their contract
    language, the letter attached, a link to confirm payment. They appear
    under **Offen**.
