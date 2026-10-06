@@ -232,7 +232,11 @@ export default function PhotoCapture({
         </div>
       )}
 
-      {message && <p className="text-sm text-rose-600">{message}</p>}
+      {message && (
+        <p role="alert" className="text-sm text-rose-600">
+          {message}
+        </p>
+      )}
 
       {cameraOpen && (
         <CameraCapture

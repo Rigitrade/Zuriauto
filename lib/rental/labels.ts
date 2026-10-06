@@ -25,12 +25,10 @@ const de = {
   pageIntro:
     "Bitte füllen Sie das Formular aus, fotografieren Sie Ihre Ausweise und unterschreiben Sie direkt auf dem Bildschirm. Sie erhalten den Vertrag anschliessend per E-Mail.",
 
+  /** The two pickup steps, as `lib/rental/pickupSteps.ts` splits them. */
   steps: {
-    vehicle: "Fahrzeug",
-    terms: "Mietdauer",
-    details: "Ihre Daten",
-    documents: "Dokumente",
-    sign: "Unterschrift",
+    vehicle: "Fahrzeug & Miete",
+    renter: "Mieter & Unterschrift",
   },
 
   vehicle: {
@@ -476,11 +474,8 @@ const en: typeof de = {
     "Please complete the form, photograph your documents and sign on screen. You will receive the contract by email afterwards.",
 
   steps: {
-    vehicle: "Vehicle",
-    terms: "Rental period",
-    details: "Your details",
-    documents: "Documents",
-    sign: "Signature",
+    vehicle: "Vehicle & rental",
+    renter: "Renter & signature",
   },
 
   vehicle: {

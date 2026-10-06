@@ -33,6 +33,12 @@ import {
   type GtcConfirmationKey,
 } from "@/lib/rental/gtcConfirmations";
 import {
+  PICKUP_TOTAL_STEPS,
+  sectionsOf,
+  stepOfField,
+  type PickupSection,
+} from "@/lib/rental/pickupSteps";
+import {
   COUNTRIES,
   DEFAULT_COUNTRY,
   PRIORITY_COUNT,
@@ -74,7 +80,10 @@ import SignaturePad from "./SignaturePad";
  * two document photos to a mail error is the worst outcome available here.
  */
 
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = PICKUP_TOTAL_STEPS;
+
+/** Separates a section from the one above it within a step. */
+const SECTION_BREAK = "mt-8 border-t border-slate-200 pt-8";
 
 /**
  * Vercel caps a serverless request body near 4.5 MB.
@@ -367,8 +376,8 @@ export default function RentalPickupWizard() {
   /**
    * Brings the result screen into view.
    *
-   * Submit happens at the foot of a long step 4, so replacing the form with the
-   * much shorter result panel left the viewport parked over the footer — the
+   * Submit happens at the foot of the long last step, so replacing the form with
+   * the much shorter result panel left the viewport parked over the footer — the
    * customer saw contact details instead of their download, share and payment
    * buttons.
    *
@@ -379,6 +388,17 @@ export default function RentalPickupWizard() {
   useEffect(() => {
     if (status.kind === "done") window.scrollTo({ top: 0, behavior: "auto" });
   }, [status.kind]);
+
+  // Runs after the render that put the errors (and, after a server-side
+  // rejection, the step that shows them) on screen. See `showFirstError`.
+  const [errorScroll, setErrorScroll] = useState(0);
+  const formRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (errorScroll === 0) return;
+    formRef.current
+      ?.querySelector('[role="alert"]')
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [errorScroll]);
 
   const birthDatePickerRef = useRef<HTMLInputElement | null>(null);
 
@@ -462,15 +482,17 @@ export default function RentalPickupWizard() {
 
   function validateStep(target: number): boolean {
     const found: Record<string, string> = {};
+    const sections = sectionsOf(target);
+    const checks = (section: PickupSection) => sections.includes(section);
 
-    if (target === 1) {
+    if (checks("vehicle")) {
       if (!vehicle) found.vehicleId = L.errors.vehicle;
       if (!/^\d{1,7}$/.test(form.mileageKm.replace(/[\s'.]/g, ""))) {
         found.mileageKm = L.errors.mileage;
       }
     }
 
-    if (target === 2) {
+    if (checks("terms")) {
       const parsed = rentalTermsSchema.safeParse(toRentalTerms(terms));
       if (!parsed.success) {
         for (const issue of parsed.error.issues) {
@@ -491,7 +513,7 @@ export default function RentalPickupWizard() {
       }
     }
 
-    if (target === 3) {
+    if (checks("details")) {
       for (const key of [
         "lastName",
         "firstName",
@@ -519,11 +541,11 @@ export default function RentalPickupWizard() {
       }
     }
 
-    if (target === 3 && !form.country.trim()) {
+    if (checks("details") && !form.country.trim()) {
       found.country = L.errors.country;
     }
 
-    if (target === 4) {
+    if (checks("documents")) {
       if (onFile) {
         // The photographs are not required, but the attestation that stands in
         // their place is — and the server enforces the same rule.
@@ -535,14 +557,28 @@ export default function RentalPickupWizard() {
       }
     }
 
-    if (target === 5) {
+    if (checks("sign")) {
       if (!gtcAccepted) found.gtc = L.errors.gtc;
       if (!allConfirmed) found.confirm = L.errors.confirm;
       if (!signature) found.signature = L.errors.signature;
     }
 
     setErrors(found);
-    return Object.keys(found).length === 0;
+    const valid = Object.keys(found).length === 0;
+    if (!valid) showFirstError();
+    return valid;
+  }
+
+  /**
+   * Brings the first error on screen once it has rendered.
+   *
+   * With two long steps, the field that failed is usually far from the button
+   * that was pressed; scrolling to the top, as five short steps could, would
+   * leave the person hunting for it. Every error message carries
+   * `role="alert"`, so the first in document order is the first on the page.
+   */
+  function showFirstError() {
+    setErrorScroll((n) => n + 1);
   }
 
   function next() {
@@ -675,7 +711,7 @@ export default function RentalPickupWizard() {
     const documentsReady = onFile
       ? identityChecked
       : DOCUMENT_SLOTS.every((slot) => documents[slot.key]);
-    if (!validateStep(5) || !vehicle || !signature || !documentsReady) {
+    if (!validateStep(TOTAL_STEPS) || !vehicle || !signature || !documentsReady) {
       return;
     }
 
@@ -714,22 +750,14 @@ export default function RentalPickupWizard() {
         found[key] = L.errors[message] ?? L.errors.required;
       }
       setErrors(found);
-      // Send them back to the step that owns the first bad field.
-      const ownerOfField: Record<string, number> = {
-        vehicleId: 1,
-        mileageKm: 1,
-        fuelLevel: 1,
-        terms: 2,
-        amount: 2,
-        deposit: 2,
-        totalWeeks: 2,
-        startAt: 2,
-        endAt: 2,
-        truthfulInfoConfirmedAt: 5,
-        deceptionNoticeConfirmedAt: 5,
-      };
-      // Fallback is 3, not 2: the customer-details step moved down one.
-      setStep(ownerOfField[Object.keys(found)[0]] ?? 3);
+      // Send them back to the step that shows the first bad field, then to the
+      // field itself. The earliest step wins, so the first error on screen is
+      // the first one to fix.
+      const steps = Object.keys(found).map(
+        (field) => stepOfField(field) ?? TOTAL_STEPS
+      );
+      setStep(Math.min(...steps));
+      showFirstError();
       return;
     }
 
@@ -1014,6 +1042,12 @@ export default function RentalPickupWizard() {
 
   const busy = status.kind === "building" || status.kind === "sending";
 
+  // The sections on screen, in order. Every one but the first is set off from
+  // the one above it, so a long step still reads as parts.
+  const shown = sectionsOf(step);
+  const sectionClass = (section: PickupSection, base: string) =>
+    shown[0] === section ? base : `${base} ${SECTION_BREAK}`;
+
   return (
     <section className="bg-gradient-to-b from-slate-50 to-white py-12 sm:py-16">
       <div className="container mx-auto max-w-2xl px-4">
@@ -1026,11 +1060,18 @@ export default function RentalPickupWizard() {
           </p>
         </header>
 
-        <StepIndicator currentStep={step} totalSteps={TOTAL_STEPS} />
+        <StepIndicator
+          currentStep={step}
+          totalSteps={TOTAL_STEPS}
+          labels={[L.steps.vehicle, L.steps.renter]}
+        />
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
-          {step === 1 && (
-            <div className="space-y-5">
+        <div
+          ref={formRef}
+          className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8"
+        >
+          {shown.includes("vehicle") && (
+            <div className={sectionClass("vehicle", "space-y-5")}>
               <h2 className="text-lg font-semibold text-slate-900">
                 {L.vehicle.heading}
               </h2>
@@ -1161,17 +1202,19 @@ export default function RentalPickupWizard() {
             </div>
           )}
 
-          {step === 2 && (
-            <RentalTermsStep
-              value={terms}
-              onChange={setTerms}
-              errors={errors}
-              L={L}
-            />
+          {shown.includes("terms") && (
+            <div className={sectionClass("terms", "")}>
+              <RentalTermsStep
+                value={terms}
+                onChange={setTerms}
+                errors={errors}
+                L={L}
+              />
+            </div>
           )}
 
-          {step === 3 && (
-            <div className="space-y-5">
+          {shown.includes("details") && (
+            <div className={sectionClass("details", "space-y-5")}>
               <h2 className="text-lg font-semibold text-slate-900">
                 {L.details.heading}
               </h2>
@@ -1222,13 +1265,8 @@ export default function RentalPickupWizard() {
                 {L.details.lookupLead}
               </p>
 
-              {onFile && (
-                <p className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900">
-                  {L.documents.onFile
-                    .replace("{contract}", onFile.contractNumber)
-                    .replace("{signed}", onFile.signedAt)}
-                </p>
-              )}
+              {/* No "documents on file" note here: the documents section
+                  further down this step says it, beside the check it needs. */}
               {lookupState === "none" && (
                 <p className="text-sm text-slate-500">{L.details.lookupNone}</p>
               )}
@@ -1426,8 +1464,8 @@ export default function RentalPickupWizard() {
             </div>
           )}
 
-          {step === 4 && (
-            <div className="space-y-5">
+          {shown.includes("documents") && (
+            <div className={sectionClass("documents", "space-y-5")}>
               <div>
                 <h2 className="text-lg font-semibold text-slate-900">
                   {L.documents.heading}
@@ -1462,7 +1500,7 @@ export default function RentalPickupWizard() {
                     <span>{L.documents.onFileAttest}</span>
                   </label>
                   {errors.identityChecked && (
-                    <p className="text-sm text-red-600">
+                    <p role="alert" className="text-sm text-red-600">
                       {errors.identityChecked}
                     </p>
                   )}
@@ -1515,8 +1553,8 @@ export default function RentalPickupWizard() {
             </div>
           )}
 
-          {step === 5 && (
-            <div className="space-y-6">
+          {shown.includes("sign") && (
+            <div className={sectionClass("sign", "space-y-6")}>
               <GtcAcceptance
                 language={language}
                 gtcLanguage={gtcLanguage}
@@ -1552,7 +1590,9 @@ export default function RentalPickupWizard() {
                   }}
                 />
                 {errors.signature && (
-                  <p className="text-sm text-rose-600">{errors.signature}</p>
+                  <p role="alert" className="text-sm text-rose-600">
+                    {errors.signature}
+                  </p>
                 )}
               </div>
 
@@ -1700,7 +1740,11 @@ function Field({
       </Label>
       {children}
       {hint && !error && <p className="text-xs text-slate-500">{hint}</p>}
-      {error && <p className="text-sm text-rose-600">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-rose-600">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

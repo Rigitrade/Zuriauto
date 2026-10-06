@@ -245,9 +245,15 @@ export default function GtcAcceptance({
         </p>
       )}
 
-      {error && <p className="text-sm text-rose-600">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-rose-600">
+          {error}
+        </p>
+      )}
       {confirmError && (
-        <p className="text-sm text-rose-600">{confirmError}</p>
+        <p role="alert" className="text-sm text-rose-600">
+          {confirmError}
+        </p>
       )}
     </div>
   );
