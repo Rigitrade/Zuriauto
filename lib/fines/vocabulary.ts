@@ -37,7 +37,12 @@ export const LABELS = {
   fineNumber: ci(
     String.raw`(?:\bOB-?Nr\.?|\bBussen-?Nr\.?|\bReferenz-?Nr\.?|\bVerf[üu]gungs-?Nr\.?|N°\s*OB\b|N°\s*d'amende|\bNo\.?\s*OB\b|\bN\.\s*MD\b|\bN\.\s*multa\b)`
   ),
-  offence: ci(String.raw`\b(?:Ziffer\w*|chiffres?|cifr[ae])\b`),
+  /**
+   * With the plural the forms print: "Ziffer/n", "chiffre(s)", "cifra/e".
+   * Tesseract read Ahmed's scan as "Ziffern"; a clean print reads as the
+   * letter has it, and "/n" in front of the number lost the offence.
+   */
+  offence: ci(String.raw`\b(?:Ziffer\w*|chiffres?|cifr[ae])\b(?:\s?/\s?\w{1,2}\b|\s?\(\w{1,2}\))?`),
   speedMeasured: ci(
     String.raw`\b(?:Gemessene Geschwindigkeit|Vitesse mesur[ée]e|Velocit[àa] misurata)`
   ),

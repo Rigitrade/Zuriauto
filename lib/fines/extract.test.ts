@@ -177,6 +177,23 @@ describe("extractFields — an offence that wraps onto the next line", () => {
   });
 });
 
+describe("extractFields — the label with its plural, as the forms print it", () => {
+  // A clean print of the Kantonspolizei's form reads "Ziffer/n", not the
+  // "Ziffern" Tesseract made of Ahmed's scan — and lost the offence.
+  for (const [label, language] of [
+    ["Ziffer/n", "de"],
+    ["Ziffer(n)", "de"],
+    ["chiffre/s", "fr"],
+    ["cifra/e", "it"],
+  ] as const) {
+    it(`reads the offence after "${label}"`, () => {
+      const x = extractFields(`${label} 303.1.a Überschreiten der Höchstgeschwindigkeit 40.00`, null, language);
+      expect(x.offenceCode.value).toBe("303.1.a");
+      expect(x.offenceText.value).toBe("Überschreiten der Höchstgeschwindigkeit");
+    });
+  }
+});
+
 describe("extractFields — stray marks before a value", () => {
   it("drops the quote OCR leaves after a label", () => {
     const text = "Übertretungsort‘ Lufingen, Zürcherstrasse Datum / Zeit 02.07.2026 10:00";
