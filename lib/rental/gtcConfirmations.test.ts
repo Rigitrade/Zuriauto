@@ -35,8 +35,8 @@ describe("GTC confirmations", () => {
     }
   );
 
-  it("the terms carry the date of the version that added the article", () => {
-    expect(GTC_DATE).toBe("06.10.2026");
+  it("the terms carry the date of the current version", () => {
+    expect(GTC_DATE).toBe("08.10.2026");
   });
 });
 

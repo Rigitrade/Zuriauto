@@ -4,7 +4,9 @@
 // (AGB_GTC_Zuriauto_07.2026_DE.pdf, GTC_Zuriauto_30.07.2026_EN.pdf,
 // GTC_Zuriauto_30.07.2026_FR.pdf), where article 12 was numbered 11. Article
 // 11 was added for the version of 06.10.2026 from the lessor's German text of
-// 05.10.2026, translated here into English and French.
+// 05.10.2026, translated here into English and French. Article 7.3 (deposit
+// payback) was added for the version of 08.10.2026 at the lessor's request of
+// 07.10.2026.
 //
 // This file is now the source and the published PDFs are built from it
 // (`pnpm gtc:pdf`), so the website, the PDFs and the contract appendix cannot
@@ -45,7 +47,7 @@ export const GTC_ENTITY = "Rigitrade AG";
  * carry the same date; the German and French files print it in this exact
  * DD.MM.YYYY form.
  */
-export const GTC_DATE = "06.10.2026";
+export const GTC_DATE = "08.10.2026";
 
 /**
  * Where the current version's PDF is published (built by `pnpm gtc:pdf`). The
@@ -60,7 +62,7 @@ export function gtcPdfPath(language: GtcLanguage): string {
 const gtc: Record<GtcLanguage, GtcDocument> = {
   "de": {
     "title": "AGB Allgemeine Geschäftsbedingungen",
-    "updated": "Updated 06.10.2026 / AK",
+    "updated": "Updated 08.10.2026 / AK",
     "sections": [
       {
         "num": "1",
@@ -229,7 +231,7 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
       },
       {
         "num": "7",
-        "title": "Rückgabe des Fahrzeugs & Ersatzfahrzeug",
+        "title": "Rückgabe des Fahrzeugs, Ersatzfahrzeug & Kaution",
         "blocks": [
           {
             "kind": "sub",
@@ -246,6 +248,14 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
           {
             "kind": "p",
             "text": "Bei einem unverschuldeten technischen Defekt oder Ausfall des Mietfahrzeugs ist die Vermieterin bemüht, nach Verfügbarkeit ein gleichwertiges Ersatzfahrzeug zur Verfügung zu stellen. Ein genereller Anspruch auf ein Ersatzfahrzeug besteht jedoch vorbehaltlich ausdrücklicher schriftlicher Zusicherung nicht; soweit gesetzlich zulässig, sind weitergehende Schadenersatzansprüche des Mieters ausgeschlossen."
+          },
+          {
+            "kind": "sub",
+            "title": "7.3 Rückzahlung der Kaution"
+          },
+          {
+            "kind": "p",
+            "text": "Die Kaution wird nach Mietende innert 10 Arbeitstagen (2 Wochen) zurückbezahlt."
           }
         ]
       },
@@ -376,7 +386,7 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
   },
   "en": {
     "title": "General Terms & Conditions (GTC)",
-    "updated": "Updated: 6 October 2026 / AK",
+    "updated": "Updated: 8 October 2026 / AK",
     "sections": [
       {
         "num": "1",
@@ -630,7 +640,7 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
       },
       {
         "num": "7",
-        "title": "Vehicle Return & Replacement Vehicle",
+        "title": "Vehicle Return, Replacement Vehicle & Deposit",
         "blocks": [
           {
             "kind": "sub",
@@ -651,6 +661,14 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
           {
             "kind": "p",
             "text": "Unless expressly agreed in writing, the Renter has no automatic entitlement to a replacement vehicle. To the extent permitted by law, any further claims for damages arising from the unavailability of a replacement vehicle are excluded."
+          },
+          {
+            "kind": "sub",
+            "title": "7.3 Deposit Refund"
+          },
+          {
+            "kind": "p",
+            "text": "The deposit is paid back within 10 working days (2 weeks) after the end of the rental."
           }
         ]
       },
@@ -838,7 +856,7 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
   },
   "fr": {
     "title": "Conditions Générales de Location (CGV)",
-    "updated": "Mise à jour : 06.10.2026 / AK",
+    "updated": "Mise à jour : 08.10.2026 / AK",
     "sections": [
       {
         "num": "1",
@@ -1113,7 +1131,7 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
       },
       {
         "num": "7",
-        "title": "Restitution du véhicule et véhicule de remplacement",
+        "title": "Restitution du véhicule, véhicule de remplacement et caution",
         "blocks": [
           {
             "kind": "sub",
@@ -1138,6 +1156,14 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
           {
             "kind": "p",
             "text": "Dans les limites autorisées par la loi, toute autre demande d'indemnisation est exclue."
+          },
+          {
+            "kind": "sub",
+            "title": "7.3 Remboursement de la caution"
+          },
+          {
+            "kind": "p",
+            "text": "La caution est remboursée dans un délai de 10 jours ouvrables (2 semaines) après la fin de la location."
           }
         ]
       },

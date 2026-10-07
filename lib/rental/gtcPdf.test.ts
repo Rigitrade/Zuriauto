@@ -22,6 +22,6 @@ describe("buildGtcPdf", () => {
 
 describe("gtcPdfPath", () => {
   it("names the file after the version date, so an old link keeps its version", () => {
-    expect(gtcPdfPath("fr")).toBe("/gtc-pdf/gtc-zuriauto-2026-10-06-fr.pdf");
+    expect(gtcPdfPath("fr")).toBe("/gtc-pdf/gtc-zuriauto-2026-10-08-fr.pdf");
   });
 });
