@@ -200,3 +200,38 @@ describe("extractFields — stray marks before a value", () => {
     expect(extractFields(text, null, "de").location.value).toBe("Lufingen, Zürcherstrasse");
   });
 });
+
+describe("extractFields — Stadtpolizei Zürich, the moment under a bare \"Datum :\"", () => {
+  // The lines as the reader read the letters of 06.10.2026 and 07.10.2026:
+  // the moment's label is "Datum :" alone, and the letter's own date stands
+  // in the heading as "Zürich, 06.10.2026" with no label at all.
+  const STADT_ZH = [
+    "Verzeigungs-Nr.: 260623408 007 6",
+    "Zürich, 06.10.2026 / D011CH.docx 170 8021 Zürich",
+    "Ziffer(n) 304.3 Nichtbeachten des Vorschriftssignals Verbot für Motorwagen",
+    "Bussenbetrag: Fr. 100.00",
+    "Kontrollschild-Nr. : ZH 615132 Kategorie: Personenwagen",
+    "Übertretungsort : Zürich 4, Langstrasse / Dienerstrasse",
+    "Datum : 02.10.2026, 10:21 Uhr",
+    "Fahrtrichtung : Brauerstrasse",
+  ].join("\n");
+
+  it("reads the date and time as read, not as a guess", () => {
+    const x = extractFields(STADT_ZH, null, "de");
+    expect(x.violationDate).toMatchObject({ value: "2026-10-02", status: "READ" });
+    expect(x.violationTime).toMatchObject({ value: "10:21", status: "READ" });
+  });
+
+  it("still does not take a bare Datum without a time for the moment: that is the letter's date", () => {
+    const text = ["Datum: 06.10.2026", "Kontrollschild ZH 615132", "Am 02.10.2026 um 10:21 auf der Langstrasse"].join("\n");
+    const x = extractFields(text, null, "de");
+    expect(x.violationDate).toMatchObject({ value: "2026-10-02", status: "READ" });
+  });
+
+  it("looks past a letter-date Datum to the one that carries a time", () => {
+    const text = ["Datum: 06.10.2026", "Kontrollschild ZH 615132", "Datum : 02.10.2026, 10:21 Uhr"].join("\n");
+    const x = extractFields(text, null, "de");
+    expect(x.violationDate).toMatchObject({ value: "2026-10-02", status: "READ" });
+    expect(x.violationTime).toMatchObject({ value: "10:21", status: "READ" });
+  });
+});

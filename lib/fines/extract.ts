@@ -17,6 +17,7 @@ import {
   missing,
 } from "./types";
 import {
+  BARE_DATE_LABEL,
   FINE_WORDS,
   LABELS,
   MOMENT_SENTENCE,
@@ -143,6 +144,23 @@ function momentFrom(text: string, lines: string[]): {
       return {
         date: field(date, "READ", "ocr", snippet),
         time: time ? field(time, "READ", "ocr", snippet) : missing(),
+      };
+    }
+  }
+
+  // Every bare "Datum :" line, not the first: the letter's own date may come
+  // before the moment, and only the one carrying a time is the moment.
+  for (const line of lines) {
+    const label = BARE_DATE_LABEL.exec(line);
+    if (!label) continue;
+    const value = line.slice(label.index + label[0].length);
+    const date = parseNumericDate(value);
+    const time = date ? parseTime(value.replace(NUMERIC_DATE, " ")) : null;
+    if (date && time) {
+      const snippet = snippetOf(line);
+      return {
+        date: field(date, "READ", "ocr", snippet),
+        time: field(time, "READ", "ocr", snippet),
       };
     }
   }

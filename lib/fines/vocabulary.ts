@@ -86,6 +86,14 @@ export const REMINDER_WORDS = ci(
   String.raw`\b(?:Mahnung|Zahlungserinnerung|Rappel|Sommation|Sollecito|Richiamo)\b`
 );
 
+/**
+ * A bare "Datum :", which the moment label refuses: on most forms it is the
+ * letter's own date. The Stadtpolizei Zürich prints the moment under it —
+ * "Datum : 02.10.2026, 10:21 Uhr" — so extract.ts takes it, but only when a
+ * time follows. A letter is dated, never timed.
+ */
+export const BARE_DATE_LABEL = ci(String.raw`\bDatum\b\s*:`);
+
 /** The sentence form private letters use: "am 12.06.2026 um 14:32". */
 export const MOMENT_SENTENCE = ci(
   String.raw`\b(?:am|le|il)\s+(\d{1,2}[./]\d{1,2}[./]\d{2,4})\s*,?\s*(?:um|[àa]|alle|ore)\s+(\d{1,2}\s?[:.h]\s?\d{2})`
