@@ -249,7 +249,10 @@ export function FineDetail({
                         {zurich(c.from)} – {c.to ? zurich(c.to) : F.stillOut} · {c.email}
                       </span>
                     </span>
-                    {open && c.rentalId !== fine.rentalId && (
+                    {/* The fine's own rental too, while it waits for an address:
+                        assigning it again copies the renter as the rental now has
+                        it, after somebody filled in who that is. */}
+                    {open && (c.rentalId !== fine.rentalId || fine.reviewReason === "NO_CUSTOMER_EMAIL") && (
                       <button type="button" disabled={busy} className={button} onClick={() => act({ action: "assign", rentalId: c.rentalId })}>
                         {F.assign}
                       </button>

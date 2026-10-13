@@ -35,6 +35,7 @@ import { closeRental, RentalAlreadyClosed, RETURN_CLOSE_EVENT } from "./closeRen
 import { normaliseEmail } from "./customers";
 import { fuelLevelToDb } from "./fleet";
 import type { ReturnDetails } from "./returnSchema";
+import { adoptReturningRenter } from "./returningRenter";
 
 /** "yes"/"no" as the radios carry it, into a column. Undefined stays
  *  undefined: an answer nobody gave is not a "no". */
@@ -374,6 +375,17 @@ async function writeOnce(
           },
         } as Prisma.InputJsonValue,
       },
+    });
+
+    // A car marked out with no recorded renter: the form names them. A no-op
+    // for every rental that has a renter on file. See returningRenter.ts.
+    await adoptReturningRenter(tx, {
+      organisationId,
+      rentalId,
+      firstName: details.firstName,
+      lastName: details.lastName,
+      email: details.email,
+      now,
     });
 
     // Conditional on the rental still being open, inside closeRental. Two
