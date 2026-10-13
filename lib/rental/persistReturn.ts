@@ -112,6 +112,8 @@ export type PersistReturnResult =
       emailMatchesCustomer: boolean;
       /** The balance the renter declared, now a charge. Null if none. */
       settlementCents: number | null;
+      /** Fines this return gave a deliverable renter: to be sent now. */
+      finesReady: string[];
     }
   /**
    * Nothing was written, and that is not an error. The caller still emails the
@@ -226,6 +228,7 @@ export async function persistReturn(
     mileageBelowPickup,
     emailMatchesCustomer,
     settlementCents: written.settlementCents,
+    finesReady: written.finesReady,
   };
 }
 
@@ -259,6 +262,7 @@ interface Written {
   contractId: string;
   contractNumber: string;
   settlementCents: number | null;
+  finesReady: string[];
 }
 
 async function writeReturn(input: WriteReturnInput): Promise<Written> {
@@ -379,7 +383,7 @@ async function writeOnce(
 
     // A car marked out with no recorded renter: the form names them. A no-op
     // for every rental that has a renter on file. See returningRenter.ts.
-    await adoptReturningRenter(tx, {
+    const finesReady = await adoptReturningRenter(tx, {
       organisationId,
       rentalId,
       firstName: details.firstName,
@@ -412,6 +416,7 @@ async function writeOnce(
       contractId: contract.id,
       contractNumber,
       settlementCents: closed.settlementCents,
+      finesReady,
     };
   });
 }

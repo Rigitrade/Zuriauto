@@ -2,11 +2,13 @@ import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { prisma } from "@/lib/db";
 import { MARKED_OUT_BY } from "@/lib/admin/markOut";
+import type { NotifyDeps, SentMail } from "@/lib/fines/notify";
+import { sendFinesFromReturn } from "@/lib/fines/renter";
 import { persistPickup } from "@/lib/rental/persistPickup";
 import { persistReturn } from "@/lib/rental/persistReturn";
 import { placeholderEmail, UNKNOWN_BIRTH_DATE } from "@/lib/rental/placeholder";
 import type { ReturnDetails } from "@/lib/rental/returnSchema";
-import { createMemoryStore } from "@/lib/storage";
+import { createMemoryStore, type MemoryStore } from "@/lib/storage";
 import { ensureOrganisation, seedFleet } from "@/prisma/seed";
 import { pickupDetails, UPLOADS } from "./fineHelpers";
 
@@ -94,11 +96,15 @@ function returnCar(organisationId: string, overrides: Partial<ReturnDetails> = {
 }
 
 async function fineOn(organisationId: string, rentalId: string, customerId: string, status: "NEEDS_REVIEW" | "NOTIFIED") {
+  const car = await prisma.car.findFirstOrThrow({ where: { slug: VEHICLE } });
   return prisma.fine.create({
     data: {
       organisationId,
+      carId: car.id,
       rentalId,
       customerId,
+      issuerName: "Stadtpolizei Zürich",
+      fineNumber: "260605407 059 8",
       status,
       reviewReason: status === "NEEDS_REVIEW" ? "NO_CUSTOMER_EMAIL" : null,
       violationAt: new Date("2026-09-20T10:17:00Z"),
@@ -170,6 +176,55 @@ describe("returning a car the office marked as out", () => {
     await returnCar(organisationId);
 
     expect((await prisma.fine.findUniqueOrThrow({ where: { id: sent.id } })).customerId).toBe(placeholder.id);
+  });
+});
+
+describe("sending the fines a return made ready", () => {
+  it("emails the renter the fine, as an upload would have", async () => {
+    const organisationId = await ready();
+    const { rental, placeholder } = await markedOut(organisationId);
+    const fine = await fineOn(organisationId, rental.id, placeholder.id, "NEEDS_REVIEW");
+    const store: MemoryStore = createMemoryStore();
+    await store.put("fines/d/letter-0000000000000001.pdf", new Uint8Array([37, 80, 68, 70, 1]), "application/pdf");
+    await prisma.fineDocument.create({
+      data: {
+        organisationId, storageKey: "fines/d/letter-0000000000000001.pdf", sha256: "1".repeat(64), bytes: 5,
+        pages: 1, uploadedById: "u1", uploadedByName: "Eng Ahmed", status: "PROCESSED", fineId: fine.id,
+      },
+    });
+
+    const result = await returnCar(organisationId);
+    expect(result).toMatchObject({ recorded: true, finesReady: [fine.id] });
+
+    const sent: SentMail[] = [];
+    const deps: NotifyDeps = {
+      client: prisma,
+      store,
+      now: new Date("2026-09-30T16:07:00Z"),
+      mail: { host: "smtp.test", port: 587, user: "u", pass: "p", from: "office@zuriauto.ch", office: "office@zuriauto.ch" },
+      baseUrl: "https://www.zuriauto.ch",
+      send: async (_config, message) => {
+        sent.push(message);
+      },
+    };
+    await sendFinesFromReturn(deps, result.recorded ? result.finesReady : []);
+
+    expect(sent.map((m) => m.to)).toContain("anna@example.ch");
+    expect(await prisma.fine.findUniqueOrThrow({ where: { id: fine.id } })).toMatchObject({ status: "NOTIFIED" });
+  });
+
+  it("reports nothing to send for a return on a rental with a recorded renter", async () => {
+    const organisationId = await ready();
+    await persistPickup({
+      organisationId,
+      details: pickupDetails({ vehicleId: VEHICLE }),
+      vehicleSlug: VEHICLE,
+      uploads: UPLOADS,
+      pdf: { body: new Uint8Array([7]) },
+      store: createMemoryStore(),
+      now: new Date("2026-08-21T08:00:00Z"),
+    });
+    expect(await returnCar(organisationId)).toMatchObject({ recorded: true, finesReady: [] });
   });
 });
 

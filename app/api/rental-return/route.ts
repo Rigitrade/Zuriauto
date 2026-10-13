@@ -1,6 +1,8 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import { prisma } from "@/lib/db";
+import { sendFinesFromReturn } from "@/lib/fines/renter";
+import { readLifecycleMailConfig } from "@/lib/rental/lifecycleMail";
 import { buildCustomerEmail } from "@/lib/rental/customerEmail";
 import { labelsFor } from "@/lib/rental/labels";
 import { isPlaceholderEmail } from "@/lib/rental/placeholder";
@@ -237,6 +239,11 @@ function officeNotes(recorded: PersistReturnResult | null): string[] {
   // Nothing waits for the office any more, so this mail is the check: the
   // car is already back in the picker when it arrives.
   const notes = ["RECORDED — the rental is closed and the car is available again."];
+  if (recorded.finesReady.length > 0) {
+    notes.push(
+      `Traffic fines that waited for this renter's address: ${recorded.finesReady.length}. They are being emailed to the renter now.`
+    );
+  }
   if (recorded.settlementCents !== null) {
     notes.push(
       `Still owed, as the renter declared it: CHF ${(recorded.settlementCents / 100).toFixed(2)} — recorded as a charge.`
@@ -315,6 +322,27 @@ export async function POST(request: Request) {
   // Every failure below is swallowed on purpose: none of them is a reason to
   // withhold the document from the office.
   const recorded = await recordReturn(form, meta, pdfBytes);
+
+  // A car marked out with no recorded renter: this return just named them,
+  // and any fine that waited only for their address goes out now, as one
+  // uploaded after the return would. After the response, so a slow letter or
+  // a failed send never holds up or fails the return. lib/fines/run.ts has
+  // these deps too, but importing it would load the OCR reader into this route.
+  const finesReady = recorded?.recorded ? recorded.finesReady : [];
+  if (finesReady.length > 0) {
+    after(() =>
+      sendFinesFromReturn(
+        {
+          client: prisma,
+          store: getAssetStore(),
+          now: new Date(),
+          mail: readLifecycleMailConfig(),
+          baseUrl: process.env.SITE_URL || "https://www.zuriauto.ch",
+        },
+        finesReady
+      )
+    );
+  }
 
   const transport = nodemailer.createTransport({
     host: config.host,

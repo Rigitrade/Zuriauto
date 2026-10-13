@@ -14,8 +14,9 @@
  * typed address that differs from the one on file is a flag for the office
  * (`emailMatchesCustomer`), not a change of renter.
  *
- * The rental's fines that were waiting only for an address follow, without
- * being sent. See lib/fines/renter.ts.
+ * The rental's fines that were waiting only for an address follow; their ids
+ * come back so the caller can send them once the return is saved. See
+ * lib/fines/renter.ts.
  */
 
 import type { Prisma } from "@/generated/prisma/client";
@@ -33,12 +34,12 @@ export async function adoptReturningRenter(
     email: string;
     now: Date;
   }
-): Promise<void> {
+): Promise<string[]> {
   const rental = await tx.rental.findUniqueOrThrow({
     where: { id: input.rentalId },
     select: { customerId: true, customer: { select: { email: true } } },
   });
-  if (!isPlaceholderEmail(rental.customer.email)) return;
+  if (!isPlaceholderEmail(rental.customer.email)) return [];
 
   const email = normaliseEmail(input.email);
   const existing = await tx.customer.findUnique({
@@ -68,5 +69,5 @@ export async function adoptReturningRenter(
     },
   });
 
-  await refreshFineRenters(tx, input.rentalId, input.now);
+  return refreshFineRenters(tx, input.rentalId, input.now);
 }

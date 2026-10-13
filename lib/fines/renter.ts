@@ -8,19 +8,24 @@
  *
  * Only fines in NEEDS_REVIEW, and only while their one problem is the
  * missing address (or none): a fine already sent belongs to whoever received
- * it, and a fine waiting for another reason waits for that. Nothing is sent
- * from here — sending stays the office's act.
+ * it, and a fine waiting for another reason waits for that.
+ *
+ * Nothing is sent inside the transaction that changes the renter: the ids of
+ * the fines that became sendable are handed back, and sendFinesFromReturn
+ * sends them once the return is saved — the owner's decision of 13.10.2026,
+ * the same automatic send a letter uploaded after the return would get.
  */
 
 import type { Prisma } from "@/generated/prisma/client";
 import { isPlaceholderEmail } from "@/lib/rental/placeholder";
 import { recordEvent } from "./events";
+import { notifyRenter, type NotifyDeps } from "./notify";
 
 export async function refreshFineRenters(
   tx: Prisma.TransactionClient,
   rentalId: string,
   now: Date
-): Promise<number> {
+): Promise<string[]> {
   const rental = await tx.rental.findUniqueOrThrow({
     where: { id: rentalId },
     select: { customerId: true, customer: { select: { email: true } } },
@@ -50,5 +55,20 @@ export async function refreshFineRenters(
       to: rental.customerId,
     }, null, now);
   }
-  return stale.length;
+  return reviewReason === null ? stale.map((fine) => fine.id) : [];
+}
+
+/**
+ * The notice for each fine a return made sendable, through the same
+ * notifyRenter an upload uses. One that fails is logged and stays in review
+ * for the office; it never fails the return, which is already saved.
+ */
+export async function sendFinesFromReturn(deps: NotifyDeps, fineIds: string[]): Promise<void> {
+  for (const fineId of fineIds) {
+    try {
+      await notifyRenter(deps, fineId, "notice");
+    } catch (error) {
+      console.error(`[fines] notice after return failed for ${fineId}:`, error);
+    }
+  }
 }
