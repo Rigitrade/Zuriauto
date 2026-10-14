@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { timingSafeEqual } from "node:crypto";
 import { prisma } from "@/lib/db";
+import { cronAuthorised } from "@/lib/cron/auth";
 import { sweepExpiredAssets } from "@/lib/admin/retention";
 import { fineDocumentRetryPass } from "@/lib/fines/passes";
 import { freeReader } from "@/lib/fines/reader";
@@ -27,26 +27,6 @@ export const runtime = "nodejs";
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
-/** Vercel Cron sends `Authorization: Bearer $CRON_SECRET`. */
-function authorised(request: Request): boolean {
-  const expected = process.env.CRON_SECRET;
-  // Fail closed. An unset secret must not mean an open trigger — this endpoint
-  // sends email to real customers.
-  if (!expected) return false;
-
-  const header = request.headers.get("authorization") ?? "";
-  const supplied = header.startsWith("Bearer ") ? header.slice(7) : "";
-  if (!supplied) return false;
-
-  const a = Buffer.from(supplied);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length) {
-    timingSafeEqual(b, b);
-    return false;
-  }
-  return timingSafeEqual(a, b);
-}
-
 function baseUrl(request: Request): string {
   if (process.env.SITE_URL) return process.env.SITE_URL;
   // Falling back to the request host keeps preview deployments working, where
@@ -56,7 +36,7 @@ function baseUrl(request: Request): string {
 }
 
 async function run(request: Request) {
-  if (!authorised(request)) {
+  if (!cronAuthorised(request)) {
     return NextResponse.json({ code: "unauthorised" }, { status: 401 });
   }
 
