@@ -88,6 +88,7 @@ model Organisation {
   adminUsers AdminUser[]
   fines         Fine[]
   fineDocuments FineDocument[]
+  payments      Payment[]
 }
 
 model Car {
@@ -453,6 +454,7 @@ model Rental {
   notifications Notification[]
   fines         Fine[]
   tokens        ActionToken[]
+  payments      Payment[]
 
   @@index([organisationId, status, endAt])
   @@index([carId, startAt, endAt])
@@ -770,7 +772,8 @@ model Charge {
   paidAt          DateTime?
   createdAt       DateTime     @default(now())
 
-  rental Rental @relation(fields: [rentalId], references: [id])
+  rental   Rental    @relation(fields: [rentalId], references: [id])
+  payments Payment[]
 
   /// The old project's rule, kept: two runs cannot create two week-3 charges.
   @@unique([rentalId, weekNumber])
@@ -1133,4 +1136,86 @@ model FineNotification {
   fine Fine @relation(fields: [fineId], references: [id])
 
   @@unique([fineId, kind, dedupeKey])
+}
+
+/// Where a payment stands. See docs/superpowers/specs/2026-10-12-twint-payments-design.md.
+enum PaymentStatus {
+  /// Paid a charge (or credited a rental), by the system or by a person.
+  BOOKED
+  NEEDS_REVIEW
+  /// A test payment, or one that is not ours to book. Kept, never deleted.
+  IGNORED
+}
+
+enum PaymentReviewReason {
+  NO_PLATE
+  PLATE_NOT_IN_FLEET
+  PLATE_AMBIGUOUS
+  PLATE_DOUBTFUL
+  NO_RENTAL_AT_TIME
+  HANDOVER_BOUNDARY
+  OVERLAPPING_RENTALS
+  PAYER_MISMATCH
+  AMOUNT_MISMATCH
+  CHARGE_ALREADY_PAID
+}
+
+/// One TWINT transaction, as its notification email reported it.
+model Payment {
+  id             String @id @default(cuid())
+  organisationId String
+
+  /// TWINT's Transaktions-Nr. The unique key below is what makes reading the
+  /// mailbox again harmless.
+  externalId  String
+  amountCents Int
+  currency    String   @default("CHF")
+  /// TWINT's Transaktionsdatum: Zurich wall clock, to the minute.
+  paidAt      DateTime
+  storeName   String?
+  payerName   String?
+  payerEmail  String?
+  payerPhone  String?
+  /// The customer's free text — where a plate and a week are, if anywhere.
+  message     String?
+
+  status       PaymentStatus
+  reviewReason PaymentReviewReason?
+  /// "reference+amount", "holder+payer+amount" or "office".
+  matchedBy    String?
+  /// Rentals the office chooses between when the rule could not.
+  candidates   String[] @default([])
+
+  rentalId String?
+  chargeId String?
+  /// The IMAP UID it was read from, for finding the email again.
+  mailUid  Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organisation Organisation   @relation(fields: [organisationId], references: [id])
+  rental       Rental?        @relation(fields: [rentalId], references: [id])
+  charge       Charge?        @relation(fields: [chargeId], references: [id])
+  events       PaymentEvent[]
+
+  @@unique([organisationId, externalId])
+  @@index([organisationId, status])
+  @@index([chargeId])
+}
+
+/// The payment's timeline: received, booked, ignored, undone — and by whom.
+model PaymentEvent {
+  id        String   @id @default(cuid())
+  paymentId String
+  type      String
+  payload   Json?
+  /// Null for the system.
+  actorId   String?
+  actorName String?
+  createdAt DateTime @default(now())
+
+  payment Payment @relation(fields: [paymentId], references: [id])
+
+  @@index([paymentId, createdAt])
 }
