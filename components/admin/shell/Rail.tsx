@@ -10,6 +10,7 @@ import {
   Lock,
   Receipt,
   Users,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
 import type { Labels, Me } from "@/components/admin/types";
@@ -55,6 +56,8 @@ export function railItems(L: Labels, me: Me, attention: number): Item[] {
     // Beside the history screen, which used to be how a fine reached its
     // renter: somebody looked the plate up there by hand.
     { href: "/admin/fines", label: L.nav.fines, icon: Receipt },
+    // Beside the fines: both are money the office has to match to a renter.
+    { href: "/admin/payments", label: L.nav.payments, icon: Wallet },
     {
       href: "/admin/accounts",
       label: L.nav.accounts,

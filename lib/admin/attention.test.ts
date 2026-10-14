@@ -164,3 +164,14 @@ describe("attentionItems — fines", () => {
     expect(items.map((i) => i.kind)).toEqual(["return", "fine"]);
   });
 });
+
+describe("attentionItems — payments", () => {
+  it("adds one payment row when payments wait for the office", () => {
+    const items = attentionItems({ rentals: [], paymentReview: 2 }, new Date("2026-10-12T08:00:00Z"));
+    expect(items).toEqual([{ kind: "payment", key: "payment:waiting", customerName: "", count: 2 }]);
+  });
+
+  it("adds nothing when no payment waits", () => {
+    expect(attentionItems({ rentals: [], paymentReview: 0 }, new Date("2026-10-12T08:00:00Z"))).toEqual([]);
+  });
+});

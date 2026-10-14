@@ -17,6 +17,7 @@ import type { Rental, UnsentContract } from "@/components/admin/types";
  *               only item that is actively costing the business a vehicle.
  *   2. ending   a rental runs out inside 24 hours, or already has.
  *   3. mail     a contract exists whose email never left.
+ *   4. payment  TWINT payments the system would not book (lib/payments).
  */
 
 export interface AttentionSource {
@@ -26,9 +27,11 @@ export interface AttentionSource {
   unsentContracts?: UnsentContract[];
   /** Absent before the fines feature, and treated as nothing waiting. */
   fineAttention?: { review: number; proof: number; overdue: number };
+  /** Absent before the payments feature, and treated as nothing waiting. */
+  paymentReview?: number;
 }
 
-export type AttentionKind = "return" | "ending" | "mail" | "fine";
+export type AttentionKind = "return" | "ending" | "mail" | "fine" | "payment";
 
 export interface AttentionItem {
   kind: AttentionKind;
@@ -105,5 +108,9 @@ export function attentionItems(
   const fine: AttentionItem[] =
     fineCount > 0 ? [{ kind: "fine", key: "fine:waiting", customerName: "", count: fineCount }] : [];
 
-  return [...returns, ...endings, ...mail, ...fine];
+  const paymentCount = source.paymentReview ?? 0;
+  const payment: AttentionItem[] =
+    paymentCount > 0 ? [{ kind: "payment", key: "payment:waiting", customerName: "", count: paymentCount }] : [];
+
+  return [...returns, ...endings, ...mail, ...fine, ...payment];
 }
