@@ -12,6 +12,17 @@ import type { Actor } from "@/lib/fines/events";
 import { recordPaymentEvent } from "./events";
 import { OPEN_CHARGE } from "./twint/decide";
 
+/**
+ * The payment was no longer waiting when this transaction reached it —
+ * another booking, an ignore or an undo got there first. Thrown so the
+ * transaction rolls back whatever it already did (a charge it claimed).
+ */
+export class PaymentNotWaiting extends Error {
+  constructor() {
+    super("payment is no longer waiting");
+  }
+}
+
 export async function bookCharge(
   tx: Prisma.TransactionClient,
   input: { paymentId: string; chargeId: string; rentalId: string; matchedBy: string; paidAt: Date; actor: Actor | null }
@@ -29,8 +40,11 @@ export async function bookCharge(
   });
   if (claimed.count === 0) return false;
 
-  await tx.payment.update({
-    where: { id: input.paymentId },
+  // Conditional, like the charge above: of two bookings of one payment that
+  // both claimed a charge, the second finds the payment already BOOKED here
+  // and throws, and its transaction gives its charge back.
+  const took = await tx.payment.updateMany({
+    where: { id: input.paymentId, status: "NEEDS_REVIEW" },
     data: {
       status: "BOOKED",
       reviewReason: null,
@@ -39,6 +53,7 @@ export async function bookCharge(
       matchedBy: input.matchedBy,
     },
   });
+  if (took.count === 0) throw new PaymentNotWaiting();
   await recordPaymentEvent(
     tx,
     input.paymentId,

@@ -72,4 +72,34 @@ describe("applyPaymentAction", () => {
     await applyPaymentAction(prisma, payment.id, { action: "undo" }, office);
     expect(await prisma.payment.findUniqueOrThrow({ where: { id: payment.id } })).toMatchObject({ status: "NEEDS_REVIEW" });
   });
+
+  it("lets only one of two simultaneous bookings through, so one payment never pays two weeks", async () => {
+    const { rental, payment, week3 } = await waitingPayment();
+    const week4 = await prisma.charge.findFirstOrThrow({ where: { rentalId: rental.id, weekNumber: 4 } });
+
+    const results = await Promise.all([
+      applyPaymentAction(prisma, payment.id, { action: "book", rentalId: rental.id, chargeId: week3.id }, office),
+      applyPaymentAction(prisma, payment.id, { action: "book", rentalId: rental.id, chargeId: week4.id }, office),
+    ]);
+
+    expect(results.filter((r) => r.ok)).toHaveLength(1);
+    expect(results.filter((r) => !r.ok)).toEqual([{ ok: false, code: "conflict" }]);
+    expect(await prisma.charge.count({ where: { id: { in: [week3.id, week4.id] }, status: "PAID" } })).toBe(1);
+  });
+
+  it("does not ignore a payment that a simultaneous booking already took", async () => {
+    const { rental, payment, week3 } = await waitingPayment();
+
+    await Promise.all([
+      applyPaymentAction(prisma, payment.id, { action: "book", rentalId: rental.id, chargeId: week3.id }, office),
+      applyPaymentAction(prisma, payment.id, { action: "ignore", note: "Test" }, office),
+    ]);
+
+    const after = await prisma.payment.findUniqueOrThrow({ where: { id: payment.id } });
+    const charge = await prisma.charge.findUniqueOrThrow({ where: { id: week3.id } });
+    // Either the booking won (BOOKED, week paid) or the ignore did (IGNORED, week open) — never both.
+    expect([after.status, charge.status]).toSatisfy(
+      ([p, c]: string[]) => (p === "BOOKED" && c === "PAID") || (p === "IGNORED" && c !== "PAID")
+    );
+  });
 });

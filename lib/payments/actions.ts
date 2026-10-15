@@ -11,9 +11,9 @@
  */
 
 import { z } from "zod";
-import type { PrismaClient } from "@/generated/prisma/client";
+import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import type { Actor } from "@/lib/fines/events";
-import { bookCharge } from "./book";
+import { bookCharge, PaymentNotWaiting } from "./book";
 import { recordPaymentEvent } from "./events";
 import { OPEN_CHARGE } from "./twint/decide";
 
@@ -29,6 +29,30 @@ export type PaymentActionResult = { ok: true } | { ok: false; code: "bad-request
 const OK = { ok: true } as const;
 const CONFLICT = { ok: false, code: "conflict" } as const;
 const NOT_FOUND = { ok: false, code: "not-found" } as const;
+
+/** Runs one action's transaction; a payment taken by a concurrent action is a conflict. */
+async function inTransaction(
+  client: PrismaClient,
+  work: (tx: Prisma.TransactionClient) => Promise<boolean>
+): Promise<PaymentActionResult> {
+  try {
+    return (await client.$transaction(work)) ? OK : CONFLICT;
+  } catch (error) {
+    if (error instanceof PaymentNotWaiting) return CONFLICT;
+    throw error;
+  }
+}
+
+/** Moves the payment only if it is still in the status this action read. */
+async function claim(
+  tx: Prisma.TransactionClient,
+  paymentId: string,
+  from: "NEEDS_REVIEW" | "BOOKED" | "IGNORED",
+  data: Prisma.PaymentUncheckedUpdateManyInput
+): Promise<void> {
+  const took = await tx.payment.updateMany({ where: { id: paymentId, status: from }, data });
+  if (took.count === 0) throw new PaymentNotWaiting();
+}
 
 export async function applyPaymentAction(
   client: PrismaClient,
@@ -52,34 +76,40 @@ export async function applyPaymentAction(
 
     if (action.chargeId) {
       const chargeId = action.chargeId;
-      const booked = await client.$transaction((tx) =>
+      return inTransaction(client, (tx) =>
         bookCharge(tx, { paymentId, chargeId, rentalId: rental.id, matchedBy: "office", paidAt: payment.paidAt, actor })
       );
-      return booked ? OK : CONFLICT;
     }
-    await client.$transaction(async (tx) => {
-      await tx.payment.update({
-        where: { id: paymentId },
-        data: { status: "BOOKED", reviewReason: null, rentalId: rental.id, chargeId: null, matchedBy: "office" },
+    return inTransaction(client, async (tx) => {
+      await claim(tx, paymentId, "NEEDS_REVIEW", {
+        status: "BOOKED",
+        reviewReason: null,
+        rentalId: rental.id,
+        chargeId: null,
+        matchedBy: "office",
       });
       await recordPaymentEvent(tx, paymentId, "payment.credited", { rentalId: rental.id }, actor);
+      return true;
     });
-    return OK;
   }
 
   if (action.action === "ignore") {
     if (payment.status !== "NEEDS_REVIEW") return CONFLICT;
-    await client.$transaction(async (tx) => {
-      await tx.payment.update({ where: { id: paymentId }, data: { status: "IGNORED" } });
+    return inTransaction(client, async (tx) => {
+      await claim(tx, paymentId, "NEEDS_REVIEW", { status: "IGNORED" });
       await recordPaymentEvent(tx, paymentId, "payment.ignored", { note: action.note }, actor);
+      return true;
     });
-    return OK;
   }
 
   // undo
   if (payment.status === "NEEDS_REVIEW") return CONFLICT;
-  await client.$transaction(async (tx) => {
-    if (payment.status === "BOOKED" && payment.chargeId) {
+  const from = payment.status;
+  return inTransaction(client, async (tx) => {
+    // The payment first: an undo racing another undo, or a booking that was
+    // already undone, stops here before any charge is touched.
+    await claim(tx, paymentId, from, { status: "NEEDS_REVIEW", chargeId: null, matchedBy: null });
+    if (from === "BOOKED" && payment.chargeId) {
       const booked = await tx.paymentEvent.findFirst({
         where: { paymentId, type: "payment.booked" },
         orderBy: { createdAt: "desc" },
@@ -94,11 +124,7 @@ export async function applyPaymentAction(
         data: { status: restore, paidAt: null },
       });
     }
-    await tx.payment.update({
-      where: { id: paymentId },
-      data: { status: "NEEDS_REVIEW", chargeId: null, matchedBy: null },
-    });
-    await recordPaymentEvent(tx, paymentId, payment.status === "BOOKED" ? "payment.undone" : "payment.reopened", {}, actor);
+    await recordPaymentEvent(tx, paymentId, from === "BOOKED" ? "payment.undone" : "payment.reopened", {}, actor);
+    return true;
   });
-  return OK;
 }
