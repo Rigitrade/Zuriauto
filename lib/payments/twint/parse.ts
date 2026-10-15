@@ -46,6 +46,11 @@ const ENTITIES: Record<string, string> = {
   "&gt;": ">",
   "&quot;": '"',
   "&apos;": "'",
+  // The apostrophe Swiss amounts group thousands with, as mail HTML writes it.
+  "&rsquo;": "’",
+  "&lsquo;": "‘",
+  "&ndash;": "–",
+  "&mdash;": "—",
 };
 
 /** One line per cell, paragraph or <br>. Single pass over entities, so
@@ -56,8 +61,12 @@ export function htmlToLines(html: string): string[] {
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<\/(td|th|tr|p|div|h[1-6]|li|table|b|strong|span)>/gi, "\n")
     .replace(/<[^>]+>/g, "")
-    .replace(/&#(\d+);|&[a-z]+;/gi, (entity, code: string | undefined) =>
-      code ? String.fromCharCode(Number(code)) : (ENTITIES[entity.toLowerCase()] ?? entity)
+    .replace(/&#x([0-9a-f]+);|&#(\d+);|&[a-z]+;/gi, (entity, hex: string | undefined, dec: string | undefined) =>
+      hex
+        ? String.fromCodePoint(parseInt(hex, 16))
+        : dec
+          ? String.fromCodePoint(Number(dec))
+          : (ENTITIES[entity.toLowerCase()] ?? entity)
     )
     .split(/\r?\n/)
     .map((line) => line.replace(/\s+/g, " ").trim())
@@ -83,7 +92,9 @@ function labelled(lines: string[]): Partial<Record<Label, string[]>> {
 
 /** "CHF 1'250.00" → 125000. Null for anything that is not a positive amount. */
 export function parseAmount(text: string): number | null {
-  const match = /CHF\s*(\d[\d'’ ]*)(?:[.,](\d{2}))?/i.exec(text);
+  // The whole value or nothing: an amount read up to a character the pattern
+  // does not know ("1&rsquo;250.00" read as "1") is a wrong amount, not a short one.
+  const match = /^CHF\s*(\d{1,3}(?:['’ ]\d{3})+|\d+)(?:[.,](\d{2}))?$/i.exec(text.trim());
   if (!match) return null;
   const cents = Number(match[1].replace(/['’ ]/g, "")) * 100 + Number(match[2] ?? "0");
   return Number.isSafeInteger(cents) && cents > 0 ? cents : null;

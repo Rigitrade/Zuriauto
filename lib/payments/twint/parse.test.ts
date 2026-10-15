@@ -72,3 +72,21 @@ describe("parseTwintDate", () => {
     expect(parseTwintDate("31.02.2026, 10:00")).toBeNull();
   });
 });
+
+describe("amounts as an HTML email can write them", () => {
+  it.each([
+    ["CHF 1&rsquo;250.00", 125_000],
+    ["CHF 1&#x2019;250.00", 125_000],
+    ["CHF 1&#8217;250.00", 125_000],
+  ])("reads %s whole, not as CHF 1.00", (amount, cents) => {
+    const result = parseNotification(sampleHtml({ amount }));
+    expect(result.ok && result.notification.amountCents).toBe(cents);
+  });
+
+  it.each(["CHF 1,250.00", "CHF 250.5", "CHF 12'50.00", "CHF 250.00 / 3"])(
+    "refuses %s rather than guess",
+    (amount) => {
+      expect(parseNotification(sampleHtml({ amount }))).toEqual({ ok: false, reason: "FIELD_UNREADABLE", field: "Betrag" });
+    }
+  );
+});
