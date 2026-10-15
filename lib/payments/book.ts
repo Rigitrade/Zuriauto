@@ -23,22 +23,35 @@ export class PaymentNotWaiting extends Error {
   }
 }
 
-export async function bookCharge(
+/**
+ * Books a waiting payment to a rental: one week (or none) and a deposit share
+ * (or none). One payment pays at most the deposit and one week — the ledger
+ * spec, decision 3. Neither → a credit on the rental.
+ */
+export async function bookPayment(
   tx: Prisma.TransactionClient,
-  input: { paymentId: string; chargeId: string; rentalId: string; matchedBy: string; paidAt: Date; actor: Actor | null }
+  input: {
+    paymentId: string;
+    rentalId: string;
+    chargeId: string | null;
+    depositCents: number;
+    matchedBy: string;
+    paidAt: Date;
+    actor: Actor | null;
+  }
 ): Promise<boolean> {
-  const charge = await tx.charge.findUnique({
-    where: { id: input.chargeId },
-    select: { status: true, rentalId: true },
-  });
-  if (!charge || charge.rentalId !== input.rentalId) return false;
-  if (!(OPEN_CHARGE as readonly string[]).includes(charge.status)) return false;
-
-  const claimed = await tx.charge.updateMany({
-    where: { id: input.chargeId, status: charge.status },
-    data: { status: "PAID", paidAt: input.paidAt },
-  });
-  if (claimed.count === 0) return false;
+  let previousChargeStatus: string | null = null;
+  if (input.chargeId) {
+    const charge = await tx.charge.findUnique({ where: { id: input.chargeId }, select: { status: true, rentalId: true } });
+    if (!charge || charge.rentalId !== input.rentalId) return false;
+    if (!(OPEN_CHARGE as readonly string[]).includes(charge.status)) return false;
+    const claimed = await tx.charge.updateMany({
+      where: { id: input.chargeId, status: charge.status },
+      data: { status: "PAID", paidAt: input.paidAt },
+    });
+    if (claimed.count === 0) return false;
+    previousChargeStatus = charge.status;
+  }
 
   // Conditional, like the charge above: of two bookings of one payment that
   // both claimed a charge, the second finds the payment already BOOKED here
@@ -50,6 +63,7 @@ export async function bookCharge(
       reviewReason: null,
       rentalId: input.rentalId,
       chargeId: input.chargeId,
+      depositCents: input.depositCents,
       matchedBy: input.matchedBy,
     },
   });
@@ -57,9 +71,23 @@ export async function bookCharge(
   await recordPaymentEvent(
     tx,
     input.paymentId,
-    "payment.booked",
-    { chargeId: input.chargeId, rentalId: input.rentalId, matchedBy: input.matchedBy, previousChargeStatus: charge.status },
+    input.chargeId || input.depositCents > 0 ? "payment.booked" : "payment.credited",
+    {
+      chargeId: input.chargeId,
+      rentalId: input.rentalId,
+      depositCents: input.depositCents,
+      matchedBy: input.matchedBy,
+      previousChargeStatus,
+    },
     input.actor
   );
   return true;
+}
+
+/** A week and no deposit: what every caller before the ledger booked. */
+export function bookCharge(
+  tx: Prisma.TransactionClient,
+  input: { paymentId: string; chargeId: string; rentalId: string; matchedBy: string; paidAt: Date; actor: Actor | null }
+): Promise<boolean> {
+  return bookPayment(tx, { ...input, depositCents: 0 });
 }
