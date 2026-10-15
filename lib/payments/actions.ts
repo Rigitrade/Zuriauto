@@ -128,6 +128,11 @@ export async function applyPaymentAction(
     if (action.depositCents > 0) {
       const outstanding = (await outstandingDeposit(client, rental.id)) ?? 0;
       if (action.depositCents > outstanding || action.depositCents > payment.amountCents) return BAD_REQUEST;
+      // Deposit and week from one payment only when it covers both.
+      if (action.chargeId) {
+        const charge = await client.charge.findFirst({ where: { id: action.chargeId, rentalId: rental.id }, select: { amountCents: true } });
+        if (charge && payment.amountCents < charge.amountCents + action.depositCents) return BAD_REQUEST;
+      }
     }
     return inTransaction(client, async (tx) => {
       const booked = await bookPayment(tx, {

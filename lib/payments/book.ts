@@ -40,6 +40,20 @@ export async function bookPayment(
     actor: Actor | null;
   }
 ): Promise<boolean> {
+  // First, before anything is written: one deposit, however many bookings
+  // race for it. The rental row is locked and what is still outstanding is
+  // counted again inside this transaction, so a cash deposit recorded while
+  // the cron books a TWINT one cannot both count.
+  if (input.depositCents > 0) {
+    await tx.$queryRaw`SELECT id FROM "Rental" WHERE id = ${input.rentalId} FOR UPDATE`;
+    const rental = await tx.rental.findUnique({
+      where: { id: input.rentalId },
+      select: { depositCents: true, payments: { where: { status: "BOOKED" }, select: { depositCents: true } } },
+    });
+    const received = rental?.payments.reduce((sum, p) => sum + p.depositCents, 0) ?? 0;
+    if (!rental || input.depositCents > rental.depositCents - received) return false;
+  }
+
   let previousChargeStatus: string | null = null;
   if (input.chargeId) {
     const charge = await tx.charge.findUnique({ where: { id: input.chargeId }, select: { status: true, rentalId: true } });

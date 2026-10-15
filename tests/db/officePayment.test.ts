@@ -126,3 +126,54 @@ describe("a TWINT payment the office records by hand", () => {
     expect(await prisma.payment.count()).toBe(1);
   });
 });
+
+describe("what one payment can pay", () => {
+  it("refuses to take the deposit and a week out of a payment that covers only the week", async () => {
+    const { rental, week } = await setup();
+    const org = await prisma.organisation.findFirstOrThrow();
+    await ingestMail(
+      { client: prisma, organisationId: org.id, verify: async () => true },
+      rawMail({ amount: "CHF 450.00", message: ["Danke"], date: "02.06.2026, 12:00" }, 7)
+    );
+    const waiting = await prisma.payment.findFirstOrThrow({ where: { mailUid: 7 } });
+
+    expect(
+      await applyPaymentAction(prisma, waiting.id, { action: "book", rentalId: rental.id, chargeId: (await week(1)).id, depositCents: 10_000 }, office)
+    ).toEqual({ ok: false, code: "bad-request" });
+    expect((await week(1)).status).toBe("SCHEDULED");
+  });
+
+  it("takes the deposit once when two bookings of it race", async () => {
+    const { rental, deposit } = await setup();
+    const depositOnly = cash({ amountCents: 50_000, depositCents: 50_000 });
+
+    const results = await Promise.all([
+      recordOfficePayment(prisma, rental.id, depositOnly, office),
+      recordOfficePayment(prisma, rental.id, depositOnly, office),
+    ]);
+
+    expect(results.filter((r) => r.ok)).toHaveLength(1);
+    expect(await deposit()).toBe(50_000);
+    // The losing booking leaves nothing behind, not a payment waiting for review.
+    expect(await prisma.payment.count()).toBe(1);
+  });
+
+  it("still records a week on a rental whose deposit was booked twice by mistake", async () => {
+    const { rental, week } = await setup();
+    const org = await prisma.organisation.findFirstOrThrow();
+    await prisma.payment.create({
+      data: { organisationId: org.id, externalId: "office:twice", amountCents: 60_000, paidAt: new Date("2026-06-01T10:00:00Z"), method: "CASH", depositCents: 60_000, status: "BOOKED", rentalId: rental.id },
+    });
+
+    expect(await recordOfficePayment(prisma, rental.id, cash({ chargeId: (await week(2)).id }), office)).toEqual({ ok: true });
+  });
+
+  it("refuses a payment dated in the future", async () => {
+    const { rental, week } = await setup();
+    expect(await recordOfficePayment(prisma, rental.id, cash({ chargeId: (await week(2)).id, paidOn: "2099-01-01" }), office)).toEqual({
+      ok: false,
+      code: "bad-request",
+    });
+  });
+});
+

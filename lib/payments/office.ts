@@ -11,7 +11,7 @@ import type { PrismaClient } from "@/generated/prisma/client";
 import { zurichInstant } from "@/lib/admin/rentalPeriod";
 import type { Actor } from "@/lib/fines/events";
 import { BAD_REQUEST, CONFLICT, inTransaction, NOT_FOUND, outstandingDeposit, type PaymentActionResult } from "./actions";
-import { bookPayment } from "./book";
+import { bookPayment, PaymentNotWaiting } from "./book";
 import { recordPaymentEvent } from "./events";
 
 /** TWINT's Transaktions-Nr., as parse.ts reads it from the email. */
@@ -50,8 +50,10 @@ export async function recordOfficePayment(
   const rental = await client.rental.findUnique({ where: { id: rentalId }, select: { organisationId: true } });
   if (!rental) return NOT_FOUND;
 
-  const outstanding = (await outstandingDeposit(client, rentalId)) ?? 0;
-  if (input.depositCents > outstanding || input.depositCents > input.amountCents) return BAD_REQUEST;
+  if (input.depositCents > 0) {
+    const outstanding = (await outstandingDeposit(client, rentalId)) ?? 0;
+    if (input.depositCents > outstanding || input.depositCents > input.amountCents) return BAD_REQUEST;
+  }
   if (input.chargeId) {
     const charge = await client.charge.findFirst({ where: { id: input.chargeId, rentalId }, select: { amountCents: true } });
     if (!charge) return NOT_FOUND;
@@ -60,11 +62,11 @@ export async function recordOfficePayment(
   } else if (input.depositCents > 0 && input.amountCents !== input.depositCents) {
     return BAD_REQUEST;
   }
+  // Not in the future: the browser's date picker says so too, but it is not the rule.
+  if (input.paidOn > new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Zurich" })) return BAD_REQUEST;
   const paidAt = zurichInstant(`${input.paidOn}T12:00`);
   if (!paidAt) return BAD_REQUEST;
 
-  // A bookPayment that finds the week paid in between returns false, and
-  // inTransaction answers "conflict" and rolls the new payment back with it.
   const externalId = input.method === "TWINT" ? input.transactionId!.toLowerCase() : `office:${randomUUID()}`;
   try {
     return await recordAndBook(client, rentalId, rental.organisationId, externalId, paidAt, input, actor);
@@ -99,7 +101,7 @@ function recordAndBook(
       select: { id: true },
     });
     await recordPaymentEvent(tx, payment.id, "payment.recorded", { method: input.method, note: input.note || null }, actor);
-    return bookPayment(tx, {
+    const booked = await bookPayment(tx, {
       paymentId: payment.id,
       rentalId,
       chargeId: input.chargeId,
@@ -108,5 +110,10 @@ function recordAndBook(
       paidAt,
       actor,
     });
+    // The week was paid, or the deposit taken, in between. Thrown, not
+    // returned: a transaction that returns commits, and the payment created
+    // above would be left waiting for review. inTransaction answers "conflict".
+    if (!booked) throw new PaymentNotWaiting();
+    return true;
   });
 }
