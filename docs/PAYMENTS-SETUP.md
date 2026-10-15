@@ -32,6 +32,17 @@ answers `{"ok":true,"skipped":"not-configured"}` and does nothing else.
    Every email must show `DKIM pass`. If the forwarded copies do not, read
    `info@` directly instead (set `TWINT_IMAP_USER=info@zuriauto.ch`) and
    write that decision here.
+4. See what the site would do with those emails, against the real data,
+   before anything is switched on:
+
+   ```bash
+   pnpm twint:dry-run              # -- --days 60 looks further back
+   ```
+
+   It runs the cron's own steps inside a read-only database transaction:
+   nothing is stored, booked or sent. Each email ends in "would BOOK" (and
+   to which rental) or "would WAIT" (and why). Without a mailbox login,
+   saved originals work too: `pnpm twint:dry-run -- --eml <folder>`.
 
 ## 2. The variables in Vercel
 
@@ -60,6 +71,10 @@ Vercel's free plan runs crons once a day, so use an external scheduler:
   **POST**, header `Authorization: Bearer <CRON_SECRET>`.
 - Or, on Vercel Pro, add to `crons` in `vercel.json`:
   `{ "path": "/api/cron/payments/", "schedule": "*/10 * * * *" }`.
+
+Switch on the scheduler's failure email (cron-job.org: job → Notifications
+→ "execution failed"). A run that cannot read the mailbox — a changed
+password, Hostinger down — answers 500, and nothing else will tell anyone.
 
 ## 4. The first run
 

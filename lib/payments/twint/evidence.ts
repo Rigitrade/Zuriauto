@@ -6,7 +6,7 @@
  * from the fines possession rule, at the payment's minute. Neither is copied.
  */
 
-import type { PrismaClient } from "@/generated/prisma/client";
+import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { matchPlate } from "@/lib/fines/plates";
 import { responsibleAt, type Interval, type Responsible } from "@/lib/fines/possession";
 import { loadIntervals } from "@/lib/fines/repo/possessionLoad";
@@ -14,6 +14,8 @@ import { normalisePhone } from "@/lib/rental/phone";
 import { OPEN_CHARGE, type Evidence, type OpenCharge, type Reference } from "./decide";
 import type { TwintNotification } from "./parse";
 import { printedPlate, weekOf } from "./signals";
+
+type Client = PrismaClient | Prisma.TransactionClient;
 
 const isOpen = (status: string) => (OPEN_CHARGE as readonly string[]).includes(status);
 
@@ -44,7 +46,7 @@ function accountableRental(intervals: Interval[], holder: Responsible, paidAt: D
  * office chooses among the rentals that owe it.
  */
 async function referenceOf(
-  client: PrismaClient,
+  client: Client,
   carId: string,
   week: number,
   intervals: Interval[],
@@ -73,7 +75,7 @@ async function referenceOf(
   };
 }
 
-async function payerCustomers(client: PrismaClient, organisationId: string, n: TwintNotification) {
+async function payerCustomers(client: Client, organisationId: string, n: TwintNotification) {
   const phoneKey = n.payerPhone ? normalisePhone(n.payerPhone) : null;
   const or = [
     ...(n.payerEmail ? [{ email: n.payerEmail.toLowerCase() }] : []),
@@ -84,7 +86,7 @@ async function payerCustomers(client: PrismaClient, organisationId: string, n: T
 }
 
 export async function gatherEvidence(
-  client: PrismaClient,
+  client: Client,
   organisationId: string,
   n: TwintNotification
 ): Promise<Evidence> {

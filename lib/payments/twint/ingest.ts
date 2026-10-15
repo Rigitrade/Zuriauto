@@ -26,7 +26,7 @@ import { recordPaymentEvent } from "../events";
 import { verifyTwintSignature } from "./authentic";
 import { decidePayment } from "./decide";
 import { gatherEvidence } from "./evidence";
-import { parseNotification } from "./parse";
+import { parseNotification, type TwintNotification } from "./parse";
 
 export interface RawMail {
   uid: number | null;
@@ -35,14 +35,34 @@ export interface RawMail {
 
 export type IngestOutcome = "booked" | "review" | "duplicate" | "unsigned" | "unreadable" | "other-store";
 
-export interface IngestDeps {
-  client: PrismaClient;
-  organisationId: string;
+export interface ReadOptions {
   /** Injected by tests; production checks TWINT's DKIM signature. */
   verify?: (raw: Buffer) => Promise<boolean>;
   /** Our store's name as TWINT prints it; TWINT_STORE_NAME, else "Zuriauto". */
   storeName?: string;
 }
+
+export interface IngestDeps extends ReadOptions {
+  client: PrismaClient;
+  organisationId: string;
+}
+
+interface About {
+  messageKey: string;
+  subject: string | null;
+  receivedAt: Date | null;
+}
+
+/** A notification TWINT signed, that reads, for our store — or why not. */
+export type MailReading =
+  | { ok: true; notification: TwintNotification; about: About }
+  | {
+      ok: false;
+      outcome: "unsigned" | "unreadable" | "other-store";
+      reason: "UNSIGNED" | "UNREADABLE" | "OTHER_STORE";
+      detail: string | null;
+      about: About;
+    };
 
 function isUniqueViolation(error: unknown): boolean {
   return typeof error === "object" && error !== null && (error as { code?: string }).code === "P2002";
@@ -69,10 +89,13 @@ async function recordIssue(
   }
 }
 
-export async function ingestMail(deps: IngestDeps, mail: RawMail): Promise<IngestOutcome> {
-  const { client, organisationId } = deps;
-  const verify = deps.verify ?? verifyTwintSignature;
-  const ourStore = deps.storeName ?? (process.env.TWINT_STORE_NAME?.trim() || "Zuriauto");
+/**
+ * The first three questions, none of which needs the database. Shared with
+ * the dry run (dryRun.ts), so what it reports is what this file would do.
+ */
+export async function readMail(mail: RawMail, options: ReadOptions = {}): Promise<MailReading> {
+  const verify = options.verify ?? verifyTwintSignature;
+  const ourStore = options.storeName ?? (process.env.TWINT_STORE_NAME?.trim() || "Zuriauto");
 
   // Read first, trust second: an email that fails the signature still needs
   // its subject and Message-ID to be listed for the office.
@@ -85,23 +108,32 @@ export async function ingestMail(deps: IngestDeps, mail: RawMail): Promise<Inges
 
   if (!(await verify(mail.source))) {
     console.warn(`[twint] uid ${mail.uid}: not signed by TWINT, skipped`);
-    await recordIssue(client, organisationId, { ...about, reason: "UNSIGNED", detail: null });
-    return "unsigned";
+    return { ok: false, outcome: "unsigned", reason: "UNSIGNED", detail: null, about };
   }
 
   const result = parseNotification(parsed.html || parsed.textAsHtml || "");
   if (!result.ok) {
     console.warn(`[twint] uid ${mail.uid}: ${result.reason} ${result.field ?? ""}`.trim());
-    await recordIssue(client, organisationId, { ...about, reason: "UNREADABLE", detail: result.field ?? result.reason });
-    return "unreadable";
+    return { ok: false, outcome: "unreadable", reason: "UNREADABLE", detail: result.field ?? result.reason, about };
   }
   const n = result.notification;
 
   if (!sameStore(n.storeName, ourStore)) {
     console.warn(`[twint] uid ${mail.uid}: paid to "${n.storeName}", not to "${ourStore}"`);
-    await recordIssue(client, organisationId, { ...about, reason: "OTHER_STORE", detail: n.storeName });
-    return "other-store";
+    return { ok: false, outcome: "other-store", reason: "OTHER_STORE", detail: n.storeName, about };
   }
+  return { ok: true, notification: n, about };
+}
+
+export async function ingestMail(deps: IngestDeps, mail: RawMail): Promise<IngestOutcome> {
+  const { client, organisationId } = deps;
+
+  const reading = await readMail(mail, deps);
+  if (!reading.ok) {
+    await recordIssue(client, organisationId, { ...reading.about, reason: reading.reason, detail: reading.detail });
+    return reading.outcome;
+  }
+  const n = reading.notification;
 
   const seen = await client.payment.findUnique({
     where: { organisationId_externalId: { organisationId, externalId: n.externalId } },

@@ -6,14 +6,14 @@
  * when the car actually changed hands.
  */
 
-import type { PrismaClient } from "@/generated/prisma/client";
+import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { RETURN_CLOSE_EVENT } from "@/lib/rental/closeRental";
 import { intervalOf, type Interval } from "../possession";
 
 const CLOSE_EVENTS = [RETURN_CLOSE_EVENT, "rental.closed.manual"];
 
 export async function loadIntervals(
-  client: PrismaClient,
+  client: PrismaClient | Prisma.TransactionClient,
   carId: string
 ): Promise<Interval[]> {
   const rentals = await client.rental.findMany({
