@@ -17,6 +17,7 @@ import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import type { Actor } from "@/lib/fines/events";
 import { bookPayment, PaymentNotWaiting } from "./book";
 import { recordPaymentEvent } from "./events";
+import { forgetPayerFrom, rememberPayer } from "./payerAlias";
 import { OPEN_CHARGE } from "./twint/decide";
 
 export const paymentActionSchema = z.discriminatedUnion("action", [
@@ -25,6 +26,8 @@ export const paymentActionSchema = z.discriminatedUnion("action", [
     rentalId: z.string().min(1),
     chargeId: z.string().min(1).nullable(),
     depositCents: z.number().int().min(0).default(0),
+    /** "Zahler merken": this payer's email and phone now count as the renter's. */
+    rememberPayer: z.boolean().default(false),
   }),
   z.object({ action: z.literal("ignore"), note: z.string().trim().min(1).max(500) }),
   z.object({ action: z.literal("undo") }),
@@ -101,7 +104,17 @@ export async function applyPaymentAction(
   const action = paymentActionSchema.parse(input);
   const payment = await client.payment.findUnique({
     where: { id: paymentId },
-    select: { id: true, organisationId: true, status: true, chargeId: true, paidAt: true, amountCents: true, method: true },
+    select: {
+      id: true,
+      organisationId: true,
+      status: true,
+      chargeId: true,
+      paidAt: true,
+      amountCents: true,
+      method: true,
+      payerEmail: true,
+      payerPhone: true,
+    },
   });
   if (!payment) return NOT_FOUND;
 
@@ -109,15 +122,15 @@ export async function applyPaymentAction(
     if (payment.status !== "NEEDS_REVIEW") return CONFLICT;
     const rental = await client.rental.findFirst({
       where: { id: action.rentalId, organisationId: payment.organisationId },
-      select: { id: true },
+      select: { id: true, customerId: true },
     });
     if (!rental) return NOT_FOUND;
     if (action.depositCents > 0) {
       const outstanding = (await outstandingDeposit(client, rental.id)) ?? 0;
       if (action.depositCents > outstanding || action.depositCents > payment.amountCents) return BAD_REQUEST;
     }
-    return inTransaction(client, (tx) =>
-      bookPayment(tx, {
+    return inTransaction(client, async (tx) => {
+      const booked = await bookPayment(tx, {
         paymentId,
         rentalId: rental.id,
         chargeId: action.chargeId,
@@ -125,8 +138,20 @@ export async function applyPaymentAction(
         matchedBy: "office",
         paidAt: payment.paidAt,
         actor,
-      })
-    );
+      });
+      if (booked && action.rememberPayer) {
+        const remembered = await rememberPayer(tx, {
+          organisationId: payment.organisationId,
+          customerId: rental.customerId,
+          paymentId,
+          email: payment.payerEmail,
+          phone: payment.payerPhone,
+          actor,
+        });
+        if (remembered > 0) await recordPaymentEvent(tx, paymentId, "payment.payer.remembered", { count: remembered }, actor);
+      }
+      return booked;
+    });
   }
 
   if (action.action === "ignore") {
@@ -149,6 +174,7 @@ export async function applyPaymentAction(
     return inTransaction(client, async (tx) => {
       await claim(tx, paymentId, "BOOKED", { status: "IGNORED", chargeId: null, depositCents: 0, matchedBy: null });
       if (payment.chargeId) await restoreCharge(tx, paymentId, payment.chargeId);
+      await forgetPayerFrom(tx, paymentId);
       await recordPaymentEvent(tx, paymentId, "payment.cancelled", {}, actor);
       return true;
     });
@@ -159,6 +185,7 @@ export async function applyPaymentAction(
     // already undone, stops here before any charge is touched.
     await claim(tx, paymentId, from, { status: "NEEDS_REVIEW", chargeId: null, depositCents: 0, matchedBy: null });
     if (from === "BOOKED" && payment.chargeId) await restoreCharge(tx, paymentId, payment.chargeId);
+    await forgetPayerFrom(tx, paymentId);
     await recordPaymentEvent(tx, paymentId, from === "BOOKED" ? "payment.undone" : "payment.reopened", {}, actor);
     return true;
   });
