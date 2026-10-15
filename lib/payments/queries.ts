@@ -3,6 +3,7 @@
  */
 
 import type { PrismaClient } from "@/generated/prisma/client";
+import { purposeOf, type PaymentPurpose } from "./account";
 import { OPEN_CHARGE } from "./twint/decide";
 
 export type PaymentTab = "review" | "booked" | "all";
@@ -24,6 +25,12 @@ export interface PaymentRow {
   plate: string | null;
   renterName: string | null;
   weekNumber: number | null;
+  /** TWINT, or how the office recorded it: CASH, CARD, BANK. */
+  method: string;
+  /** The part that paid the deposit. */
+  depositCents: number;
+  /** What a booked payment paid ("Wofür"); null while it waits or was ignored. */
+  purpose: PaymentPurpose | null;
 }
 
 const rowInclude = {
@@ -49,6 +56,9 @@ export async function paymentList(client: PrismaClient, tab: PaymentTab): Promis
     plate: p.rental?.car.plate ?? null,
     renterName: p.rental ? `${p.rental.customer.firstName} ${p.rental.customer.lastName}` : null,
     weekNumber: p.charge?.weekNumber ?? null,
+    method: p.method,
+    depositCents: p.depositCents,
+    purpose: purposeOf(p, p.charge?.weekNumber ?? null),
   }));
 }
 
@@ -93,6 +103,9 @@ export interface PaymentChoice {
   startAt: string;
   status: string;
   isCandidate: boolean;
+  /** The deposit agreed, and what booked payments have carried of it. */
+  depositCents: number;
+  depositReceivedCents: number;
   openCharges: { id: string; weekNumber: number; amountCents: number; status: string; dueDate: string }[];
 }
 
@@ -139,6 +152,7 @@ export async function paymentDetail(client: PrismaClient, id: string): Promise<P
       car: { select: { plate: true, model: true } },
       customer: { select: { firstName: true, lastName: true } },
       charges: { where: { status: { in: [...OPEN_CHARGE] } }, orderBy: { weekNumber: "asc" } },
+      payments: { where: { status: "BOOKED" }, select: { depositCents: true } },
     },
   });
   const choices: PaymentChoice[] = rentals
@@ -150,6 +164,8 @@ export async function paymentDetail(client: PrismaClient, id: string): Promise<P
       startAt: r.startAt.toISOString(),
       status: r.status,
       isCandidate: pinned.includes(r.id),
+      depositCents: r.depositCents,
+      depositReceivedCents: r.payments.reduce((sum, payment) => sum + payment.depositCents, 0),
       openCharges: r.charges.map((c) => ({
         id: c.id,
         weekNumber: c.weekNumber,
@@ -171,6 +187,9 @@ export async function paymentDetail(client: PrismaClient, id: string): Promise<P
     plate: p.rental?.car.plate ?? null,
     renterName: p.rental ? `${p.rental.customer.firstName} ${p.rental.customer.lastName}` : null,
     weekNumber: p.charge?.weekNumber ?? null,
+    method: p.method,
+    depositCents: p.depositCents,
+    purpose: purposeOf(p, p.charge?.weekNumber ?? null),
     externalId: p.externalId,
     payerEmail: p.payerEmail,
     payerPhone: p.payerPhone,

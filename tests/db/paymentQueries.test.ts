@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { prisma } from "@/lib/db";
 import { ingestMail } from "@/lib/payments/twint/ingest";
 import { paymentDetail, paymentList, paymentMailIssues, paymentReviewCount } from "@/lib/payments/queries";
-import { resolveMailIssue } from "@/lib/payments/actions";
+import { applyPaymentAction, resolveMailIssue } from "@/lib/payments/actions";
 import { closeAt, seedOrganisation, seedRental } from "./fineHelpers";
 import { rawMail } from "./paymentHelpers";
 
@@ -68,5 +68,38 @@ describe("payment queries", () => {
 
     const detail = await paymentDetail(prisma, waiting.id);
     expect(detail?.choices.map((c) => c.rentalId)).toContain(rental.id);
+  });
+
+  it("says what each booked payment paid: deposit and week, a credit, the balance after the return", async () => {
+    const org = await seedOrganisation();
+    const rental = await seedRental(org.id, { signedAt: new Date("2026-06-01T08:00:00Z") });
+    const balance = await prisma.charge.create({
+      data: { organisationId: org.id, rentalId: rental.id, weekNumber: 0, dueDate: new Date("2026-07-30T00:00:00Z"), amountCents: 8_000 },
+    });
+    const week1 = await prisma.charge.findFirstOrThrow({ where: { rentalId: rental.id, weekNumber: 1 } });
+    const deps = { client: prisma, organisationId: org.id, verify: async () => true };
+    const office = { id: "u1", displayName: "Ahmed" };
+    const waiting = async (uid: number, amount: string) => {
+      const tx = `cccccccc-0000-0000-0000-00000000000${uid}`;
+      await ingestMail(deps, rawMail({ amount, transaction: tx, message: ["Danke"] }, uid));
+      return prisma.payment.findFirstOrThrow({ where: { mailUid: uid } });
+    };
+
+    const both = await waiting(1, "CHF 950.00");
+    await applyPaymentAction(prisma, both.id, { action: "book", rentalId: rental.id, chargeId: week1.id, depositCents: 50_000 }, office);
+    const credit = await waiting(2, "CHF 30.00");
+    await applyPaymentAction(prisma, credit.id, { action: "book", rentalId: rental.id, chargeId: null }, office);
+    const rest = await waiting(3, "CHF 80.00");
+    await applyPaymentAction(prisma, rest.id, { action: "book", rentalId: rental.id, chargeId: balance.id }, office);
+
+    const booked = await paymentList(prisma, "booked");
+    const row = (id: string) => booked.find((p) => p.id === id);
+    expect(row(both.id)).toMatchObject({ purpose: "deposit+week", weekNumber: 1, method: "TWINT", depositCents: 50_000 });
+    expect(row(credit.id)).toMatchObject({ purpose: "credit" });
+    expect(row(rest.id)).toMatchObject({ purpose: "return-balance", weekNumber: 0 });
+
+    const another = await waiting(4, "CHF 450.00");
+    const choice = (await paymentDetail(prisma, another.id))?.choices.find((c) => c.rentalId === rental.id);
+    expect(choice).toMatchObject({ depositCents: 50_000, depositReceivedCents: 50_000 });
   });
 });
