@@ -135,6 +135,7 @@ export function RentalAccountDialog({
   const [method, setMethod] = useState("CASH");
   const [purposeKey, setPurposeKey] = useState("");
   const [note, setNote] = useState("");
+  const [transactionId, setTransactionId] = useState("");
 
   const load = useCallback(async () => {
     setFailed(false);
@@ -157,6 +158,8 @@ export function RentalAccountDialog({
   const purposes = useMemo(() => (account ? purposesOf(account, A) : []), [account, A]);
   const purpose = purposes.find((p) => p.key === purposeKey) ?? purposes[0];
   const cents = toCents(amount);
+  // TWINT's Transaktions-Nr., required so the payment's email is then a duplicate.
+  const transactionOk = method !== "TWINT" || /^[0-9a-f][0-9a-f-]{7,}$/i.test(transactionId.trim());
   const mismatch =
     purpose && purpose.expectedCents !== null && cents !== null && cents !== purpose.expectedCents
       ? A.amountMismatch.replace("{x}", formatChf(purpose.expectedCents))
@@ -183,10 +186,12 @@ export function RentalAccountDialog({
       chargeId: purpose.chargeId,
       depositCents: purpose.depositCents,
       note,
+      ...(method === "TWINT" ? { transactionId: transactionId.trim() } : {}),
     });
     if (ok) {
       setAmount("");
       setNote("");
+      setTransactionId("");
       setPurposeKey("");
     }
   };
@@ -451,6 +456,18 @@ export function RentalAccountDialog({
                     ))}
                   </select>
                 </label>
+                {method === "TWINT" && (
+                  <label className="text-sm sm:col-span-2">
+                    {A.transactionId}
+                    <input
+                      className={`${field} font-mono`}
+                      value={transactionId}
+                      placeholder="ce21e52e-2354-4f6d-…"
+                      onChange={(e) => setTransactionId(e.target.value)}
+                    />
+                    <span className="mt-1 block text-xs text-[var(--admin-faint)]">{A.transactionHint}</span>
+                  </label>
+                )}
                 <label className="text-sm">
                   {A.note}
                   <input className={field} value={note} maxLength={500} onChange={(e) => setNote(e.target.value)} />
@@ -458,7 +475,7 @@ export function RentalAccountDialog({
                 <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
                   <button
                     type="button"
-                    disabled={busy || !purpose || cents === null || mismatch !== null || !paidOn}
+                    disabled={busy || !purpose || cents === null || mismatch !== null || !paidOn || !transactionOk}
                     onClick={record}
                     className="inline-flex h-9 items-center rounded-md bg-[var(--admin-accent)] px-4 text-sm font-medium text-[var(--admin-accent-ink)] disabled:opacity-40"
                   >

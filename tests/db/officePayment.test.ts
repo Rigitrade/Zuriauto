@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { prisma } from "@/lib/db";
 import { applyPaymentAction } from "@/lib/payments/actions";
 import { recordOfficePayment } from "@/lib/payments/office";
+import { ingestMail } from "@/lib/payments/twint/ingest";
+import { rawMail } from "./paymentHelpers";
 import { seedOrganisation, seedRental } from "./fineHelpers";
 
 const office = { id: "user-1", displayName: "Ahmed" };
@@ -88,5 +90,39 @@ describe("recordOfficePayment", () => {
     });
     expect(await deposit()).toBe(0);
     expect(await applyPaymentAction(prisma, payment.id, { action: "undo" }, office)).toEqual({ ok: false, code: "conflict" });
+  });
+});
+
+describe("a TWINT payment the office records by hand", () => {
+  const twintId = "aaaaaaaa-1111-2222-3333-444444444444";
+
+  it("needs TWINT's Transaktions-Nr., and its email then counts as the same payment", async () => {
+    const { rental, week } = await setup();
+    const org = await prisma.organisation.findFirstOrThrow();
+    const week3 = await week(3);
+
+    expect(await recordOfficePayment(prisma, rental.id, cash({ method: "TWINT", chargeId: week3.id }), office)).toEqual({
+      ok: false,
+      code: "bad-request",
+    });
+    expect(
+      await recordOfficePayment(prisma, rental.id, cash({ method: "TWINT", chargeId: week3.id, transactionId: twintId.toUpperCase() }), office)
+    ).toEqual({ ok: true });
+
+    const email = rawMail({ amount: "CHF 450.00", transaction: twintId, message: ["Miete", "ZH 513 925"], date: "16.06.2026, 12:00" }, 5);
+    expect(await ingestMail({ client: prisma, organisationId: org.id, verify: async () => true }, email)).toBe("duplicate");
+    expect(await prisma.charge.count({ where: { rentalId: rental.id, status: "PAID" } })).toBe(1);
+  });
+
+  it("refuses a Transaktions-Nr. whose email was already read", async () => {
+    const { rental, week } = await setup();
+    const org = await prisma.organisation.findFirstOrThrow();
+    const email = rawMail({ amount: "CHF 450.00", transaction: twintId, message: ["Danke"], date: "16.06.2026, 12:00" }, 6);
+    await ingestMail({ client: prisma, organisationId: org.id, verify: async () => true }, email);
+
+    expect(
+      await recordOfficePayment(prisma, rental.id, cash({ method: "TWINT", chargeId: (await week(3)).id, transactionId: twintId }), office)
+    ).toEqual({ ok: false, code: "conflict" });
+    expect(await prisma.payment.count()).toBe(1);
   });
 });

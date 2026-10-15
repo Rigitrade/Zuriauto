@@ -617,6 +617,8 @@ const de = {
     purposeCredit: "Guthaben (ohne Woche)",
     amountMismatch: "Betrag passt nicht: CHF {x} erwartet",
     nothingOpen: "Keine offenen Posten.",
+    transactionId: "TWINT Transaktions-Nr.",
+    transactionHint: "Aus der TWINT-Bestätigung. So wird die E-Mail dazu nicht ein zweites Mal verbucht.",
   },
   errors: {
     generic: "Etwas ist schiefgelaufen. Bitte erneut versuchen.",
@@ -1240,6 +1242,8 @@ const en: typeof de = {
     purposeCredit: "Credit (no week)",
     amountMismatch: "Amount does not add up: CHF {x} expected",
     nothingOpen: "Nothing open.",
+    transactionId: "TWINT transaction no.",
+    transactionHint: "From the TWINT confirmation. Then its email is not booked a second time.",
   },
   errors: {
     generic: "Something went wrong. Please try again.",
