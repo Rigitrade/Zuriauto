@@ -12,6 +12,7 @@
  *   - it has no l= body limit, under which text can be appended unsigned.
  */
 
+import type { DNSResolver } from "mailauth";
 import { dkimVerify } from "mailauth/lib/dkim/verify";
 
 export const TWINT_SENDER = "no-reply@twintpay.ch";
@@ -24,7 +25,8 @@ export interface DkimReport {
     signingDomain?: string;
     status: { result: string };
     canonBodyLengthLimited?: boolean;
-    signingHeaders?: { keys: string[] };
+    /** mailauth gives the signed header names as one string: "From: To: Subject". */
+    signingHeaders?: { keys: string };
   }>;
 }
 
@@ -36,13 +38,19 @@ export function signedByTwint(report: DkimReport): boolean {
       result.status.result === "pass" &&
       result.signingDomain?.toLowerCase() === TWINT_DOMAIN &&
       result.canonBodyLengthLimited !== true &&
-      (result.signingHeaders?.keys ?? []).some((key) => key.toLowerCase() === "from")
+      (result.signingHeaders?.keys ?? "")
+        .split(":")
+        .some((key) => key.trim().toLowerCase() === "from")
   );
 }
 
-export async function verifyTwintSignature(raw: Buffer): Promise<boolean> {
+export async function verifyTwintSignature(
+  raw: Buffer,
+  /** Tests answer DNS themselves; production asks the real DNS. */
+  options: { resolver?: DNSResolver } = {}
+): Promise<boolean> {
   try {
-    return signedByTwint((await dkimVerify(raw)) as DkimReport);
+    return signedByTwint((await dkimVerify(raw, { resolver: options.resolver })) as DkimReport);
   } catch (error) {
     // A DNS failure is not a pass. The mail stays in the mailbox and the next
     // run tries again; nothing is stored in between.

@@ -1,3 +1,5 @@
+import { generateKeyPairSync } from "node:crypto";
+import { dkimSign } from "mailauth/lib/dkim/sign";
 import { describe, expect, it } from "vitest";
 import { signedByTwint, verifyTwintSignature, type DkimReport } from "./authentic";
 
@@ -5,7 +7,7 @@ const pass = {
   signingDomain: "twintpay.ch",
   status: { result: "pass" },
   canonBodyLengthLimited: false,
-  signingHeaders: { keys: ["From", "To", "Subject", "Date"] },
+  signingHeaders: { keys: "From: To: Subject: Date" },
 };
 const report = (overrides: Partial<DkimReport> = {}): DkimReport => ({
   headerFrom: ["no-reply@twintpay.ch"],
@@ -31,7 +33,7 @@ describe("signedByTwint", () => {
   });
 
   it("refuses a signature that does not cover From", () => {
-    expect(signedByTwint(report({ results: [{ ...pass, signingHeaders: { keys: ["Subject"] } }] }))).toBe(false);
+    expect(signedByTwint(report({ results: [{ ...pass, signingHeaders: { keys: "Subject" } }] }))).toBe(false);
   });
 
   it("refuses another sender, even signed", () => {
@@ -46,5 +48,46 @@ describe("verifyTwintSignature", () => {
       "From: no-reply@twintpay.ch\r\nTo: info@zuriauto.ch\r\nSubject: Zahlung\r\n\r\n<b>Betrag</b><br>CHF 2000.00\r\n"
     );
     expect(await verifyTwintSignature(forged)).toBe(false);
+  });
+});
+
+describe("verifyTwintSignature — a real signature, end to end", () => {
+  // mailauth signs and verifies here as it does on a real email; only DNS is
+  // stubbed, answering for TWINT's selector with this test key. The pure
+  // tests above fake mailauth's result — this one is what proves the shape.
+  const { privateKey, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+  const p = publicKey.export({ type: "spki", format: "der" }).toString("base64");
+  const resolver = async (name: string, type: string) => {
+    if (type === "TXT" && name === "selector1._domainkey.twintpay.ch") return [[`v=DKIM1; k=rsa; p=${p}`]];
+    throw Object.assign(new Error(`ENOTFOUND ${name}`), { code: "ENOTFOUND" });
+  };
+  const body = "Hallo Zuriauto\r\nBetrag\r\nCHF 450.00\r\n";
+  const headers = (from: string) => `From: ${from}\r\nTo: info@zuriauto.ch\r\nSubject: Zahlung\r\n\r\n`;
+  async function signed(from: string): Promise<string> {
+    const message = headers(from) + body;
+    // mailauth's runtime reads `signatureData` (as its README shows); its
+    // .d.ts declares top-level fields instead, and with those it signs
+    // nothing. The cast follows the runtime.
+    const options = {
+      canonicalization: "relaxed/relaxed",
+      signatureData: [
+        {
+          signingDomain: "twintpay.ch",
+          selector: "selector1",
+          privateKey: privateKey.export({ type: "pkcs8", format: "pem" }).toString(),
+        },
+      ],
+    } as unknown as Parameters<typeof dkimSign>[1];
+    const result = await dkimSign(message, options);
+    return result.signatures + message;
+  }
+
+  it("accepts a message TWINT really signed", async () => {
+    expect(await verifyTwintSignature(Buffer.from(await signed("no-reply@twintpay.ch")), { resolver })).toBe(true);
+  });
+
+  it("refuses it once a word of the body is changed", async () => {
+    const forged = (await signed("no-reply@twintpay.ch")).replace("CHF 450.00", "CHF 4500.00");
+    expect(await verifyTwintSignature(Buffer.from(forged), { resolver })).toBe(false);
   });
 });
