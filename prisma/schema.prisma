@@ -89,6 +89,9 @@ model Organisation {
   fines         Fine[]
   fineDocuments FineDocument[]
   payments      Payment[]
+  payerAliases  PayerAlias[]
+  /// Weeks due before this moment were settled by the cut-over script.
+  paymentsCutoverAt DateTime?
 }
 
 model Car {
@@ -410,6 +413,7 @@ model Customer {
   organisation Organisation @relation(fields: [organisationId], references: [id])
   rentals      Rental[]
   fines        Fine[]
+  payerAliases PayerAlias[]
 
   @@unique([organisationId, email])
   @@index([organisationId, phoneKey])
@@ -728,6 +732,19 @@ enum ChargeStatus {
   OVERDUE
   PAID
   VOID
+  /// Due before the payments feature went live, and counted as settled then
+  /// (scripts/payments-cutover.ts). Not open: nothing chases it, nothing books
+  /// to it. The office can reopen it (lib/payments/cutover.ts).
+  SETTLED
+}
+
+/// How a payment reached us. TWINT payments arrive by email; the others the
+/// office records by hand (lib/payments/office.ts).
+enum PaymentMethod {
+  TWINT
+  CASH
+  CARD
+  BANK
 }
 
 enum NotificationKind {
@@ -770,6 +787,9 @@ model Charge {
   remindedAt      DateTime?
   officeAlertedAt DateTime?
   paidAt          DateTime?
+  /// The office decided this week stays owed although the rental closed before
+  /// it began (lib/payments/afterClose.ts). isOwedAfterReturn honours it.
+  keptAfterReturn Boolean      @default(false)
   createdAt       DateTime     @default(now())
 
   rental   Rental    @relation(fields: [rentalId], references: [id])
@@ -1162,6 +1182,11 @@ enum PaymentReviewReason {
   REFERENCE_UNKNOWN
   /// The named week is owed on a rental that did not clearly have the car.
   REFERENCE_AMBIGUOUS
+  /// Paid around the pickup, and the amount is not clearly the deposit, week 1
+  /// or both.
+  PICKUP_PAYMENT
+  /// Paid by the renter after the rental closed, and no open item has this amount.
+  PAID_AFTER_RETURN
 }
 
 /// One TWINT transaction, as its notification email reported it.
@@ -1182,6 +1207,13 @@ model Payment {
   payerPhone  String?
   /// The customer's free text — where a plate and a week are, if anywhere.
   message     String?
+  method       PaymentMethod @default(TWINT)
+  /// The part of the amount that is the deposit. Deposit received = the sum
+  /// over the rental's BOOKED payments. A payment pays at most the deposit and
+  /// one week.
+  depositCents Int           @default(0)
+  /// The office's note on a payment it recorded by hand.
+  note         String?
 
   status       PaymentStatus
   reviewReason PaymentReviewReason?
@@ -1206,6 +1238,32 @@ model Payment {
   @@unique([organisationId, externalId])
   @@index([organisationId, status])
   @@index([chargeId])
+}
+
+/// A payer's email or phone the office confirmed pays for a customer — a
+/// friend, a partner, a second phone. Lets their next payment count as the
+/// customer's (lib/payments/payerAlias.ts).
+model PayerAlias {
+  id             String @id @default(cuid())
+  organisationId String
+  customerId     String
+  /// "email" (lowercased) or "phone" (E.164, normalisePhone).
+  kind           String
+  value          String
+  /// The booking that taught it; undoing that booking forgets it.
+  sourcePaymentId String?
+  createdById     String?
+  createdByName   String?
+  createdAt       DateTime @default(now())
+
+  organisation Organisation @relation(fields: [organisationId], references: [id])
+  /// Cascade: an alias means nothing without its customer, and a placeholder
+  /// renter is deleted with its car (app/api/admin/cars/[id]/route.ts).
+  customer     Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([organisationId, kind, value, customerId])
+  @@index([organisationId, kind, value])
+  @@index([sourcePaymentId])
 }
 
 /// The payment's timeline: received, booked, ignored, undone — and by whom.

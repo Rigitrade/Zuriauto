@@ -15,7 +15,7 @@ export async function resetDatabase(): Promise<void> {
       "Asset", "RentalEvent", "Contract", "CarNotification", "CarRepair",
       "Rental", "Customer", "Car", "ContractCounter", "SubmissionAttempt",
       "AdminUser", "FineNotification", "FineEvent", "FinePaymentProof",
-      "FineDocument", "Fine", "PaymentEvent", "Payment",
+      "FineDocument", "Fine", "PaymentEvent", "Payment", "PayerAlias",
       -- No foreign key, so CASCADE from another table never reaches it. Every
       -- audit table lands here: they are deliberately detached from the rows
       -- they describe, which is exactly what stops CASCADE from clearing them.
