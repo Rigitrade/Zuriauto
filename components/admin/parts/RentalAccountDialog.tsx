@@ -159,7 +159,7 @@ export function RentalAccountDialog({
   const purpose = purposes.find((p) => p.key === purposeKey) ?? purposes[0];
   const cents = toCents(amount);
   // TWINT's Transaktions-Nr., required so the payment's email is then a duplicate.
-  const transactionOk = method !== "TWINT" || /^[0-9a-f][0-9a-f-]{7,}$/i.test(transactionId.trim());
+  const transactionOk = method !== "TWINT" || /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(transactionId.trim());
   const mismatch =
     purpose && purpose.expectedCents !== null && cents !== null && cents !== purpose.expectedCents
       ? A.amountMismatch.replace("{x}", formatChf(purpose.expectedCents))

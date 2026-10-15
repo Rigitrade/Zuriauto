@@ -114,6 +114,17 @@ describe("a TWINT payment the office records by hand", () => {
     expect(await prisma.charge.count({ where: { rentalId: rental.id, status: "PAID" } })).toBe(1);
   });
 
+  it("refuses anything but TWINT's full Transaktions-Nr., which a part of it would never match", async () => {
+    const { rental, week } = await setup();
+    const week3 = (await week(3)).id;
+    for (const transactionId of ["aaaaaaaa-1111", "aaaaaaaa1111222233334444", "zzzzzzzz-1111-2222-3333-444444444444"]) {
+      expect(await recordOfficePayment(prisma, rental.id, cash({ method: "TWINT", chargeId: week3, transactionId }), office)).toEqual({
+        ok: false,
+        code: "bad-request",
+      });
+    }
+  });
+
   it("refuses a Transaktions-Nr. whose email was already read", async () => {
     const { rental, week } = await setup();
     const org = await prisma.organisation.findFirstOrThrow();

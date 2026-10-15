@@ -45,7 +45,10 @@ export async function bookPayment(
   // counted again inside this transaction, so a cash deposit recorded while
   // the cron books a TWINT one cannot both count.
   if (input.depositCents > 0) {
-    await tx.$queryRaw`SELECT id FROM "Rental" WHERE id = ${input.rentalId} FOR UPDATE`;
+    // NO KEY UPDATE, not UPDATE: ingest has already created a payment pointing
+    // at this rental, which holds KEY SHARE on it; FOR UPDATE would make two
+    // overlapping runs deadlock while upgrading. This still lets one through.
+    await tx.$queryRaw`SELECT id FROM "Rental" WHERE id = ${input.rentalId} FOR NO KEY UPDATE`;
     const rental = await tx.rental.findUnique({
       where: { id: input.rentalId },
       select: { depositCents: true, payments: { where: { status: "BOOKED" }, select: { depositCents: true } } },

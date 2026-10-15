@@ -14,8 +14,9 @@ import { BAD_REQUEST, CONFLICT, inTransaction, NOT_FOUND, outstandingDeposit, ty
 import { bookPayment, PaymentNotWaiting } from "./book";
 import { recordPaymentEvent } from "./events";
 
-/** TWINT's Transaktions-Nr., as parse.ts reads it from the email. */
-const TWINT_ID = /^[0-9a-f][0-9a-f-]{7,}$/i;
+/** TWINT's whole Transaktions-Nr. (a UUID, as every email prints it): a part of
+ *  it would never match the email, which would then book a second week. */
+const TWINT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export const officePaymentSchema = z
   .object({

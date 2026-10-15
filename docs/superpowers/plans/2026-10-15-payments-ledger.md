@@ -1732,7 +1732,8 @@ git commit -m "feat(payments): Wofür on every payment, a book form for deposits
 
 - [ ] **Step 1:** With `DATABASE_URL` pointing at the **preview branch database** (Task D2 Steps 1–2 done; never the live host), run `pnpm twint:dry-run -- --days 90` **before** the cut-over on that branch. Save the output to the scratchpad.
 - [ ] **Step 2:** Check the cases this plan exists for: ZH 615 166 on 20.09 (CHF 500) → would BOOK deposit + week 1; 29.09 (CHF 250) → would WAIT. List every decision that changed against the 15.10 baseline (2 booked, 32 waiting) and why.
-- [ ] **Step 3:** Apply the cut-over on the branch database (`pnpm payments:cutover -- --before <go-live day>` dry, then `--commit`), run the dry run again, record both outcome tables in "Measured".
+- [ ] **Step 3:** Apply the cut-over on the branch database (`pnpm payments:cutover -- --before <go-live day>` dry, then `--commit`), run the dry run again, record both outcome tables in "Measured". Note (review, 16.10): all 34 notifications are older than any go-live day, so after the cut-over every one waits as `BEFORE_CUTOVER` — the rules are measured by the run in Step 1, before the cut-over; the run after it only confirms that count.
+- [ ] **Step 3b:** Ask Eng Ahmed to confirm, on one real payment, that the renter's TWINT app shows the same Transaktions-Nr. as the email to the shop. "Barzahlung erfassen" with method TWINT relies on it; if they differ, the office must not record TWINT payments by hand (the email books them).
 - [ ] **Step 4:** Commit the spec update: `docs(payments): the ledger measured on the 34 real TWINT emails`.
 
 ### Task D2: The preview, then production
