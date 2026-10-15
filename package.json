@@ -11,6 +11,7 @@
     "check-mail": "node --env-file=.env.local scripts/check-mail.mjs",
     "twint:peek": "node --env-file=.env.local scripts/twint-peek.mjs",
     "twint:dry-run": "tsx scripts/twint-dry-run.ts",
+    "payments:cutover": "tsx scripts/payments-cutover.ts",
     "postinstall": "prisma generate",
     "db:up": "docker compose up -d --wait db",
     "db:migrate": "prisma migrate dev",
