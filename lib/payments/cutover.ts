@@ -7,7 +7,8 @@
  * has come, so a computed rule would leave it asking renters for weeks they
  * paid in cash months ago (the ledger spec, decision 1). Paid and void weeks
  * are not touched; a second run finds nothing left to settle. The office can
- * reopen a week, and every change names who made it.
+ * reopen a week, and every change names who made it. Balances declared on a
+ * return form (week 0) are left open.
  */
 
 import type { PrismaClient } from "@/generated/prisma/client";
@@ -25,8 +26,12 @@ export interface CutoverCharge {
 
 const select = { id: true, rentalId: true, weekNumber: true, dueDate: true, amountCents: true, status: true } as const;
 
+// Weeks only. Week 0 is the balance the renter declared still owed on the
+// return form: a late payment still to come, not a week paid in cash before
+// the system, so it stays open (the owner, 15.10.2026).
 const dueBefore = (organisationId: string, before: Date) => ({
   organisationId,
+  weekNumber: { gt: 0 },
   status: { in: [...OPEN_CHARGE] },
   dueDate: { lt: before },
 });

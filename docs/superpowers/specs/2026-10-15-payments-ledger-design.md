@@ -45,7 +45,9 @@ and organise the work. Answers given the same day:
 
 1. **Cut-over, as data.** A script, run once per database, moves every charge
    with an open status (`OPEN_CHARGE`) and a due date before the go-live date
-   to a new status `SETTLED` ("vor Systemstart erledigt"), week 0 included.
+   to a new status `SETTLED` ("vor Systemstart erledigt"). **Week 0 is left
+   open** (the owner, 15.10.2026): a balance the renter declared on the return
+   form is a late payment still to come, not a week paid before the system.
    Data rather than a computed rule because the daily job reads
    `Charge.status`: a computed rule would leave the reminder passes chasing
    paid weeks. The date is stored on `Organisation.paymentsCutoverAt`. Each

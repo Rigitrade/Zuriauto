@@ -68,6 +68,17 @@ describe("applyCutover", () => {
     expect(await prisma.organisation.findUniqueOrThrow({ where: { id: org.id } })).toMatchObject({ paymentsCutoverAt: BEFORE });
   });
 
+  it("leaves a balance declared on the return form open: that is a late payment still to come", async () => {
+    const { org, rental } = await setup();
+    const balance = await prisma.charge.create({
+      data: { organisationId: org.id, rentalId: rental.id, weekNumber: 0, dueDate: new Date("2026-06-12T00:00:00Z"), amountCents: 8_000 },
+    });
+
+    expect(await applyCutover(prisma, org.id, BEFORE)).toEqual({ settled: 3 });
+
+    expect((await prisma.charge.findUniqueOrThrow({ where: { id: balance.id } })).status).toBe("SCHEDULED");
+  });
+
   it("changes nothing the second time", async () => {
     const { org } = await setup();
     await applyCutover(prisma, org.id, BEFORE);
