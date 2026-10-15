@@ -90,7 +90,7 @@ export function fineNoticeMail(ctx: FineMailContext): { subject: string; text: s
         ...(ctx.feeCents > 0
           ? [
               "",
-              `Under our terms (section 4.2 and the fee table) we charge a handling fee of ${chf(ctx.feeCents)}. Please pay it by card or TWINT, quoting fine ${reference}:`,
+              `Under our terms (clause 12.5, fee table) we charge a handling fee of ${chf(ctx.feeCents)}. Please pay it by card or TWINT, quoting fine ${reference}:`,
               `Card:  ${PAYMENT_URL}`,
               `TWINT: ${TWINT_URL}`,
             ]
@@ -133,7 +133,7 @@ export function fineNoticeMail(ctx: FineMailContext): { subject: string; text: s
       ...(ctx.feeCents > 0
         ? [
             "",
-            `Gemäss unseren AGB (Ziffer 4.2 und Gebührentabelle) verrechnen wir eine Bearbeitungsgebühr von ${chf(ctx.feeCents)}. Bitte bezahlen Sie diese per Karte oder TWINT mit dem Vermerk «Busse ${reference}»:`,
+            `Gemäss unseren AGB (Ziffer 12.5, Gebührentabelle) verrechnen wir eine Bearbeitungsgebühr von ${chf(ctx.feeCents)}. Bitte bezahlen Sie diese per Karte oder TWINT mit dem Vermerk «Busse ${reference}»:`,
             `Karte: ${PAYMENT_URL}`,
             `TWINT: ${TWINT_URL}`,
           ]

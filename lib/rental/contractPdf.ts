@@ -303,10 +303,15 @@ export class Writer {
 }
 
 /**
- * Typesets the articles of the terms. Shared by the contract's appendix and
- * the downloadable GTC (`gtcPdf.ts`), so the two cannot set them differently.
+ * Typesets the articles of the terms and the lessor's closing after them.
+ * Shared by the contract's appendix and the downloadable GTC (`gtcPdf.ts`), so
+ * the two cannot set them differently.
  */
 export function writeGtcSections(w: Writer, gtcDoc: GtcDocument): void {
+  // Clause text hangs to the right of its number, wide enough for "18.7" in
+  // bold; lettered items under a clause start on the same edge.
+  const CLAUSE_INDENT = 24;
+
   for (const section of gtcDoc.sections) {
     w.ensure(40);
     w.gap(8);
@@ -324,9 +329,29 @@ export function writeGtcSections(w: Writer, gtcDoc: GtcDocument): void {
           w.text(block.text, { size: 9, leading: 1.4 });
           w.gap(4);
           break;
+        case "clause":
+          // Room for the first line first, so the number cannot be left at
+          // the foot of one page while its text starts on the next.
+          w.ensure(9 * 1.4);
+          w.page.drawText(toWinAnsi(block.num), {
+            x: MARGIN,
+            y: w.cursor,
+            size: 9,
+            font: w.bold,
+            color: INK,
+          });
+          w.text(block.text, { size: 9, indent: CLAUSE_INDENT, leading: 1.4 });
+          w.gap(4);
+          break;
         case "list":
           for (const item of block.items) {
             w.text(`- ${item}`, { size: 9, indent: 10, leading: 1.4 });
+          }
+          w.gap(4);
+          break;
+        case "lettered":
+          for (const item of block.items) {
+            w.text(item, { size: 9, indent: CLAUSE_INDENT, leading: 1.4 });
           }
           w.gap(4);
           break;
@@ -338,6 +363,16 @@ export function writeGtcSections(w: Writer, gtcDoc: GtcDocument): void {
       }
     }
   }
+
+  const { lessor, text, signoff } = gtcDoc.closing;
+  w.ensure(80);
+  w.gap(10);
+  w.rule();
+  for (const line of lessor) w.text(line, { size: 9, leading: 1.4 });
+  w.gap(4);
+  w.text(text, { size: 9, leading: 1.4 });
+  w.gap(4);
+  w.text(signoff, { size: 9, color: MUTED });
 }
 
 /**

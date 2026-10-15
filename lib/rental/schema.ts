@@ -60,7 +60,7 @@ export const contractDetailsSchema = z.object({
   /** ISO timestamp recorded the moment the box was ticked. */
   acceptedAt: z.string().min(1),
   /**
-   * When each of the GTC Art. 11 boxes was ticked (`gtcConfirmations.ts`).
+   * When each of the GTC Art. 15 boxes was ticked (`gtcConfirmations.ts`).
    * Required, like gtcAccepted: the time is the proof the box was ticked.
    */
   truthfulInfoConfirmedAt: confirmedAt(),
