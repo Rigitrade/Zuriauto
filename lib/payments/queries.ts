@@ -106,6 +106,8 @@ export interface PaymentDetailData extends PaymentRow {
 }
 
 const RUNNING = ["ACTIVE", "EXTENSION_REQUESTED", "RETURN_SUBMITTED"] as const;
+/** How many finished rentals the office can choose from, newest first. */
+const RECENTLY_ENDED = 15;
 
 export async function paymentDetail(client: PrismaClient, id: string): Promise<PaymentDetailData | null> {
   const p = await client.payment.findUnique({
@@ -115,8 +117,23 @@ export async function paymentDetail(client: PrismaClient, id: string): Promise<P
   if (!p) return null;
 
   const pinned = [...p.candidates, ...(p.rentalId ? [p.rentalId] : [])];
+  // The latest finished rentals too: a balance is often paid after the car is
+  // back, from an account the system does not know, and then no rule names a
+  // candidate — without these the office could only ignore the payment.
+  const recentlyEnded = await client.rental.findMany({
+    where: { organisationId: p.organisationId, status: "COMPLETED" },
+    orderBy: { endAt: "desc" },
+    take: RECENTLY_ENDED,
+    select: { id: true },
+  });
   const rentals = await client.rental.findMany({
-    where: { organisationId: p.organisationId, OR: [{ id: { in: pinned } }, { status: { in: [...RUNNING] } }] },
+    where: {
+      organisationId: p.organisationId,
+      OR: [
+        { id: { in: [...pinned, ...recentlyEnded.map((r) => r.id)] } },
+        { status: { in: [...RUNNING] } },
+      ],
+    },
     orderBy: { startAt: "desc" },
     include: {
       car: { select: { plate: true, model: true } },

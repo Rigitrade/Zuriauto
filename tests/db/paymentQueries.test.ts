@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { ingestMail } from "@/lib/payments/twint/ingest";
 import { paymentDetail, paymentList, paymentMailIssues, paymentReviewCount } from "@/lib/payments/queries";
 import { resolveMailIssue } from "@/lib/payments/actions";
-import { seedOrganisation, seedRental } from "./fineHelpers";
+import { closeAt, seedOrganisation, seedRental } from "./fineHelpers";
 import { rawMail } from "./paymentHelpers";
 
 async function onePaidOneWaiting() {
@@ -54,5 +54,19 @@ describe("payment queries", () => {
     expect(await resolveMailIssue(prisma, issue.id, { id: "u1", displayName: "Ahmed" })).toEqual({ ok: false, code: "conflict" });
     expect(await paymentReviewCount(prisma)).toBe(0);
     expect(await paymentMailIssues(prisma)).toEqual([]);
+  });
+
+  it("offers a rental that has already ended, for a balance paid after the return", async () => {
+    const org = await seedOrganisation();
+    const rental = await seedRental(org.id, { signedAt: new Date("2026-06-01T08:00:00Z") });
+    await closeAt(org.id, rental, new Date("2026-06-20T09:00:00Z"));
+    await ingestMail(
+      { client: prisma, organisationId: org.id, verify: async () => true },
+      rawMail({ message: ["Restbetrag"], contact: ["partner@example.ch"], date: "25.06.2026, 18:00" }, 3)
+    );
+    const waiting = await prisma.payment.findFirstOrThrow();
+
+    const detail = await paymentDetail(prisma, waiting.id);
+    expect(detail?.choices.map((c) => c.rentalId)).toContain(rental.id);
   });
 });
