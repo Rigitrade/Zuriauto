@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAdmin } from "@/components/admin/shell/AdminContext";
 import { Panel } from "@/components/admin/parts/Panel";
+import { RentalAccountDialog, type AccountSubject } from "@/components/admin/parts/RentalAccountDialog";
 import { zurichTime } from "@/components/admin/format";
 import { formatChf } from "@/lib/rental/money";
 import type { PaymentDetailData } from "@/lib/payments/queries";
@@ -23,6 +24,8 @@ export function PaymentDetail({
   const [rentalId, setRentalId] = useState<string>("");
   const [chargeId, setChargeId] = useState<string>("");
   const [note, setNote] = useState("");
+  /** The rental whose Mietkonto is open: the booked one, or the one chosen to book to. */
+  const [accountFor, setAccountFor] = useState<AccountSubject | null>(null);
 
   const load = useCallback(async () => {
     const response = await fetch(`/api/admin/payments/${paymentId}/`);
@@ -50,8 +53,11 @@ export function PaymentDetail({
   const field = "h-9 w-full rounded-md border border-[var(--admin-rule-strong)] bg-[var(--admin-surface)] px-2 text-sm";
   const button = "inline-flex h-9 items-center rounded-md px-4 text-sm disabled:opacity-50";
 
+  const accountLink = "ml-2 text-xs text-[var(--admin-muted)] underline underline-offset-2 hover:text-[var(--admin-ink)]";
+
   return (
     <div className="space-y-4">
+      {accountFor && <RentalAccountDialog rental={accountFor} L={L} open onClose={() => setAccountFor(null)} />}
       <button type="button" onClick={onBack} className="text-sm text-[var(--admin-muted)] hover:underline">
         ← {P.back}
       </button>
@@ -78,6 +84,15 @@ export function PaymentDetail({
                 {[detail.renterName, detail.plate, detail.weekNumber ? `${P.week} ${detail.weekNumber}` : null]
                   .filter(Boolean)
                   .join(" · ")}
+                {detail.rentalId && (
+                  <button
+                    type="button"
+                    onClick={() => setAccountFor({ id: detail.rentalId!, customerName: detail.renterName! })}
+                    className={accountLink}
+                  >
+                    {L.account.button}
+                  </button>
+                )}
               </dd>
             </>
           )}
@@ -104,6 +119,15 @@ export function PaymentDetail({
                   </option>
                 ))}
               </select>
+              {choice && (
+                <button
+                  type="button"
+                  onClick={() => setAccountFor({ id: choice.rentalId, customerName: choice.renterName })}
+                  className={`${accountLink} ml-0 mt-1`}
+                >
+                  {L.account.button}
+                </button>
+              )}
             </label>
             <label className="text-sm">
               {P.chooseWeek}

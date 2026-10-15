@@ -4,7 +4,8 @@ import { useState } from "react";
 import { day } from "@/components/admin/format";
 import { ReturnReview } from "./ReturnReview";
 import { DocumentsDialog } from "./DocumentsDialog";
-import { FileText } from "lucide-react";
+import { RentalAccountDialog } from "./RentalAccountDialog";
+import { FileText, Wallet } from "lucide-react";
 import type { Labels, Rental } from "@/components/admin/types";
 
 /**
@@ -32,6 +33,7 @@ export function RentalRow({
   const [confirming, setConfirming] = useState(false);
   const [reviewing, setReviewing] = useState(false);
   const [showingDocuments, setShowingDocuments] = useState(false);
+  const [showingAccount, setShowingAccount] = useState(false);
   const returned = Boolean(rental.returnSubmittedAt);
 
   return (
@@ -49,6 +51,12 @@ export function RentalRow({
         L={L}
         open={showingDocuments}
         onClose={() => setShowingDocuments(false)}
+      />
+      <RentalAccountDialog
+        rental={rental}
+        L={L}
+        open={showingAccount}
+        onClose={() => setShowingAccount(false)}
       />
 
       <div className="min-w-0 flex-1">
@@ -90,6 +98,14 @@ export function RentalRow({
       >
         <FileText className="h-4 w-4" aria-hidden="true" />
         {L.docs.heading}
+      </button>
+      <button
+        type="button"
+        onClick={() => setShowingAccount(true)}
+        className="inline-flex h-9 items-center gap-1.5 rounded-md border border-[var(--admin-rule-strong)] px-3 text-sm text-[var(--admin-muted)] transition-colors hover:bg-[var(--admin-sunk)] hover:text-[var(--admin-ink)]"
+      >
+        <Wallet className="h-4 w-4" aria-hidden="true" />
+        {L.account.button}
       </button>
 
       {returned ? (

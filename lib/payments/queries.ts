@@ -16,6 +16,8 @@ const STATUS_OF: Record<PaymentTab, ("BOOKED" | "NEEDS_REVIEW" | "IGNORED")[]> =
 
 export interface PaymentRow {
   id: string;
+  /** The rental it was booked to, or proposed for. */
+  rentalId: string | null;
   status: string;
   reviewReason: string | null;
   paidAt: string;
@@ -47,6 +49,7 @@ export async function paymentList(client: PrismaClient, tab: PaymentTab): Promis
   });
   return payments.map((p) => ({
     id: p.id,
+    rentalId: p.rentalId,
     status: p.status,
     reviewReason: p.reviewReason,
     paidAt: p.paidAt.toISOString(),
@@ -178,6 +181,7 @@ export async function paymentDetail(client: PrismaClient, id: string): Promise<P
 
   return {
     id: p.id,
+    rentalId: p.rentalId,
     status: p.status,
     reviewReason: p.reviewReason,
     paidAt: p.paidAt.toISOString(),

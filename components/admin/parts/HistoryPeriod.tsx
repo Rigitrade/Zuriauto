@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarPlus, Check, FileText, Mail, Phone, X } from "lucide-react";
+import { CalendarPlus, Check, FileText, Mail, Phone, Wallet, X } from "lucide-react";
 import { day } from "@/components/admin/format";
 import { DocumentsDialog } from "./DocumentsDialog";
+import { RentalAccountDialog } from "./RentalAccountDialog";
 import { toZurichInput } from "@/lib/admin/rentalPeriod";
 import type { CarPeriod, Labels } from "@/components/admin/types";
 
@@ -41,6 +42,7 @@ export function HistoryPeriod({
   onSavePeriod?: (body: { startAt: string; endAt: string }) => Promise<boolean>;
 }) {
   const [showingDocuments, setShowingDocuments] = useState(false);
+  const [showingAccount, setShowingAccount] = useState(false);
   const [editing, setEditing] = useState(false);
   const cancelled = period.status === "CANCELLED";
   // A rental imported from a PDF that states no term was written with both
@@ -63,6 +65,12 @@ export function HistoryPeriod({
         L={L}
         open={showingDocuments}
         onClose={() => setShowingDocuments(false)}
+      />
+      <RentalAccountDialog
+        rental={period}
+        L={L}
+        open={showingAccount}
+        onClose={() => setShowingAccount(false)}
       />
 
       <div className="min-w-0 flex-1">
@@ -154,6 +162,14 @@ export function HistoryPeriod({
         >
           <FileText className="h-4 w-4" aria-hidden="true" />
           {L.history.documents}
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowingAccount(true)}
+          className="inline-flex h-9 items-center gap-1.5 rounded-md border border-[var(--admin-rule-strong)] px-3 text-sm text-[var(--admin-muted)] transition-colors hover:bg-[var(--admin-sunk)] hover:text-[var(--admin-ink)]"
+        >
+          <Wallet className="h-4 w-4" aria-hidden="true" />
+          {L.account.button}
         </button>
       </div>
     </li>

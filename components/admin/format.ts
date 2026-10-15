@@ -13,6 +13,17 @@ export function day(iso: string): string {
   return `${d}.${m}.${y}`;
 }
 
+/** An instant's Zurich calendar day, for dates stored as moments — a due
+ *  date at midnight Zurich is the previous day in UTC, where `day` reads it. */
+export function zurichDay(iso: string): string {
+  return new Date(iso).toLocaleDateString("de-CH", {
+    timeZone: "Europe/Zurich",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
 /** An instant as the office reads it: Zurich date and time. Unlike `day`,
  *  this one is a moment, so it does go through Date — in Zurich's zone. */
 export function zurichTime(iso: string): string {
