@@ -73,19 +73,28 @@ export function htmlToLines(html: string): string[] {
     .filter(Boolean);
 }
 
-/** The lines under each label, up to the next label or the intro paragraph. */
-function labelled(lines: string[]): Partial<Record<Label, string[]>> {
+/**
+ * The lines under each label, read one table cell at a time. TWINT puts a
+ * label and its value in one cell and its footer after the last cell, so a
+ * value ends with its cell: the customer's Nachricht never runs on into
+ * "Bitte fügen Sie die Absenderadresse…" (it did, in every real email).
+ * Within a cell a value still stops at the next label or the intro.
+ */
+function labelled(html: string): Partial<Record<Label, string[]>> {
   const out: Partial<Record<Label, string[]>> = {};
   const isLabel = (line: string) => (LABELS as readonly string[]).includes(line);
-  for (let i = 0; i < lines.length; i += 1) {
-    const label = LABELS.find((l) => l === lines[i]);
-    if (!label || out[label]) continue;
-    const value: string[] = [];
-    for (let j = i + 1; j < lines.length && !isLabel(lines[j]); j += 1) {
-      if (/^Kundeninformation$|^Die Kundin oder/i.test(lines[j])) break;
-      value.push(lines[j]);
+  for (const cell of html.split(/<\/td>/i)) {
+    const lines = htmlToLines(cell);
+    for (let i = 0; i < lines.length; i += 1) {
+      const label = LABELS.find((l) => l === lines[i]);
+      if (!label || out[label]) continue;
+      const value: string[] = [];
+      for (let j = i + 1; j < lines.length && !isLabel(lines[j]); j += 1) {
+        if (/^Kundeninformation$|^Die Kundin oder/i.test(lines[j])) break;
+        value.push(lines[j]);
+      }
+      out[label] = value;
     }
-    out[label] = value;
   }
   return out;
 }
@@ -113,7 +122,7 @@ const text = (value: string[] | undefined, joiner: string) =>
   value && value.length > 0 ? value.join(joiner) : null;
 
 export function parseNotification(html: string): ParseResult {
-  const f = labelled(htmlToLines(html));
+  const f = labelled(html);
   if (!f["Betrag"] && !f["Transaktions-Nr."]) return { ok: false, reason: "NOT_A_PAYMENT" };
 
   for (const field of ["Betrag", "Transaktionsdatum", "Transaktions-Nr."] as const) {

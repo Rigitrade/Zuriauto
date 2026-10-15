@@ -1,6 +1,34 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { SAMPLE_HTML, sampleHtml } from "./__fixtures__/notification";
 import { parseAmount, parseNotification, parseTwintDate } from "./parse";
+
+/** A real notification from the mailbox, payer and message replaced. */
+const REAL_HTML = readFileSync(new URL("./__fixtures__/twint-real.html", import.meta.url), "utf8");
+
+describe("parseNotification on TWINT's real email", () => {
+  it("reads every field as TWINT lays it out", () => {
+    expect(parseNotification(REAL_HTML)).toEqual({
+      ok: true,
+      notification: {
+        externalId: "9b1c4e2a-5d6f-4a8b-9c0d-1e2f3a4b5c6d",
+        amountCents: 35_000,
+        currency: "CHF",
+        paidAt: new Date("2026-08-17T15:07:00.000Z"),
+        storeName: "Zuriauto",
+        payerName: "Anna Meier Anna Meier",
+        payerEmail: null,
+        payerPhone: "+41 79 123 45 67",
+        message: "Miete Woche 17.08 bis 24.08\nZH 513925",
+      },
+    });
+  });
+
+  it("ends the customer's message with its cell, before TWINT's footer", () => {
+    const result = parseNotification(REAL_HTML);
+    expect(result.ok && result.notification.message).not.toMatch(/Bitte fügen|TWINT Team|8004/);
+  });
+});
 
 describe("parseNotification", () => {
   it("reads every field of TWINT's email", () => {
