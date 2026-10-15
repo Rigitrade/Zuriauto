@@ -410,7 +410,7 @@ export function formatTime(date: Date): string {
 }
 
 /**
- * The GTC Art. 11 confirmations as printed under the acceptance, one line each
+ * The GTC confirmations as printed under the acceptance, one line each
  * with the article it names and when the box was ticked.
  */
 export function confirmationLines(
