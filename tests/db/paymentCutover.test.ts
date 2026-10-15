@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "@/lib/db";
-import { applyCutover, planCutover, reopenCharge } from "@/lib/payments/cutover";
+import { applyCutover, CutoverAlreadyApplied, planCutover, reopenCharge } from "@/lib/payments/cutover";
 import { weeklyChargePass } from "@/lib/rental/scheduler";
 import type { LifecycleMailConfig } from "@/lib/rental/lifecycleMail";
 import { closeAt, seedOrganisation, seedRental } from "./fineHelpers";
@@ -83,8 +83,17 @@ describe("applyCutover", () => {
     const { org } = await setup();
     await applyCutover(prisma, org.id, BEFORE);
 
-    expect(await applyCutover(prisma, org.id, BEFORE)).toEqual({ settled: 0 });
+    expect(await applyCutover(prisma, org.id, BEFORE, { force: true })).toEqual({ settled: 0 });
     expect(await prisma.rentalEvent.count({ where: { type: "charges.settled.cutover" } })).toBe(1);
+  });
+
+  it("refuses a second cut-over, which would settle weeks owed since the first", async () => {
+    const { org, week } = await setup();
+    await applyCutover(prisma, org.id, BEFORE);
+
+    await expect(applyCutover(prisma, org.id, new Date("2026-07-01T00:00:00Z"))).rejects.toBeInstanceOf(CutoverAlreadyApplied);
+    expect((await week(4)).status).toBe("SCHEDULED");
+    expect(await prisma.organisation.findUniqueOrThrow({ where: { id: org.id } })).toMatchObject({ paymentsCutoverAt: BEFORE });
   });
 
   it("keeps the daily job from asking for a settled week", async () => {

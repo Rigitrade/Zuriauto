@@ -11,7 +11,7 @@
 
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { RETURN_CLOSE_EVENT } from "@/lib/rental/closeRental";
-import { isOwedAfterReturn } from "@/lib/rental/passes";
+import { isOwedAfterReturn, zurichDayString } from "@/lib/rental/passes";
 import { CLOSE_EVENTS, closedAtOf, pendingAfterClose } from "./afterClose";
 import { OPEN_CHARGE } from "./twint/decide";
 
@@ -148,8 +148,12 @@ function accountOf(r: AccountRow, now: Date): RentalAccount {
 
   let dueToDateCents = 0;
   let paidCents = 0;
+  const today = zurichDayString(now);
   for (const item of items) {
-    if (!item.owed || item.status === "VOID" || new Date(item.dueDate).getTime() > now.getTime()) continue;
+    // Due on its Zurich day, as the daily job reads it. A week paid counts
+    // even when it began after an early return: money in, never lost.
+    if (item.status === "VOID" || (!item.owed && item.status !== "PAID")) continue;
+    if (zurichDayString(new Date(item.dueDate)) > today) continue;
     dueToDateCents += item.amountCents;
     if (item.status === "PAID" || item.status === "SETTLED") paidCents += item.amountCents;
   }
@@ -173,9 +177,15 @@ function accountOf(r: AccountRow, now: Date): RentalAccount {
       back: addendum?.depositBack ?? null,
     },
     items,
+    // What a payment brought beyond the week and deposit it paid, so an
+    // amount booked with a warning is still on the account.
     credits: r.payments
-      .filter((p) => !p.chargeId && p.depositCents === 0)
-      .map((p) => ({ paymentId: p.id, method: p.method, paidAt: p.paidAt.toISOString(), amountCents: p.amountCents, note: p.note })),
+      .map((p) => {
+        const week = p.chargeId ? (r.charges.find((c) => c.id === p.chargeId)?.amountCents ?? 0) : 0;
+        return { p, rest: p.amountCents - week - p.depositCents };
+      })
+      .filter(({ rest }) => rest > 0)
+      .map(({ p, rest }) => ({ paymentId: p.id, method: p.method, paidAt: p.paidAt.toISOString(), amountCents: rest, note: p.note })),
     declaration: addendum
       ? {
           fullyPaid: addendum.fullyPaid,
@@ -198,6 +208,10 @@ export async function rentalAccount(client: PrismaClient, rentalId: string, now:
 
 /** Who owes what: returned renters first, then the oldest debt first. */
 export async function openBalances(client: PrismaClient, organisationId: string, now: Date): Promise<OwedRow[]> {
+  // Before the cut-over every week from before the system looks unpaid: the
+  // list would name every past renter. It starts when the account does.
+  const organisation = await client.organisation.findUnique({ where: { id: organisationId }, select: { paymentsCutoverAt: true } });
+  if (!organisation?.paymentsCutoverAt) return [];
   // Tens of rentals: one query, and the same computation as the account.
   const rentals = await client.rental.findMany({
     where: {
@@ -211,8 +225,9 @@ export async function openBalances(client: PrismaClient, organisationId: string,
   const rows: OwedRow[] = [];
   for (const r of rentals) {
     const account = accountOf(r, now);
+    const today = zurichDayString(now);
     const owedOpen = account.items.filter(
-      (i) => i.owed && isOpen(i.status) && new Date(i.dueDate).getTime() <= now.getTime()
+      (i) => i.owed && isOpen(i.status) && zurichDayString(new Date(i.dueDate)) <= today
     );
     const cutover = r.organisation.paymentsCutoverAt;
     const pickupAt = r.contracts.find((c) => c.kind === "PICKUP")?.signedAt ?? r.startAt;

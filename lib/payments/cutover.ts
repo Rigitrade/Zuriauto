@@ -24,6 +24,17 @@ export interface CutoverCharge {
   status: string;
 }
 
+/**
+ * The cut-over has run already. A second one with a later date would settle
+ * weeks that fell due — and were requested — since the first, so it is
+ * refused unless asked for explicitly.
+ */
+export class CutoverAlreadyApplied extends Error {
+  constructor(readonly at: Date) {
+    super(`the cut-over was already applied, for weeks due before ${at.toISOString()}`);
+  }
+}
+
 const select = { id: true, rentalId: true, weekNumber: true, dueDate: true, amountCents: true, status: true } as const;
 
 // Weeks only. Week 0 is the balance the renter declared still owed on the
@@ -48,10 +59,16 @@ export async function planCutover(client: PrismaClient, organisationId: string, 
 export async function applyCutover(
   client: PrismaClient,
   organisationId: string,
-  before: Date
+  before: Date,
+  options: { force?: boolean } = {}
 ): Promise<{ settled: number }> {
   return client.$transaction(
     async (tx) => {
+      const organisation = await tx.organisation.findUniqueOrThrow({
+        where: { id: organisationId },
+        select: { paymentsCutoverAt: true },
+      });
+      if (organisation.paymentsCutoverAt && !options.force) throw new CutoverAlreadyApplied(organisation.paymentsCutoverAt);
       const planned = await tx.charge.findMany({
         where: dueBefore(organisationId, before),
         orderBy: [{ rentalId: "asc" }, { weekNumber: "asc" }],

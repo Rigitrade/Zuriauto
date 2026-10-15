@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { prisma } from "@/lib/db";
 import { openBalances, rentalAccount } from "@/lib/payments/account";
+import { applyPaymentAction } from "@/lib/payments/actions";
 import { applyCutover } from "@/lib/payments/cutover";
 import { recordOfficePayment } from "@/lib/payments/office";
 import { ingestMail } from "@/lib/payments/twint/ingest";
@@ -96,5 +97,58 @@ describe("openBalances", () => {
     expect(rows.map((r) => r.rentalId)).toEqual([returned.id, fresh.id]);
     expect(rows[0]).toMatchObject({ closed: true, owedCents: 147_000, oldestDue: "2026-06-01T08:00:00.000Z", depositMissingCents: 0, pendingWeeks: 5 });
     expect(rows[1]).toMatchObject({ closed: false, owedCents: 45_000, depositMissingCents: 50_000, pendingWeeks: 0 });
+  });
+});
+
+describe("rentalAccount — money that is not lost", () => {
+  it("counts a week paid in advance as paid, though the rental ended before it began", async () => {
+    const { org, rental } = await running();
+    const week5 = await prisma.charge.findFirstOrThrow({ where: { rentalId: rental.id, weekNumber: 5 } });
+    await recordOfficePayment(prisma, rental.id, { amountCents: 45_000, paidOn: "2026-06-10", method: "CASH", chargeId: week5.id, depositCents: 0, note: "" }, office);
+    await prisma.$transaction((tx) =>
+      closeRental(tx, {
+        organisationId: org.id,
+        rentalId: rental.id,
+        carId: rental.carId,
+        fromStatuses: ["ACTIVE"],
+        settlement: null,
+        event: { type: RETURN_CLOSE_EVENT, payload: {} },
+        now: new Date("2026-06-16T08:00:00Z"),
+      })
+    );
+
+    const account = await rentalAccount(prisma, rental.id, new Date("2026-06-30T08:00:00Z"));
+
+    // Weeks 1–3 owed and open, week 5 paid in advance: 4 × 450 due, 450 paid.
+    expect(account?.totals).toEqual({ dueToDateCents: 180_000, paidCents: 45_000, openCents: 135_000 });
+  });
+
+  it("shows what a payment paid beyond its deposit as credit", async () => {
+    const { org, rental } = await running();
+    await ingestMail(
+      { client: prisma, organisationId: org.id, verify: signed },
+      rawMail({ amount: "CHF 600.00", date: "01.06.2026, 12:00", message: ["Danke"] }, 4)
+    );
+    const waiting = await prisma.payment.findFirstOrThrow({ where: { mailUid: 4 } });
+    await applyPaymentAction(prisma, waiting.id, { action: "book", rentalId: rental.id, chargeId: null, depositCents: 50_000 }, office);
+
+    const account = await rentalAccount(prisma, rental.id, new Date("2026-06-02T08:00:00Z"));
+
+    expect(account?.deposit.receivedCents).toBe(50_000);
+    expect(account?.credits).toMatchObject([{ paymentId: waiting.id, amountCents: 10_000 }]);
+  });
+
+  it("counts a week as due on its Zurich day, as the daily job does", async () => {
+    const { rental } = await running();
+    // Week 2 is due 08.06 at 10:00 Zurich; at 08:00 Zurich that day it is already due.
+    const account = await rentalAccount(prisma, rental.id, new Date("2026-06-08T06:00:00Z"));
+    expect(account?.totals.dueToDateCents).toBe(90_000);
+  });
+});
+
+describe("openBalances before the cut-over", () => {
+  it("lists nobody: until the cut-over every week from before the system looks owed", async () => {
+    const { org } = await returnedOn16June();
+    expect(await openBalances(prisma, org.id, new Date("2026-06-25T08:00:00Z"))).toEqual([]);
   });
 });
