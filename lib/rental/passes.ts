@@ -230,13 +230,16 @@ export function mfkDueWindow(now: Date): { to: Date } {
  * before the car came back was driven and is owed; one that had not is not
  * requested. Week 0 is the balance the renter declared on the return form,
  * which by its nature falls due afterwards. `returnedAt` is null for a rental
- * not closed by a return, which this rule does not touch.
+ * not closed by a return, which this rule does not touch. A week the office
+ * decided to keep owed after an early return (`keptAfterReturn`,
+ * lib/payments/afterClose.ts) is chased like one that had begun.
  */
 export function isOwedAfterReturn(
-  charge: { weekNumber: number; dueDate: Date },
+  charge: { weekNumber: number; dueDate: Date; keptAfterReturn?: boolean },
   returnedAt: Date | null
 ): boolean {
   if (returnedAt === null) return true;
   if (charge.weekNumber === 0) return true;
+  if (charge.keptAfterReturn) return true;
   return charge.dueDate.getTime() < returnedAt.getTime();
 }

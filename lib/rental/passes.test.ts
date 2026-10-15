@@ -407,4 +407,11 @@ describe("isOwedAfterReturn", () => {
       isOwedAfterReturn({ weekNumber: 0, dueDate: at("2026-09-30T00:00:00.000Z") }, returnedAt)
     ).toBe(true);
   });
+
+  it("still owes a week that began after the return when the office kept it", () => {
+    const week4 = { weekNumber: 4, dueDate: at("2026-09-07T08:00:00.000Z") };
+
+    expect(isOwedAfterReturn(week4, returnedAt)).toBe(false);
+    expect(isOwedAfterReturn({ ...week4, keptAfterReturn: true }, returnedAt)).toBe(true);
+  });
 });
