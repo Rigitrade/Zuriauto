@@ -20,6 +20,7 @@ export async function twintPaymentPass(deps: {
     duplicate: 0,
     unsigned: 0,
     unreadable: 0,
+    "other-store": 0,
     failed: 0,
   };
   for (const mail of await deps.fetchMails()) {

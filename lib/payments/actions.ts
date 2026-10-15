@@ -128,3 +128,16 @@ export async function applyPaymentAction(
     return true;
   });
 }
+
+/** The office has looked at a TWINT email nothing was booked from. */
+export async function resolveMailIssue(
+  client: PrismaClient,
+  issueId: string,
+  actor: Actor
+): Promise<PaymentActionResult> {
+  const done = await client.paymentMailIssue.updateMany({
+    where: { id: issueId, resolvedAt: null },
+    data: { resolvedAt: new Date(), resolvedById: actor.id, resolvedByName: actor.displayName },
+  });
+  return done.count === 1 ? OK : CONFLICT;
+}

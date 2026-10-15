@@ -16,6 +16,6 @@ describe("twintPaymentPass", () => {
       verify: async (raw) => raw.toString().startsWith("From:"),
     });
 
-    expect(counts).toEqual({ booked: 1, review: 0, duplicate: 1, unsigned: 1, unreadable: 0, failed: 0 });
+    expect(counts).toEqual({ booked: 1, review: 0, duplicate: 1, unsigned: 1, unreadable: 0, "other-store": 0, failed: 0 });
   });
 });

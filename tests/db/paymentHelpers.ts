@@ -24,6 +24,7 @@ export function rawMail(fields: Partial<SampleFields> = {}, uid = 1): RawMail {
   const html = sampleHtml({ amount: "CHF 450.00", date: "10.06.2026, 12:00", ...fields });
   const source = [
     "From: no-reply@twintpay.ch",
+    `Message-ID: <twint-${uid}@twintpay.ch>`,
     "To: info@zuriauto.ch",
     "Subject: Erfolgreiche Transaktion",
     "MIME-Version: 1.0",

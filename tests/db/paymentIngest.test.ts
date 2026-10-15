@@ -65,4 +65,24 @@ describe("ingestMail", () => {
     expect(await ingestMail(deps, rawMail({ amount: "zweihundert" }))).toBe("unreadable");
     expect(await prisma.payment.count()).toBe(0);
   });
+
+  it("books nothing from a signed notification for another merchant's store, and shows it to the office", async () => {
+    const { deps } = await setup();
+
+    expect(await ingestMail(deps, rawMail({ store: "Velo Huber GmbH" }))).toBe("other-store");
+    expect(await prisma.payment.count()).toBe(0);
+    expect(await prisma.charge.count({ where: { status: "PAID" } })).toBe(0);
+    expect(await prisma.paymentMailIssue.findMany()).toMatchObject([{ reason: "OTHER_STORE", detail: "Velo Huber GmbH" }]);
+  });
+
+  it("leaves a trace the office can see for mail it could not trust or read, once per email", async () => {
+    const { deps } = await setup();
+
+    await ingestMail({ ...deps, verify: async () => false }, rawMail({}, 7));
+    await ingestMail({ ...deps, verify: async () => false }, rawMail({}, 7));
+    await ingestMail(deps, rawMail({ amount: "zweihundert" }, 8));
+
+    const issues = await prisma.paymentMailIssue.findMany({ orderBy: { createdAt: "asc" } });
+    expect(issues.map((i) => i.reason)).toEqual(["UNSIGNED", "UNREADABLE"]);
+  });
 });

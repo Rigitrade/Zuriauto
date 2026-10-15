@@ -46,6 +46,7 @@ Production:
 | `TWINT_IMAP_PORT` | only if not `993` |
 | `TWINT_IMAP_MAILBOX` | only if not `INBOX` |
 | `TWINT_LOOKBACK_DAYS` | only if not `14` |
+| `TWINT_STORE_NAME` | only if the "Name des Stores" line in TWINT's email is not `Zuriauto` — a notification for any other store books nothing |
 
 `CRON_SECRET` already exists; the payments route uses the same one.
 Redeploy after changing variables — they are read at build time.
@@ -75,6 +76,14 @@ with `pnpm twint:peek` before going further.
 
 Running it twice is harmless: the second run counts every email as
 `duplicate`.
+
+## 4b. Emails nothing was booked from
+
+An email that claims to be from TWINT but is not signed by it, one whose
+fields cannot be read, or one for another store books nothing. Each is listed
+once under **Zahlungen → TWINT-Mails ohne Buchung** and counted on the
+Overview until somebody marks it **Erledigt**. Several "Nicht lesbar" at once
+usually means TWINT changed its email: send one to the developer.
 
 ## 5. The first week
 

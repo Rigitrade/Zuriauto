@@ -23,7 +23,7 @@ export async function resetDatabase(): Promise<void> {
       -- than as an audit table: it names an organisation without a relation
       -- to one, so nothing cascades into it.
       "CustomerLookup", "AssetAccess", "CarHistoryLookup",
-      "AvailabilityAlert", "Organisation"
+      "AvailabilityAlert", "PaymentMailIssue", "Organisation"
     RESTART IDENTITY CASCADE
   `);
 }

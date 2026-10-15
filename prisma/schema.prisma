@@ -1223,3 +1223,41 @@ model PaymentEvent {
 
   @@index([paymentId, createdAt])
 }
+
+/// Why an email claiming to be from TWINT did not become a payment.
+enum PaymentMailIssueReason {
+  /// No valid TWINT signature: forged, or broken in forwarding.
+  UNSIGNED
+  /// Signed, but the fields could not be read — TWINT changed its layout.
+  UNREADABLE
+  /// Signed and read, but paid to another merchant's store.
+  OTHER_STORE
+}
+
+/// A TWINT email the office has to look at, because nothing was booked from
+/// it. Kept until somebody marks it done, so a layout change or a forged
+/// notification does not vanish into a log line.
+///
+/// No relation to Organisation, like the other audit tables: it lists in
+/// tests/db/setup.ts by name.
+model PaymentMailIssue {
+  id             String @id @default(cuid())
+  organisationId String
+
+  /// The Message-ID, else the IMAP UID: what makes reading the mailbox again
+  /// add nothing.
+  messageKey String
+  reason     PaymentMailIssueReason
+  /// The field that could not be read, or the other store's name.
+  detail     String?
+  subject    String?
+  receivedAt DateTime?
+
+  resolvedAt     DateTime?
+  resolvedById   String?
+  resolvedByName String?
+  createdAt      DateTime  @default(now())
+
+  @@unique([organisationId, messageKey])
+  @@index([organisationId, resolvedAt])
+}

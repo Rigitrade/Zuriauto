@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/admin/session";
-import { paymentList, type PaymentTab } from "@/lib/payments/queries";
+import { paymentList, paymentMailIssues, type PaymentTab } from "@/lib/payments/queries";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,5 +13,6 @@ export async function GET(request: Request) {
   if (!user) return NextResponse.json({ code: "unauthorised" }, { status: 401 });
   const asked = new URL(request.url).searchParams.get("tab") as PaymentTab | null;
   const tab = asked && TABS.includes(asked) ? asked : "review";
-  return NextResponse.json({ payments: await paymentList(prisma, tab) }, { headers: { "cache-control": "no-store" } });
+  const [payments, issues] = await Promise.all([paymentList(prisma, tab), paymentMailIssues(prisma)]);
+  return NextResponse.json({ payments, issues }, { headers: { "cache-control": "no-store" } });
 }

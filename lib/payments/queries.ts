@@ -52,8 +52,37 @@ export async function paymentList(client: PrismaClient, tab: PaymentTab): Promis
   }));
 }
 
-export function paymentReviewCount(client: PrismaClient): Promise<number> {
-  return client.payment.count({ where: { status: "NEEDS_REVIEW" } });
+/** What the Overview counts: payments to book, and TWINT emails nothing was booked from. */
+export async function paymentReviewCount(client: PrismaClient): Promise<number> {
+  const [payments, issues] = await Promise.all([
+    client.payment.count({ where: { status: "NEEDS_REVIEW" } }),
+    client.paymentMailIssue.count({ where: { resolvedAt: null } }),
+  ]);
+  return payments + issues;
+}
+
+export interface PaymentMailIssueRow {
+  id: string;
+  reason: string;
+  detail: string | null;
+  subject: string | null;
+  receivedAt: string | null;
+}
+
+/** The TWINT emails the office has not marked done yet, newest first. */
+export async function paymentMailIssues(client: PrismaClient): Promise<PaymentMailIssueRow[]> {
+  const issues = await client.paymentMailIssue.findMany({
+    where: { resolvedAt: null },
+    orderBy: { createdAt: "desc" },
+    take: 100,
+  });
+  return issues.map((issue) => ({
+    id: issue.id,
+    reason: issue.reason,
+    detail: issue.detail,
+    subject: issue.subject,
+    receivedAt: issue.receivedAt?.toISOString() ?? null,
+  }));
 }
 
 export interface PaymentChoice {

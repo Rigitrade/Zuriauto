@@ -7,7 +7,7 @@ import { Panel } from "@/components/admin/parts/Panel";
 import { PaymentDetail } from "@/components/admin/parts/PaymentDetail";
 import { formatChf } from "@/lib/rental/money";
 import { zurichTime } from "@/components/admin/format";
-import type { PaymentRow } from "@/lib/payments/queries";
+import type { PaymentMailIssueRow, PaymentRow } from "@/lib/payments/queries";
 
 /**
  * TWINT payments: what booked itself, and what waits for one click.
@@ -17,17 +17,21 @@ import type { PaymentRow } from "@/lib/payments/queries";
 type Tab = "review" | "booked" | "all";
 
 export function PaymentsSection() {
-  const { L, reload } = useAdmin();
+  const { L, reload, write, busy } = useAdmin();
   const P = L.payments;
   const params = useSearchParams();
   const router = useRouter();
   const tab = (["review", "booked", "all"].includes(params.get("tab") ?? "") ? params.get("tab") : "review") as Tab;
   const paymentId = params.get("payment");
   const [rows, setRows] = useState<PaymentRow[] | null>(null);
+  const [issues, setIssues] = useState<PaymentMailIssueRow[]>([]);
 
   const load = useCallback(async () => {
     const response = await fetch(`/api/admin/payments/?tab=${tab}`);
-    if (response.ok) setRows((await response.json()).payments);
+    if (!response.ok) return;
+    const body = await response.json();
+    setRows(body.payments);
+    setIssues(body.issues ?? []);
   }, [tab]);
 
   useEffect(() => {
@@ -66,6 +70,39 @@ export function PaymentsSection() {
         <h1 className="text-xl font-semibold tracking-tight">{P.heading}</h1>
         <p className="mt-1 text-sm text-[var(--admin-muted)]">{P.intro}</p>
       </header>
+
+      {/* Above the payments: a forged notification or a layout TWINT changed
+          is the one thing here that can mean money is arriving unseen. */}
+      {issues.length > 0 && (
+        <Panel title={P.issuesHeading} meta={String(issues.length)}>
+          <p className="border-b border-[var(--admin-rule)] px-4 py-3 text-sm text-[var(--admin-muted)]">{P.issuesIntro}</p>
+          <ul className="divide-y divide-[var(--admin-rule)]">
+            {issues.map((issue) => (
+              <li key={issue.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
+                <span className="min-w-0">
+                  <span className="text-[var(--admin-crit)]">
+                    {(P as Record<string, string>)[`issue${issue.reason}`] ?? issue.reason}
+                  </span>
+                  {issue.detail && <span className="text-[var(--admin-muted)]"> · {issue.detail}</span>}
+                  <span className="block truncate text-xs text-[var(--admin-faint)]">
+                    {[issue.receivedAt ? zurichTime(issue.receivedAt) : null, issue.subject].filter(Boolean).join(" · ")}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={async () => {
+                    if (await write(`/api/admin/payments/issues/${issue.id}/resolve/`, { method: "POST" })) await load();
+                  }}
+                  className="inline-flex h-8 items-center rounded-md border border-[var(--admin-rule-strong)] px-3 text-sm hover:bg-[var(--admin-sunk)] disabled:opacity-50"
+                >
+                  {P.issueResolve}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+      )}
 
       <Panel
         title={P.heading}

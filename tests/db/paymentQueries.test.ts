@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { prisma } from "@/lib/db";
 import { ingestMail } from "@/lib/payments/twint/ingest";
-import { paymentDetail, paymentList, paymentReviewCount } from "@/lib/payments/queries";
+import { paymentDetail, paymentList, paymentMailIssues, paymentReviewCount } from "@/lib/payments/queries";
+import { resolveMailIssue } from "@/lib/payments/actions";
 import { seedOrganisation, seedRental } from "./fineHelpers";
 import { rawMail } from "./paymentHelpers";
 
@@ -39,5 +40,19 @@ describe("payment queries", () => {
     const detail = await paymentDetail(prisma, waiting.id);
     const choice = detail?.choices.find((c) => c.rentalId === rental.id);
     expect(choice?.openCharges.map((c) => c.weekNumber)).toEqual([1, 3, 4, 5, 6, 7, 8]);
+  });
+
+  it("counts and lists the TWINT emails nothing was booked from, until the office marks them done", async () => {
+    const org = await seedOrganisation();
+    await ingestMail({ client: prisma, organisationId: org.id, verify: async () => false }, rawMail({}, 7));
+
+    expect(await paymentReviewCount(prisma)).toBe(1);
+    const [issue] = await paymentMailIssues(prisma);
+    expect(issue).toMatchObject({ reason: "UNSIGNED", subject: "Erfolgreiche Transaktion" });
+
+    expect(await resolveMailIssue(prisma, issue.id, { id: "u1", displayName: "Ahmed" })).toEqual({ ok: true });
+    expect(await resolveMailIssue(prisma, issue.id, { id: "u1", displayName: "Ahmed" })).toEqual({ ok: false, code: "conflict" });
+    expect(await paymentReviewCount(prisma)).toBe(0);
+    expect(await paymentMailIssues(prisma)).toEqual([]);
   });
 });
