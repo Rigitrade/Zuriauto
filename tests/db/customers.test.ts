@@ -11,7 +11,7 @@ const base: ContractDetails = {
   terms: {
     type: "WEEKLY",
     startAt: "2026-08-17T08:00:00.000Z",
-    totalWeeks: 4,
+    paymentMethod: "twint",
     weeklyAmountCents: 45_000,
     depositCents: 0,
   },

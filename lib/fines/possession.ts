@@ -30,7 +30,8 @@ export interface RentalFacts {
   status: string;
   createdBy: string;
   startAt: Date;
-  endAt: Date;
+  /** Null for a weekly rental still running; only imports are read by it. */
+  endAt: Date | null;
   pickupSignedAt: Date | null;
   returnSignedAt: Date | null;
   closedAt: Date | null;
@@ -62,7 +63,7 @@ export function intervalOf(r: RentalFacts): Interval | null {
     return { ...base, to: new Date(Math.min(...ends.map((d) => d.getTime()))) };
   }
   if (OPEN.has(r.status)) return { ...base, to: null };
-  if (r.createdBy.startsWith("import:") && r.endAt > r.startAt) {
+  if (r.createdBy.startsWith("import:") && r.endAt && r.endAt > r.startAt) {
     return { ...base, to: r.endAt };
   }
   return null;

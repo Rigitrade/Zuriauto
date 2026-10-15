@@ -99,6 +99,21 @@ const HARD_LIMIT = 2.1 * 1024 * 1024;
 
 const MAX_CONDITION_PHOTOS = 4;
 
+/**
+ * The errors each terms field can be blamed for, by the keys `validateStep`
+ * files them under. A changed start can also mend an end that came before it.
+ */
+const TERMS_ERRORS_OF: Record<keyof TermsFormState, string[]> = {
+  type: ["amount", "endAt"],
+  startDate: ["startAt", "endAt"],
+  startTime: ["startAt", "endAt"],
+  endDate: ["endAt"],
+  endTime: ["endAt"],
+  amount: ["amount"],
+  deposit: ["deposit"],
+  paymentMethod: ["paymentMethod"],
+};
+
 type Status =
   | { kind: "editing" }
   | { kind: "building" }
@@ -452,6 +467,25 @@ export default function RentalPickupWizard() {
     });
   }
 
+  /**
+   * Takes the terms as edited and clears the errors the edit answers, as `set`
+   * does for the other fields. Left standing, an error would also hide the
+   * hint under its field — the daily total among them — until the next press
+   * of Next.
+   */
+  function changeTerms(next: TermsFormState) {
+    const answered = (Object.keys(next) as (keyof TermsFormState)[])
+      .filter((key) => next[key] !== terms[key])
+      .flatMap((key) => TERMS_ERRORS_OF[key]);
+    setTerms(next);
+    if (answered.length === 0) return;
+    setErrors((prev) => {
+      const rest = { ...prev };
+      for (const key of answered) delete rest[key];
+      return rest;
+    });
+  }
+
   function acceptGtc(accepted: boolean) {
     setGtcAccepted(accepted);
     setAcceptedAt(accepted ? new Date().toISOString() : null);
@@ -500,7 +534,7 @@ export default function RentalPickupWizard() {
           const key = String(issue.path[0] ?? "form");
           // Both amount fields share one input, so both land on `amount`.
           const field =
-            key === "weeklyAmountCents" || key === "totalAmountCents"
+            key === "weeklyAmountCents" || key === "dailyAmountCents"
               ? "amount"
               : key === "depositCents"
                 ? "deposit"
@@ -1208,7 +1242,7 @@ export default function RentalPickupWizard() {
             <div className={sectionClass("terms", "")}>
               <RentalTermsStep
                 value={terms}
-                onChange={setTerms}
+                onChange={changeTerms}
                 errors={errors}
                 L={L}
               />
@@ -1306,6 +1340,25 @@ export default function RentalPickupWizard() {
                   ))}
                 </div>
               )}
+
+              {/* Second, under the number, at the lessor's request of
+                  16.10.2026: the two ways to reach the renter belong together,
+                  and the contract and every reminder go to this address. Below
+                  the lookup rather than between the number and its hint, which
+                  explains the Check button beside the number. */}
+              <Field
+                label={L.details.email}
+                hint={L.details.emailHint}
+                error={errors.email}
+                required
+              >
+                <Input
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => set("email", e.target.value)}
+                  autoComplete="email"
+                />
+              </Field>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field label={L.details.lastName} error={errors.lastName} required>
@@ -1448,20 +1501,6 @@ export default function RentalPickupWizard() {
                     </option>
                   ))}
                 </select>
-              </Field>
-
-              <Field
-                label={L.details.email}
-                hint={L.details.emailHint}
-                error={errors.email}
-                required
-              >
-                <Input
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => set("email", e.target.value)}
-                  autoComplete="email"
-                />
               </Field>
             </div>
           )}

@@ -88,6 +88,11 @@ export function formatZurich(at: Date): string {
   });
 }
 
+/** The return as the office mails print it; a running weekly rental has none. */
+function formatReturn(endAt: Date | null): string {
+  return endAt ? formatZurich(endAt) : "offen – Wochenmiete bis zur Rückgabe";
+}
+
 interface RentalContext {
   firstName: string;
   carModel: string;
@@ -275,7 +280,7 @@ export function officeAlertMail(ctx: {
   renterPhone: string;
   carModel: string;
   plate: string;
-  endAt: Date;
+  endAt: Date | null;
   detail?: string;
 }): { subject: string; text: string } {
   const subjects = {
@@ -286,7 +291,7 @@ export function officeAlertMail(ctx: {
   } as const;
 
   const headlines = {
-    overdue: `Das Fahrzeug ${ctx.plate} ist seit ${formatZurich(ctx.endAt)} überfällig.`,
+    overdue: `Das Fahrzeug ${ctx.plate} ist seit ${formatReturn(ctx.endAt)} überfällig.`,
     chargeOverdue: `Eine Zahlung für ${ctx.plate} ist trotz Erinnerung offen.`,
     returnIntent: `Der Mieter hat die Rückgabe von ${ctx.plate} angekündigt.`,
     extension: `Der Mieter hat die Miete von ${ctx.plate} verlängert.`,
@@ -301,7 +306,7 @@ export function officeAlertMail(ctx: {
       `E-Mail:    ${ctx.renterEmail}`,
       `Telefon:   ${ctx.renterPhone}`,
       `Fahrzeug:  ${ctx.carModel} (${ctx.plate})`,
-      `Rückgabe:  ${formatZurich(ctx.endAt)}`,
+      `Rückgabe:  ${formatReturn(ctx.endAt)}`,
       ...(ctx.detail ? ["", ctx.detail] : []),
     ].join("\n"),
   };
@@ -342,7 +347,7 @@ export function mfkDueMail(ctx: {
     renterName: string;
     renterEmail: string;
     renterPhone: string;
-    endAt: Date;
+    endAt: Date | null;
   } | null;
   /** True when this run took the car off the road. */
   blocked: boolean;
@@ -360,7 +365,7 @@ export function mfkDueMail(ctx: {
         `Mieter:    ${ctx.rental.renterName}`,
         `Telefon:   ${ctx.rental.renterPhone}`,
         `E-Mail:    ${ctx.rental.renterEmail}`,
-        `Rückgabe:  ${formatZurich(ctx.rental.endAt)}`,
+        `Rückgabe:  ${formatReturn(ctx.rental.endAt)}`,
       ]
     : ctx.blocked
       ? [

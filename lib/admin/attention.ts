@@ -74,6 +74,8 @@ export function attentionItems(
       continue;
     }
 
+    // A running weekly rental is never "ending": it runs until the car is back.
+    if (rental.endAt === null) continue;
     const endsAt = Date.parse(rental.endAt);
     if (!Number.isFinite(endsAt)) continue;
     // No lower bound: a rental that ran out yesterday is more urgent than one

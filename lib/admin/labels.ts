@@ -308,6 +308,8 @@ const de = {
     closeConfirm: "Wirklich abschliessen",
     cancel: "Abbrechen",
     none: "Keine laufenden Mieten.",
+    /** In place of the end date of a weekly rental, which has none. */
+    running: "bis Rückgabe",
     closeHint: "«Abschliessen» gibt das Fahrzeug frei und ersetzt nicht das Rückgabeprotokoll.",
   },
   history: {
@@ -798,6 +800,7 @@ const en: typeof de = {
     closeConfirm: "Yes, close it",
     cancel: "Cancel",
     none: "No open rentals.",
+    running: "until returned",
     closeHint: "“Close” frees the car and does not replace the return protocol.",
   },
   history: {

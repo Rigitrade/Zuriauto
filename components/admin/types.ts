@@ -121,7 +121,8 @@ export interface Rental {
   carModel: string;
   customerName: string;
   startAt: string;
-  endAt: string;
+  /** Null while a weekly rental runs: it has no end until the car is back. */
+  endAt: string | null;
   contractNumber: string | null;
   returnSubmittedAt: string | null;
   returnContractNumber: string | null;
@@ -141,7 +142,8 @@ export interface CarPeriod {
   id: string;
   status: string;
   startAt: string;
-  endAt: string;
+  /** Null for a weekly rental still running. */
+  endAt: string | null;
   customerName: string;
   customerPhone: string;
   customerEmail: string;

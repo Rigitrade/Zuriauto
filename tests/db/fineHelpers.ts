@@ -37,7 +37,7 @@ export function pickupDetails(overrides: Partial<ContractDetails> = {}): Contrac
     terms: {
       type: "WEEKLY",
       startAt: "2026-06-01T08:00:00.000Z",
-      totalWeeks: 8,
+      paymentMethod: "twint",
       weeklyAmountCents: 45_000,
       depositCents: 50_000,
     },
@@ -76,7 +76,7 @@ export async function seedRental(
     terms: {
       type: "WEEKLY",
       startAt: options.signedAt.toISOString(),
-      totalWeeks: 8,
+      paymentMethod: "twint",
       weeklyAmountCents: 45_000,
       depositCents: 50_000,
     },

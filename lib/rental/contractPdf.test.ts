@@ -1,3 +1,6 @@
+import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
+// @ts-expect-error -- pdfjs ships no types for its worker module.
+import * as pdfjsWorker from "pdfjs-dist/legacy/build/pdf.worker.mjs";
 import { describe, expect, it } from "vitest";
 import { buildContractPdf, type ContractPdfInput } from "./contractPdf";
 import { findVehicle } from "./fleet";
@@ -10,6 +13,9 @@ import type { ContractDetails } from "./schema";
  * readable without a parser, and what matters here is which of the two mutually
  * exclusive shapes builds at all — and that neither-of-them cannot.
  */
+
+// pdfjs' worker, handed over in-process as lib/fines/raster.ts does.
+(globalThis as { pdfjsWorker?: unknown }).pdfjsWorker = pdfjsWorker;
 
 /** A one-pixel JPEG, so embedJpg has something real to parse. */
 const JPEG = Uint8Array.from(
@@ -39,7 +45,7 @@ const details: ContractDetails = {
   terms: {
     type: "WEEKLY",
     startAt: "2026-08-17T08:00:00.000Z",
-    totalWeeks: 4,
+    paymentMethod: "twint",
     weeklyAmountCents: 45_000,
     depositCents: 50_000,
   },
@@ -123,5 +129,59 @@ describe("buildContractPdf document pages", () => {
       documentsOnFile: onFile,
     });
     expect(bytes.byteLength).toBeGreaterThan(1000);
+  });
+});
+
+/** The words on the contract's first page, where the terms are. */
+async function firstPageText(bytes: Uint8Array): Promise<string> {
+  const task = getDocument({
+    data: new Uint8Array(bytes),
+    useSystemFonts: false,
+    verbosity: 0,
+  });
+  const doc = await task.promise;
+  const content = await (await doc.getPage(1)).getTextContent();
+  await task.destroy();
+  return content.items.map((item) => ("str" in item ? item.str : "")).join(" ");
+}
+
+/**
+ * What the renter signs for, as the lessor asked for it on 16.10.2026: a
+ * weekly rental with no end, a daily one priced per day, and how it is paid.
+ */
+describe("buildContractPdf terms", () => {
+  it("prints a weekly rental as running until the car is back", async () => {
+    const text = await firstPageText(
+      await buildContractPdf({ ...base, documentsOnFile: onFile })
+    );
+    expect(text).toContain("Wochenmiete");
+    expect(text).toContain("Unbefristet, bis zur Rückgabe des Fahrzeugs");
+    expect(text).toContain("CHF 450.00");
+    expect(text).not.toContain("Anzahl Wochen");
+    expect(text).toMatch(/Zahlungsart\s+TWINT/);
+  });
+
+  it("prints a daily rental's price per day, its days and their total", async () => {
+    const daily: ContractDetails = {
+      ...details,
+      terms: {
+        type: "FIXED_TERM",
+        // 10:00 Monday to 12:00 Thursday in Zurich: three days and two hours,
+        // so four days begun.
+        startAt: "2026-08-17T08:00:00.000Z",
+        endAt: "2026-08-20T10:00:00.000Z",
+        dailyAmountCents: 8_000,
+        depositCents: 0,
+        paymentMethod: "cash",
+      },
+    };
+    const text = await firstPageText(
+      await buildContractPdf({ ...base, details: daily, documentsOnFile: onFile })
+    );
+    expect(text).toContain("Täglich");
+    expect(text).toMatch(/Tagespreis\s+CHF 80.00/);
+    expect(text).toMatch(/Anzahl Tage\s+4/);
+    expect(text).toMatch(/Gesamtpreis\s+CHF 320.00/);
+    expect(text).toMatch(/Zahlungsart\s+Bar/);
   });
 });

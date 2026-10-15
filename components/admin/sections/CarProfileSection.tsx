@@ -14,7 +14,7 @@ import { useAdmin } from "@/components/admin/shell/AdminContext";
 import { CarMaintenance } from "@/components/admin/parts/CarMaintenance";
 import { EditCarDialog } from "@/components/admin/parts/EditCarDialog";
 import { Panel } from "@/components/admin/parts/Panel";
-import { day } from "@/components/admin/format";
+import { day, until } from "@/components/admin/format";
 import { ColourDot } from "@/components/ui/colour-dot";
 import { carColourName } from "@/lib/carColour";
 import { mfkStanding } from "@/lib/admin/mfk";
@@ -339,7 +339,7 @@ export function CarProfileSection({ carId }: { carId: string }) {
               <div className="grid gap-1 rounded-md border border-[var(--admin-rule)] bg-[var(--admin-sunk)] p-3">
                 <p className="text-sm font-medium">{rental.customerName}</p>
                 <p className="text-xs text-[var(--admin-muted)] tabular-nums">
-                  {day(rental.startAt)} – {day(rental.endAt)}
+                  {day(rental.startAt)} – {until(rental.endAt, L.rentals.running)}
                 </p>
                 {rental.contractNumber && (
                   <p className="font-mono text-xs text-[var(--admin-faint)]">

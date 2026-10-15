@@ -13,6 +13,7 @@ import {
   isMfkExpired,
   mfkDueWindow,
   isRentalEndingSoon,
+  weeksBegun,
   zurichDayString,
 } from "./passes";
 
@@ -121,6 +122,63 @@ describe("isRentalOverdue", () => {
 
   it("does not flag one ending exactly now", () => {
     expect(isRentalOverdue({ endAt: now }, now)).toBe(false);
+  });
+
+  it("never flags a running weekly rental, which has no agreed return", () => {
+    expect(isRentalOverdue({ endAt: null }, now)).toBe(false);
+  });
+});
+
+describe("running weekly rentals and the ending reminder", () => {
+  it("never reminds a rental with no end", () => {
+    expect(isRentalEndingSoon({ endAt: null }, at("2026-08-18T09:00:00Z"))).toBe(
+      false
+    );
+  });
+});
+
+describe("weeksBegun", () => {
+  // Monday 5 October 2026, 10:00 in Zurich.
+  const start = at("2026-10-05T08:00:00Z");
+
+  it("is one on the day of the handover", () => {
+    expect(weeksBegun(start, at("2026-10-05T08:30:00Z"), null)).toBe(1);
+  });
+
+  it("is one all through the first week", () => {
+    expect(weeksBegun(start, at("2026-10-11T21:00:00Z"), null)).toBe(1);
+  });
+
+  it("counts week 2 from the morning of its day, before its hour", () => {
+    // 06:00 UTC on the 12th is 08:00 in Zurich: week 2 begins at 10:00, but
+    // the daily run adds it that morning, as the charge pass requests by day.
+    expect(weeksBegun(start, at("2026-10-12T06:00:00Z"), null)).toBe(2);
+  });
+
+  it("catches up after runs were missed", () => {
+    expect(weeksBegun(start, at("2026-11-03T06:00:00Z"), null)).toBe(5);
+  });
+
+  it("keeps the Zurich day across the autumn DST change", () => {
+    // Week 4 begins Monday 26 October at 10:00 CET, 09:00 UTC. At 23:30 UTC
+    // on the 25th it is already the 26th in Zurich.
+    expect(weeksBegun(start, at("2026-10-25T23:30:00Z"), null)).toBe(4);
+    expect(weeksBegun(start, at("2026-10-25T22:30:00Z"), null)).toBe(3);
+  });
+
+  it("stops at the return: a week that had not begun is not owed", () => {
+    const returned = at("2026-10-19T07:59:00Z"); // 09:59, week 3 at 10:00
+    expect(weeksBegun(start, at("2026-11-30T08:00:00Z"), returned)).toBe(2);
+  });
+
+  it("owes a week that began before the car came back", () => {
+    const returned = at("2026-10-19T08:01:00Z"); // 10:01
+    expect(weeksBegun(start, at("2026-11-30T08:00:00Z"), returned)).toBe(3);
+  });
+
+  it("is never less than one", () => {
+    expect(weeksBegun(start, at("2026-10-01T08:00:00Z"), null)).toBe(1);
+    expect(weeksBegun(start, start, at("2026-10-05T07:00:00Z"))).toBe(1);
   });
 });
 

@@ -87,6 +87,11 @@ export async function resolveManageToken(
   // the renter should be talking to the office, not to a form.
   if (row.rental.status !== "ACTIVE") return { ok: false, reason: "unusable" };
 
+  // Nor does a running weekly rental: it has no end to extend, and no ending
+  // reminder ever carries it a link. Refused all the same, should one arrive.
+  const { endAt } = row.rental;
+  if (endAt === null) return { ok: false, reason: "unusable" };
+
   return {
     ok: true,
     tokenId: row.id,
@@ -96,7 +101,7 @@ export async function resolveManageToken(
       type: row.rental.type,
       status: row.rental.status,
       startAt: row.rental.startAt,
-      endAt: row.rental.endAt,
+      endAt,
       totalWeeks: row.rental.totalWeeks,
       weeklyAmountCents: row.rental.weeklyAmountCents,
       depositCents: row.rental.depositCents,

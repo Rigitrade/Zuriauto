@@ -15,7 +15,7 @@ const valid = {
   terms: {
     type: "WEEKLY",
     startAt: "2026-10-06T08:00:00.000Z",
-    totalWeeks: 4,
+    paymentMethod: "twint",
     weeklyAmountCents: 45_000,
     depositCents: 50_000,
   },

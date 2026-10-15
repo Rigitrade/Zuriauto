@@ -32,7 +32,8 @@ export interface CarHistoryPeriod {
   id: string;
   status: string;
   startAt: string;
-  endAt: string;
+  /** Null for a weekly rental still running. */
+  endAt: string | null;
   customerName: string;
   /** As the renter gave it, not the E.164 key — this is a number to dial. */
   customerPhone: string;
@@ -84,8 +85,12 @@ export async function GET(
       // Overlap, not containment. A rental running from June to August covers
       // a fortnight in July even though neither of its ends falls inside it,
       // and containment would report the car as having been with nobody.
+      // A running weekly rental has no end yet, and still covers the window.
       ...(window
-        ? { startAt: { lte: window.to }, endAt: { gte: window.from } }
+        ? {
+            startAt: { lte: window.to },
+            OR: [{ endAt: { gte: window.from } }, { endAt: null }],
+          }
         : {}),
     },
     orderBy: { startAt: "desc" },
@@ -147,7 +152,7 @@ export async function GET(
       id: rental.id,
       status: rental.status,
       startAt: rental.startAt.toISOString(),
-      endAt: rental.endAt.toISOString(),
+      endAt: rental.endAt?.toISOString() ?? null,
       customerName: `${rental.customer.firstName} ${rental.customer.lastName}`,
       customerPhone: rental.customer.phone,
       customerEmail: rental.customer.email,

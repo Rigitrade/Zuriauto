@@ -1,16 +1,19 @@
 /**
  * The commercial terms of a rental.
  *
- * Two shapes on one table, as the roadmap sets out: WEEKLY reproduces what the
- * Uber and taxi drivers already have — N weeks at a fixed weekly amount —
- * while FIXED_TERM serves tourists with an explicit end and a single price.
- * Both carry `endAt`, so the Phase 3 reminder is one query rather than two code
- * paths that can drift.
+ * Two shapes on one table. WEEKLY is what the Uber and taxi drivers have: a
+ * fixed weekly amount, running until the car comes back — since 16.10.2026,
+ * at the lessor's request, with no number of weeks agreed up front, so it has
+ * no end while it runs. FIXED_TERM serves tourists with an explicit end, and
+ * since the same date is priced per day; the form calls it "Täglich".
+ *
+ * Both say how the renter pays, which the office chooses at the handover.
  */
 
 import { TZDate } from "@date-fns/tz";
 import { addWeeks } from "date-fns";
 import { z } from "zod";
+import { PAYMENT_METHODS } from "./returnSchema";
 
 /**
  * Every rental date is reasoned about in Zurich.
@@ -30,27 +33,33 @@ const MAX_AMOUNT_CENTS = 100_000_000;
 
 const money = z.number().int("amount").min(0, "amount").max(MAX_AMOUNT_CENTS, "amount");
 
+// The return form's four, so "how the renter pays" has one vocabulary from
+// the pickup to the return. One of them, not a list: the lessor asked for the
+// way the rental is paid, not every way it might be.
+const paymentMethod = z.enum(PAYMENT_METHODS, { message: "paidBy" });
+
 // `strictObject`, not `object`: Zod strips unknown keys by default, which
 // would have let a FIXED_TERM rental carrying a weeklyAmountCents through by
 // silently discarding it. Making the impossible combination *unrepresentable*
 // is the entire reason this is a union, so the extra key has to be an error
-// rather than a thing quietly thrown away.
+// rather than a thing quietly thrown away. The same goes for a weekly rental
+// still carrying the `totalWeeks` the form no longer asks for.
 export const rentalTermsSchema = z
   .discriminatedUnion("type", [
     z.strictObject({
       type: z.literal("WEEKLY"),
       startAt: isoDateTime,
-      // Two years is the ceiling. Longer than that is a lease, not a rental.
-      totalWeeks: z.number().int("totalWeeks").min(1, "totalWeeks").max(104, "totalWeeks"),
       weeklyAmountCents: money,
       depositCents: money.default(0),
+      paymentMethod,
     }),
     z.strictObject({
       type: z.literal("FIXED_TERM"),
       startAt: isoDateTime,
       endAt: isoDateTime,
-      totalAmountCents: money,
+      dailyAmountCents: money,
       depositCents: money.default(0),
+      paymentMethod,
     }),
   ])
   .refine(
@@ -80,10 +89,48 @@ export function billingWeekdayOf(startAt: Date): number {
   return new TZDate(startAt.getTime(), ZURICH).getDay();
 }
 
-/** The single accessor callers use, so neither shape leaks into their code. */
-export function resolveEndAt(terms: RentalTerms): Date {
-  const startAt = new Date(terms.startAt);
-  return terms.type === "WEEKLY"
-    ? deriveEndAt(startAt, terms.totalWeeks)
-    : new Date(terms.endAt);
+/**
+ * The single accessor callers use, so neither shape leaks into their code.
+ * Null for a weekly rental, which runs until the car comes back.
+ */
+export function resolveEndAt(terms: RentalTerms): Date | null {
+  return terms.type === "WEEKLY" ? null : new Date(terms.endAt);
+}
+
+/** Zurich wall-clock time of an instant, on a clock that never changes. */
+function wallClockMs(at: Date): number {
+  const zoned = new TZDate(at.getTime(), ZURICH);
+  return Date.UTC(
+    zoned.getFullYear(),
+    zoned.getMonth(),
+    zoned.getDate(),
+    zoned.getHours(),
+    zoned.getMinutes(),
+    zoned.getSeconds(),
+    zoned.getMilliseconds()
+  );
+}
+
+/**
+ * The days a daily rental is charged for: every 24 hours begun, at least one.
+ *
+ * Counted on the Zurich wall clock. In elapsed time, Saturday 10:00 to Monday
+ * 10:00 across the October changeover is 49 hours, which would bill three days
+ * for what the renter and the office both call two.
+ */
+export function rentalDays(startAt: Date, endAt: Date): number {
+  const ms = wallClockMs(endAt) - wallClockMs(startAt);
+  return Math.max(1, Math.ceil(ms / 86_400_000));
+}
+
+/** What a daily rental comes to: its days at the price per day. */
+export function dailyTotalCents(terms: {
+  startAt: string;
+  endAt: string;
+  dailyAmountCents: number;
+}): number {
+  return (
+    rentalDays(new Date(terms.startAt), new Date(terms.endAt)) *
+    terms.dailyAmountCents
+  );
 }

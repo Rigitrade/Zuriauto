@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { CalendarPlus, Check, FileText, Mail, Phone, X } from "lucide-react";
-import { day } from "@/components/admin/format";
+import { day, until } from "@/components/admin/format";
 import { DocumentsDialog } from "./DocumentsDialog";
 import { toZurichInput } from "@/lib/admin/rentalPeriod";
 import type { CarPeriod, Labels } from "@/components/admin/types";
@@ -87,7 +87,7 @@ export function HistoryPeriod({
 
         <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm tabular-nums text-[var(--admin-muted)]">
           <span>
-            {day(period.startAt)} – {day(period.endAt)}
+            {day(period.startAt)} – {until(period.endAt, L.rentals.running)}
           </span>
           {editable && openEnded && (
             <span className="rounded-full bg-[var(--admin-attn-soft)] px-2 py-0.5 text-[0.625rem] font-medium uppercase tracking-wide text-[var(--admin-attn)] ring-1 ring-inset ring-[var(--admin-attn)]/25">
@@ -188,7 +188,8 @@ function PeriodForm({
   // Zurich wall clock, never the browser's. A laptop set to another zone would
   // otherwise show, and then save, a different hour than the office means.
   const [startAt, setStartAt] = useState(() => toZurichInput(period.startAt));
-  const [endAt, setEndAt] = useState(() => toZurichInput(period.endAt));
+  // Empty for a period with no end yet, which the office then fills in.
+  const [endAt, setEndAt] = useState(() => toZurichInput(period.endAt ?? ""));
 
   // A string compare is a date compare for this format, and it avoids parsing
   // a half-typed value into a Date that reads as some year in the 200s.

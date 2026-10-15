@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   billingWeekdayOf,
+  dailyTotalCents,
   deriveEndAt,
+  rentalDays,
   rentalTermsSchema,
   resolveEndAt,
 } from "./terms";
@@ -45,64 +47,153 @@ describe("billingWeekdayOf", () => {
   });
 });
 
+describe("rentalDays", () => {
+  it("counts whole days", () => {
+    expect(
+      rentalDays(
+        new Date("2026-03-02T09:00:00.000Z"),
+        new Date("2026-03-05T09:00:00.000Z")
+      )
+    ).toBe(3);
+  });
+
+  it("counts a day begun as a day", () => {
+    // One minute into the fourth day is four days, as a rental counts them.
+    expect(
+      rentalDays(
+        new Date("2026-03-02T09:00:00.000Z"),
+        new Date("2026-03-05T09:01:00.000Z")
+      )
+    ).toBe(4);
+  });
+
+  it("charges an afternoon as one day", () => {
+    expect(
+      rentalDays(
+        new Date("2026-03-02T09:00:00.000Z"),
+        new Date("2026-03-02T15:00:00.000Z")
+      )
+    ).toBe(1);
+  });
+
+  it("counts on the Zurich wall clock across the autumn DST change", () => {
+    // Saturday 24 October 10:00 CEST to Monday 26 October 10:00 CET: two days
+    // to the renter, 49 hours elapsed. Counting elapsed time would bill three.
+    expect(
+      rentalDays(
+        new Date("2026-10-24T08:00:00.000Z"),
+        new Date("2026-10-26T09:00:00.000Z")
+      )
+    ).toBe(2);
+  });
+
+  it("counts on the Zurich wall clock across the spring DST change", () => {
+    // Saturday 28 March 10:00 CET to Monday 30 March 10:00 CEST: two days,
+    // though only 47 hours elapse.
+    expect(
+      rentalDays(
+        new Date("2026-03-28T09:00:00.000Z"),
+        new Date("2026-03-30T08:00:00.000Z")
+      )
+    ).toBe(2);
+  });
+});
+
+describe("dailyTotalCents", () => {
+  it("is the days at the price per day", () => {
+    expect(
+      dailyTotalCents({
+        startAt: "2026-03-02T09:00:00.000Z",
+        endAt: "2026-03-05T12:00:00.000Z",
+        dailyAmountCents: 8_000,
+      })
+    ).toBe(4 * 8_000);
+  });
+});
+
 describe("rentalTermsSchema", () => {
   const weekly = {
     type: "WEEKLY",
     startAt: "2026-03-02T10:00:00.000Z",
-    totalWeeks: 4,
     weeklyAmountCents: 45_000,
     depositCents: 50_000,
+    paymentMethod: "twint",
   };
 
-  const fixed = {
+  const daily = {
     type: "FIXED_TERM",
     startAt: "2026-03-02T10:00:00.000Z",
     endAt: "2026-03-09T10:00:00.000Z",
-    totalAmountCents: 60_000,
+    dailyAmountCents: 8_000,
     depositCents: 0,
+    paymentMethod: "cash",
   };
 
   it("accepts a weekly rental", () => {
     expect(rentalTermsSchema.safeParse(weekly).success).toBe(true);
   });
 
-  it("accepts a fixed-term rental", () => {
-    expect(rentalTermsSchema.safeParse(fixed).success).toBe(true);
+  it("accepts a daily rental", () => {
+    expect(rentalTermsSchema.safeParse(daily).success).toBe(true);
   });
 
-  it("rejects a fixed-term rental carrying a weekly amount", () => {
+  it("rejects a daily rental carrying a weekly amount", () => {
     // The whole point of the union: an impossible combination cannot validate.
-    const impossible = { ...fixed, weeklyAmountCents: 45_000 };
+    const impossible = { ...daily, weeklyAmountCents: 45_000 };
     expect(rentalTermsSchema.safeParse(impossible).success).toBe(false);
   });
 
-  it("rejects a weekly rental with no duration", () => {
-    const { totalWeeks: _omitted, ...rest } = weekly;
-    expect(rentalTermsSchema.safeParse(rest).success).toBe(false);
+  it("rejects a weekly rental that still states a number of weeks", () => {
+    // Since 16.10.2026 a weekly rental runs until the car comes back. A
+    // request carrying `totalWeeks` comes from a form that predates that, and
+    // quietly dropping the number would sign a contract nobody read.
+    const old = { ...weekly, totalWeeks: 4 };
+    expect(rentalTermsSchema.safeParse(old).success).toBe(false);
   });
 
-  it("rejects a fixed-term rental that ends before it starts", () => {
-    const backwards = { ...fixed, endAt: "2026-03-01T10:00:00.000Z" };
+  it("rejects a daily rental priced as a total, as the fixed term was", () => {
+    const { dailyAmountCents: _omitted, ...rest } = daily;
+    const old = { ...rest, totalAmountCents: 60_000 };
+    expect(rentalTermsSchema.safeParse(old).success).toBe(false);
+  });
+
+  it("requires a way to pay, and names the field when it is missing", () => {
+    const { paymentMethod: _omitted, ...rest } = weekly;
+    const parsed = rentalTermsSchema.safeParse(rest);
+    expect(parsed.success).toBe(false);
+    expect(parsed.error?.issues[0]).toMatchObject({
+      path: ["paymentMethod"],
+      message: "paidBy",
+    });
+  });
+
+  it("takes the four ways the lessor listed, and nothing else", () => {
+    for (const method of ["cash", "twint", "card", "bank"]) {
+      expect(
+        rentalTermsSchema.safeParse({ ...weekly, paymentMethod: method }).success
+      ).toBe(true);
+    }
+    expect(
+      rentalTermsSchema.safeParse({ ...weekly, paymentMethod: "crypto" }).success
+    ).toBe(false);
+  });
+
+  it("rejects a daily rental that ends before it starts", () => {
+    const backwards = { ...daily, endAt: "2026-03-01T10:00:00.000Z" };
     expect(rentalTermsSchema.safeParse(backwards).success).toBe(false);
   });
 
-  it("rejects a fixed-term rental that ends exactly when it starts", () => {
-    const zero = { ...fixed, endAt: fixed.startAt };
+  it("rejects a daily rental that ends exactly when it starts", () => {
+    const zero = { ...daily, endAt: daily.startAt };
     expect(rentalTermsSchema.safeParse(zero).success).toBe(false);
-  });
-
-  it("rejects zero weeks and more than two years", () => {
-    expect(rentalTermsSchema.safeParse({ ...weekly, totalWeeks: 0 }).success).toBe(
-      false
-    );
-    expect(
-      rentalTermsSchema.safeParse({ ...weekly, totalWeeks: 105 }).success
-    ).toBe(false);
   });
 
   it("rejects a negative amount", () => {
     expect(
       rentalTermsSchema.safeParse({ ...weekly, weeklyAmountCents: -1 }).success
+    ).toBe(false);
+    expect(
+      rentalTermsSchema.safeParse({ ...daily, dailyAmountCents: -1 }).success
     ).toBe(false);
   });
 
@@ -118,14 +209,9 @@ describe("rentalTermsSchema", () => {
     expect(parsed.depositCents).toBe(0);
   });
 
-  it("resolves endAt for both shapes", () => {
-    // 10:00 UTC on 2 March is 11:00 in Zurich. Four weeks later is 30 March,
-    // the day after the clocks go forward, so 11:00 local is 09:00 UTC — not
-    // the 10:00 UTC that adding 28 × 86 400 000 ms would give.
-    expect(resolveEndAt(rentalTermsSchema.parse(weekly)).toISOString()).toBe(
-      "2026-03-30T09:00:00.000Z"
-    );
-    expect(resolveEndAt(rentalTermsSchema.parse(fixed)).toISOString()).toBe(
+  it("gives a weekly rental no end, and a daily one its own", () => {
+    expect(resolveEndAt(rentalTermsSchema.parse(weekly))).toBeNull();
+    expect(resolveEndAt(rentalTermsSchema.parse(daily))?.toISOString()).toBe(
       "2026-03-09T10:00:00.000Z"
     );
   });

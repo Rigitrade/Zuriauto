@@ -284,7 +284,7 @@ describe("extendRental", () => {
       where: { id: rental.id },
     });
     expect(after.totalWeeks).toBe(6);
-    expect(after.endAt.toISOString()).toBe("2026-09-01T08:00:00.000Z");
+    expect(after.endAt?.toISOString()).toBe("2026-09-01T08:00:00.000Z");
 
     const charges = await prisma.charge.findMany({
       orderBy: { weekNumber: "asc" },
@@ -426,7 +426,7 @@ describe("audit regressions", () => {
       {
         id: resolved.id,
         organisationId: resolved.organisationId,
-        endAt: resolved.endAt,
+        endAt: resolved.endAt!,
         customerFirstName: resolved.customer.firstName,
         customerEmail: resolved.customer.email,
         customerName: `${resolved.customer.firstName} ${resolved.customer.lastName}`,

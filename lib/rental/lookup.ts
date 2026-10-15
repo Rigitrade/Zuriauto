@@ -38,7 +38,8 @@ export async function driverAt(
       // attributing a fine to the wrong driver on a handover day is exactly
       // the mistake this query exists to prevent.
       startAt: { lte: at },
-      endAt: { gt: at },
+      // No end yet is a weekly rental still running: it has the car now.
+      OR: [{ endAt: { gt: at } }, { endAt: null }],
       status: { not: "CANCELLED" },
     },
     orderBy: { startAt: "desc" },

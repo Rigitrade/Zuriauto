@@ -54,18 +54,31 @@ export function endingSoonWindow(now: Date): { from: Date; to: Date } {
   };
 }
 
-/** Remind: the rental has not ended yet and ends inside the window. */
-export function isRentalEndingSoon(
-  rental: { endAt: Date },
+/**
+ * Remind: the rental has not ended yet and ends inside the window.
+ *
+ * Never for a running weekly rental, which has no end to remind anyone of.
+ * A type guard, so the caller can use the end it has just been told exists.
+ */
+export function isRentalEndingSoon<R extends { endAt: Date | null }>(
+  rental: R,
   now: Date
-): boolean {
+): rental is R & { endAt: Date } {
+  if (!rental.endAt) return false;
   const ahead = hoursBetween(now, rental.endAt);
   return ahead > 0 && ahead <= REMINDER_LOOKAHEAD_HOURS;
 }
 
-/** Alert: the agreed return is in the past and the car is still out. */
-export function isRentalOverdue(rental: { endAt: Date }, now: Date): boolean {
-  return rental.endAt.getTime() < now.getTime();
+/**
+ * Alert: the agreed return is in the past and the car is still out.
+ *
+ * A running weekly rental is never overdue: it has no agreed return.
+ */
+export function isRentalOverdue<R extends { endAt: Date | null }>(
+  rental: R,
+  now: Date
+): rental is R & { endAt: Date } {
+  return rental.endAt !== null && rental.endAt.getTime() < now.getTime();
 }
 
 export interface ChargeLike {
@@ -165,6 +178,46 @@ export function generateWeeklyCharges(opts: {
       amountCents,
     };
   });
+}
+
+/** Ten years of weeks: past any rental, short of looping on a corrupt date. */
+const MAX_RUNNING_WEEKS = 520;
+
+/**
+ * How many weeks of a running weekly rental have begun, and so are owed.
+ *
+ * A running rental (no number of weeks, since 16.10.2026) has its weeks added
+ * as they begin rather than all at once, because nobody knows how many there
+ * will be. Week n begins `n - 1` weeks after the start, on the same Zurich
+ * wall-clock time.
+ *
+ * While the car is out, a week counts from its Zurich day, as
+ * `isDueForChargeRequest` does, so the daily run adds it on the morning it
+ * falls due and requests it in the same run. Once the rental has ended, only
+ * the weeks that began before `endedAt` count — the rule `isOwedAfterReturn`
+ * applies to the charges themselves.
+ *
+ * Never less than one: week 1 is owed from the handover, and the pickup
+ * writes it whatever the time.
+ */
+export function weeksBegun(
+  startAt: Date,
+  now: Date,
+  endedAt: Date | null
+): number {
+  const zoned = new TZDate(startAt.getTime(), ZURICH);
+  const today = zurichDayString(now);
+
+  let weeks = 0;
+  while (weeks < MAX_RUNNING_WEEKS) {
+    const begins = new Date(addWeeks(zoned, weeks).getTime());
+    const begun = endedAt
+      ? begins.getTime() < endedAt.getTime()
+      : zurichDayString(begins) <= today;
+    if (!begun) break;
+    weeks += 1;
+  }
+  return Math.max(weeks, 1);
 }
 
 // ---------------------------------------------------------------------

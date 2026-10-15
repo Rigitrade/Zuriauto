@@ -24,10 +24,10 @@ import gtc, {
 } from "@/locales/gtc";
 import { fuelLevelToFraction, type FleetVehicle } from "./fleet";
 import { GTC_CONFIRMATIONS, type GtcConfirmationKey } from "./gtcConfirmations";
-import { labelsFor, type RentalLanguage } from "./labels";
+import { labelsFor, paymentMethodName, type RentalLanguage } from "./labels";
 import { formatChf } from "./money";
 import type { ContractDetails } from "./schema";
-import { resolveEndAt } from "./terms";
+import { dailyTotalCents, rentalDays } from "./terms";
 
 // Shared with `returnPdf.ts`, so both documents share one page geometry.
 export const A4 = { width: 595.28, height: 841.89 };
@@ -501,19 +501,27 @@ export async function buildContractPdf(
     terms.type === "WEEKLY" ? L.rentalTypeWeekly : L.rentalTypeFixed
   );
   w.field(L.rentalStart, formatDateTime(new Date(terms.startAt)));
-  w.field(L.rentalEnd, formatDateTime(resolveEndAt(terms)));
 
   if (terms.type === "WEEKLY") {
-    w.field(L.rentalWeeks, String(terms.totalWeeks));
+    // No return date to print: the rental runs until the car is back, and
+    // saying so is what stops the renter reading an end into the contract.
+    w.field(L.rentalEnd, L.rentalRunning);
     w.field(
       L.weeklyAmount,
       `${L.currency} ${formatChf(terms.weeklyAmountCents)}`
     );
   } else {
-    w.field(L.totalAmount, `${L.currency} ${formatChf(terms.totalAmountCents)}`);
+    w.field(L.rentalEnd, formatDateTime(new Date(terms.endAt)));
+    w.field(L.dailyAmount, `${L.currency} ${formatChf(terms.dailyAmountCents)}`);
+    w.field(
+      L.rentalDays,
+      String(rentalDays(new Date(terms.startAt), new Date(terms.endAt)))
+    );
+    w.field(L.totalAmount, `${L.currency} ${formatChf(dailyTotalCents(terms))}`);
   }
 
   w.field(L.deposit, `${L.currency} ${formatChf(terms.depositCents)}`);
+  w.field(L.paidBy, paymentMethodName(labelsFor(language), terms.paymentMethod));
 
   // --- Renter ----------------------------------------------------------
   w.sectionTitle(L.customerSection);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { day } from "@/components/admin/format";
+import { day, until } from "@/components/admin/format";
 import { ReturnReview } from "./ReturnReview";
 import { DocumentsDialog } from "./DocumentsDialog";
 import { FileText } from "lucide-react";
@@ -68,7 +68,7 @@ export function RentalRow({
         </p>
 
         <p className="mt-1 text-xs text-[var(--admin-faint)] tabular-nums">
-          {day(rental.startAt)} – {day(rental.endAt)}
+          {day(rental.startAt)} – {until(rental.endAt, L.rentals.running)}
           {rental.contractNumber ? ` · ${rental.contractNumber}` : ""}
           {rental.returnSubmittedAt
             ? ` · ${L.rentals.returnedOn} ${day(rental.returnSubmittedAt)}${

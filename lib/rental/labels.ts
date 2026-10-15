@@ -11,6 +11,8 @@
  * field cannot be renamed on screen without the document following.
  */
 
+import type { PaymentMethod } from "./returnSchema";
+
 export type RentalLanguage = "de" | "en";
 
 /** The site UI is German/English only; anything else falls back to German. */
@@ -74,13 +76,12 @@ const de = {
     heading: "Mietdauer und Preis",
     type: "Mietart",
     typeWeekly: "Wochenmiete",
-    typeWeeklyHint: "Laufende Miete, wöchentlich abgerechnet.",
-    typeFixed: "Feste Dauer",
-    typeFixedHint: "Fester Zeitraum, einmalig bezahlt.",
+    typeWeeklyHint: "Läuft bis zur Rückgabe, wöchentlich abgerechnet.",
+    typeFixed: "Täglich",
+    typeFixedHint: "Pro Tag abgerechnet, bis zum vereinbarten Ende.",
     start: "Beginn",
     startDate: "Datum",
     startTime: "Uhrzeit",
-    totalWeeks: "Anzahl Wochen",
     end: "Ende",
     endDate: "Datum",
     endTime: "Uhrzeit",
@@ -88,10 +89,14 @@ const de = {
     // Datumsfeld zeigt dagegen das Format des Browsers.
     datePlaceholder: "TT.MM.JJJJ",
     weeklyAmount: "Wochenpreis (CHF)",
-    totalAmount: "Gesamtpreis (CHF)",
+    dailyAmount: "Tagespreis (CHF)",
+    /** "3 Tage × CHF 80.00 = CHF 240.00" under the price per day. */
+    dailyTotal: "{days} × CHF {price} = CHF {total}",
+    day: "Tag",
+    days: "Tage",
     deposit: "Kaution (CHF)",
     depositHint: "0 eingeben, wenn keine Kaution erhoben wird.",
-    computedEnd: "Rückgabe berechnet auf",
+    paidBy: "Zahlungsart",
   },
 
   details: {
@@ -410,7 +415,7 @@ const de = {
     sendFailed:
       "Der Vertrag konnte nicht gesendet werden. Bitte laden Sie ihn herunter.",
     deposit: "Bitte geben Sie eine gültige Kaution ein, oder 0.",
-    totalWeeks: "Bitte geben Sie die Anzahl Wochen an (1 bis 104).",
+    paidBy: "Bitte wählen Sie die Zahlungsart.",
     startAt: "Bitte geben Sie einen gültigen Beginn an.",
     endAt: "Bitte geben Sie ein gültiges Ende an.",
     endBeforeStart: "Das Ende muss nach dem Beginn liegen.",
@@ -435,13 +440,16 @@ const de = {
     termsSection: "Mietdauer und Preis",
     rentalType: "Mietart",
     rentalTypeWeekly: "Wochenmiete",
-    rentalTypeFixed: "Feste Dauer",
+    rentalTypeFixed: "Täglich",
     rentalStart: "Beginn der Miete",
     rentalEnd: "Vereinbarte Rückgabe",
-    rentalWeeks: "Anzahl Wochen",
+    rentalRunning: "Unbefristet, bis zur Rückgabe des Fahrzeugs",
     weeklyAmount: "Wochenpreis",
+    dailyAmount: "Tagespreis",
+    rentalDays: "Anzahl Tage",
     totalAmount: "Gesamtpreis",
     deposit: "Kaution",
+    paidBy: "Zahlungsart",
     currency: "CHF",
     customerSection: "Mieter",
     lastName: "Name",
@@ -537,13 +545,12 @@ const en: typeof de = {
     heading: "Rental period and price",
     type: "Rental type",
     typeWeekly: "Weekly",
-    typeWeeklyHint: "Ongoing rental, billed each week.",
-    typeFixed: "Fixed term",
-    typeFixedHint: "A set period, paid once.",
+    typeWeeklyHint: "Runs until the car is returned, billed each week.",
+    typeFixed: "Daily",
+    typeFixedHint: "Billed per day, until the agreed end.",
     start: "Start",
     startDate: "Date",
     startTime: "Time",
-    totalWeeks: "Number of weeks",
     end: "End",
     endDate: "Date",
     endTime: "Time",
@@ -551,10 +558,13 @@ const en: typeof de = {
     // field shows the browser's format instead.
     datePlaceholder: "DD.MM.YYYY",
     weeklyAmount: "Weekly price (CHF)",
-    totalAmount: "Total price (CHF)",
+    dailyAmount: "Price per day (CHF)",
+    dailyTotal: "{days} × CHF {price} = CHF {total}",
+    day: "day",
+    days: "days",
     deposit: "Deposit (CHF)",
     depositHint: "Enter 0 if no deposit is taken.",
-    computedEnd: "Return calculated for",
+    paidBy: "Paid by",
   },
 
   details: {
@@ -856,7 +866,7 @@ const en: typeof de = {
       "The photos are too large. Please retake them with less detail.",
     sendFailed: "The contract could not be sent. Please download it.",
     deposit: "Please enter a valid deposit, or 0.",
-    totalWeeks: "Please give the number of weeks (1 to 104).",
+    paidBy: "Please choose how the rental is paid.",
     startAt: "Please give a valid start.",
     endAt: "Please give a valid end.",
     endBeforeStart: "The end must be after the start.",
@@ -881,13 +891,16 @@ const en: typeof de = {
     termsSection: "Rental period and price",
     rentalType: "Rental type",
     rentalTypeWeekly: "Weekly",
-    rentalTypeFixed: "Fixed term",
+    rentalTypeFixed: "Daily",
     rentalStart: "Start of rental",
     rentalEnd: "Agreed return",
-    rentalWeeks: "Number of weeks",
+    rentalRunning: "Open-ended, until the vehicle is returned",
     weeklyAmount: "Weekly price",
+    dailyAmount: "Price per day",
+    rentalDays: "Number of days",
     totalAmount: "Total price",
     deposit: "Deposit",
+    paidBy: "Paid by",
     currency: "CHF",
     customerSection: "Renter",
     lastName: "Family name",
@@ -935,6 +948,23 @@ const en: typeof de = {
 export const RENTAL_LABELS = { de, en } as const;
 
 export type RentalLabels = typeof de;
+
+/**
+ * How a payment method reads, on the pickup's terms as on the return form —
+ * one set of names, kept with the return form where they began.
+ */
+export function paymentMethodName(
+  L: RentalLabels,
+  method: PaymentMethod
+): string {
+  const names: Record<PaymentMethod, string> = {
+    cash: L.ret.methodCash,
+    twint: L.ret.methodTwint,
+    card: L.ret.methodCard,
+    bank: L.ret.methodBank,
+  };
+  return names[method];
+}
 
 export function labelsFor(lang: RentalLanguage): RentalLabels {
   return RENTAL_LABELS[lang];

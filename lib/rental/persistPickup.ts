@@ -9,16 +9,29 @@
  */
 
 import { randomUUID } from "node:crypto";
-import type { AssetKind, Prisma } from "@/generated/prisma/client";
+import type {
+  AssetKind,
+  PaymentMethod as DbPaymentMethod,
+  Prisma,
+} from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { assetKey, uploadAssets, type AssetStore } from "@/lib/storage";
 import { allocateContractNumber } from "./contractNumber";
 import { upsertCustomer } from "./customers";
 import { fuelLevelToDb } from "./fleet";
-import { generateWeeklyCharges } from "./passes";
+import { generateWeeklyCharges, weeksBegun } from "./passes";
+import type { PaymentMethod } from "./returnSchema";
 import { copyDocumentsForward } from "./reuseDocuments";
 import type { ContractDetails } from "./schema";
-import { billingWeekdayOf, resolveEndAt } from "./terms";
+import { billingWeekdayOf, dailyTotalCents, resolveEndAt } from "./terms";
+
+/** The form's names, shared with the return form, to the database enum's. */
+const PAYMENT_METHOD_TO_DB: Record<PaymentMethod, DbPaymentMethod> = {
+  cash: "CASH",
+  twint: "TWINT",
+  card: "CARD",
+  bank: "BANK",
+};
 
 export interface PickupUpload {
   kind: AssetKind;
@@ -118,13 +131,19 @@ export async function persistPickup(
           startAt,
           endAt: resolveEndAt(terms),
           depositCents: terms.depositCents,
+          paymentMethod: PAYMENT_METHOD_TO_DB[terms.paymentMethod],
           weeklyAmountCents:
             terms.type === "WEEKLY" ? terms.weeklyAmountCents : null,
-          totalWeeks: terms.type === "WEEKLY" ? terms.totalWeeks : null,
+          // A weekly rental runs until the car is back: no number of weeks.
+          totalWeeks: null,
           billingWeekday:
             terms.type === "WEEKLY" ? billingWeekdayOf(startAt) : null,
+          dailyAmountCents:
+            terms.type === "FIXED_TERM" ? terms.dailyAmountCents : null,
+          // Stored as well as derivable, so what the renter signed for is a
+          // column to read rather than a sum to redo.
           totalAmountCents:
-            terms.type === "FIXED_TERM" ? terms.totalAmountCents : null,
+            terms.type === "FIXED_TERM" ? dailyTotalCents(terms) : null,
         },
         select: { id: true },
       });
@@ -172,14 +191,15 @@ export async function persistPickup(
         data: { status: "rented" },
       });
 
-      // The weekly schedule, generated up front rather than derived at run
-      // time, so the Phase 3 charge pass walks rows instead of doing date
-      // arithmetic. A fixed-term rental is paid once and has no schedule.
+      // The weeks that have begun — week 1, unless the start was entered in
+      // the past. The rest are added by the daily run as they begin
+      // (`runningWeeksPass`), since a running rental has no last week to
+      // generate up to. A daily rental is paid once and has no schedule.
       if (terms.type === "WEEKLY") {
         const schedule = generateWeeklyCharges({
           startAt,
           fromWeek: 1,
-          weeks: terms.totalWeeks,
+          weeks: weeksBegun(startAt, now, null),
           amountCents: terms.weeklyAmountCents,
         });
         await tx.charge.createMany({

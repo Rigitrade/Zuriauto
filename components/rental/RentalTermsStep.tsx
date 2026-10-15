@@ -4,17 +4,18 @@ import { useMemo } from "react";
 import { Input, inputClasses } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TypedDateInput } from "@/components/ui/typed-date-input";
-import type { labelsFor } from "@/lib/rental/labels";
+import { paymentMethodName, type labelsFor } from "@/lib/rental/labels";
 import { formatChf, parseChf } from "@/lib/rental/money";
-import { deriveEndAt, ZURICH } from "@/lib/rental/terms";
+import { PAYMENT_METHODS, type PaymentMethod } from "@/lib/rental/returnSchema";
+import { rentalDays } from "@/lib/rental/terms";
 
 /**
  * The commercial terms, entered by whoever runs the handover.
  *
- * Held entirely as strings. A francs field mid-typing is "12." and a week
- * count mid-typing is "" — neither is a number, and forcing them through
- * `Number()` on every keystroke is what makes a form fight the person filling
- * it in. Conversion happens once, in `toRentalTerms`, at validation.
+ * Held entirely as strings. A francs field mid-typing is "12." — not a
+ * number, and forcing it through `Number()` on every keystroke is what makes
+ * a form fight the person filling it in. Conversion happens once, in
+ * `toRentalTerms`, at validation.
  */
 
 export interface TermsFormState {
@@ -23,11 +24,13 @@ export interface TermsFormState {
   startDate: string;
   /** HH:MM, from <input type="time">. */
   startTime: string;
-  totalWeeks: string;
   endDate: string;
   endTime: string;
+  /** The weekly price for WEEKLY, the price per day for FIXED_TERM. */
   amount: string;
   deposit: string;
+  /** Empty until the office chooses: there is no default way to pay. */
+  paymentMethod: PaymentMethod | "";
 }
 
 export const EMPTY_TERMS: TermsFormState = {
@@ -37,11 +40,11 @@ export const EMPTY_TERMS: TermsFormState = {
   // hydration would complain. The wizard fills it in on mount.
   startDate: "",
   startTime: "",
-  totalWeeks: "",
   endDate: "",
   endTime: "",
   amount: "",
   deposit: "0.00",
+  paymentMethod: "",
 };
 
 /** Combines the two native inputs into something `Date.parse` understands. */
@@ -61,15 +64,16 @@ function toIso(date: string, time: string): string {
 export function toRentalTerms(state: TermsFormState): unknown {
   const startAt = toIso(state.startDate, state.startTime);
   const depositCents = parseChf(state.deposit) ?? -1;
+  // Absent rather than "", so the schema answers with its own message.
+  const paymentMethod = state.paymentMethod || undefined;
 
   if (state.type === "WEEKLY") {
     return {
       type: "WEEKLY",
       startAt,
-      // "" would become 0 through Number(); NaN fails the schema's int check.
-      totalWeeks: state.totalWeeks.trim() === "" ? NaN : Number(state.totalWeeks),
       weeklyAmountCents: parseChf(state.amount) ?? -1,
       depositCents,
+      paymentMethod,
     };
   }
 
@@ -77,8 +81,9 @@ export function toRentalTerms(state: TermsFormState): unknown {
     type: "FIXED_TERM",
     startAt,
     endAt: toIso(state.endDate, state.endTime),
-    totalAmountCents: parseChf(state.amount) ?? -1,
+    dailyAmountCents: parseChf(state.amount) ?? -1,
     depositCents,
+    paymentMethod,
   };
 }
 
@@ -96,17 +101,31 @@ export default function RentalTermsStep({ value, onChange, errors, L }: Props) {
   ) => onChange({ ...value, [key]: next });
 
   /**
-   * Shown live so the office sees the return date before anyone signs, rather
-   * than discovering it on the finished contract. Uses the same `deriveEndAt`
-   * the server will, so the two cannot disagree.
+   * "3 Tage × CHF 80.00 = CHF 240.00", shown live so the office sees what a
+   * daily rental comes to before anyone signs, rather than discovering it on
+   * the finished contract. Uses the same `rentalDays` the server will, so the
+   * two cannot disagree.
    */
-  const computedEnd = useMemo(() => {
-    if (value.type !== "WEEKLY") return null;
-    const weeks = Number(value.totalWeeks);
-    const iso = toIso(value.startDate, value.startTime);
-    if (!iso || !Number.isInteger(weeks) || weeks < 1) return null;
-    return deriveEndAt(new Date(iso), weeks);
-  }, [value.type, value.totalWeeks, value.startDate, value.startTime]);
+  const dailyTotal = useMemo(() => {
+    if (value.type !== "FIXED_TERM") return null;
+    const start = toIso(value.startDate, value.startTime);
+    const end = toIso(value.endDate, value.endTime);
+    const price = parseChf(value.amount);
+    if (!start || !end || price === null || end <= start) return null;
+    const days = rentalDays(new Date(start), new Date(end));
+    return L.terms.dailyTotal
+      .replace("{days}", `${days} ${days === 1 ? L.terms.day : L.terms.days}`)
+      .replace("{price}", formatChf(price))
+      .replace("{total}", formatChf(days * price));
+  }, [
+    value.type,
+    value.startDate,
+    value.startTime,
+    value.endDate,
+    value.endTime,
+    value.amount,
+    L,
+  ]);
 
   /** Normalise a francs field on blur, never while typing. */
   const tidy = (key: "amount" | "deposit") => (raw: string) => {
@@ -177,31 +196,10 @@ export default function RentalTermsStep({ value, onChange, errors, L }: Props) {
         </div>
       </TermsField>
 
-      {value.type === "WEEKLY" ? (
-        <TermsField
-          label={L.terms.totalWeeks}
-          error={errors.totalWeeks}
-          hint={
-            computedEnd
-              ? `${L.terms.computedEnd}: ${computedEnd.toLocaleString("de-CH", {
-                  dateStyle: "short",
-                  timeStyle: "short",
-                  timeZone: ZURICH,
-                })}`
-              : undefined
-          }
-          required
-        >
-          <Input
-            type="number"
-            inputMode="numeric"
-            min={1}
-            max={104}
-            value={value.totalWeeks}
-            onChange={(e) => set("totalWeeks", e.target.value)}
-          />
-        </TermsField>
-      ) : (
+      {/* A weekly rental has no end to enter: it runs until the car is back.
+          The number of weeks it used to ask for was dropped at the lessor's
+          request of 16.10.2026. */}
+      {value.type === "FIXED_TERM" && (
         <TermsField
           label={`${L.terms.end} – ${L.terms.endDate} / ${L.terms.endTime}`}
           error={errors.endAt}
@@ -225,8 +223,9 @@ export default function RentalTermsStep({ value, onChange, errors, L }: Props) {
 
       <TermsField
         label={
-          value.type === "WEEKLY" ? L.terms.weeklyAmount : L.terms.totalAmount
+          value.type === "WEEKLY" ? L.terms.weeklyAmount : L.terms.dailyAmount
         }
+        hint={dailyTotal ?? undefined}
         error={errors.amount}
         required
       >
@@ -252,6 +251,45 @@ export default function RentalTermsStep({ value, onChange, errors, L }: Props) {
           onBlur={(e) => tidy("deposit")(e.target.value)}
         />
       </TermsField>
+
+      {/* Radios rather than the fuel gauge's buttons: one of four, chosen
+          deliberately, with no default — a preselected "Bar" would end up on
+          contracts nobody paid in cash. */}
+      <fieldset className="space-y-1.5">
+        <legend className="mb-1.5 text-sm font-medium text-slate-700">
+          {L.terms.paidBy}
+          <span className="ml-1 text-rose-500">*</span>
+        </legend>
+        {/* Two columns at most: four do not fit "Banküberweisung" in the
+            form's width, and on a phone even two leave it touching its
+            border — so there they stack, as the Mietart choices above do. */}
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {PAYMENT_METHODS.map((method) => (
+            <label
+              key={method}
+              className={`flex cursor-pointer items-center gap-2.5 rounded-md border px-3 py-2.5 text-sm transition-colors ${
+                value.paymentMethod === method
+                  ? "border-slate-800 bg-slate-50 text-slate-900"
+                  : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+              }`}
+            >
+              <input
+                type="radio"
+                name="paymentMethod"
+                className="accent-slate-800"
+                checked={value.paymentMethod === method}
+                onChange={() => set("paymentMethod", method)}
+              />
+              {paymentMethodName(L, method)}
+            </label>
+          ))}
+        </div>
+        {errors.paymentMethod && (
+          <p role="alert" className="text-sm text-rose-600">
+            {errors.paymentMethod}
+          </p>
+        )}
+      </fieldset>
     </div>
   );
 }

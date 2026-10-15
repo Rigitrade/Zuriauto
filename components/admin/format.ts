@@ -12,3 +12,11 @@ export function day(iso: string): string {
   const [y, m, d] = date.split("-");
   return `${d}.${m}.${y}`;
 }
+
+/**
+ * A rental's end as a day, or `running` for a weekly rental still out, which
+ * has no end until the car comes back.
+ */
+export function until(iso: string | null, running: string): string {
+  return iso ? day(iso) : running;
+}

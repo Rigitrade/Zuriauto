@@ -13,7 +13,7 @@ const details: ContractDetails = {
   terms: {
     type: "WEEKLY",
     startAt: "2026-08-17T08:00:00.000Z",
-    totalWeeks: 4,
+    paymentMethod: "twint",
     weeklyAmountCents: 45_000,
     depositCents: 50_000,
   },
@@ -119,7 +119,7 @@ describe("persistPickup", () => {
     );
   });
 
-  it("derives endAt from the weekly term", async () => {
+  it("leaves a weekly rental without an end, and writes week 1", async () => {
     const { organisationId, store } = await ready();
     await persistPickup({
       organisationId,
@@ -128,16 +128,40 @@ describe("persistPickup", () => {
       uploads,
       pdf,
       store,
+      now: new Date("2026-08-17T08:05:00.000Z"),
     });
     const rental = await prisma.rental.findFirstOrThrow();
-    expect(rental.endAt.toISOString()).toBe("2026-09-14T08:00:00.000Z");
+    // Running until the car is back: no end, no number of weeks.
+    expect(rental.endAt).toBeNull();
+    expect(rental.totalWeeks).toBeNull();
     expect(rental.weeklyAmountCents).toBe(45_000);
-    expect(rental.totalWeeks).toBe(4);
     expect(rental.totalAmountCents).toBeNull();
     expect(rental.depositCents).toBe(50_000);
+    expect(rental.paymentMethod).toBe("TWINT");
+
+    const charges = await prisma.charge.findMany();
+    expect(charges).toHaveLength(1);
+    expect(charges[0]).toMatchObject({ weekNumber: 1, amountCents: 45_000 });
+    expect(charges[0].dueDate.toISOString()).toBe("2026-08-17T08:00:00.000Z");
   });
 
-  it("stores a fixed-term rental's own end and total", async () => {
+  it("writes every week already begun when the start is entered late", async () => {
+    const { organisationId, store } = await ready();
+    await persistPickup({
+      organisationId,
+      details,
+      vehicleSlug: details.vehicleId,
+      uploads,
+      pdf,
+      store,
+      // Two weeks and a day after the start written on the contract.
+      now: new Date("2026-09-01T08:00:00.000Z"),
+    });
+    const weeks = await prisma.charge.findMany({ orderBy: { weekNumber: "asc" } });
+    expect(weeks.map((charge) => charge.weekNumber)).toEqual([1, 2, 3]);
+  });
+
+  it("stores a daily rental's own end, its price per day and the total", async () => {
     const { organisationId, store } = await ready();
     await persistPickup({
       organisationId,
@@ -145,10 +169,13 @@ describe("persistPickup", () => {
         ...details,
         terms: {
           type: "FIXED_TERM",
+          // 10:00 on the 17th to 19:00 on the 24th in Zurich: seven days and
+          // nine hours, so eight days begun.
           startAt: "2026-08-17T08:00:00.000Z",
           endAt: "2026-08-24T17:00:00.000Z",
-          totalAmountCents: 60_000,
+          dailyAmountCents: 8_000,
           depositCents: 0,
+          paymentMethod: "card",
         },
       },
       vehicleSlug: details.vehicleId,
@@ -157,10 +184,14 @@ describe("persistPickup", () => {
       store,
     });
     const rental = await prisma.rental.findFirstOrThrow();
-    expect(rental.endAt.toISOString()).toBe("2026-08-24T17:00:00.000Z");
-    expect(rental.totalAmountCents).toBe(60_000);
+    expect(rental.endAt?.toISOString()).toBe("2026-08-24T17:00:00.000Z");
+    expect(rental.dailyAmountCents).toBe(8_000);
+    expect(rental.totalAmountCents).toBe(8 * 8_000);
+    expect(rental.paymentMethod).toBe("CARD");
     expect(rental.weeklyAmountCents).toBeNull();
     expect(rental.billingWeekday).toBeNull();
+    // Paid once: no weekly schedule.
+    expect(await prisma.charge.count()).toBe(0);
   });
 
   it("marks the car rented", async () => {

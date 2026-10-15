@@ -430,16 +430,29 @@ model Rental {
 
   startAt DateTime
   /// Written, never computed on read, so the Phase 3 reminder pass is a plain
-  /// indexed range scan. Derived for WEEKLY, explicit for FIXED_TERM.
-  endAt   DateTime
+  /// indexed range scan. Explicit for FIXED_TERM.
+  ///
+  /// Null while a WEEKLY rental is running: since 16.10.2026 a weekly rental
+  /// has no agreed end and runs until the car comes back, when closing it
+  /// writes the moment it ended. Older weekly rentals carry the end their
+  /// number of weeks gave them.
+  endAt   DateTime?
 
   currency     String @default("chf")
   depositCents Int    @default(0)
+  /// Null on rentals from before 16.10.2026, when the form did not ask.
+  paymentMethod PaymentMethod?
 
   weeklyAmountCents Int?
+  /// Null on a running weekly rental (see endAt). Its weeks are added as they
+  /// begin, by the daily run.
   totalWeeks        Int?
   billingWeekday    Int?
 
+  /// FIXED_TERM, shown as "Täglich" since 16.10.2026: the price per day, and
+  /// the total it came to over the rental's days. Older fixed-term rentals have
+  /// only the total.
+  dailyAmountCents Int?
   totalAmountCents Int?
 
   createdAt DateTime @default(now())
@@ -726,6 +739,15 @@ enum ChargeStatus {
   OVERDUE
   PAID
   VOID
+}
+
+/// How the renter pays: chosen at the pickup ("Zahlungsart"), printed on the
+/// contract. The same four the office takes payments by.
+enum PaymentMethod {
+  TWINT
+  CASH
+  CARD
+  BANK
 }
 
 enum NotificationKind {

@@ -109,7 +109,8 @@ export interface AdminOverview {
     carModel: string;
     customerName: string;
     startAt: string;
-    endAt: string;
+    /** Null while a weekly rental runs. */
+    endAt: string | null;
     contractNumber: string | null;
     /** Set once the renter has submitted a return the office has not confirmed. */
     returnSubmittedAt: string | null;
@@ -432,7 +433,7 @@ export async function GET(request: Request) {
         carModel: rental.car.model,
         customerName: `${rental.customer.firstName} ${rental.customer.lastName}`,
         startAt: rental.startAt.toISOString(),
-        endAt: rental.endAt.toISOString(),
+        endAt: rental.endAt?.toISOString() ?? null,
         contractNumber: pickup?.contractNumber ?? null,
         returnSubmittedAt: addendum?.signedAt.toISOString() ?? null,
         returnContractNumber: addendum?.contractNumber ?? null,

@@ -84,7 +84,7 @@ export async function PATCH(
 
   if (
     startAt.getTime() === rental.startAt.getTime() &&
-    endAt.getTime() === rental.endAt.getTime()
+    endAt.getTime() === rental.endAt?.getTime()
   ) {
     // Nothing changed. Returning early keeps the audit log meaningful: a row
     // per correction, not a row per time somebody opened the form and saved it
@@ -103,7 +103,7 @@ export async function PATCH(
           at: new Date().toISOString(),
           from: {
             startAt: rental.startAt.toISOString(),
-            endAt: rental.endAt.toISOString(),
+            endAt: rental.endAt?.toISOString() ?? null,
           },
           to: { startAt: startAt.toISOString(), endAt: endAt.toISOString() },
         },

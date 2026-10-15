@@ -54,6 +54,14 @@ export async function closeRental(
   });
   if (moved.count === 0) throw new RentalAlreadyClosed(input.rentalId);
 
+  // A running weekly rental had no end until now; this is it. It bounds the
+  // weeks still owed (`runningWeeksPass`) and gives the history a period with
+  // two ends. A rental with an agreed end keeps the one it signed for.
+  await tx.rental.updateMany({
+    where: { id: input.rentalId, endAt: null },
+    data: { endAt: input.now },
+  });
+
   /**
    * The balance the renter declared becomes something the system will chase.
    *

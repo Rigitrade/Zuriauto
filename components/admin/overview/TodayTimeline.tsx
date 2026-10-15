@@ -28,7 +28,11 @@ export function TodayTimeline({
   // in the band above, and repeating it here would double-count the work.
   const upcoming = rentals
     .filter((rental) => !rental.returnSubmittedAt)
-    .filter((rental) => Number.isFinite(Date.parse(rental.endAt)))
+    // A running weekly rental has no return date to list.
+    .filter(
+      (rental): rental is Rental & { endAt: string } =>
+        rental.endAt !== null && Number.isFinite(Date.parse(rental.endAt))
+    )
     .sort((a, b) => Date.parse(a.endAt) - Date.parse(b.endAt))
     .slice(0, 4);
 

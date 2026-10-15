@@ -1,7 +1,7 @@
 /**
  * The daily run.
  *
- * Six passes in order, each idempotent by construction. Two mechanisms do the
+ * The passes run in order, each idempotent by construction. Two mechanisms do the
  * work, and neither is a boolean flag:
  *
  *   1. A send is claimed by inserting a `Notification` row whose unique key is
@@ -62,10 +62,14 @@ import {
   isRentalEndingSoon,
   isRentalOverdue,
   mfkDueWindow,
+  generateWeeklyCharges,
+  weeksBegun,
 } from "./passes";
 
 export interface PassSummary {
   reminded: number;
+  /** Weeks of running weekly rentals written because they began. */
+  weeksAdded: number;
   charged: number;
   chargeReminded: number;
   chargeOverdue: number;
@@ -257,6 +261,80 @@ const chargeRentalInclude = {
     take: 1,
   },
 } as const;
+
+/**
+ * Adds the weeks of running weekly rentals as they begin.
+ *
+ * A weekly rental recorded since 16.10.2026 has no number of weeks, so its
+ * schedule cannot be written up front as the older ones were: the pickup
+ * writes week 1 and this pass writes each week after it on the day it falls
+ * due, ahead of `weeklyChargePass`, which then requests it in the same run.
+ * Every later step — request, reminder, office alert — is the one the older
+ * rentals' rows already go through.
+ *
+ * The same rentals the charges are chased for, so a rental the renter's return
+ * closed still gets the weeks that began before the car came back — even after
+ * a missed run — and one the office closed by hand gets none. Idempotent:
+ * `skipDuplicates` on the `[rentalId, weekNumber]` key makes a concurrent run,
+ * or a rerun, write nothing twice.
+ */
+export async function runningWeeksPass(deps: SchedulerDeps): Promise<number> {
+  const { client, now } = deps;
+
+  const rentals = await client.rental.findMany({
+    where: {
+      ...chargeableRental,
+      type: "WEEKLY",
+      totalWeeks: null,
+      weeklyAmountCents: { not: null },
+    },
+    select: {
+      id: true,
+      organisationId: true,
+      startAt: true,
+      endAt: true,
+      weeklyAmountCents: true,
+      charges: {
+        // Week 0 is a balance declared at the return, not part of the run.
+        where: { weekNumber: { gt: 0 } },
+        select: { weekNumber: true },
+        orderBy: { weekNumber: "desc" },
+        take: 1,
+      },
+    },
+  });
+
+  let added = 0;
+
+  for (const rental of rentals) {
+    if (rental.weeklyAmountCents === null) continue;
+    const written = rental.charges[0]?.weekNumber ?? 0;
+    // `endAt` is null while the car is out and written when the rental closes.
+    const begun = weeksBegun(rental.startAt, now, rental.endAt);
+    if (begun <= written) continue;
+
+    const schedule = generateWeeklyCharges({
+      startAt: rental.startAt,
+      fromWeek: written + 1,
+      weeks: begun - written,
+      amountCents: rental.weeklyAmountCents,
+    });
+    const created = await client.charge.createMany({
+      data: schedule.map((charge) => ({
+        organisationId: rental.organisationId,
+        rentalId: rental.id,
+        weekNumber: charge.weekNumber,
+        dueDate: charge.dueDate,
+        amountCents: charge.amountCents,
+        currency: "chf",
+      })),
+      skipDuplicates: true,
+    });
+    added += created.count;
+  }
+
+  return added;
+}
 
 export async function weeklyChargePass(deps: SchedulerDeps): Promise<number> {
   const { client, now, mail } = deps;
@@ -818,6 +896,8 @@ export async function runDailyPasses(
 
   return {
     reminded: await preEndReminderPass(full),
+    // Before the charge pass, so a week added today is requested today.
+    weeksAdded: await runningWeeksPass(full),
     charged: await weeklyChargePass(full),
     chargeReminded: await chargeReminderPass(full),
     chargeOverdue: await chargeOverduePass(full),
