@@ -1158,6 +1158,10 @@ enum PaymentReviewReason {
   PAYER_MISMATCH
   AMOUNT_MISMATCH
   CHARGE_ALREADY_PAID
+  /// The text names a week no rental of that car has.
+  REFERENCE_UNKNOWN
+  /// The named week is owed on a rental that did not clearly have the car.
+  REFERENCE_AMBIGUOUS
 }
 
 /// One TWINT transaction, as its notification email reported it.

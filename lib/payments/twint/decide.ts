@@ -35,12 +35,27 @@ export type PaymentReviewReason =
   | "OVERLAPPING_RENTALS"
   | "PAYER_MISMATCH"
   | "AMOUNT_MISMATCH"
-  | "CHARGE_ALREADY_PAID";
+  | "CHARGE_ALREADY_PAID"
+  | "REFERENCE_UNKNOWN"
+  | "REFERENCE_AMBIGUOUS";
 
-/** What the text's plate + week point at, in the car's latest rental. */
+/**
+ * What the text's plate + week point at.
+ *
+ *   open     the week is owed by exactly one rental, and that rental is the
+ *            one accountable at the payment's moment (the holder, or the last
+ *            renter when nobody holds the car and nobody has since);
+ *   paid     the week exists and nobody owes it any more;
+ *   unknown  no rental of the car has that week;
+ *   unclear  the week is owed, but not clearly by the accountable rental —
+ *            a renter paying after the next one picked the car up.
+ *   none     the text names no week (or no car of ours).
+ */
 export type Reference =
   | { kind: "open"; charge: OpenCharge }
   | { kind: "paid"; rentalId: string }
+  | { kind: "unknown" }
+  | { kind: "unclear"; reason: PaymentReviewReason; candidates: string[] }
   | { kind: "none" };
 
 export interface Evidence {
@@ -93,6 +108,9 @@ export function decidePayment(e: Evidence): Decision {
   if (e.reference.kind === "paid") {
     return review("CHARGE_ALREADY_PAID", e.reference.rentalId, [e.reference.rentalId]);
   }
+  // The customer named a week: never fall through and pay a different one.
+  if (e.reference.kind === "unknown") return review("REFERENCE_UNKNOWN", null, []);
+  if (e.reference.kind === "unclear") return review(e.reference.reason, null, e.reference.candidates);
 
   if (!e.plate.carId || !e.holder) {
     return review(e.plate.reason ?? "NO_PLATE", null, []);

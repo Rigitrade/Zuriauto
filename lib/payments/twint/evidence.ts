@@ -8,37 +8,69 @@
 
 import type { PrismaClient } from "@/generated/prisma/client";
 import { matchPlate } from "@/lib/fines/plates";
-import { responsibleAt } from "@/lib/fines/possession";
+import { responsibleAt, type Interval, type Responsible } from "@/lib/fines/possession";
 import { loadIntervals } from "@/lib/fines/repo/possessionLoad";
 import { normalisePhone } from "@/lib/rental/phone";
 import { OPEN_CHARGE, type Evidence, type OpenCharge, type Reference } from "./decide";
 import type { TwintNotification } from "./parse";
 import { printedPlate, weekOf } from "./signals";
 
-/** A week may be paid a little before the rental it belongs to starts. */
-const PREPAY_MS = 7 * 24 * 60 * 60 * 1000;
-
 const isOpen = (status: string) => (OPEN_CHARGE as readonly string[]).includes(status);
 
 const openChargeSelect = { id: true, rentalId: true, weekNumber: true, amountCents: true, dueDate: true } as const;
 const chargeSelect = { ...openChargeSelect, status: true } as const;
 
+/**
+ * The rental answerable for a payment at its moment: whoever held the car,
+ * or — when nobody did — the last renter, provided nobody has had the car
+ * since. Null when that is not clear (a handover, an overlap, a renter whose
+ * pickup is still to come).
+ */
+function accountableRental(intervals: Interval[], holder: Responsible, paidAt: Date): string | null {
+  if (holder.ok) return holder.rentalId;
+  if (holder.reason !== "NO_RENTAL_AT_TIME") return null;
+  const ended = intervals.filter((i) => i.to !== null && i.to <= paidAt);
+  const last = ended.sort((a, b) => b.to!.getTime() - a.to!.getTime())[0];
+  if (!last) return null;
+  const someoneSince = intervals.some((i) => i !== last && i.from >= last.to!);
+  return someoneSince ? null : last.rentalId;
+}
+
+/**
+ * What a named week means. Looked for across every rental of the car, not
+ * only the latest: renter A paying "W2" the day after renter B picked the
+ * car up owes A's week 2, and B has a week 2 too. Booked only when exactly
+ * one rental owes that week and it is the accountable one; otherwise the
+ * office chooses among the rentals that owe it.
+ */
 async function referenceOf(
   client: PrismaClient,
   carId: string,
   week: number,
+  intervals: Interval[],
+  holder: Responsible,
   paidAt: Date
 ): Promise<Reference> {
-  // The car's latest rental that had started by then — not an older rental
-  // whose week N happens to be unpaid, which belongs to somebody else.
-  const rental = await client.rental.findFirst({
-    where: { carId, status: { not: "CANCELLED" }, startAt: { lte: new Date(paidAt.getTime() + PREPAY_MS) } },
-    orderBy: { startAt: "desc" },
-    select: { id: true, charges: { where: { weekNumber: week }, select: chargeSelect } },
+  const charges = await client.charge.findMany({
+    where: { weekNumber: week, rental: { carId, status: { not: "CANCELLED" } } },
+    select: chargeSelect,
   });
-  const charge = rental?.charges[0];
-  if (!rental || !charge) return { kind: "none" };
-  return isOpen(charge.status) ? { kind: "open", charge } : { kind: "paid", rentalId: rental.id };
+  if (charges.length === 0) return { kind: "unknown" };
+
+  const accountable = accountableRental(intervals, holder, paidAt);
+  const open = charges.filter((charge) => isOpen(charge.status));
+  if (open.length === 0) {
+    return { kind: "paid", rentalId: accountable ?? charges[0].rentalId };
+  }
+  if (open.length === 1 && open[0].rentalId === accountable) {
+    const { id, rentalId, weekNumber, amountCents, dueDate } = open[0];
+    return { kind: "open", charge: { id, rentalId, weekNumber, amountCents, dueDate } };
+  }
+  return {
+    kind: "unclear",
+    reason: holder.ok || holder.reason === "NO_RENTAL_AT_TIME" ? "REFERENCE_AMBIGUOUS" : holder.reason,
+    candidates: [...new Set([...open.map((charge) => charge.rentalId), ...(holder.ok ? [] : holder.candidates)])],
+  };
 }
 
 async function payerCustomers(client: PrismaClient, organisationId: string, n: TwintNotification) {
@@ -66,15 +98,14 @@ export async function gatherEvidence(
     reason: found.reason,
   };
 
+  const intervals = plate.carId ? await loadIntervals(client, plate.carId) : [];
+  const holder = plate.carId ? responsibleAt(intervals, { kind: "instant", at: n.paidAt }) : null;
+
   const week = weekOf(message);
   const reference: Reference =
-    plate.carId && plate.status === "CONFIRMED" && week
-      ? await referenceOf(client, plate.carId, week, n.paidAt)
+    plate.carId && holder && plate.status === "CONFIRMED" && week
+      ? await referenceOf(client, plate.carId, week, intervals, holder, n.paidAt)
       : { kind: "none" };
-
-  const holder = plate.carId
-    ? responsibleAt(await loadIntervals(client, plate.carId), { kind: "instant", at: n.paidAt })
-    : null;
 
   const holderOpenCharges: OpenCharge[] = holder?.ok
     ? await client.charge.findMany({

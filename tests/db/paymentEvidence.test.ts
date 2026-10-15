@@ -62,4 +62,24 @@ describe("gatherEvidence", () => {
 
     expect(e.holder).toMatchObject({ ok: false, reason: "HANDOVER_BOUNDARY" });
   });
+
+  it("does not pay the next renter's week when the last renter pays theirs after the handover", async () => {
+    const { org, rental: a } = await annaRental();
+    await closeAt(org.id, a, new Date("2026-06-15T09:00:00Z"));
+    const b = await seedRental(org.id, {
+      signedAt: new Date("2026-06-16T08:00:00Z"),
+      details: { email: "luca@example.ch", firstName: "Luca", lastName: "Brunner", mobile: "079 765 43 21" },
+    });
+
+    const e = await gatherEvidence(prisma, org.id, notification({ paidAt: new Date("2026-06-17T10:00:00Z") }));
+
+    expect(e.reference).toMatchObject({ kind: "unclear", reason: "REFERENCE_AMBIGUOUS" });
+    expect(e.reference.kind === "unclear" && [...e.reference.candidates].sort()).toEqual([a.id, b.id].sort());
+  });
+
+  it("knows a named week that no rental of the car has", async () => {
+    const { org } = await annaRental();
+    const e = await gatherEvidence(prisma, org.id, notification({ message: "ZH 513 925 W12" }));
+    expect(e.reference).toEqual({ kind: "unknown" });
+  });
 });

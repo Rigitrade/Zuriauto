@@ -525,6 +525,8 @@ const de = {
     reasonPAYER_MISMATCH: "Jemand anderes als die Mieterin / der Mieter hat bezahlt",
     reasonAMOUNT_MISMATCH: "Betrag passt zu keiner offenen Woche",
     reasonCHARGE_ALREADY_PAID: "Diese Woche ist schon bezahlt",
+    reasonREFERENCE_UNKNOWN: "Die genannte Woche gibt es für dieses Fahrzeug nicht",
+    reasonREFERENCE_AMBIGUOUS: "Die Woche ist bei mehreren Mieten offen — bitte die richtige wählen",
   },
   errors: {
     generic: "Etwas ist schiefgelaufen. Bitte erneut versuchen.",
@@ -1056,6 +1058,8 @@ const en: typeof de = {
     reasonPAYER_MISMATCH: "Someone other than the renter paid",
     reasonAMOUNT_MISMATCH: "The amount matches no open week",
     reasonCHARGE_ALREADY_PAID: "That week is already paid",
+    reasonREFERENCE_UNKNOWN: "No rental of this car has the week named",
+    reasonREFERENCE_AMBIGUOUS: "That week is open on more than one rental — please choose",
   },
   errors: {
     generic: "Something went wrong. Please try again.",

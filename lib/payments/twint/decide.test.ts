@@ -42,6 +42,18 @@ describe("decidePayment", () => {
     expect(d).toMatchObject({ status: "NEEDS_REVIEW", reason: "CHARGE_ALREADY_PAID", rentalId: "rental-anna" });
   });
 
+  it("waits when the named week exists on no rental of that car, rather than paying another week", () => {
+    const d = decidePayment(evidence({ reference: { kind: "unknown" } }));
+    expect(d).toMatchObject({ status: "NEEDS_REVIEW", reason: "REFERENCE_UNKNOWN" });
+  });
+
+  it("waits with every rental that owes the named week when it is not clearly the holder's", () => {
+    const d = decidePayment(
+      evidence({ reference: { kind: "unclear", reason: "REFERENCE_AMBIGUOUS", candidates: ["rental-a", "rental-b"] }, payerRentalIds: [] })
+    );
+    expect(d).toEqual({ status: "NEEDS_REVIEW", reason: "REFERENCE_AMBIGUOUS", rentalId: null, candidates: ["rental-a", "rental-b"] });
+  });
+
   it("books the earliest open week of the holder when the payer is the holder", () => {
     expect(decidePayment(evidence())).toMatchObject({
       status: "BOOKED",
