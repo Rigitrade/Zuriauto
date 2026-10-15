@@ -7,57 +7,9 @@ import { RentalAccountDialog, type AccountSubject } from "@/components/admin/par
 import { purposeText } from "./paymentText";
 import { zurichTime } from "@/components/admin/format";
 import { formatChf } from "@/lib/rental/money";
-import type { Labels } from "@/components/admin/types";
-import type { PaymentChoice, PaymentDetailData } from "@/lib/payments/queries";
+import type { PaymentDetailData } from "@/lib/payments/queries";
+import { bookOptions, fitting } from "./bookOptions";
 
-interface BookOption {
-  key: string;
-  label: string;
-  chargeId: string | null;
-  depositCents: number;
-  /** What it costs; null for a credit, which takes any amount. */
-  expectedCents: number | null;
-}
-
-/** What a payment can be booked to on one rental: each open week, the deposit
- *  while it is outstanding, deposit + the first open week, or a credit. */
-function bookOptions(choice: PaymentChoice | undefined, P: Labels["payments"]): BookOption[] {
-  if (!choice) return [];
-  const outstanding = Math.max(0, choice.depositCents - choice.depositReceivedCents);
-  const weeks: BookOption[] = choice.openCharges.map((c) => ({
-    key: `week:${c.id}`,
-    label: `${c.weekNumber === 0 ? P.purposeReturnBalance : P.purposeWeek.replace("{n}", String(c.weekNumber))} · CHF ${formatChf(c.amountCents)}`,
-    chargeId: c.id,
-    depositCents: 0,
-    expectedCents: c.amountCents,
-  }));
-  const deposit: BookOption[] = [];
-  if (outstanding > 0) {
-    deposit.push({
-      key: "deposit",
-      label: `${P.purposeDeposit} · CHF ${formatChf(outstanding)}`,
-      chargeId: null,
-      depositCents: outstanding,
-      expectedCents: outstanding,
-    });
-    const first = choice.openCharges.find((c) => c.weekNumber >= 1);
-    if (first) {
-      deposit.push({
-        key: `depositWeek:${first.id}`,
-        label: `${P.purposeDepositWeek.replace("{n}", String(first.weekNumber))} · CHF ${formatChf(outstanding + first.amountCents)}`,
-        chargeId: first.id,
-        depositCents: outstanding,
-        expectedCents: outstanding + first.amountCents,
-      });
-    }
-  }
-  return [...weeks, ...deposit, { key: "credit", label: P.asCredit, chargeId: null, depositCents: 0, expectedCents: null }];
-}
-
-/** The option the amount fits exactly, else a credit. */
-function fitting(options: BookOption[], amountCents: number): string {
-  return options.find((o) => o.expectedCents === amountCents)?.key ?? "credit";
-}
 
 /** One payment: what TWINT said, why it waits, and the choice to book it. */
 export function PaymentDetail({
@@ -98,7 +50,8 @@ export function PaymentDetail({
   if (!detail) return null;
   const choice = detail.choices.find((c) => c.rentalId === rentalId);
   const options = bookOptions(choice, P);
-  const option = options.find((o) => o.key === optionKey) ?? options[options.length - 1];
+  // Empty when the amount fits more than one option: the office chooses.
+  const option = optionKey ? options.find((o) => o.key === optionKey) : undefined;
   const amountWarning =
     option && option.expectedCents !== null && option.expectedCents !== detail.amountCents
       ? P.amountWarn.replace("{a}", formatChf(detail.amountCents)).replace("{b}", formatChf(option.expectedCents))
@@ -192,7 +145,12 @@ export function PaymentDetail({
             </label>
             <label className="text-sm">
               {P.purpose}
-              <select className={field} value={option?.key ?? "credit"} onChange={(e) => setOptionKey(e.target.value)}>
+              <select className={field} value={option?.key ?? ""} onChange={(e) => setOptionKey(e.target.value)}>
+                {!option && (
+                  <option value="" disabled>
+                    {P.choosePurpose}
+                  </option>
+                )}
                 {options.map((o) => (
                   <option key={o.key} value={o.key}>
                     {o.label}
@@ -211,7 +169,7 @@ export function PaymentDetail({
           <div className="flex flex-wrap items-end gap-2 border-t border-[var(--admin-rule)] px-4 py-3">
             <button
               type="button"
-              disabled={busy || !rentalId}
+              disabled={busy || !rentalId || !option}
               onClick={() =>
                 act({
                   action: "book",
