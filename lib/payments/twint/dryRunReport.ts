@@ -40,7 +40,11 @@ function rowLines(row: DryRunRow, labels: Map<string, string>): string[] {
   const label = (id: string) => labels.get(id) ?? id;
   const d = row.decision;
   if (d.status === "BOOKED") {
-    return [...lines, `  -> would BOOK, by ${d.matchedBy}: ${label(d.rentalId)} (charge ${d.chargeId})`];
+    const pays = [
+      ...(d.depositCents > 0 ? [`Kaution CHF ${formatChf(d.depositCents)}`] : []),
+      ...(d.chargeId ? [`charge ${d.chargeId}`] : []),
+    ].join(" + ");
+    return [...lines, `  -> would BOOK, by ${d.matchedBy}: ${label(d.rentalId)} (${pays})`];
   }
   return [
     ...lines,

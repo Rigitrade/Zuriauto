@@ -24,7 +24,7 @@ const booked: DryRunRow = {
   uid: 7,
   outcome: "booked",
   notification: n,
-  decision: { status: "BOOKED", rentalId: "r-anna", chargeId: "c-2", matchedBy: "reference+amount", candidates: ["r-anna"] },
+  decision: { status: "BOOKED", rentalId: "r-anna", chargeId: "c-2", depositCents: 0, matchedBy: "reference+amount", candidates: ["r-anna"] },
 };
 const waiting: DryRunRow = {
   uid: 8,

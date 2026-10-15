@@ -21,7 +21,7 @@
 
 import { simpleParser } from "mailparser";
 import type { PrismaClient } from "@/generated/prisma/client";
-import { bookCharge } from "../book";
+import { bookPayment } from "../book";
 import { recordPaymentEvent } from "../events";
 import { verifyTwintSignature } from "./authentic";
 import { decidePayment } from "./decide";
@@ -171,9 +171,10 @@ export async function ingestMail(deps: IngestDeps, mail: RawMail): Promise<Inges
       });
       if (decision.status !== "BOOKED") return "review";
 
-      const booked = await bookCharge(tx, {
+      const booked = await bookPayment(tx, {
         paymentId: payment.id,
         chargeId: decision.chargeId,
+        depositCents: decision.depositCents,
         rentalId: decision.rentalId,
         matchedBy: decision.matchedBy,
         paidAt: n.paidAt,
