@@ -18,6 +18,8 @@ import type { Rental, UnsentContract } from "@/components/admin/types";
  *   2. ending   a rental runs out inside 24 hours, or already has.
  *   3. mail     a contract exists whose email never left.
  *   4. payment  TWINT payments the system would not book (lib/payments).
+ *   5. balance  rentals with money owed, a missing deposit, or weeks after an
+ *               early return to decide (lib/payments/account.ts).
  */
 
 export interface AttentionSource {
@@ -29,9 +31,11 @@ export interface AttentionSource {
   fineAttention?: { review: number; proof: number; overdue: number };
   /** Absent before the payments feature, and treated as nothing waiting. */
   paymentReview?: number;
+  /** Rentals in "Offene Beträge"; absent before the rental account. */
+  openBalances?: number;
 }
 
-export type AttentionKind = "return" | "ending" | "mail" | "fine" | "payment";
+export type AttentionKind = "return" | "ending" | "mail" | "fine" | "payment" | "balance";
 
 export interface AttentionItem {
   kind: AttentionKind;
@@ -112,5 +116,9 @@ export function attentionItems(
   const payment: AttentionItem[] =
     paymentCount > 0 ? [{ kind: "payment", key: "payment:waiting", customerName: "", count: paymentCount }] : [];
 
-  return [...returns, ...endings, ...mail, ...fine, ...payment];
+  const balanceCount = source.openBalances ?? 0;
+  const balance: AttentionItem[] =
+    balanceCount > 0 ? [{ kind: "balance", key: "balance:owed", customerName: "", count: balanceCount }] : [];
+
+  return [...returns, ...endings, ...mail, ...fine, ...payment, ...balance];
 }

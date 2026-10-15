@@ -4,9 +4,60 @@ import { useCallback, useEffect, useState } from "react";
 import { useAdmin } from "@/components/admin/shell/AdminContext";
 import { Panel } from "@/components/admin/parts/Panel";
 import { RentalAccountDialog, type AccountSubject } from "@/components/admin/parts/RentalAccountDialog";
+import { purposeText } from "./paymentText";
 import { zurichTime } from "@/components/admin/format";
 import { formatChf } from "@/lib/rental/money";
-import type { PaymentDetailData } from "@/lib/payments/queries";
+import type { Labels } from "@/components/admin/types";
+import type { PaymentChoice, PaymentDetailData } from "@/lib/payments/queries";
+
+interface BookOption {
+  key: string;
+  label: string;
+  chargeId: string | null;
+  depositCents: number;
+  /** What it costs; null for a credit, which takes any amount. */
+  expectedCents: number | null;
+}
+
+/** What a payment can be booked to on one rental: each open week, the deposit
+ *  while it is outstanding, deposit + the first open week, or a credit. */
+function bookOptions(choice: PaymentChoice | undefined, P: Labels["payments"]): BookOption[] {
+  if (!choice) return [];
+  const outstanding = Math.max(0, choice.depositCents - choice.depositReceivedCents);
+  const weeks: BookOption[] = choice.openCharges.map((c) => ({
+    key: `week:${c.id}`,
+    label: `${c.weekNumber === 0 ? P.purposeReturnBalance : P.purposeWeek.replace("{n}", String(c.weekNumber))} · CHF ${formatChf(c.amountCents)}`,
+    chargeId: c.id,
+    depositCents: 0,
+    expectedCents: c.amountCents,
+  }));
+  const deposit: BookOption[] = [];
+  if (outstanding > 0) {
+    deposit.push({
+      key: "deposit",
+      label: `${P.purposeDeposit} · CHF ${formatChf(outstanding)}`,
+      chargeId: null,
+      depositCents: outstanding,
+      expectedCents: outstanding,
+    });
+    const first = choice.openCharges.find((c) => c.weekNumber >= 1);
+    if (first) {
+      deposit.push({
+        key: `depositWeek:${first.id}`,
+        label: `${P.purposeDepositWeek.replace("{n}", String(first.weekNumber))} · CHF ${formatChf(outstanding + first.amountCents)}`,
+        chargeId: first.id,
+        depositCents: outstanding,
+        expectedCents: outstanding + first.amountCents,
+      });
+    }
+  }
+  return [...weeks, ...deposit, { key: "credit", label: P.asCredit, chargeId: null, depositCents: 0, expectedCents: null }];
+}
+
+/** The option the amount fits exactly, else a credit. */
+function fitting(options: BookOption[], amountCents: number): string {
+  return options.find((o) => o.expectedCents === amountCents)?.key ?? "credit";
+}
 
 /** One payment: what TWINT said, why it waits, and the choice to book it. */
 export function PaymentDetail({
@@ -22,7 +73,9 @@ export function PaymentDetail({
   const P = L.payments;
   const [detail, setDetail] = useState<PaymentDetailData | null>(null);
   const [rentalId, setRentalId] = useState<string>("");
-  const [chargeId, setChargeId] = useState<string>("");
+  const [optionKey, setOptionKey] = useState<string>("credit");
+  /** "Zahler merken": on by default when TWINT passed on an email or phone. */
+  const [remember, setRemember] = useState(false);
   const [note, setNote] = useState("");
   /** The rental whose Mietkonto is open: the booked one, or the one chosen to book to. */
   const [accountFor, setAccountFor] = useState<AccountSubject | null>(null);
@@ -34,8 +87,9 @@ export function PaymentDetail({
     setDetail(data);
     const first = data.choices.find((c) => c.isCandidate) ?? data.choices[0];
     setRentalId(first?.rentalId ?? "");
-    setChargeId(first?.openCharges.find((c) => c.amountCents === data.amountCents)?.id ?? "");
-  }, [paymentId]);
+    setOptionKey(fitting(bookOptions(first, L.payments), data.amountCents));
+    setRemember(Boolean(data.payerEmail || data.payerPhone));
+  }, [paymentId, L.payments]);
 
   useEffect(() => {
     void load();
@@ -43,6 +97,12 @@ export function PaymentDetail({
 
   if (!detail) return null;
   const choice = detail.choices.find((c) => c.rentalId === rentalId);
+  const options = bookOptions(choice, P);
+  const option = options.find((o) => o.key === optionKey) ?? options[options.length - 1];
+  const amountWarning =
+    option && option.expectedCents !== null && option.expectedCents !== detail.amountCents
+      ? P.amountWarn.replace("{a}", formatChf(detail.amountCents)).replace("{b}", formatChf(option.expectedCents))
+      : null;
   const act = async (body: unknown) => {
     if (await write(`/api/admin/payments/${paymentId}/actions/`, { method: "POST", body: JSON.stringify(body) })) {
       await load();
@@ -81,7 +141,7 @@ export function PaymentDetail({
             <>
               <dt className="text-[var(--admin-muted)]">{P.renter}</dt>
               <dd>
-                {[detail.renterName, detail.plate, detail.weekNumber ? `${P.week} ${detail.weekNumber}` : null]
+                {[detail.renterName, detail.plate, purposeText(detail, P)]
                   .filter(Boolean)
                   .join(" · ")}
                 {detail.rentalId && (
@@ -109,7 +169,8 @@ export function PaymentDetail({
                 value={rentalId}
                 onChange={(e) => {
                   setRentalId(e.target.value);
-                  setChargeId("");
+                  const next = detail.choices.find((c) => c.rentalId === e.target.value);
+                  setOptionKey(fitting(bookOptions(next, P), detail.amountCents));
                 }}
               >
                 {detail.choices.map((c) => (
@@ -130,22 +191,36 @@ export function PaymentDetail({
               )}
             </label>
             <label className="text-sm">
-              {P.chooseWeek}
-              <select className={field} value={chargeId} onChange={(e) => setChargeId(e.target.value)}>
-                <option value="">{P.asCredit}</option>
-                {(choice?.openCharges ?? []).map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {P.week} {c.weekNumber} · CHF {formatChf(c.amountCents)}
+              {P.purpose}
+              <select className={field} value={option?.key ?? "credit"} onChange={(e) => setOptionKey(e.target.value)}>
+                {options.map((o) => (
+                  <option key={o.key} value={o.key}>
+                    {o.label}
                   </option>
                 ))}
               </select>
             </label>
+            {amountWarning && <p className="text-xs text-[var(--admin-attn)] sm:col-span-2">{amountWarning}</p>}
+            {(detail.payerEmail || detail.payerPhone) && (
+              <label className="flex items-start gap-2 text-sm sm:col-span-2">
+                <input type="checkbox" className="mt-0.5" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+                <span>{P.rememberPayer}</span>
+              </label>
+            )}
           </div>
           <div className="flex flex-wrap items-end gap-2 border-t border-[var(--admin-rule)] px-4 py-3">
             <button
               type="button"
               disabled={busy || !rentalId}
-              onClick={() => act({ action: "book", rentalId, chargeId: chargeId || null })}
+              onClick={() =>
+                act({
+                  action: "book",
+                  rentalId,
+                  chargeId: option?.chargeId ?? null,
+                  depositCents: option?.depositCents ?? 0,
+                  rememberPayer: remember,
+                })
+              }
               className={`${button} bg-[var(--admin-accent)] text-[var(--admin-accent-ink)]`}
             >
               {P.book}

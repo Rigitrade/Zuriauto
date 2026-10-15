@@ -14,10 +14,15 @@ export function attentionTitle(item: AttentionItem, L: Labels): string {
   if (item.kind === "ending") return L.overview.endsToday;
   if (item.kind === "fine") return L.overview.finesWaiting;
   if (item.kind === "payment") return L.overview.paymentsWaiting;
+  if (item.kind === "balance") return L.overview.balancesWaiting;
   return L.overview.mailNotDelivered;
 }
 
 export function attentionDetail(item: AttentionItem, L: Labels, now: Date): string {
+  if (item.kind === "balance") {
+    const count = item.count ?? 0;
+    return `${count} ${count === 1 ? L.overview.balanceOne : L.overview.balanceMany}`;
+  }
   if (item.kind === "payment") {
     const count = item.count ?? 0;
     return `${count} ${count === 1 ? L.overview.paymentOne : L.overview.paymentMany}`;
@@ -50,5 +55,6 @@ export function attentionDetail(item: AttentionItem, L: Labels, now: Date): stri
 export function attentionHref(item: AttentionItem): string {
   if (item.kind === "fine") return "/admin/fines/?tab=review";
   if (item.kind === "payment") return "/admin/payments/?tab=review";
+  if (item.kind === "balance") return "/admin/payments/?tab=owed";
   return item.kind === "mail" ? "/admin" : "/admin/rentals";
 }
