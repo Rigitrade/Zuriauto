@@ -156,6 +156,10 @@ export async function gatherEvidence(
   n: TwintNotification
 ): Promise<Evidence> {
   const message = n.message ?? "";
+  const organisation = await client.organisation.findUnique({
+    where: { id: organisationId },
+    select: { paymentsCutoverAt: true },
+  });
   // Every car, retired ones included: the payment may be for a past rental.
   const fleet = await client.car.findMany({ where: { organisationId }, select: { id: true, plate: true } });
   const found = matchPlate(message, printedPlate(message), fleet);
@@ -201,6 +205,7 @@ export async function gatherEvidence(
   return {
     amountCents: n.amountCents,
     paidAt: n.paidAt,
+    cutoverAt: organisation?.paymentsCutoverAt ?? null,
     plate,
     reference,
     holder,

@@ -39,7 +39,9 @@ export type PaymentReviewReason =
   | "REFERENCE_UNKNOWN"
   | "REFERENCE_AMBIGUOUS"
   | "PICKUP_PAYMENT"
-  | "PAID_AFTER_RETURN";
+  | "PAID_AFTER_RETURN"
+  | "BEFORE_CUTOVER"
+  | "NO_WEEK_DUE";
 
 /**
  * What the text's plate + week point at.
@@ -81,6 +83,8 @@ export interface Evidence {
   amountCents: number;
   /** TWINT's moment of payment. */
   paidAt: Date;
+  /** The organisation's cut-over (scripts/payments-cutover.ts), or null before it. */
+  cutoverAt: Date | null;
   plate: {
     carId: string | null;
     status: "CONFIRMED" | "DOUBTFUL" | "MISSING";
@@ -116,6 +120,16 @@ export type Decision =
 export const PICKUP_WINDOW = { beforeMs: 24 * 3_600_000, afterMs: 48 * 3_600_000 } as const;
 
 const byDue = (a: OpenCharge, b: OpenCharge) => a.dueDate.getTime() - b.dueDate.getTime();
+
+/**
+ * How far ahead an amount alone may pay a week. A renter pays a few days
+ * early; a week due a month later is not what the payment was for — it is
+ * the first open week only because the ones before it were settled or paid
+ * by other means, and booking it would stop that week's reminder.
+ */
+export const PAY_AHEAD_MS = 7 * 24 * 3_600_000;
+
+const dueSoon = (charge: OpenCharge, paidAt: Date) => charge.dueDate.getTime() <= paidAt.getTime() + PAY_AHEAD_MS;
 
 function atPickup(r: PayerRental, paidAt: Date): boolean {
   if (!r.pickupAt || r.depositReceivedCents >= r.depositCents) return false;
@@ -158,7 +172,7 @@ function payerLed(e: Evidence, review: Review): Decision | null {
   }
 
   const matching = e.payerRentals
-    .map((r) => ({ r, charge: r.owedOpen.filter((c) => c.amountCents === amount).sort(byDue)[0] }))
+    .map((r) => ({ r, charge: r.owedOpen.filter((c) => c.amountCents === amount && dueSoon(c, e.paidAt)).sort(byDue)[0] }))
     .filter((m): m is { r: PayerRental; charge: OpenCharge } => Boolean(m.charge));
   if (matching.length > 1) return review("REFERENCE_AMBIGUOUS", null, matching.map((m) => m.r.rentalId));
   if (matching.length === 1) {
@@ -176,7 +190,9 @@ function payerLed(e: Evidence, review: Review): Decision | null {
   // car now — a friend — so that rental is offered beside their own.
   const proposed = e.payerRentals.find((r) => r.isHolder) ?? e.payerRentals[0];
   const holderRental = e.holder?.ok ? [e.holder.rentalId] : [];
-  return review(proposed.closed ? "PAID_AFTER_RETURN" : "AMOUNT_MISMATCH", proposed.rentalId, [proposed.rentalId, ...holderRental]);
+  const onlyLater = e.payerRentals.some((r) => r.owedOpen.some((c) => c.amountCents === amount));
+  const reason = onlyLater ? "NO_WEEK_DUE" : proposed.closed ? "PAID_AFTER_RETURN" : "AMOUNT_MISMATCH";
+  return review(reason, proposed.rentalId, [proposed.rentalId, ...holderRental]);
 }
 
 export function decidePayment(e: Evidence): Decision {
@@ -186,6 +202,12 @@ export function decidePayment(e: Evidence): Decision {
     rentalId,
     candidates: [...new Set([...candidates, ...e.payerRentalIds])],
   });
+
+  // Before the cut-over every week it could have paid was settled, so the
+  // open week an amount would find is a later one it did not pay.
+  if (e.cutoverAt && e.paidAt.getTime() < e.cutoverAt.getTime()) {
+    return review("BEFORE_CUTOVER", e.holder?.ok ? e.holder.rentalId : null, e.holder?.ok ? [e.holder.rentalId] : []);
+  }
 
   if (e.reference.kind === "open") {
     const charge = e.reference.charge;
@@ -218,10 +240,9 @@ export function decidePayment(e: Evidence): Decision {
   if (e.plate.status !== "CONFIRMED") return review("PLATE_DOUBTFUL", rentalId, [rentalId]);
   if (!e.payerCustomerIds.includes(customerId)) return review("PAYER_MISMATCH", rentalId, [rentalId]);
 
-  const charge = e.holderOpenCharges
-    .filter((c) => c.rentalId === rentalId && c.amountCents === e.amountCents)
-    .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())[0];
-  if (!charge) return review("AMOUNT_MISMATCH", rentalId, [rentalId]);
+  const fits = e.holderOpenCharges.filter((c) => c.rentalId === rentalId && c.amountCents === e.amountCents);
+  const charge = fits.filter((c) => dueSoon(c, e.paidAt)).sort(byDue)[0];
+  if (!charge) return review(fits.length > 0 ? "NO_WEEK_DUE" : "AMOUNT_MISMATCH", rentalId, [rentalId]);
 
   return {
     status: "BOOKED",

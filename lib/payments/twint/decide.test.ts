@@ -19,6 +19,7 @@ const evidence = (overrides: Partial<Evidence> = {}): Evidence => ({
   payerCustomerIds: ["anna"],
   payerRentalIds: ["rental-anna"],
   paidAt: new Date("2026-06-10T10:00:00Z"),
+  cutoverAt: null,
   payerRentals: [],
   ...overrides,
 });
@@ -159,7 +160,11 @@ describe("decidePayment — payer-led", () => {
   });
 
   it("waits when two of the payer's rentals owe this amount", () => {
-    const other = { ...returned, rentalId: "rental-anna-2", owedOpen: [week(5, { rentalId: "rental-anna-2", id: "charge-x5" })] };
+    const other = {
+      ...returned,
+      rentalId: "rental-anna-2",
+      owedOpen: [week(5, { rentalId: "rental-anna-2", id: "charge-x5", dueDate: new Date("2026-06-12T00:00:00Z") })],
+    };
     expect(decidePayment(evidence({ payerRentals: [returned, other] }))).toMatchObject({
       status: "NEEDS_REVIEW",
       reason: "REFERENCE_AMBIGUOUS",
@@ -185,5 +190,27 @@ describe("decidePayment — payer-led", () => {
   it("leaves a doubtful plate to the old rules", () => {
     const d = decidePayment(evidence({ plate: { carId: "car-prius", status: "DOUBTFUL", reason: null }, payerRentals: [returned] }));
     expect(d).toMatchObject({ status: "NEEDS_REVIEW", reason: "PLATE_DOUBTFUL" });
+  });
+});
+
+describe("decidePayment — what a payment can pay, by date", () => {
+  it("waits for a payment made before the cut-over: the weeks it paid were settled then", () => {
+    const d = decidePayment(evidence({ paidAt: new Date("2026-10-12T10:00:00Z"), cutoverAt: new Date("2026-10-20T00:00:00Z") }));
+    expect(d).toMatchObject({ status: "NEEDS_REVIEW", reason: "BEFORE_CUTOVER" });
+  });
+
+  it("does not pay the holder's week that is not due for more than a week", () => {
+    const d = decidePayment(evidence({ holderOpenCharges: [week(5, { dueDate: new Date("2026-06-25T00:00:00Z") })] }));
+    expect(d).toMatchObject({ status: "NEEDS_REVIEW", reason: "NO_WEEK_DUE", rentalId: "rental-anna" });
+  });
+
+  it("does not pay the payer's own week that is not due for more than a week", () => {
+    const later = payerRental({ pickupAt: null, owedOpen: [week(6, { dueDate: new Date("2026-06-30T00:00:00Z") })] });
+    expect(decidePayment(evidence({ payerRentals: [later] }))).toMatchObject({ status: "NEEDS_REVIEW", reason: "NO_WEEK_DUE" });
+  });
+
+  it("still pays a week due a few days ahead", () => {
+    const d = decidePayment(evidence({ holderOpenCharges: [week(2, { dueDate: new Date("2026-06-14T00:00:00Z") })] }));
+    expect(d).toMatchObject({ status: "BOOKED", chargeId: "charge-w2" });
   });
 });

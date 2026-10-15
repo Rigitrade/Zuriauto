@@ -1187,6 +1187,12 @@ enum PaymentReviewReason {
   PICKUP_PAYMENT
   /// Paid by the renter after the rental closed, and no open item has this amount.
   PAID_AFTER_RETURN
+  /// Paid before the cut-over: the weeks it could pay were settled then, so a
+  /// later open week of the same amount is not what it paid.
+  BEFORE_CUTOVER
+  /// The amount fits an open week, but none is due yet (more than a week
+  /// ahead): a payment in advance, or for something else.
+  NO_WEEK_DUE
 }
 
 /// One TWINT transaction, as its notification email reported it.
