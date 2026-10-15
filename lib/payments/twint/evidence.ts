@@ -10,8 +10,10 @@ import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { matchPlate } from "@/lib/fines/plates";
 import { responsibleAt, type Interval, type Responsible } from "@/lib/fines/possession";
 import { loadIntervals } from "@/lib/fines/repo/possessionLoad";
+import { isOwedAfterReturn } from "@/lib/rental/passes";
 import { normalisePhone } from "@/lib/rental/phone";
-import { OPEN_CHARGE, type Evidence, type OpenCharge, type Reference } from "./decide";
+import { CLOSE_EVENTS, closedAtOf } from "../afterClose";
+import { OPEN_CHARGE, type Evidence, type OpenCharge, type PayerRental, type Reference } from "./decide";
 import type { TwintNotification } from "./parse";
 import { printedPlate, weekOf } from "./signals";
 
@@ -75,14 +77,77 @@ async function referenceOf(
   };
 }
 
-async function payerCustomers(client: Client, organisationId: string, n: TwintNotification) {
+/**
+ * The customers this payer is: by their own email or phone, or because the
+ * office once confirmed this email or phone pays for them (a PayerAlias —
+ * a friend, a partner, a second phone).
+ */
+async function payerCustomers(client: Client, organisationId: string, n: TwintNotification): Promise<string[]> {
+  const email = n.payerEmail?.toLowerCase() ?? null;
   const phoneKey = n.payerPhone ? normalisePhone(n.payerPhone) : null;
-  const or = [
-    ...(n.payerEmail ? [{ email: n.payerEmail.toLowerCase() }] : []),
-    ...(phoneKey ? [{ phoneKey }] : []),
-  ];
-  if (or.length === 0) return [];
-  return client.customer.findMany({ where: { organisationId, OR: or }, select: { id: true } });
+  if (!email && !phoneKey) return [];
+  // One after the other, not Promise.all: the dry run passes a transaction,
+  // which runs one query at a time anyway.
+  const own = await client.customer.findMany({
+    where: { organisationId, OR: [...(email ? [{ email }] : []), ...(phoneKey ? [{ phoneKey }] : [])] },
+    select: { id: true },
+  });
+  const aliases = await client.payerAlias.findMany({
+    where: {
+      organisationId,
+      OR: [...(email ? [{ kind: "email", value: email }] : []), ...(phoneKey ? [{ kind: "phone", value: phoneKey }] : [])],
+    },
+    select: { customerId: true },
+  });
+  return [...new Set([...own.map((c) => c.id), ...aliases.map((a) => a.customerId)])];
+}
+
+/**
+ * The payer's own rentals of the named car, whoever holds it now: what a
+ * payment at the pickup or after the return is about (the ledger spec,
+ * decision 5). Owed items follow isOwedAfterReturn, so a week that had not
+ * begun at the close is owed only if the office kept it; week 0 always is.
+ */
+async function payerRentalsOf(
+  client: Client,
+  customerIds: string[],
+  carId: string,
+  holder: Responsible | null
+): Promise<PayerRental[]> {
+  const rentals = await client.rental.findMany({
+    where: { customerId: { in: customerIds }, carId, status: { not: "CANCELLED" } },
+    orderBy: { startAt: "desc" },
+    select: {
+      id: true,
+      status: true,
+      depositCents: true,
+      contracts: { where: { kind: "PICKUP" }, orderBy: { signedAt: "asc" }, take: 1, select: { signedAt: true } },
+      events: { where: { type: { in: CLOSE_EVENTS } }, select: { type: true, createdAt: true } },
+      charges: {
+        where: { status: { in: [...OPEN_CHARGE] } },
+        orderBy: { dueDate: "asc" },
+        select: { ...openChargeSelect, keptAfterReturn: true },
+      },
+      payments: { where: { status: "BOOKED" }, select: { depositCents: true } },
+    },
+  });
+  return rentals.map((r) => {
+    const closedAt = closedAtOf(r.events);
+    const open = r.charges.map((c) => ({
+      charge: { id: c.id, rentalId: c.rentalId, weekNumber: c.weekNumber, amountCents: c.amountCents, dueDate: c.dueDate },
+      owed: isOwedAfterReturn(c, closedAt),
+    }));
+    return {
+      rentalId: r.id,
+      closed: r.status === "COMPLETED",
+      isHolder: Boolean(holder?.ok && holder.rentalId === r.id),
+      pickupAt: r.contracts[0]?.signedAt ?? null,
+      depositCents: r.depositCents,
+      depositReceivedCents: r.payments.reduce((sum, p) => sum + p.depositCents, 0),
+      week1: open.find((o) => o.charge.weekNumber === 1)?.charge ?? null,
+      owedOpen: open.filter((o) => o.owed).map((o) => o.charge),
+    };
+  });
 }
 
 export async function gatherEvidence(
@@ -118,22 +183,30 @@ export async function gatherEvidence(
     : [];
 
   const payers = await payerCustomers(client, organisationId, n);
-  const payerRentals = payers.length
+  const recentPayerRentals = payers.length
     ? await client.rental.findMany({
-        where: { customerId: { in: payers.map((p) => p.id) }, status: { not: "CANCELLED" } },
+        where: { customerId: { in: payers }, status: { not: "CANCELLED" } },
         orderBy: { startAt: "desc" },
         take: 5,
         select: { id: true },
       })
     : [];
+  // Only a plate of ours written in the text leads here; a look-alike the
+  // fines matcher suggests is doubtful and stays with the office.
+  const payerRentals =
+    plate.carId && plate.status === "CONFIRMED" && payers.length
+      ? await payerRentalsOf(client, payers, plate.carId, holder)
+      : [];
 
   return {
     amountCents: n.amountCents,
+    paidAt: n.paidAt,
     plate,
     reference,
     holder,
     holderOpenCharges,
-    payerCustomerIds: payers.map((p) => p.id),
-    payerRentalIds: payerRentals.map((r) => r.id),
+    payerCustomerIds: payers,
+    payerRentalIds: recentPayerRentals.map((r) => r.id),
+    payerRentals,
   };
 }

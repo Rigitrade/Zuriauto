@@ -58,8 +58,27 @@ export type Reference =
   | { kind: "unclear"; reason: PaymentReviewReason; candidates: string[] }
   | { kind: "none" };
 
+/** One of the payer's own rentals of the named car (evidence.ts, payerRentalsOf). */
+export interface PayerRental {
+  rentalId: string;
+  /** COMPLETED: the payment came after the rental closed. */
+  closed: boolean;
+  /** Held the car at the payment's minute (the fines possession rule). */
+  isHolder: boolean;
+  /** The pickup contract's signature, null for a rental without one. */
+  pickupAt: Date | null;
+  depositCents: number;
+  depositReceivedCents: number;
+  /** Week 1, if it is still open. */
+  week1: OpenCharge | null;
+  /** Open items still owed: weeks under isOwedAfterReturn, plus week 0. */
+  owedOpen: OpenCharge[];
+}
+
 export interface Evidence {
   amountCents: number;
+  /** TWINT's moment of payment. */
+  paidAt: Date;
   plate: {
     carId: string | null;
     status: "CONFIRMED" | "DOUBTFUL" | "MISSING";
@@ -74,6 +93,8 @@ export interface Evidence {
   payerCustomerIds: string[];
   /** Those customers' recent rentals, offered to the office. */
   payerRentalIds: string[];
+  /** Those customers' rentals of the named car; empty without a confirmed plate. */
+  payerRentals: PayerRental[];
 }
 
 export type Decision =

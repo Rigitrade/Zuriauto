@@ -18,6 +18,8 @@ const evidence = (overrides: Partial<Evidence> = {}): Evidence => ({
   holderOpenCharges: [week(2), week(3)],
   payerCustomerIds: ["anna"],
   payerRentalIds: ["rental-anna"],
+  paidAt: new Date("2026-06-10T10:00:00Z"),
+  payerRentals: [],
   ...overrides,
 });
 
