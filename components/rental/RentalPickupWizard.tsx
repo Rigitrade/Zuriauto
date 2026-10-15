@@ -285,7 +285,7 @@ export default function RentalPickupWizard() {
   const [signature, setSignature] = useState<string | null>(null);
   const [gtcAccepted, setGtcAccepted] = useState(false);
   const [acceptedAt, setAcceptedAt] = useState<string | null>(null);
-  /** When each GTC Art. 11 box was ticked; null while it is not. */
+  /** When each GTC Art. 15 box was ticked; null while it is not. */
   const [confirmedAt, setConfirmedAt] = useState<
     Record<GtcConfirmationKey, string | null>
   >({ truthfulInfoConfirmedAt: null, deceptionNoticeConfirmedAt: null });

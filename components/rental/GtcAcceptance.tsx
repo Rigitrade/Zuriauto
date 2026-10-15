@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import { Check } from "lucide-react";
 import gtc, { GTC_DATE, type GtcBlock, type GtcLanguage } from "@/locales/gtc";
 import GtcLanguageTabs from "@/components/GtcLanguageTabs";
@@ -34,14 +41,14 @@ interface GtcAcceptanceProps {
   onGtcLanguageChange: (language: GtcLanguage) => void;
   accepted: boolean;
   onAcceptedChange: (accepted: boolean) => void;
-  /** The GTC Art. 11 boxes, each ticked on its own (`gtcConfirmations.ts`). */
+  /** The GTC Art. 15 boxes, each ticked on its own (`gtcConfirmations.ts`). */
   confirmed: Record<GtcConfirmationKey, boolean>;
   onConfirmedChange: (key: GtcConfirmationKey, confirmed: boolean) => void;
   error?: string;
   confirmError?: string;
 }
 
-function Block({ block }: { block: GtcBlock }) {
+function Block({ block }: { block: GtcBlock }): ReactElement {
   switch (block.kind) {
     case "sub":
       return (
@@ -56,6 +63,30 @@ function Block({ block }: { block: GtcBlock }) {
       );
     case "p":
       return <p className="mb-2 leading-relaxed">{block.text}</p>;
+    case "clause":
+      return (
+        <p
+          // A confirmation scrolls the panel to the clause it names ("15.1").
+          data-gtc-ref={block.num}
+          className="mb-2 flex scroll-mt-2 gap-2 leading-relaxed"
+        >
+          <span className="w-9 shrink-0 font-semibold text-slate-900">
+            {block.num}
+          </span>
+          <span>{block.text}</span>
+        </p>
+      );
+    case "lettered":
+      // Indented to the clause text above, which starts after the number.
+      return (
+        <ol className="mb-2 space-y-1 pl-11">
+          {block.items.map((item, i) => (
+            <li key={i} className="leading-relaxed">
+              {item}
+            </li>
+          ))}
+        </ol>
+      );
     case "list":
       return (
         <ul className="mb-2 list-disc space-y-1 pl-5">
@@ -133,7 +164,7 @@ export default function GtcAcceptance({
     checkScrolled();
   }, [checkScrolled]);
 
-  /** Scrolls the terms panel, not the page, to the sub-article `ref`. */
+  /** Scrolls the terms panel, not the page, to the clause `ref`. */
   function showArticle(ref: string) {
     const panel = scrollRef.current;
     const heading = panel?.querySelector<HTMLElement>(
@@ -187,7 +218,10 @@ export default function GtcAcceptance({
       >
         <p className="mb-1 font-semibold text-slate-900">{doc.title}</p>
         <p className="mb-4 text-xs text-slate-500">
-          {L.version} {doc.updated || GTC_DATE}
+          {/* The date rather than `doc.updated`, which since 15.10.2026 is
+              the document's own "Stand: …" line and would read "Fassung
+              Stand: …" after the label. */}
+          {L.version} {GTC_DATE}
         </p>
 
         {doc.sections.map((section) => (
@@ -200,6 +234,16 @@ export default function GtcAcceptance({
             ))}
           </section>
         ))}
+
+        <div className="border-t border-slate-200 pt-3">
+          {doc.closing.lessor.map((line) => (
+            <p key={line} className="leading-relaxed">
+              {line}
+            </p>
+          ))}
+          <p className="mt-2 leading-relaxed">{doc.closing.text}</p>
+          <p className="mt-2 text-xs text-slate-500">{doc.closing.signoff}</p>
+        </div>
       </div>
 
       <TickBox

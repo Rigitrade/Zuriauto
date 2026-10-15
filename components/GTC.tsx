@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactElement } from "react";
 import { useI18n } from "@/lib/hooks/use-i18n";
 import gtc, {
   GTC_DATE,
@@ -21,7 +21,12 @@ function asGtcLanguage(lang: string | undefined): GtcLanguage {
   return lang === "en" ? "en" : "de";
 }
 
-function Block({ block }: { block: GtcBlock }) {
+// The width of a clause number, so clause text and the lettered items under it
+// share one left edge.
+const CLAUSE_NUM = "w-10 shrink-0";
+const CLAUSE_INDENT = "pl-13";
+
+function Block({ block }: { block: GtcBlock }): ReactElement {
   switch (block.kind) {
     case "sub":
       return (
@@ -32,6 +37,27 @@ function Block({ block }: { block: GtcBlock }) {
 
     case "p":
       return <p className="leading-relaxed mb-3">{block.text}</p>;
+
+    case "clause":
+      return (
+        <p className="leading-relaxed mb-3 flex gap-3">
+          <span className={`${CLAUSE_NUM} font-semibold text-slate-900`}>
+            {block.num}
+          </span>
+          <span>{block.text}</span>
+        </p>
+      );
+
+    case "lettered":
+      return (
+        <ol className={`${CLAUSE_INDENT} mb-3 space-y-1`}>
+          {block.items.map((item, i) => (
+            <li key={i} className="leading-relaxed">
+              {item}
+            </li>
+          ))}
+        </ol>
+      );
 
     case "list":
       return (
@@ -136,6 +162,18 @@ export default function GTCPage() {
                   ))}
                 </div>
               ))}
+
+              {/* The lessor's own closing, after the last article: who the
+                  lessor is, when the terms apply, and the sign-off. */}
+              <div className="mt-8 pt-6 px-2 border-t border-slate-200 text-sm">
+                {doc.closing.lessor.map((line) => (
+                  <p key={line} className="leading-relaxed">
+                    {line}
+                  </p>
+                ))}
+                <p className="leading-relaxed mt-3">{doc.closing.text}</p>
+                <p className="mt-3 text-slate-500">{doc.closing.signoff}</p>
+              </div>
 
               <LegalNotice />
 

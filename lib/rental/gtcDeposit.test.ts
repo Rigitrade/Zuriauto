@@ -2,34 +2,31 @@ import { describe, expect, it } from "vitest";
 import gtc, { GTC_LANGUAGES, type GtcLanguage } from "@/locales/gtc";
 
 /**
- * The lessor asked on 07.10.2026 for the deposit's payback period in the terms:
- * within 10 working days (2 weeks) after the rental ends. It is Art. 7.3, under
- * the return of the vehicle, and must say the same in every language the renter
+ * The lessor asked on 07.10.2026 for the deposit's payback period in the
+ * terms. Since the GTC of 15.10.2026 it is clause 12.4: unless the rental
+ * agreement says otherwise, within ten working days after the vehicle has
+ * been properly returned. It must say the same in every language the renter
  * can read the terms in.
  */
-const WORDS: Record<GtcLanguage, { deposit: RegExp; days: RegExp; weeks: RegExp }> = {
-  de: { deposit: /Kaution/, days: /10 Arbeitstagen/, weeks: /2 Wochen/ },
-  en: { deposit: /deposit/i, days: /10 working days/, weeks: /2 weeks/ },
-  fr: { deposit: /caution/i, days: /10 jours ouvrables/, weeks: /2 semaines/ },
+const WORDS: Record<GtcLanguage, { deposit: RegExp; days: RegExp }> = {
+  de: { deposit: /Kaution/, days: /innerhalb von zehn Arbeitstagen/ },
+  en: { deposit: /deposit/i, days: /within ten working days/ },
+  fr: { deposit: /caution/i, days: /dans un délai de dix jours ouvrables/ },
 };
 
 describe("GTC deposit payback", () => {
   it.each(GTC_LANGUAGES.map((l) => l.code))(
-    "the %s terms give the payback period in Art. 7.3",
+    "the %s terms give the payback period in clause 12.4",
     (language) => {
-      const blocks = gtc[language].sections.find((s) => s.num === "7")!.blocks;
-      const at = blocks.findIndex(
-        (b) => b.kind === "sub" && b.title.startsWith("7.3 ")
-      );
-      expect(at).toBeGreaterThan(-1);
+      const clause = gtc[language].sections
+        .flatMap((section) => section.blocks)
+        .find((block) => block.kind === "clause" && block.num === "12.4");
+      expect(clause).toBeDefined();
 
-      const body = blocks[at + 1];
-      expect(body.kind).toBe("p");
-      const text = body.kind === "p" ? body.text : "";
+      const text = clause?.kind === "clause" ? clause.text : "";
       const words = WORDS[language];
       expect(text).toMatch(words.deposit);
       expect(text).toMatch(words.days);
-      expect(text).toMatch(words.weeks);
     }
   );
 });

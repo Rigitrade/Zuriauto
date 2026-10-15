@@ -160,9 +160,10 @@ const de = {
     intro: "Bitte lesen Sie die AGB und bestätigen Sie diese.",
     languageLabel: "Sprache der AGB",
     accept: "Ich habe die AGB gelesen und akzeptiere sie.",
-    locked: "Bitte akzeptieren Sie zuerst die AGB und bestätigen Sie Art. 11.",
+    locked:
+      "Bitte akzeptieren Sie zuerst die AGB und bestätigen Sie Art. 15.1 und 15.5.",
     version: "Fassung",
-    /** "Art. 11.1 AGB" — how a confirmation names the article it points at. */
+    /** "Art. 15.1 AGB" — how a confirmation names the clause it points at. */
     article: "Art.",
     short: "AGB",
     readArticle: "Artikel lesen",
@@ -171,12 +172,12 @@ const de = {
       truthfulInfoConfirmedAt: {
         title: "Wahrheitsgemässe Angaben",
         statement:
-          "Ich bestätige, dass alle meine Angaben und eingereichten Dokumente vollständig, wahrheitsgemäss und gültig sind, und melde Änderungen unverzüglich.",
+          "Ich bestätige, dass meine Angaben sowie die von mir vorgelegten Identitätsdokumente, Führerausweise, Bewilligungen und sonstigen Unterlagen nach bestem Wissen vollständig, wahrheitsgemäss und gültig sind.",
       },
       deceptionNoticeConfirmedAt: {
-        title: "Täuschung und Haftung",
+        title: "Falsche Angaben und Unterlagen",
         statement:
-          "Mir ist bekannt, dass falsche Angaben oder gefälschte Unterlagen strafbar sein können (Betrug, Urkundenfälschung) und dass ich für den daraus entstehenden Schaden hafte.",
+          "Mir ist bekannt, dass vorsätzlich falsche oder irreführende Angaben sowie gefälschte oder ungültige Unterlagen eine wesentliche Vertragsverletzung darstellen und je nach Sachverhalt strafrechtliche Tatbestände erfüllen können; die Beurteilung obliegt den zuständigen Behörden und Gerichten.",
       },
     },
   },
@@ -392,7 +393,7 @@ const de = {
       "Bitte fotografieren Sie die Rückseite Ihres Führerausweises.",
     signature: "Bitte unterschreiben Sie.",
     gtc: "Bitte akzeptieren Sie die AGB.",
-    confirm: "Bitte bestätigen Sie beide Punkte zu Art. 11 der AGB.",
+    confirm: "Bitte bestätigen Sie beide Punkte zu Art. 15.1 und 15.5 der AGB.",
     paymentMethod: "Bitte wählen Sie mindestens eine Zahlungsmethode.",
     dueDate: "Bitte wählen Sie ein Datum.",
     amount: "Bitte geben Sie einen gültigen Betrag ein.",
@@ -619,7 +620,7 @@ const en: typeof de = {
     intro: "Please read the GTC and confirm your acceptance.",
     languageLabel: "Language of the terms",
     accept: "I have read and accept the GTC.",
-    locked: "Please accept the GTC and confirm Art. 11 first.",
+    locked: "Please accept the GTC and confirm Art. 15.1 and 15.5 first.",
     version: "Version",
     article: "Art.",
     short: "GTC",
@@ -629,12 +630,12 @@ const en: typeof de = {
       truthfulInfoConfirmedAt: {
         title: "Truthful information",
         statement:
-          "I confirm that all information and documents I have provided are complete, truthful and valid, and I will report any change without delay.",
+          "I confirm that my information and the identity documents, driving licences, permits and other documents I have presented are, to the best of my knowledge, complete, truthful and valid.",
       },
       deceptionNoticeConfirmedAt: {
-        title: "Deception and liability",
+        title: "False information and documents",
         statement:
-          "I understand that false information or forged documents can be a criminal offence (fraud, forgery) and that I am liable for any resulting damage.",
+          "I understand that intentionally false or misleading information and forged or invalid documents may constitute a material breach of contract and, depending on the facts, may meet the elements of criminal offences; the assessment is a matter for the competent authorities and courts.",
       },
     },
   },
@@ -839,7 +840,7 @@ const en: typeof de = {
     licenceBackPhoto: "Please photograph the back of your driving licence.",
     signature: "Please sign.",
     gtc: "Please accept the GTC.",
-    confirm: "Please confirm both points on Art. 11 of the GTC.",
+    confirm: "Please confirm both points on Art. 15.1 and 15.5 of the GTC.",
     paymentMethod: "Please select at least one payment method.",
     dueDate: "Please choose a date.",
     amount: "Please enter a valid amount.",
