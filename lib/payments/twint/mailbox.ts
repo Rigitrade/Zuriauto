@@ -47,6 +47,13 @@ export async function fetchTwintMails(config: MailboxConfig, now: Date): Promise
     auth: { user: config.user, pass: config.pass },
     logger: false,
   });
+  // A connection that drops after login is emitted as "error". Unheard, Node
+  // throws it as an uncaught exception and the whole run goes down with it;
+  // heard, the command in flight rejects and the run fails like any other.
+  let dropped: Error | null = null;
+  client.on("error", (error: Error) => {
+    dropped ??= error;
+  });
   await client.connect();
   try {
     const lock = await client.getMailboxLock(config.mailbox, { readOnly: true });
@@ -62,7 +69,11 @@ export async function fetchTwintMails(config: MailboxConfig, now: Date): Promise
     } finally {
       lock.release();
     }
+  } catch (error) {
+    // The drop is the cause; "Connection not available" is only its echo.
+    throw dropped ?? error;
   } finally {
-    await client.logout();
+    // LOGOUT on a dropped connection throws as well, and must not hide why.
+    await client.logout().catch(() => client.close());
   }
 }
