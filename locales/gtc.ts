@@ -1,5 +1,9 @@
 // The terms, in the three languages a renter can read them in.
 //
+// The version of 16.10.2026 is that of 15.10.2026 with one change, asked
+// for by the lessor on 16.10.2026: clause 12.4 pays the deposit back five to
+// ten working days after the return, where it said within ten.
+//
 // The version of 15.10.2026 is the lessor's own rewrite, received as
 // GTC_AGB_DE_15.10.2026.docx: eighteen articles of numbered clauses, which
 // replace the twelve articles of the earlier versions outright. The German is
@@ -8,7 +12,7 @@
 // the Code of Obligations as "CO" and writing amounts as the German does. The
 // docx's subtitle ("Fahrzeugvermietung – Rigitrade AG") is not repeated, since
 // every page that shows the terms already names the lessor. Earlier versions
-// (30.07, 06.10 and 08.10.2026) are in git history, and their PDFs stay
+// (30.07, 06.10, 08.10 and 15.10.2026) are in git history, and their PDFs stay
 // published.
 //
 // This file is the source and the published PDFs are built from it
@@ -72,7 +76,7 @@ export const GTC_ENTITY = "Rigitrade AG";
  * carry the same date; the German and French files print it in this exact
  * DD.MM.YYYY form.
  */
-export const GTC_DATE = "15.10.2026";
+export const GTC_DATE = "16.10.2026";
 
 /**
  * Where the current version's PDF is published (built by `pnpm gtc:pdf`). The
@@ -87,7 +91,7 @@ export function gtcPdfPath(language: GtcLanguage): string {
 const gtc: Record<GtcLanguage, GtcDocument> = {
   de: {
     title: "Allgemeine Geschäftsbedingungen (AGB)",
-    updated: "Stand: 15. Oktober 2026",
+    updated: "Stand: 16. Oktober 2026",
     sections: [
       {
         num: "1",
@@ -260,7 +264,7 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
           { kind: "clause", num: "12.1", text: "Höhe, Zahlungsart und Zeitpunkt der Kaution sowie die akzeptierten Zahlungsmittel werden vor Vertragsabschluss im individuellen Mietvertrag oder in den Buchungsbedingungen festgelegt." },
           { kind: "clause", num: "12.2", text: "Die Kaution dient der Sicherung berechtigter Forderungen aus dem Mietverhältnis. Nachweislich geschuldete und fällige Beträge dürfen im gesetzlich zulässigen Umfang verrechnet werden. Die Vermieterin informiert den Mieter nachvollziehbar über solche Verrechnungen." },
           { kind: "clause", num: "12.3", text: "Sind bei Rückgabe konkrete Ansprüche erkennbar, die noch nicht abschliessend beziffert werden können, darf ein angemessener Betrag nur so lange zurückbehalten werden, wie dies für die sachgerechte Abklärung und Sicherung des Anspruchs erforderlich und gesetzlich zulässig ist. Ein unbestrittener Restbetrag wird fristgerecht zurückbezahlt." },
-          { kind: "clause", num: "12.4", text: "Sofern im Mietvertrag nichts anderes vereinbart ist, wird die Kaution grundsätzlich innerhalb von zehn Arbeitstagen nach ordnungsgemässer Rückgabe zurückbezahlt. Die tatsächliche Bearbeitungsdauer eines Karten- oder Zahlungsdienstleisters kann ausserhalb des Einflussbereichs der Vermieterin liegen." },
+          { kind: "clause", num: "12.4", text: "Sofern im Mietvertrag nichts anderes vereinbart ist, wird die Kaution grundsätzlich fünf bis zehn Arbeitstage nach ordnungsgemässer Rückgabe zurückbezahlt. Die tatsächliche Bearbeitungsdauer eines Karten- oder Zahlungsdienstleisters kann ausserhalb des Einflussbereichs der Vermieterin liegen." },
           { kind: "clause", num: "12.5", text: "Bei Zahlungsverzug kann die Vermieterin die gesetzlich zulässigen Mahn-, Inkasso- und Betreibungsschritte einleiten. Die nachfolgenden Gebühren dürfen nur erhoben werden, soweit sie vor Vertragsabschluss wirksam vereinbart wurden und im konkreten Fall gesetzlich zulässig und angemessen sind:" },
           {
             kind: "table",
@@ -353,12 +357,12 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
         "Geschäftsadresse: Schaffhauserstrasse 550, 8052 Zürich, Schweiz",
       ],
       text: "Diese AGB gelten nur, soweit sie wirksam in den jeweiligen Mietvertrag einbezogen wurden. Der Mieter bestätigt bei Vertragsabschluss, dass er die AGB zugänglich erhalten und ihnen zugestimmt hat.",
-      signoff: "15.10.2026 / AK",
+      signoff: "16.10.2026 / AK",
     },
   },
   en: {
     title: "General Terms and Conditions (GTC)",
-    updated: "As of 15 October 2026",
+    updated: "As of 16 October 2026",
     sections: [
       {
         num: "1",
@@ -531,7 +535,7 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
           { kind: "clause", num: "12.1", text: "The amount, method of payment and timing of the deposit, and the accepted means of payment, are set before the contract is concluded in the individual rental agreement or in the booking terms." },
           { kind: "clause", num: "12.2", text: "The deposit serves to secure legitimate claims arising from the rental relationship. Amounts that are demonstrably owed and due may be set off to the extent permitted by law. The Lessor informs the Renter of any such set-off in a comprehensible manner." },
           { kind: "clause", num: "12.3", text: "If, on return, specific claims are apparent that cannot yet be finally quantified, a reasonable amount may be withheld only for as long as is necessary for the proper investigation and securing of the claim and permitted by law. An undisputed balance is repaid on time." },
-          { kind: "clause", num: "12.4", text: "Unless otherwise agreed in the rental agreement, the deposit is, as a rule, repaid within ten working days after the vehicle has been properly returned. The actual processing time of a card or payment service provider may lie outside the Lessor's control." },
+          { kind: "clause", num: "12.4", text: "Unless otherwise agreed in the rental agreement, the deposit is, as a rule, repaid five to ten working days after the vehicle has been properly returned. The actual processing time of a card or payment service provider may lie outside the Lessor's control." },
           { kind: "clause", num: "12.5", text: "In the event of payment default, the Lessor may take the reminder, debt collection and debt enforcement steps permitted by law. The following fees may be charged only insofar as they were validly agreed before the contract was concluded and are permitted by law and reasonable in the specific case:" },
           {
             kind: "table",
@@ -624,12 +628,12 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
         "Business address: Schaffhauserstrasse 550, 8052 Zürich, Switzerland",
       ],
       text: "These GTC apply only insofar as they have been validly incorporated into the respective rental agreement. On concluding the contract, the Renter confirms that the GTC were made accessible to them and that they have agreed to them.",
-      signoff: "15.10.2026 / AK",
+      signoff: "16.10.2026 / AK",
     },
   },
   fr: {
     title: "Conditions Générales de Location (CGV)",
-    updated: "État au 15 octobre 2026",
+    updated: "État au 16 octobre 2026",
     sections: [
       {
         num: "1",
@@ -802,7 +806,7 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
           { kind: "clause", num: "12.1", text: "Le montant, le mode et la date de paiement de la caution ainsi que les moyens de paiement acceptés sont fixés avant la conclusion du contrat dans le contrat de location individuel ou dans les conditions de réservation." },
           { kind: "clause", num: "12.2", text: "La caution sert à garantir les créances légitimes découlant de la relation de location. Les montants dont il est prouvé qu'ils sont dus et exigibles peuvent être compensés dans la mesure autorisée par la loi. Le Loueur informe le Locataire de manière compréhensible de telles compensations." },
           { kind: "clause", num: "12.3", text: "Si, lors de la restitution, des prétentions concrètes sont reconnaissables mais ne peuvent pas encore être chiffrées définitivement, un montant approprié ne peut être retenu qu'aussi longtemps que cela est nécessaire à l'examen adéquat et à la garantie de la prétention et autorisé par la loi. Un solde non contesté est remboursé dans les délais." },
-          { kind: "clause", num: "12.4", text: "Sauf convention contraire dans le contrat de location, la caution est en principe remboursée dans un délai de dix jours ouvrables après la restitution en bonne et due forme du véhicule. La durée effective de traitement d'un prestataire de cartes ou de services de paiement peut échapper à l'influence du Loueur." },
+          { kind: "clause", num: "12.4", text: "Sauf convention contraire dans le contrat de location, la caution est en principe remboursée cinq à dix jours ouvrables après la restitution en bonne et due forme du véhicule. La durée effective de traitement d'un prestataire de cartes ou de services de paiement peut échapper à l'influence du Loueur." },
           { kind: "clause", num: "12.5", text: "En cas de retard de paiement, le Loueur peut engager les démarches de rappel, d'encaissement et de poursuite autorisées par la loi. Les frais suivants ne peuvent être perçus que dans la mesure où ils ont été valablement convenus avant la conclusion du contrat et sont autorisés par la loi et appropriés dans le cas concret :" },
           {
             kind: "table",
@@ -895,7 +899,7 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
         "Adresse commerciale : Schaffhauserstrasse 550, 8052 Zürich, Suisse",
       ],
       text: "Les présentes CGV ne s'appliquent que dans la mesure où elles ont été valablement intégrées au contrat de location concerné. Lors de la conclusion du contrat, le Locataire confirme que les CGV lui ont été rendues accessibles et qu'il les a acceptées.",
-      signoff: "15.10.2026 / AK",
+      signoff: "16.10.2026 / AK",
     },
   },
 };

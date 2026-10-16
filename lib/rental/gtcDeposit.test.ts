@@ -3,15 +3,16 @@ import gtc, { GTC_LANGUAGES, type GtcLanguage } from "@/locales/gtc";
 
 /**
  * The lessor asked on 07.10.2026 for the deposit's payback period in the
- * terms. Since the GTC of 15.10.2026 it is clause 12.4: unless the rental
- * agreement says otherwise, within ten working days after the vehicle has
- * been properly returned. It must say the same in every language the renter
- * can read the terms in.
+ * terms. Since the GTC of 15.10.2026 it is clause 12.4, and since 16.10.2026
+ * it gives five to ten working days (the owner's request of that day): unless
+ * the rental agreement says otherwise, the deposit is paid back five to ten
+ * working days after the vehicle has been properly returned. It must say the
+ * same in every language the renter can read the terms in.
  */
 const WORDS: Record<GtcLanguage, { deposit: RegExp; days: RegExp }> = {
-  de: { deposit: /Kaution/, days: /innerhalb von zehn Arbeitstagen/ },
-  en: { deposit: /deposit/i, days: /within ten working days/ },
-  fr: { deposit: /caution/i, days: /dans un délai de dix jours ouvrables/ },
+  de: { deposit: /Kaution/, days: /fünf bis zehn Arbeitstage nach ordnungsgemässer Rückgabe/ },
+  en: { deposit: /deposit/i, days: /five to ten working days after the vehicle/ },
+  fr: { deposit: /caution/i, days: /cinq à dix jours ouvrables après la restitution/ },
 };
 
 describe("GTC deposit payback", () => {
