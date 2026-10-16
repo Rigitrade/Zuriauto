@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { GET as fleetGet } from "@/app/api/fleet/route";
 import { prisma } from "@/lib/db";
-import { weeklyChargePass } from "@/lib/rental/scheduler";
+import { generateWeeklyCharges } from "@/lib/rental/passes";
+import { runningWeeksPass, weeklyChargePass } from "@/lib/rental/scheduler";
 import { persistPickup, type PickupUpload } from "@/lib/rental/persistPickup";
 import { persistReturn, type ReturnUpload } from "@/lib/rental/persistReturn";
 import type { ContractDetails } from "@/lib/rental/schema";
@@ -85,7 +86,7 @@ async function ready(): Promise<{ organisationId: string; store: MemoryStore }> 
 }
 
 /** A rental out on the road, as a return needs to find. */
-async function rentalOut(organisationId: string, store: MemoryStore) {
+async function rentalOut(organisationId: string, store: MemoryStore, now?: Date) {
   return persistPickup({
     organisationId,
     details: pickupDetails,
@@ -93,6 +94,7 @@ async function rentalOut(organisationId: string, store: MemoryStore) {
     uploads: pickupUploads,
     pdf: { body: new Uint8Array([7, 8, 9]) },
     store,
+    now,
   });
 }
 
@@ -531,11 +533,71 @@ describe("a submitted return and the money still owed", () => {
     expect(after.status).toBe("REQUESTED");
   });
 
+  it("writes no week of a running weekly rental after the car came back", async () => {
+    const { organisationId, store } = await ready();
+    // Weekly from 17.08 until the car comes back, on 26.08, during week 2.
+    const pickup = await rentalOut(
+      organisationId,
+      store,
+      new Date("2026-08-17T08:00:00.000Z")
+    );
+    const deps = (now: string) => ({
+      client: prisma,
+      now: new Date(now),
+      baseUrl: "https://example.test",
+      mail: null,
+    });
+    await runningWeeksPass(deps("2026-08-24T06:00:00.000Z"));
+    await submitReturn(
+      organisationId,
+      store,
+      {},
+      "ZR-20260826-513925-A1B2",
+      new Date("2026-08-26T10:00:00.000Z")
+    );
+
+    // The daily run, on days weeks 3 and 4 would have begun.
+    for (const now of ["2026-08-31T06:00:00.000Z", "2026-09-10T10:00:00.000Z"]) {
+      await runningWeeksPass(deps(now));
+      await weeklyChargePass(deps(now));
+    }
+
+    const charges = await prisma.charge.findMany({
+      where: { rentalId: pickup.rentalId, weekNumber: { gt: 0 } },
+      orderBy: { weekNumber: "asc" },
+    });
+    expect(charges.map((charge) => [charge.weekNumber, charge.status])).toEqual([
+      [1, "REQUESTED"],
+      [2, "REQUESTED"],
+    ]);
+  });
+
   it("does not request a week that had not started when the car came back", async () => {
     const { organisationId, store } = await ready();
-    // Four weeks from 17.08, due 17.08, 24.08, 31.08 and 07.09 — returned on
-    // 26.08, during week 2.
-    const pickup = await rentalOut(organisationId, store);
+    // Signed before 16.10.2026 for four weeks, every week written at the
+    // pickup: due 17.08, 24.08, 31.08 and 07.09 — returned on 26.08, during
+    // week 2.
+    const startAt = new Date("2026-08-17T08:00:00.000Z");
+    const pickup = await rentalOut(organisationId, store, startAt);
+    await prisma.rental.update({
+      where: { id: pickup.rentalId },
+      data: { totalWeeks: 4, endAt: new Date("2026-09-14T08:00:00.000Z") },
+    });
+    await prisma.charge.createMany({
+      data: generateWeeklyCharges({
+        startAt,
+        fromWeek: 2,
+        weeks: 3,
+        amountCents: 45_000,
+      }).map((charge) => ({
+        organisationId,
+        rentalId: pickup.rentalId,
+        weekNumber: charge.weekNumber,
+        dueDate: charge.dueDate,
+        amountCents: charge.amountCents,
+        currency: "chf",
+      })),
+    });
     await submitReturn(
       organisationId,
       store,
