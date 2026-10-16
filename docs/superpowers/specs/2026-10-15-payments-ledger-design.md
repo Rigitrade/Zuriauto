@@ -163,6 +163,16 @@ office's week picker all treat it as not owed without further change.
 - Switching the daily cron back on. The cut-over is its precondition, not its
   trigger.
 
+## Later (agreed, not scheduled)
+
+- **A payment code per rental** (owner, 16.10.2026). Each rental gets a short
+  code, printed on the contract and sent in the contract email. The renter
+  types it in TWINT's message field, and the matcher books on the code
+  instead of guessing from the plate and the payer's name. This would remove
+  most of PAYER_MISMATCH and NO_PLATE. It fits the payment request's
+  pre-filled TWINT link (twint spec, decision 8): that link would carry the
+  code too.
+
 ## Measured
 
 Filled in by plan Task D1: the dry run on the 34 real notifications against a
