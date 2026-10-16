@@ -95,10 +95,16 @@ export function driverIsComplete(driver: Driver | null): driver is Driver {
 /**
  * Send, or hold for the office with the reason.
  *
- * The address must be one the office has confirmed for this authority *and*
- * printed on this letter. Confirmed alone would carry an old address past a
+ * The address must be one the office has confirmed for this authority, and
+ * must not be contradicted by the letter: a letter that prints addresses has to
+ * print the confirmed one. Confirmed alone would carry an old address past a
  * letter that announces a new one; printed alone would trust a single OCR
  * reading with personal data.
+ *
+ * A letter that prints none — the Kantonspolizei Zürich prints none — goes to
+ * the confirmed address (the owner, 16.10.2026): the authority is the same
+ * payment-slip account the office confirmed it for, and nothing on the letter
+ * says otherwise. With nothing confirmed yet, it waits for the office.
  */
 export function decideNomination(facts: NominationFacts): NominationDecision {
   const emails = facts.emailsOnLetter;
@@ -112,9 +118,11 @@ export function decideNomination(facts: NominationFacts): NominationDecision {
   if (!driverIsComplete(facts.driver)) return hold("NOMINATION_DRIVER_INCOMPLETE");
   if (!facts.fineNumber?.trim()) return hold("NOMINATION_NO_NUMBER");
   if (!facts.iban) return hold("NOMINATION_NO_AUTHORITY");
-  if (emails.length === 0) return hold("NOMINATION_NO_EMAIL");
 
   const confirmed = facts.confirmedEmail?.toLowerCase() ?? null;
+  if (emails.length === 0) {
+    return confirmed ? { send: true, to: confirmed } : hold("NOMINATION_NO_EMAIL");
+  }
   if (confirmed && emails.includes(confirmed)) return { send: true, to: confirmed };
   if (confirmed) return hold("NOMINATION_ADDRESS_CHANGED");
   if (emails.length > 1) return hold("NOMINATION_SEVERAL_EMAILS");

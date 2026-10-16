@@ -437,7 +437,7 @@ const de = {
     reasonPROCESSING_FAILED: "Lesen fehlgeschlagen",
     // Why the driver was not named automatically — each says what to do.
     reasonNOMINATION_NO_EMAIL:
-      "Lenker nicht gemeldet: Im Schreiben steht keine E-Mail-Adresse der Behörde. Bitte Adresse eintragen und melden.",
+      "Lenker nicht gemeldet: Im Schreiben steht keine E-Mail-Adresse, und für diese Behörde ist noch keine bestätigt. Bitte Adresse eintragen und melden – sie gilt dann auch für ihre nächsten Schreiben.",
     reasonNOMINATION_SEVERAL_EMAILS:
       "Lenker nicht gemeldet: Im Schreiben stehen mehrere E-Mail-Adressen. Bitte die richtige wählen.",
     reasonNOMINATION_NEW_ADDRESS:
@@ -954,7 +954,7 @@ const en: typeof de = {
     reasonMAIL_FAILED: "Email not delivered",
     reasonPROCESSING_FAILED: "Reading failed",
     reasonNOMINATION_NO_EMAIL:
-      "Driver not named: the letter shows no email address for the authority. Enter it and send.",
+      "Driver not named: the letter shows no email address, and none is confirmed for this authority yet. Enter it and send — it is then used for their next letters too.",
     reasonNOMINATION_SEVERAL_EMAILS:
       "Driver not named: the letter shows several email addresses. Choose the right one.",
     reasonNOMINATION_NEW_ADDRESS:

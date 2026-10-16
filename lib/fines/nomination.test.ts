@@ -84,10 +84,19 @@ describe("decideNomination", () => {
     ).toEqual({ send: true, to: "ordnungsbussen@uitikon.org" });
   });
 
-  it("holds a letter with no address, whatever is confirmed", () => {
-    expect(decideNomination(facts({ emailsOnLetter: [] }))).toMatchObject({
+  it("sends a letter with no address to the one confirmed for its authority", () => {
+    // The Kantonspolizei Zürich prints none.
+    expect(decideNomination(facts({ emailsOnLetter: [] }))).toEqual({
+      send: true,
+      to: "ordnungsbussen@uitikon.org",
+    });
+  });
+
+  it("holds a letter with no address when none is confirmed for its authority", () => {
+    expect(decideNomination(facts({ emailsOnLetter: [], confirmedEmail: null }))).toEqual({
       send: false,
       reason: "NOMINATION_NO_EMAIL",
+      suggestion: null,
     });
   });
 

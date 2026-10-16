@@ -8,8 +8,9 @@ import { FINE_NOW, seedOrganisation, seedRental } from "./fineHelpers";
 
 /**
  * Naming the driver of a police fine to the authority (owner's decision of
- * 16.10.2026): sent only to an address the office confirmed and the letter
- * shows; held for the office, with the reason, in every other case.
+ * 16.10.2026): sent only to an address the office confirmed, which the letter
+ * shows or, showing none, does not contradict; held for the office, with the
+ * reason, in every other case.
  */
 
 const MAIL = {
@@ -159,6 +160,22 @@ describe("a police fine whose authority the office has confirmed", () => {
     await deliverNewFine(deps, fine.id);
     expect(sent.filter((m) => m.to === "ordnungsbussen@uitikon.org")).toHaveLength(1);
   });
+
+  it("names the driver of a letter that shows no address to the confirmed one", async () => {
+    // As every Kantonspolizei Zürich letter: an address on none of them.
+    const { organisationId, fine, deps, sent } = await matchedFine({
+      ocrText: "Kommunalpolizei Uitikon\nBussen-Nr. 18440",
+    });
+    await confirmUitikon(organisationId);
+
+    await deliverNewFine(deps, fine.id);
+
+    expect(sent.map((m) => m.to)).toEqual(["ordnungsbussen@uitikon.org", "anna@example.ch"]);
+    expect(await reload(fine.id)).toMatchObject({
+      status: "DRIVER_NAMED",
+      driverNamedTo: "ordnungsbussen@uitikon.org",
+    });
+  });
 });
 
 describe("a police fine held for the office, with the reason", () => {
@@ -177,12 +194,15 @@ describe("a police fine held for the office, with the reason", () => {
     expect(authority).toMatchObject({ iban: UITIKON_IBAN, email: null, confirmedAt: null });
   });
 
-  it("holds a letter that shows no address, though the authority is confirmed", async () => {
-    const { organisationId, fine, deps, sent } = await matchedFine({ ocrText: "Kommunalpolizei Uitikon\nBussen-Nr. 18440" });
-    await confirmUitikon(organisationId);
+  it("holds a letter that shows no address from an authority not yet confirmed", async () => {
+    const { fine, deps, sent } = await matchedFine({ ocrText: "Kommunalpolizei Uitikon\nBussen-Nr. 18440" });
     await deliverNewFine(deps, fine.id);
     expect(sent).toEqual([]);
-    expect((await reload(fine.id)).reviewReason).toBe("NOMINATION_NO_EMAIL");
+    expect(await reload(fine.id)).toMatchObject({
+      status: "NEEDS_REVIEW",
+      reviewReason: "NOMINATION_NO_EMAIL",
+      authorityEmailRead: null,
+    });
   });
 
   it("holds a letter whose address is not the confirmed one", async () => {

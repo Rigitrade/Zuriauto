@@ -166,11 +166,14 @@ the office, and tells the renter they were named. No handling fee. The fine
 becomes `DRIVER_NAMED`; a later *Mahnung* for it alerts the office.
 
 Automatic only when nothing is in doubt (`lib/fines/nomination.ts`): the
-address must be printed on the letter **and** be the one the office confirmed
-for that authority, which is recognised by the IBAN on its payment slip.
+address must be the one the office confirmed for that authority, which is
+recognised by the IBAN on its payment slip, and a letter that prints addresses
+must print that one. A letter that prints none — the Kantonspolizei Zürich
+prints none — goes to the confirmed address (the owner, 16.10.2026).
 Anything else waits in review with the reason in words — no address on the
-letter, several, a first letter from an authority, an address that changed,
-no payment slip, no Busse-Nr., or a renter the authority could not reach. The
+letter and none confirmed yet, several, a first letter from an authority, an
+address that changed, no payment slip, no Busse-Nr., or a renter the
+authority could not reach. The
 office names the driver from there; the address it enters is confirmed for
 that authority's next letters. A renter's personal data in a stranger's inbox
 is the one mistake this cannot afford, and one OCR reading is not enough to
