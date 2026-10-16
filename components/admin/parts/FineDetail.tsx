@@ -25,6 +25,8 @@ interface Detail {
     violationTimeKnown: boolean;
     amountCents: number | null;
     issuerName: string | null;
+    issuerKind: string | null;
+    authorityEmailRead: string | null;
     fineNumber: string | null;
     location: string | null;
     offenceTextDe: string | null;
@@ -49,6 +51,13 @@ interface Detail {
   proofs: { id: string; verdict: string; submittedAt: string; paidOn: string | null; accepted: boolean | null }[];
   events: { id: string; type: string; actorName: string | null; createdAt: string }[];
   candidates: { rentalId: string; from: string; to: string | null; renterName: string; email: string; phone: string }[];
+  nomination: {
+    authority: { name: string; email: string | null; confirmedAt: string | null } | null;
+    emailsOnLetter: string[];
+    namedAt: string | null;
+    namedTo: string | null;
+    preview: { subject: string; text: string } | null;
+  };
 }
 
 const FIELDS = [
@@ -123,6 +132,8 @@ export function FineDetail({
   const [failed, setFailed] = useState(false);
   const [editing, setEditing] = useState<null | "moment" | "car" | "amount" | "close">(null);
   const [draft, setDraft] = useState("");
+  /** The address the driver is named to; null until the office touches it. */
+  const [nominateTo, setNominateTo] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const response = await fetch(`/api/admin/fines/${fineId}/`);
@@ -157,6 +168,17 @@ export function FineDetail({
   const open = ["NEEDS_REVIEW", "NOTIFIED", "PROOF_SUBMITTED"].includes(fine.status);
   const label = (prefix: string, key: string | null) =>
     key ? ((F as Record<string, string>)[`${prefix}${key}`] ?? key) : "";
+  const { nomination } = detail;
+  const confirmed = nomination.authority?.confirmedAt ? nomination.authority.email : null;
+  // The confirmed address when the letter shows it, else what the letter
+  // shows, else the confirmed one: the office starts from the likeliest.
+  const suggested =
+    (confirmed && nomination.emailsOnLetter.includes(confirmed) ? confirmed : null) ??
+    fine.authorityEmailRead ??
+    nomination.emailsOnLetter[0] ??
+    confirmed ??
+    "";
+  const to = nominateTo ?? suggested;
 
   return (
     <div className="space-y-4">
@@ -263,6 +285,78 @@ export function FineDetail({
             </section>
           )}
 
+          {fine.status === "DRIVER_NAMED" && nomination.namedTo && nomination.namedAt && (
+            <section className="rounded-xl border border-[var(--admin-rule)] bg-[var(--admin-good-soft)] p-4 text-sm text-[var(--admin-good)]">
+              {F.nominationNamed.replace("{to}", nomination.namedTo).replace("{at}", zurich(nomination.namedAt))}
+            </section>
+          )}
+
+          {/* Naming the driver by hand: for every fine the system held, with
+              the reason in the header above, and for any open one the office
+              would rather name than send to the renter. */}
+          {open && fine.rentalId && fine.status !== "PROOF_SUBMITTED" && (
+            <section className="space-y-3 rounded-xl border border-[var(--admin-rule)] bg-[var(--admin-surface)] p-4">
+              <h3 className="text-sm font-semibold">{F.nomination}</h3>
+              <dl className="grid grid-cols-[7rem_1fr] gap-x-2 gap-y-1 text-sm">
+                <dt className="text-[var(--admin-faint)]">{F.nominationAuthority}</dt>
+                <dd className="min-w-0 break-words">
+                  {nomination.authority?.name ?? fine.issuerName ?? "—"}
+                  <span className="block text-xs text-[var(--admin-faint)]">
+                    {confirmed ? `${F.nominationConfirmed}: ${confirmed}` : F.nominationUnconfirmed}
+                  </span>
+                </dd>
+                <dt className="text-[var(--admin-faint)]">{F.nominationOnLetter}</dt>
+                <dd className="flex min-w-0 flex-wrap gap-1.5">
+                  {nomination.emailsOnLetter.length === 0
+                    ? "—"
+                    : nomination.emailsOnLetter.map((email) => (
+                        <button
+                          key={email}
+                          type="button"
+                          onClick={() => setNominateTo(email)}
+                          className="rounded-full bg-[var(--admin-sunk)] px-2 py-0.5 text-xs hover:bg-[var(--admin-rule)]"
+                        >
+                          {email}
+                        </button>
+                      ))}
+                </dd>
+              </dl>
+              {nomination.preview ? (
+                <>
+                  <form
+                    className="flex flex-wrap items-end gap-2"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      void act({ action: "nominate", email: to });
+                    }}
+                  >
+                    <label className="flex min-w-[14rem] flex-1 flex-col gap-1 text-xs text-[var(--admin-faint)]">
+                      {F.nominationTo}
+                      <input
+                        type="email"
+                        value={to}
+                        onChange={(e) => setNominateTo(e.target.value)}
+                        className="h-9 rounded-md border border-[var(--admin-rule-strong)] bg-transparent px-2 text-sm text-[var(--admin-ink)]"
+                      />
+                    </label>
+                    <button type="submit" disabled={busy || !to.trim()} className={primary}>
+                      {F.nominationSend}
+                    </button>
+                  </form>
+                  <p className="text-xs text-[var(--admin-faint)]">{F.nominationRemember}</p>
+                  <details className="text-xs">
+                    <summary className="cursor-pointer text-[var(--admin-muted)]">{F.nominationPreview}</summary>
+                    <pre className="mt-2 whitespace-pre-wrap rounded-md bg-[var(--admin-sunk)] p-3 font-sans">
+                      {`${nomination.preview.subject}\n\n${nomination.preview.text}`}
+                    </pre>
+                  </details>
+                </>
+              ) : (
+                <p className="text-sm text-[var(--admin-attn)]">{F.nominationNoPreview}</p>
+              )}
+            </section>
+          )}
+
           <section className="space-y-3 rounded-xl border border-[var(--admin-rule)] bg-[var(--admin-surface)] p-4">
             {fine.customer && (
               <p className="text-sm">
@@ -271,7 +365,9 @@ export function FineDetail({
             )}
             <div className="flex flex-wrap gap-2">
               {open && fine.rentalId && fine.status !== "PROOF_SUBMITTED" && (
-                <button type="button" disabled={busy} className={primary} onClick={() => act({ action: "send" })}>
+                // Secondary for a police fine, whose way out is naming the
+                // driver; still there, for an authority that will not take it.
+                <button type="button" disabled={busy} className={fine.issuerKind === "POLICE" ? button : primary} onClick={() => act({ action: "send" })}>
                   {F.send}
                 </button>
               )}

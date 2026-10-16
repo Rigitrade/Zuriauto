@@ -20,6 +20,7 @@ import { sendMail } from "@/lib/rental/lifecycleMail";
 import { zurichDayString } from "@/lib/rental/passes";
 import { recordEvent } from "./events";
 import { officeFineDigestMail } from "./mail";
+import { deliverFine } from "./nominate";
 import { alertOffice, fineAdminUrl, notifyRenter, type NotifyDeps } from "./notify";
 import { claimable, processFineDocument } from "./process";
 import type { FineReader } from "./reader";
@@ -63,7 +64,7 @@ export async function fineDocumentRetryPass(deps: FinePassDeps): Promise<number>
         reader: deps.reader,
         now: deps.now,
         notify: async (fineId, reason) => {
-          await notifyRenter(deps, fineId, reason);
+          await deliverFine(deps, fineId, reason);
         },
       },
       document.id

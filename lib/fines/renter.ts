@@ -19,7 +19,8 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { isPlaceholderEmail } from "@/lib/rental/placeholder";
 import { recordEvent } from "./events";
-import { notifyRenter, type NotifyDeps } from "./notify";
+import { deliverNewFine } from "./nominate";
+import type { NotifyDeps } from "./notify";
 
 export async function refreshFineRenters(
   tx: Prisma.TransactionClient,
@@ -59,14 +60,14 @@ export async function refreshFineRenters(
 }
 
 /**
- * The notice for each fine a return made sendable, through the same
- * notifyRenter an upload uses. One that fails is logged and stays in review
+ * Each fine a return made sendable, delivered as an upload delivers it —
+ * named to the police, or sent to the renter (deliverNewFine). One that fails is logged and stays in review
  * for the office; it never fails the return, which is already saved.
  */
 export async function sendFinesFromReturn(deps: NotifyDeps, fineIds: string[]): Promise<void> {
   for (const fineId of fineIds) {
     try {
-      await notifyRenter(deps, fineId, "notice");
+      await deliverNewFine(deps, fineId);
     } catch (error) {
       console.error(`[fines] notice after return failed for ${fineId}:`, error);
     }

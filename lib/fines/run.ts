@@ -8,7 +8,8 @@ import { prisma } from "@/lib/db";
 import { readLifecycleMailConfig } from "@/lib/rental/lifecycleMail";
 import { getAssetStore } from "@/lib/storage";
 import type { FineDeps } from "./attach";
-import { notifyRenter, type NotifyDeps } from "./notify";
+import { deliverFine } from "./nominate";
+import type { NotifyDeps } from "./notify";
 import { processFineDocument } from "./process";
 import { freeReader } from "./reader";
 
@@ -34,7 +35,7 @@ export function fineDeps(now: Date = new Date()): FineDeps {
     reader: freeReader,
     now,
     notify: async (fineId, reason) => {
-      await notifyRenter(notify, fineId, reason);
+      await deliverFine(notify, fineId, reason);
     },
   };
 }

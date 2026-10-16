@@ -88,6 +88,7 @@ model Organisation {
   adminUsers AdminUser[]
   fines         Fine[]
   fineDocuments FineDocument[]
+  fineAuthorities FineAuthority[]
 }
 
 model Car {
@@ -933,6 +934,9 @@ enum FineStatus {
   /// The renter sent a screenshot the system could not verify.
   PROOF_SUBMITTED
   PAID
+  /// The driver was named to the issuing authority, which now deals with
+  /// them directly (lib/fines/nominate.ts). Nothing is chased.
+  DRIVER_NAMED
   /// Company paid, driver nominated to the police, disputed — with a note.
   HANDLED_OTHERWISE
   /// Uploaded twice or by mistake.
@@ -954,6 +958,21 @@ enum FineReviewReason {
   REMINDER_AFTER_PAID
   MAIL_FAILED
   PROCESSING_FAILED
+  /// Why the driver was not named automatically (lib/fines/nominate.ts):
+  /// the letter shows no email for the authority,
+  NOMINATION_NO_EMAIL
+  /// or more than one, none of them the confirmed one,
+  NOMINATION_SEVERAL_EMAILS
+  /// or one the office has not confirmed for this authority yet,
+  NOMINATION_NEW_ADDRESS
+  /// or one other than the address the office confirmed for it.
+  NOMINATION_ADDRESS_CHANGED
+  /// No payment slip to recognise the authority by.
+  NOMINATION_NO_AUTHORITY
+  /// No Busse-Nr. to quote.
+  NOMINATION_NO_NUMBER
+  /// The renter's name, birth date or address is missing.
+  NOMINATION_DRIVER_INCOMPLETE
 }
 
 enum FineFeeStatus {
@@ -982,6 +1001,10 @@ enum FineNotificationKind {
   FINE_PAID
   OFFICE_ALERT
   OFFICE_DIGEST
+  /// The driver's details, to the issuing authority.
+  DRIVER_NOMINATION
+  /// The renter, told they were named and that the authority writes next.
+  RENTER_NAMED
 }
 
 /// One uploaded letter. A fine may have several: the notice and its
@@ -1082,6 +1105,15 @@ model Fine {
   closedById String?
   closedNote String?
 
+  /// Who sent the letter, recognised by its payment slip's account.
+  authorityId        String?
+  /// The authority's address as read from this fine's letter, if it shows
+  /// exactly one — the suggestion the office confirms.
+  authorityEmailRead String?
+  /// When, and to which address, the driver was named.
+  driverNamedAt      DateTime?
+  driverNamedTo      String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1094,12 +1126,40 @@ model Fine {
   events        FineEvent[]
   notifications FineNotification[]
   tokens        ActionToken[]
+  authority     FineAuthority?     @relation(fields: [authorityId], references: [id])
 
   @@index([organisationId, status])
   @@index([organisationId, paymentReference])
   @@index([organisationId, issuerIban, fineNumber])
   @@index([carId, violationAt])
   @@index([status, dueDate])
+}
+
+/// An authority that sends fines, and where it takes the driver's name.
+///
+/// Recognised by the creditor account on its payment slip, which the reader
+/// decodes exactly from the QR code — a name read by OCR varies from letter to
+/// letter, an IBAN does not. The address is read from each letter, but a
+/// renter's personal data goes only to one the office has confirmed: an OCR
+/// slip in an address would otherwise send it to a stranger.
+model FineAuthority {
+  id             String @id @default(cuid())
+  organisationId String
+
+  iban          String
+  name          String
+  /// Null until the office confirms one.
+  email         String?
+  confirmedAt   DateTime?
+  confirmedById String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organisation Organisation @relation(fields: [organisationId], references: [id])
+  fines        Fine[]
+
+  @@unique([organisationId, iban])
 }
 
 /// A renter's screenshot of their payment.

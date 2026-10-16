@@ -3,19 +3,25 @@
  */
 
 import type { FineStatus, PrismaClient } from "@/generated/prisma/client";
+import { isPlaceholderEmail } from "@/lib/rental/placeholder";
+import { driverNominationMail } from "./mail";
+import { driverIsComplete, emailsOnLetter } from "./nomination";
 import { loadIntervals } from "./repo/possessionLoad";
 
-export type FineTab = "review" | "open" | "paid" | "all";
+export type FineTab = "review" | "open" | "named" | "paid" | "all";
 
 const TAB_STATUSES: Record<FineTab, FineStatus[] | null> = {
   review: ["NEEDS_REVIEW", "PROOF_SUBMITTED"],
   open: ["NOTIFIED"],
+  named: ["DRIVER_NAMED"],
   paid: ["PAID"],
   all: null,
 };
 
 export function asTab(value: string | null): FineTab {
-  return value === "open" || value === "paid" || value === "all" ? value : "review";
+  return value === "open" || value === "named" || value === "paid" || value === "all"
+    ? value
+    : "review";
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -85,12 +91,19 @@ export async function fineDetail(client: PrismaClient, fineId: string) {
     where: { id: fineId },
     include: {
       car: { select: { id: true, plate: true, model: true } },
-      customer: { select: { firstName: true, lastName: true, email: true, phone: true } },
+      customer: {
+        select: {
+          firstName: true, lastName: true, email: true, phone: true,
+          birthDate: true, street: true, postalCode: true, city: true, country: true,
+        },
+      },
+      authority: { select: { name: true, email: true, confirmedAt: true } },
       documents: {
         orderBy: { uploadedAt: "asc" },
         select: {
           id: true, status: true, kind: true, language: true, reader: true, pages: true,
           uploadedAt: true, uploadedByName: true, extraction: true, error: true, attempts: true,
+          ocrText: true,
         },
       },
       proofs: {
@@ -134,7 +147,46 @@ export async function fineDetail(client: PrismaClient, fineId: string) {
     });
   }
 
-  return { fine, documents: fine.documents, proofs: fine.proofs, events: fine.events, candidates };
+  // The letters' text stays on the server: it is long, and the addresses on it
+  // are all the screen needs.
+  const documents = fine.documents.map((document) => {
+    const shown: Partial<typeof document> = { ...document };
+    delete shown.ocrText;
+    return shown;
+  });
+  const nomination = {
+    authority: fine.authority,
+    emailsOnLetter: [
+      ...new Set(fine.documents.flatMap((document) => emailsOnLetter(document.ocrText ?? ""))),
+    ],
+    namedAt: fine.driverNamedAt,
+    namedTo: fine.driverNamedTo,
+    // Exactly what the authority would receive, so the office reads it before
+    // pressing the button rather than after.
+    preview:
+      fine.customer && fine.car && fine.violationAt && fine.fineNumber && driverIsComplete(fine.customer)
+        ? driverNominationMail({
+            fineNumber: fine.fineNumber.trim(),
+            plate: fine.car.plate,
+            violationAt: fine.violationAt,
+            timeKnown: fine.violationTimeKnown,
+            driver: {
+              ...fine.customer,
+              birthDate: fine.customer.birthDate,
+              email: isPlaceholderEmail(fine.customer.email) ? null : fine.customer.email,
+            },
+          })
+        : null,
+  };
+
+  return {
+    fine: { ...fine, documents: undefined },
+    documents,
+    proofs: fine.proofs,
+    events: fine.events,
+    candidates,
+    nomination,
+  };
 }
 
 /**

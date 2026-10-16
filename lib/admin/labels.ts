@@ -418,6 +418,7 @@ const de = {
     statusNOTIFIED: "Zugestellt",
     statusPROOF_SUBMITTED: "Nachweis prüfen",
     statusPAID: "Bezahlt",
+    statusDRIVER_NAMED: "Lenker gemeldet",
     statusHANDLED_OTHERWISE: "Anders erledigt",
     statusVOID: "Ungültig",
     reasonFIELDS_MISSING: "Angaben fehlen",
@@ -434,6 +435,33 @@ const de = {
     reasonREMINDER_AFTER_PAID: "Mahnung, obwohl als bezahlt vermerkt",
     reasonMAIL_FAILED: "E-Mail nicht zugestellt",
     reasonPROCESSING_FAILED: "Lesen fehlgeschlagen",
+    // Why the driver was not named automatically — each says what to do.
+    reasonNOMINATION_NO_EMAIL:
+      "Lenker nicht gemeldet: Im Schreiben steht keine E-Mail-Adresse der Behörde. Bitte Adresse eintragen und melden.",
+    reasonNOMINATION_SEVERAL_EMAILS:
+      "Lenker nicht gemeldet: Im Schreiben stehen mehrere E-Mail-Adressen. Bitte die richtige wählen.",
+    reasonNOMINATION_NEW_ADDRESS:
+      "Lenker nicht gemeldet: Erste Busse dieser Behörde – bitte die gelesene Adresse einmal prüfen. Danach geht es automatisch.",
+    reasonNOMINATION_ADDRESS_CHANGED:
+      "Lenker nicht gemeldet: Die Adresse im Schreiben weicht von der bestätigten Adresse dieser Behörde ab. Bitte prüfen.",
+    reasonNOMINATION_NO_AUTHORITY:
+      "Lenker nicht gemeldet: Behörde nicht erkennbar (kein QR-Einzahlungsschein). Bitte Adresse eintragen und melden.",
+    reasonNOMINATION_NO_NUMBER:
+      "Lenker nicht gemeldet: Keine Busse-Nr. im Schreiben. Bitte Nummer korrigieren.",
+    reasonNOMINATION_DRIVER_INCOMPLETE:
+      "Lenker nicht gemeldet: Name, Geburtsdatum oder Adresse des Mieters fehlt.",
+    nomination: "Lenker an Behörde melden",
+    nominationAuthority: "Behörde",
+    nominationConfirmed: "bestätigte Adresse",
+    nominationUnconfirmed: "noch keine bestätigte Adresse",
+    nominationOnLetter: "Im Schreiben",
+    nominationTo: "An",
+    nominationRemember: "Die Adresse wird für diese Behörde gespeichert; ihre nächsten Bussen gehen automatisch.",
+    nominationPreview: "So geht die E-Mail hinaus",
+    nominationSend: "Lenker melden",
+    nominationNamed: "Lenker gemeldet an {to} am {at}",
+    nominationNoPreview: "Für eine Meldung fehlen Angaben des Mieters oder die Busse-Nr.",
+    tabNamed: "Lenker gemeldet",
     docUPLOADED: "Wartet",
     docPROCESSING: "Wird gelesen",
     docFAILED: "Fehlgeschlagen",
@@ -908,6 +936,7 @@ const en: typeof de = {
     statusNOTIFIED: "Sent",
     statusPROOF_SUBMITTED: "Check proof",
     statusPAID: "Paid",
+    statusDRIVER_NAMED: "Driver named",
     statusHANDLED_OTHERWISE: "Handled otherwise",
     statusVOID: "Void",
     reasonFIELDS_MISSING: "Details missing",
@@ -924,6 +953,32 @@ const en: typeof de = {
     reasonREMINDER_AFTER_PAID: "Reminder although marked paid",
     reasonMAIL_FAILED: "Email not delivered",
     reasonPROCESSING_FAILED: "Reading failed",
+    reasonNOMINATION_NO_EMAIL:
+      "Driver not named: the letter shows no email address for the authority. Enter it and send.",
+    reasonNOMINATION_SEVERAL_EMAILS:
+      "Driver not named: the letter shows several email addresses. Choose the right one.",
+    reasonNOMINATION_NEW_ADDRESS:
+      "Driver not named: first fine from this authority — check the address read once. After that it is automatic.",
+    reasonNOMINATION_ADDRESS_CHANGED:
+      "Driver not named: the address on the letter differs from the one confirmed for this authority. Please check.",
+    reasonNOMINATION_NO_AUTHORITY:
+      "Driver not named: authority not recognisable (no QR payment slip). Enter the address and send.",
+    reasonNOMINATION_NO_NUMBER:
+      "Driver not named: no fine number on the letter. Please correct the number.",
+    reasonNOMINATION_DRIVER_INCOMPLETE:
+      "Driver not named: the renter's name, birth date or address is missing.",
+    nomination: "Name the driver to the authority",
+    nominationAuthority: "Authority",
+    nominationConfirmed: "confirmed address",
+    nominationUnconfirmed: "no confirmed address yet",
+    nominationOnLetter: "On the letter",
+    nominationTo: "To",
+    nominationRemember: "The address is saved for this authority; its next fines go automatically.",
+    nominationPreview: "The email as it will be sent",
+    nominationSend: "Name driver",
+    nominationNamed: "Driver named to {to} on {at}",
+    nominationNoPreview: "The renter's details or the fine number are missing for a nomination.",
+    tabNamed: "Driver named",
     docUPLOADED: "Waiting",
     docPROCESSING: "Reading",
     docFAILED: "Failed",

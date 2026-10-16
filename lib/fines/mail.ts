@@ -202,7 +202,142 @@ export function fineThanksMail(ctx: FineMailContext): { subject: string; text: s
   };
 }
 
-export type OfficeFineAlertKind = "reopened" | "closedReminder" | "mailFailed" | "proof" | "overdue";
+/**
+ * The driver's details, to the authority that issued the fine.
+ *
+ * The owner's own wording of 16.10.2026, as he has been sending it by hand,
+ * with "Bussgeld" spelt the Swiss way like the rest of it. German whatever the
+ * renter's language: it is written to a Swiss authority. Only what the
+ * authority needs to address the fine to the driver; no ID, no contract.
+ */
+export function driverNominationMail(ctx: {
+  fineNumber: string;
+  plate: string;
+  violationAt: Date;
+  timeKnown: boolean;
+  driver: {
+    firstName: string;
+    lastName: string;
+    /** A DATE column — midnight UTC. */
+    birthDate: Date;
+    street: string;
+    postalCode: string;
+    city: string;
+    country: string;
+    phone: string;
+    /** Null when the renter has no real address on file. */
+    email: string | null;
+  };
+}): { subject: string; text: string } {
+  const day = formatFineMoment(ctx.violationAt, false);
+  const time = ctx.timeKnown
+    ? formatFineMoment(ctx.violationAt, true).split(", ")[1]
+    : null;
+  const { driver } = ctx;
+  const abroad = driver.country.trim() && driver.country !== "Switzerland" && driver.country !== "Schweiz";
+  return {
+    subject: `Lenkerangabe zu Busse-Nr. ${ctx.fineNumber} – ${ctx.plate}`,
+    text: [
+      "Sehr geehrte Damen und Herren",
+      "",
+      `Anbei informieren wir Sie über den Lenker zum Bussgeld (Busse-Nr. ${ctx.fineNumber}).`,
+      "",
+      `Unser Fahrzeug ${ctx.plate} wurde am ${day}${time ? ` um ${time} Uhr` : ""} von folgender Person gefahren:`,
+      "",
+      `Name, Vorname:  ${driver.lastName.toUpperCase()}, ${driver.firstName}`,
+      `Geburtsdatum:   ${formatDay(driver.birthDate)}`,
+      `Wohnadresse:    ${driver.street}, ${driver.postalCode} ${driver.city}${abroad ? `, ${driver.country}` : ""}`,
+      `Mobil-Nr.:      ${driver.phone}`,
+      ...(driver.email ? [`E-Mail:         ${driver.email}`] : []),
+      "",
+      "Für Rückfragen stehen wir Ihnen gerne zur Verfügung.",
+      "Freundliche Grüsse",
+      "Katamesh, Ahmed",
+      "*************",
+      "Zuriauto.ch",
+      "Eine Marke der Rigitrade AG",
+      "T. +41 58 513 99 96",
+      "",
+      "Schaffhauserstrasse 550",
+      "8052 Zürich",
+    ].join("\n"),
+  };
+}
+
+/**
+ * The renter, told they were named. No fee (owner's decision of 16.10.2026)
+ * and no letter attached: its payment slip is made out to us, and a renter
+ * who paid it while the authority re-issues the fine to them would pay twice.
+ */
+export function renterNamedMail(ctx: {
+  language: RentalLanguage;
+  firstName: string;
+  plate: string;
+  carModel: string;
+  violationAt: Date;
+  timeKnown: boolean;
+  location: string | null;
+  offence: { de: string; en: string };
+  amountCents: number | null;
+  issuerName: string | null;
+  fineNumber: string;
+}): { subject: string; text: string } {
+  const day = formatFineMoment(ctx.violationAt, false);
+  const when = formatFineMoment(ctx.violationAt, ctx.timeKnown);
+  const issuer = ctx.issuerName ?? null;
+
+  if (ctx.language === "en") {
+    return {
+      subject: `Traffic fine for ${ctx.plate} of ${day}: you were named as the driver`,
+      text: [
+        `Hello ${ctx.firstName}`,
+        "",
+        `We have received a traffic fine for the ${ctx.carModel} (${ctx.plate}), which you had rented at the time.`,
+        "",
+        `When:     ${when}`,
+        ...(ctx.location ? [`Where:    ${ctx.location}`] : []),
+        `Offence:  ${ctx.offence.en}`,
+        ...(ctx.amountCents ? [`Amount:   ${chf(ctx.amountCents)}`] : []),
+        ...(issuer ? [`Issued by: ${issuer}`] : []),
+        `Number:   ${ctx.fineNumber}`,
+        "",
+        `We have named you to ${issuer ?? "the issuing authority"} as the driver. They will send the fine to you directly; please pay it to them when it arrives. Please do not pay anything to us.`,
+        "",
+        "Kind regards",
+        "ZURIAUTO",
+      ].join("\n"),
+    };
+  }
+
+  return {
+    subject: `Busse für ${ctx.plate} vom ${day}: Sie wurden als Lenker gemeldet`,
+    text: [
+      `Guten Tag ${ctx.firstName}`,
+      "",
+      `Wir haben eine Busse für den ${ctx.carModel} (${ctx.plate}) erhalten, den Sie zu diesem Zeitpunkt gemietet hatten.`,
+      "",
+      `Wann:        ${when}`,
+      ...(ctx.location ? [`Wo:          ${ctx.location}`] : []),
+      `Übertretung: ${ctx.offence.de}`,
+      ...(ctx.amountCents ? [`Betrag:      ${chf(ctx.amountCents)}`] : []),
+      ...(issuer ? [`Absender:    ${issuer}`] : []),
+      `Nummer:      ${ctx.fineNumber}`,
+      "",
+      `Wir haben Sie ${issuer ? `der Behörde (${issuer})` : "der Behörde"} als Lenker gemeldet. Die Busse wird Ihnen direkt zugestellt; bitte bezahlen Sie sie dann dort. Bitte bezahlen Sie nichts an uns.`,
+      "",
+      "Freundliche Grüsse",
+      "ZURIAUTO",
+    ].join("\n"),
+  };
+}
+
+export type OfficeFineAlertKind =
+  | "reopened"
+  | "closedReminder"
+  | "mailFailed"
+  | "proof"
+  | "overdue"
+  | "namedReminder";
 
 export function officeFineAlertMail(ctx: {
   kind: OfficeFineAlertKind;
@@ -218,6 +353,7 @@ export function officeFineAlertMail(ctx: {
     mailFailed: "Busse konnte dem Mieter nicht zugestellt werden",
     proof: "Zahlungsnachweis zu prüfen",
     overdue: "Busse überfällig, keine Zahlungsbestätigung",
+    namedReminder: "Mahnung für eine Busse, deren Lenker gemeldet wurde",
   }[ctx.kind];
   return {
     subject: `${headline}: ${ctx.plate}`,

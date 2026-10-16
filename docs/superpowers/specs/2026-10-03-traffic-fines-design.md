@@ -45,8 +45,8 @@ reason spelled out. Review is the exception path, not a step.
 
 - **Not a collection service.** Zuriauto does not pay the fine and recharge
   it. The renter pays the issuer. (Owner's decision, 2026-10-03.)
-- **Not a driver nomination.** Naming the driver to the police (*Fahrerangabe*)
-  stays a manual office action, recorded on the fine as "handled otherwise".
+- ~~**Not a driver nomination.**~~ Reversed on 2026-10-16 — see decision 11:
+  police fines now name the driver to the authority.
 - **Not a mailroom.** Letters that are neither police fines nor private parking
   charges are recognised as such and handed to the office, not processed.
 - **Not AI in phase 1.** The reader is free and runs on our own server. An AI
@@ -153,6 +153,31 @@ is told, and the office is alerted.
 Handwriting on the paper is read as data, and Ahmed's boxes on the sample
 destroyed the plate line entirely. The office scans before anyone writes on a
 letter. The upload screen says so.
+
+### 11. Police fines name the driver instead (2026-10-16)
+
+The owner's decision, after two weeks of decision 1 in practice: chasing
+renters' payment screenshots cost the office more than the fines. The police
+letter itself offers the alternative — name the driver, and the authority
+deals with them — so for a fine from the police the system now emails the
+authority the owner's own *Lenkerangabe* (Busse-Nr., plate, time, and the
+renter's name, birth date, address, mobile and email; nothing else), copies
+the office, and tells the renter they were named. No handling fee. The fine
+becomes `DRIVER_NAMED`; a later *Mahnung* for it alerts the office.
+
+Automatic only when nothing is in doubt (`lib/fines/nomination.ts`): the
+address must be printed on the letter **and** be the one the office confirmed
+for that authority, which is recognised by the IBAN on its payment slip.
+Anything else waits in review with the reason in words — no address on the
+letter, several, a first letter from an authority, an address that changed,
+no payment slip, no Busse-Nr., or a renter the authority could not reach. The
+office names the driver from there; the address it enters is confirmed for
+that authority's next letters. A renter's personal data in a stranger's inbox
+is the one mistake this cannot afford, and one OCR reading is not enough to
+risk it.
+
+Private issuers keep decision 1. `FINES_DRIVER_NOMINATION=off` returns police
+fines to it too. Fines already with renters on the day finish the old way.
 
 ## The spike — what was measured, 2026-10-03
 
