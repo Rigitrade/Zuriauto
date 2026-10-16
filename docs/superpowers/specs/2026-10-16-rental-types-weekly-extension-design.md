@@ -20,8 +20,11 @@ Status: decisions taken 16.10.2026, not built.
 
    | | DE | EN | FR |
    |---|---|---|---|
-   | WEEKLY | Wochenmiete – Beruflich | Weekly – Business | Location hebdomadaire – Professionnelle |
-   | FIXED_TERM | Tagesmiete – Tourismus | Daily – Tourism | Location journalière – Tourisme |
+   | WEEKLY | Geschäftlich – wöchentlich / monatlich | Business – weekly / monthly | Affaires – hebdomadaire / mensuelle |
+   | FIXED_TERM | Tourismus – Tagesmiete | Tourism – daily rent | Tourisme – location journalière |
+
+   The names are Eng Ahmed's (16.10.2026, 23:52). "Monthly" is a name, not a
+   billing rhythm: a month is entered as four weeks and billed week by week.
 
 2. **Number of weeks comes back, optional, prefilled with 1.** A weekly rental
    has an end again: `endAt = startAt + N weeks`, `totalWeeks = N`. This

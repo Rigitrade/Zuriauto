@@ -3,9 +3,10 @@
  *
  * Two shapes on one table. WEEKLY is what the Uber and taxi drivers have: a
  * fixed weekly amount for a number of weeks — optional on the form, one week
- * when left empty, each later week an extension. The form calls it "Wochenmiete
- * – Beruflich". FIXED_TERM serves tourists with an explicit end, priced per
- * day; the form calls it "Tagesmiete – Tourismus".
+ * when left empty, each later week an extension; a month is four weeks. The
+ * form calls it "Geschäftlich – wöchentlich / monatlich" (Business – weekly /
+ * monthly). FIXED_TERM serves tourists with an explicit end, priced per day;
+ * the form calls it "Tourismus – Tagesmiete" (Tourism – daily rent).
  *
  * Weekly rentals signed on 16.10.2026, when the form asked no number of weeks,
  * have no end (`totalWeeks` and `endAt` null) and run until the car is back;

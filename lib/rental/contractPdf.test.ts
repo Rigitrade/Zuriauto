@@ -156,7 +156,7 @@ describe("buildContractPdf terms", () => {
     const text = await firstPageText(
       await buildContractPdf({ ...base, documentsOnFile: onFile })
     );
-    expect(text).toContain("Wochenmiete - Beruflich");
+    expect(text).toContain("Geschäftlich - wöchentlich / monatlich");
     expect(text).toMatch(/Anzahl Wochen\s+3/);
     // Three weeks from Monday 17.08.2026, 10:00 in Zurich.
     expect(text).toMatch(/Vereinbarte Rückgabe\s+07\.09\.2026/);
@@ -182,7 +182,7 @@ describe("buildContractPdf terms", () => {
     const text = await firstPageText(
       await buildContractPdf({ ...base, details: daily, documentsOnFile: onFile })
     );
-    expect(text).toContain("Tagesmiete - Tourismus");
+    expect(text).toContain("Tourismus - Tagesmiete");
     expect(text).toMatch(/Tagespreis\s+CHF 80.00/);
     expect(text).toMatch(/Anzahl Tage\s+4/);
     expect(text).toMatch(/Gesamtpreis\s+CHF 320.00/);
