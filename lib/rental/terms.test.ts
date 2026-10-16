@@ -143,12 +143,24 @@ describe("rentalTermsSchema", () => {
     expect(rentalTermsSchema.safeParse(impossible).success).toBe(false);
   });
 
-  it("rejects a weekly rental that still states a number of weeks", () => {
-    // Since 16.10.2026 a weekly rental runs until the car comes back. A
-    // request carrying `totalWeeks` comes from a form that predates that, and
-    // quietly dropping the number would sign a contract nobody read.
-    const old = { ...weekly, totalWeeks: 4 };
-    expect(rentalTermsSchema.safeParse(old).success).toBe(false);
+  it("takes the number of weeks the office entered", () => {
+    const parsed = rentalTermsSchema.parse({ ...weekly, totalWeeks: 4 });
+    expect(parsed.type === "WEEKLY" && parsed.totalWeeks).toBe(4);
+  });
+
+  it("books one week when the office leaves the number of weeks empty", () => {
+    // The owner's choice of 16.10.2026: optional, one week unless the renter
+    // agrees to more. Each later week is an extension.
+    const parsed = rentalTermsSchema.parse(weekly);
+    expect(parsed.type === "WEEKLY" && parsed.totalWeeks).toBe(1);
+  });
+
+  it("rejects a number of weeks outside 1 to 104, and names the field", () => {
+    for (const totalWeeks of [0, 105, 1.5]) {
+      const result = rentalTermsSchema.safeParse({ ...weekly, totalWeeks });
+      expect(result.success).toBe(false);
+      expect(result.error?.issues[0]?.message).toBe("totalWeeks");
+    }
   });
 
   it("rejects a daily rental priced as a total, as the fixed term was", () => {
@@ -209,8 +221,13 @@ describe("rentalTermsSchema", () => {
     expect(parsed.depositCents).toBe(0);
   });
 
-  it("gives a weekly rental no end, and a daily one its own", () => {
-    expect(resolveEndAt(rentalTermsSchema.parse(weekly))).toBeNull();
+  it("ends a weekly rental after its weeks, and a daily one at its own end", () => {
+    expect(resolveEndAt(rentalTermsSchema.parse(weekly))?.toISOString()).toBe(
+      "2026-03-09T10:00:00.000Z"
+    );
+    expect(
+      resolveEndAt(rentalTermsSchema.parse({ ...weekly, totalWeeks: 3 }))?.toISOString()
+    ).toBe("2026-03-23T10:00:00.000Z");
     expect(resolveEndAt(rentalTermsSchema.parse(daily))?.toISOString()).toBe(
       "2026-03-09T10:00:00.000Z"
     );

@@ -19,7 +19,7 @@ import { assetKey, uploadAssets, type AssetStore } from "@/lib/storage";
 import { allocateContractNumber } from "./contractNumber";
 import { upsertCustomer } from "./customers";
 import { fuelLevelToDb } from "./fleet";
-import { generateWeeklyCharges, weeksBegun } from "./passes";
+import { generateWeeklyCharges } from "./passes";
 import type { PaymentMethod } from "./returnSchema";
 import { copyDocumentsForward } from "./reuseDocuments";
 import type { ContractDetails } from "./schema";
@@ -134,8 +134,7 @@ export async function persistPickup(
           paymentMethod: PAYMENT_METHOD_TO_DB[terms.paymentMethod],
           weeklyAmountCents:
             terms.type === "WEEKLY" ? terms.weeklyAmountCents : null,
-          // A weekly rental runs until the car is back: no number of weeks.
-          totalWeeks: null,
+          totalWeeks: terms.type === "WEEKLY" ? terms.totalWeeks : null,
           billingWeekday:
             terms.type === "WEEKLY" ? billingWeekdayOf(startAt) : null,
           dailyAmountCents:
@@ -191,15 +190,15 @@ export async function persistPickup(
         data: { status: "rented" },
       });
 
-      // The weeks that have begun — week 1, unless the start was entered in
-      // the past. The rest are added by the daily run as they begin
-      // (`runningWeeksPass`), since a running rental has no last week to
-      // generate up to. A daily rental is paid once and has no schedule.
+      // The weekly schedule, generated up front rather than derived at run
+      // time, so the charge pass walks rows instead of doing date arithmetic.
+      // Each later week comes with an extension. A daily rental is paid once
+      // and has no schedule.
       if (terms.type === "WEEKLY") {
         const schedule = generateWeeklyCharges({
           startAt,
           fromWeek: 1,
-          weeks: weeksBegun(startAt, now, null),
+          weeks: terms.totalWeeks,
           amountCents: terms.weeklyAmountCents,
         });
         await tx.charge.createMany({

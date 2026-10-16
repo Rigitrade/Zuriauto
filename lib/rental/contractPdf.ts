@@ -27,7 +27,7 @@ import { GTC_CONFIRMATIONS, type GtcConfirmationKey } from "./gtcConfirmations";
 import { labelsFor, paymentMethodName, type RentalLanguage } from "./labels";
 import { formatChf } from "./money";
 import type { ContractDetails } from "./schema";
-import { dailyTotalCents, rentalDays } from "./terms";
+import { dailyTotalCents, rentalDays, resolveEndAt } from "./terms";
 
 // Shared with `returnPdf.ts`, so both documents share one page geometry.
 export const A4 = { width: 595.28, height: 841.89 };
@@ -538,9 +538,8 @@ export async function buildContractPdf(
   w.field(L.rentalStart, formatDateTime(new Date(terms.startAt)));
 
   if (terms.type === "WEEKLY") {
-    // No return date to print: the rental runs until the car is back, and
-    // saying so is what stops the renter reading an end into the contract.
-    w.field(L.rentalEnd, L.rentalRunning);
+    w.field(L.rentalEnd, formatDateTime(resolveEndAt(terms)));
+    w.field(L.rentalWeeks, String(terms.totalWeeks));
     w.field(
       L.weeklyAmount,
       `${L.currency} ${formatChf(terms.weeklyAmountCents)}`

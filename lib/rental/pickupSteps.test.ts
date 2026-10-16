@@ -34,6 +34,7 @@ describe("pickup steps", () => {
     "amount",
     "deposit",
     "paymentMethod",
+    "totalWeeks",
     "startAt",
     "endAt",
   ])("sends %s back to step 1", (field) => {
