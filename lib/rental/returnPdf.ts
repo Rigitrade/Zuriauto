@@ -115,6 +115,7 @@ export async function buildReturnPdf(input: ReturnPdfInput): Promise<Uint8Array>
   w.sectionTitle(R.conditionHeading);
   w.field(R.pdf.papers, yesNo(details.papersInside));
   w.field(R.pdf.key, yesNo(details.keyReturned));
+  w.field(R.pdf.bolt, yesNo(details.boltRemoved));
   w.field(
     R.pdf.clean,
     details.cleanliness === "clean" ? R.cleanYes : R.cleanNeedsWash

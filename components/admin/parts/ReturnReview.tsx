@@ -93,6 +93,7 @@ export function ReturnReview({
               />
               <YesNo label={L.ret.papers} value={r.papersInside} L={L} alertWhen={false} />
               <YesNo label={L.ret.key} value={r.keyReturned} L={L} alertWhen={false} />
+              <YesNo label={L.ret.bolt} value={r.boltRemoved} L={L} alertWhen={false} />
               <Row
                 label={L.ret.damages}
                 value={r.damageNotes.trim() || L.ret.noDamages}

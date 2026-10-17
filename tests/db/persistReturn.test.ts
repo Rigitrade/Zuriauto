@@ -57,6 +57,7 @@ const returnDetails: ReturnDetails = {
   mileageKm: 121_450,
   papersInside: "yes",
   keyReturned: "yes",
+  boltRemoved: "yes",
   fuelLevel: "1/2",
   cleanliness: "clean",
   damages: "Keine neuen Schäden",
@@ -134,6 +135,8 @@ describe("the return protocol reaches columns, not only the PDF", () => {
         cleanliness: "needsWash",
         papersInside: "no",
         keyReturned: "yes",
+        // Still on the renter's Bolt account: the office has to know.
+        boltRemoved: "no",
         tickets: "yes",
         ticketsNote: "Parkbusse Zürich, 40 CHF",
         fullyPaid: "no",
@@ -154,6 +157,7 @@ describe("the return protocol reaches columns, not only the PDF", () => {
     expect(addendum.cleanliness).toBe("needsWash");
     expect(addendum.papersInside).toBe(false);
     expect(addendum.keyReturned).toBe(true);
+    expect(addendum.boltRemoved).toBe(false);
     expect(addendum.tickets).toBe(true);
     expect(addendum.ticketsNote).toBe("Parkbusse Zürich, 40 CHF");
     expect(addendum.fullyPaid).toBe(false);
@@ -178,6 +182,7 @@ describe("the return protocol reaches columns, not only the PDF", () => {
     });
     expect(contract.cleanliness).toBeNull();
     expect(contract.keyReturned).toBeNull();
+    expect(contract.boltRemoved).toBeNull();
     expect(contract.depositBack).toBeNull();
     expect(contract.paymentMethods).toEqual([]);
   });

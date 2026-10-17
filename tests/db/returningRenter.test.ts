@@ -26,6 +26,7 @@ const returnDetails: ReturnDetails = {
   mileageKm: 121_450,
   papersInside: "yes",
   keyReturned: "yes",
+  boltRemoved: "yes",
   fuelLevel: "1/2",
   cleanliness: "clean",
   damages: "",

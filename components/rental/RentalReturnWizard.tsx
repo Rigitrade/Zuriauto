@@ -67,6 +67,7 @@ interface FormState {
   mileagePickupKm: string;
   papersInside: YesNo;
   keyReturned: YesNo;
+  boltRemoved: YesNo;
   fuelLevel: FuelLevel;
   cleanliness: "" | "clean" | "needsWash";
   damages: string;
@@ -96,6 +97,7 @@ const EMPTY_FORM: FormState = {
   mileagePickupKm: "",
   papersInside: "",
   keyReturned: "",
+  boltRemoved: "",
   fuelLevel: "full",
   cleanliness: "",
   damages: "",
@@ -127,6 +129,7 @@ const OWNER_OF_FIELD: Record<string, number> = {
   fuelLevel: 1,
   papersInside: 2,
   keyReturned: 2,
+  boltRemoved: 2,
   cleanliness: 2,
   damages: 2,
   tickets: 3,
@@ -373,6 +376,7 @@ export default function RentalReturnWizard() {
     if (target === 2) {
       if (!form.papersInside) found.papersInside = L.errors.required;
       if (!form.keyReturned) found.keyReturned = L.errors.required;
+      if (!form.boltRemoved) found.boltRemoved = L.errors.required;
       if (!form.cleanliness) found.cleanliness = L.errors.required;
     }
 
@@ -447,6 +451,7 @@ export default function RentalReturnWizard() {
         : undefined,
       papersInside: form.papersInside,
       keyReturned: form.keyReturned,
+      boltRemoved: form.boltRemoved,
       fuelLevel: form.fuelLevel,
       cleanliness: form.cleanliness,
       damages: form.damages,
@@ -816,6 +821,18 @@ export default function RentalReturnWizard() {
                   { value: "no", label: R.no },
                 ]}
                 error={errors.keyReturned}
+                required
+              />
+
+              <ChoiceField
+                label={R.bolt}
+                value={form.boltRemoved}
+                onChange={(value) => set("boltRemoved", value)}
+                options={[
+                  { value: "yes", label: R.yes },
+                  { value: "no", label: R.no },
+                ]}
+                error={errors.boltRemoved}
                 required
               />
 

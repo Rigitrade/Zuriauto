@@ -105,6 +105,8 @@ export interface ReturnReport {
   cleanliness: string | null;
   papersInside: boolean | null;
   keyReturned: boolean | null;
+  /** Null for returns recorded before the form asked (18.10.2026). */
+  boltRemoved: boolean | null;
   tickets: boolean | null;
   ticketsNote: string;
   fullyPaid: boolean | null;

@@ -61,6 +61,8 @@ export const returnDetailsSchema = z
       .optional(),
     papersInside: yesNo,
     keyReturned: yesNo,
+    /** Whether the renter took the car off their Bolt account (owner, 18.10.2026). */
+    boltRemoved: yesNo,
     fuelLevel: z.enum(FUEL_LEVELS),
     cleanliness: z.enum(["clean", "needsWash"], { message: "required" }),
     damages: z.string().trim().max(2000).default(""),

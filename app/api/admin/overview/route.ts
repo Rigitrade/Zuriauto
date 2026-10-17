@@ -144,6 +144,7 @@ export interface AdminOverview {
       cleanliness: string | null;
       papersInside: boolean | null;
       keyReturned: boolean | null;
+      boltRemoved: boolean | null;
       tickets: boolean | null;
       ticketsNote: string;
       fullyPaid: boolean | null;
@@ -307,6 +308,7 @@ export async function GET(request: Request) {
           cleanliness: true,
           papersInside: true,
           keyReturned: true,
+          boltRemoved: true,
           tickets: true,
           ticketsNote: true,
           fullyPaid: true,
@@ -471,6 +473,7 @@ export async function GET(request: Request) {
               cleanliness: addendum.cleanliness,
               papersInside: addendum.papersInside,
               keyReturned: addendum.keyReturned,
+              boltRemoved: addendum.boltRemoved,
               tickets: addendum.tickets,
               ticketsNote: addendum.ticketsNote,
               fullyPaid: addendum.fullyPaid,

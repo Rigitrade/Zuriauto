@@ -527,6 +527,9 @@ model Contract {
   cleanliness  Cleanliness?
   papersInside Boolean?
   keyReturned  Boolean?
+  /// Whether the renter took the car off their Bolt account. Null on returns
+  /// recorded before the question was asked (18.10.2026).
+  boltRemoved  Boolean?
 
   /// Traffic fines the renter declares. The note is free text off the paper
   /// protocol; empty is the normal case, so it defaults rather than nulls.
