@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from "react";
 import { dropIndex, inDraftOrder, moveItem, sameOrder } from "./reorder";
 
@@ -12,11 +12,18 @@ const MAX_SCROLL_PX = 14;
 const KEY_SAVE_DELAY_MS = 700;
 /** How long "Order saved" stays up. */
 const SAVED_NOTICE_MS = 2500;
+/** How long a row takes to slide into its new place. */
+const SLIDE_MS = 160;
 
 /**
  * Drag-and-drop ordering of table rows in place (owner, 17.10.2026: "no need
  * for a modal"). Each row is a `tr[data-row-id]` inside `bodyRef`, with a
  * handle carrying `handleProps(id)`; a drop saves at once.
+ *
+ * The row being dragged floats under the pointer (owner, 18.10.2026), held
+ * inside the table, while the others slide aside to show where it will land;
+ * let go and it settles into that place. Both are transforms only, so the
+ * table's layout, and with it every measurement below, is the real order.
  *
  * Why the first version, a dialog with its own list, failed in use:
  * - It followed the pointer only while it stayed over the 32px handle. React
@@ -53,11 +60,20 @@ export function useRowOrder<T extends { id: string }>({
   // Read by window listeners and timers, which would otherwise see the values
   // of the render that created them.
   const draftRef = useRef<string[] | null>(null);
+  const draggingRef = useRef<string | null>(null);
   const itemsRef = useRef(items);
   itemsRef.current = items;
   const pointerY = useRef(0);
   const keyTimer = useRef<number | undefined>(undefined);
   const savedTimer = useRef<number | undefined>(undefined);
+  /** How far below the dragged row's top edge it was picked up. */
+  const grabOffset = useRef(0);
+  /** The translation currently floating the dragged row off its place. */
+  const lift = useRef(0);
+  /** Each row's top within the table when last painted, to slide from. */
+  const tops = useRef(new Map<string, number>());
+  /** The row just let go of, which settles from where it floated. */
+  const dropped = useRef<string | null>(null);
 
   const rows = inDraftOrder(items, draft);
 
@@ -68,6 +84,69 @@ export function useRowOrder<T extends { id: string }>({
 
   /** The order on screen now, including a car the draft has not met. */
   const currentIds = () => inDraftOrder(itemsRef.current, draftRef.current).map((row) => row.id);
+
+  // Refs only, so made once: the drag's listeners can name them without
+  // being torn down and re-added on every render.
+  const rowElements = useCallback(
+    () => Array.from(bodyRef.current?.querySelectorAll<HTMLElement>("tr[data-row-id]") ?? []),
+    []
+  );
+  const rowElement = useCallback(
+    (id: string) => rowElements().find((row) => row.dataset.rowId === id) ?? null,
+    [rowElements]
+  );
+
+  /**
+   * Puts the dragged row under the pointer, kept within the table body, and
+   * returns where its middle now is.
+   */
+  const float = useCallback((): number | null => {
+    const id = draggingRef.current;
+    const row = id ? rowElement(id) : null;
+    const body = bodyRef.current;
+    if (!row || !body) return null;
+    const natural = row.getBoundingClientRect().top - lift.current;
+    const box = body.getBoundingClientRect();
+    const top = Math.min(
+      Math.max(pointerY.current - grabOffset.current, box.top),
+      box.bottom - row.offsetHeight
+    );
+    lift.current = top - natural;
+    row.style.transform = `translateY(${lift.current}px)`;
+    return top + row.offsetHeight / 2;
+  }, [rowElement]);
+
+  /**
+   * Slides every row that changed place from where it was to where it is.
+   *
+   * Runs after every render, so it covers a drag, an arrow key, Escape and a
+   * refresh that brought another office's order alike. Positions come from
+   * `offsetTop`, which a transform does not move, so a row caught mid-slide
+   * is measured where it is going, not where it is drawn.
+   */
+  useLayoutEffect(() => {
+    const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    for (const row of rowElements()) {
+      const id = row.dataset.rowId ?? "";
+      if (id === draggingRef.current) continue;
+      if (id === dropped.current) {
+        row.style.transform = "";
+        dropped.current = null;
+      }
+      const top = row.offsetTop;
+      const before = tops.current.get(id);
+      tops.current.set(id, top);
+      if (!calm && before !== undefined && before !== top) {
+        row.animate(
+          [{ transform: `translateY(${before - top}px)` }, { transform: "translateY(0)" }],
+          { duration: SLIDE_MS, easing: "ease-out" }
+        );
+      }
+    }
+    // The dragged row's own place moved with the order; keep it under the
+    // pointer rather than letting it jump with its place.
+    if (draggingRef.current) float();
+  });
 
   const commit = async (ids: string[]) => {
     if (sameOrder(ids, itemsRef.current.map((item) => item.id))) {
@@ -106,19 +185,22 @@ export function useRowOrder<T extends { id: string }>({
   useEffect(() => {
     if (!dragging) return;
 
-    /** Moves the dragged row to where the pointer is, measured from the DOM. */
+    /** Floats the dragged row and moves its place to where it is floating. */
     const place = () => {
       const body = bodyRef.current;
-      if (!body) return;
-      const measured = Array.from(body.querySelectorAll<HTMLElement>("tr[data-row-id]")).map(
-        (row) => {
-          const box = row.getBoundingClientRect();
-          return { id: row.dataset.rowId ?? "", mid: box.top + box.height / 2 };
-        }
-      );
+      const table = body?.closest("table");
+      const middle = float();
+      if (!table || middle === null) return;
+      const tableTop = table.getBoundingClientRect().top;
+      const others = rowElements()
+        .filter((row) => row.dataset.rowId !== dragging)
+        .map((row) => ({
+          id: row.dataset.rowId ?? "",
+          mid: tableTop + row.offsetTop + row.offsetHeight / 2,
+        }));
       const order = currentIds();
       const from = order.indexOf(dragging);
-      const to = dropIndex(measured, dragging, pointerY.current);
+      const to = dropIndex(others, dragging, middle);
       if (from >= 0 && to !== from) updateDraft(moveItem(order, from, to));
     };
 
@@ -126,6 +208,19 @@ export function useRowOrder<T extends { id: string }>({
     const end = (keep: boolean) => {
       if (ended) return;
       ended = true;
+      // Where it was floating, so the next paint settles it from there into
+      // its place instead of making it jump.
+      const row = rowElement(dragging);
+      const table = row?.closest("table");
+      if (row && table) {
+        tops.current.set(
+          dragging,
+          row.getBoundingClientRect().top - table.getBoundingClientRect().top
+        );
+        dropped.current = dragging;
+      }
+      lift.current = 0;
+      draggingRef.current = null;
       setDragging(null);
       if (keep) void commitRef.current(currentIds());
       else updateDraft(null);
@@ -142,6 +237,8 @@ export function useRowOrder<T extends { id: string }>({
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") end(false);
     };
+    // A wheel turned mid-drag moves the table, not the pointer.
+    const onScroll = () => place();
 
     // Scrolls the page while the pointer rests near its top or bottom, so a
     // car can be carried past what the screen shows.
@@ -155,10 +252,7 @@ export function useRowOrder<T extends { id: string }>({
           : y > bottom
             ? Math.ceil(((y - bottom) / EDGE_PX) * MAX_SCROLL_PX)
             : 0;
-      if (step !== 0) {
-        window.scrollBy(0, step);
-        place();
-      }
+      if (step !== 0) window.scrollBy(0, step);
       frame = window.requestAnimationFrame(scroll);
     };
     frame = window.requestAnimationFrame(scroll);
@@ -167,6 +261,7 @@ export function useRowOrder<T extends { id: string }>({
     window.addEventListener("pointerup", onUp);
     window.addEventListener("pointercancel", onCancel);
     window.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", onScroll, { passive: true });
     const style = document.body.style;
     const before = { userSelect: style.userSelect, cursor: style.cursor };
     style.userSelect = "none";
@@ -178,10 +273,11 @@ export function useRowOrder<T extends { id: string }>({
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onCancel);
       window.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", onScroll);
       style.userSelect = before.userSelect;
       style.cursor = before.cursor;
     };
-  }, [dragging]);
+  }, [dragging, float, rowElement, rowElements]);
 
   const blocked = disabled || saving;
 
@@ -198,9 +294,16 @@ export function useRowOrder<T extends { id: string }>({
       // Delivers the drag's events even outside the window; the window
       // listeners above still hear them if React moves this element.
       event.currentTarget.setPointerCapture?.(event.pointerId);
+      const row = event.currentTarget.closest("tr");
+      if (!row) return;
+      // A slide still running would hide the float under it.
+      row.getAnimations().forEach((animation) => animation.cancel());
+      grabOffset.current = event.clientY - row.getBoundingClientRect().top;
+      lift.current = 0;
       window.clearTimeout(keyTimer.current);
       keyTimer.current = undefined;
       pointerY.current = event.clientY;
+      draggingRef.current = id;
       updateDraft(currentIds());
       setDragging(id);
     },
