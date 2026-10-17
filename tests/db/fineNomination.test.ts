@@ -269,6 +269,23 @@ describe("the office names the driver from the review list", () => {
     // Two handovers and two fines: more than the default on a remote database.
   }, 60_000);
 
+  it("names the driver of a fine held for its number once the office corrects it", async () => {
+    const { organisationId, fine, deps, sent } = await matchedFine({ fineNumber: null });
+    await confirmUitikon(organisationId);
+    await deliverNewFine(deps, fine.id);
+    expect((await reload(fine.id)).reviewReason).toBe("NOMINATION_NO_NUMBER");
+
+    expect(
+      await applyFineAction(deps, fine.id, { action: "correct", field: "fineNumber", value: " 18440 " }, office)
+    ).toEqual({ ok: true });
+    expect(
+      await applyFineAction(deps, fine.id, { action: "nominate", email: "ordnungsbussen@uitikon.org" }, office)
+    ).toEqual({ ok: true });
+
+    expect(sent[0].subject).toBe("Lenkerangabe zu Busse-Nr. 18440 – ZH 513 925");
+    expect((await reload(fine.id)).status).toBe("DRIVER_NAMED");
+  });
+
   it("refuses an address that is not one, and a fine already paid", async () => {
     const { fine, deps, sent } = await matchedFine();
     expect(await applyFineAction(deps, fine.id, { action: "nominate", email: "uitikon" }, office)).toEqual({

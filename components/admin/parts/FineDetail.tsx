@@ -130,7 +130,7 @@ export function FineDetail({
   const F = L.fines;
   const [detail, setDetail] = useState<Detail | null>(null);
   const [failed, setFailed] = useState(false);
-  const [editing, setEditing] = useState<null | "moment" | "car" | "amount" | "close">(null);
+  const [editing, setEditing] = useState<null | "moment" | "car" | "amount" | "number" | "close">(null);
   const [draft, setDraft] = useState("");
   /** The address the driver is named to; null until the office touches it. */
   const [nominateTo, setNominateTo] = useState<string | null>(null);
@@ -382,6 +382,11 @@ export function FineDetail({
                   <button type="button" disabled={busy} className={button} onClick={() => { setEditing("amount"); setDraft(fine.amountCents ? formatChf(fine.amountCents) : ""); }}>
                     {F.correct}: {F.correctAmount}
                   </button>
+                  {/* The Busse-Nr. a driver nomination quotes; a letter OCR
+                      read it from badly waits in review for exactly this. */}
+                  <button type="button" disabled={busy} className={button} onClick={() => { setEditing("number"); setDraft(fine.fineNumber ?? ""); }}>
+                    {F.correct}: {F.correctNumber}
+                  </button>
                   <button type="button" disabled={busy} className={button} onClick={() => act({ action: "markPaid" })}>
                     {F.markPaid}
                   </button>
@@ -410,6 +415,7 @@ export function FineDetail({
                   if (editing === "close") return act({ action: "close", note: draft });
                   if (editing === "moment") return act({ action: "correct", field: "violationAt", value: draft });
                   if (editing === "car") return act({ action: "correct", field: "carId", value: draft });
+                  if (editing === "number") return act({ action: "correct", field: "fineNumber", value: draft });
                   const cents = Math.round(Number(draft.replace(/['\s]/g, "").replace(",", ".")) * 100);
                   return act({ action: "correct", field: "amountCents", value: cents });
                 }}
