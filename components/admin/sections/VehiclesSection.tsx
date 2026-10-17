@@ -1,22 +1,37 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowUpDown, Plus } from "lucide-react";
+import { GripVertical, Plus } from "lucide-react";
 import { useAdmin } from "@/components/admin/shell/AdminContext";
 import { AddCar } from "@/components/admin/parts/AddCar";
 import { CarRow } from "@/components/admin/parts/CarRow";
 import { Dialog } from "@/components/admin/parts/Dialog";
 import { Panel } from "@/components/admin/parts/Panel";
-import { ReorderCarsDialog } from "@/components/admin/parts/ReorderCarsDialog";
+import { useRowOrder } from "@/components/admin/parts/useRowOrder";
 
 /** Every car in every status — unlike /api/fleet, which shows only what can
  *  be rented. Managing a retired car is the point of this screen. */
 export function VehiclesSection() {
   const { L, language, data, busy, write, writeJson, reload } = useAdmin();
   const [adding, setAdding] = useState(false);
-  const [reordering, setReordering] = useState(false);
 
   const cars = data?.cars ?? [];
+  /**
+   * The office's order, dragged into place in this table (owner,
+   * 17.10.2026). It is also the order of the pickup form's car list. A drop
+   * saves the whole fleet's order at once; there is no Save button to forget.
+   */
+  const order = useRowOrder({
+    items: cars,
+    disabled: busy,
+    save: (ids) =>
+      write("/api/admin/cars/order/", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ids }),
+      }),
+  });
+  const orderable = cars.length > 1;
   const available = cars.filter((car) => car.status === "available").length;
   /**
    * How many people are waiting to be told a car is free.
@@ -30,22 +45,6 @@ export function VehiclesSection() {
 
   return (
     <>
-      <ReorderCarsDialog
-        cars={cars}
-        L={L}
-        language={language}
-        busy={busy}
-        open={reordering}
-        onClose={() => setReordering(false)}
-        onSave={(ids) =>
-          write("/api/admin/cars/order/", {
-            method: "PUT",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ ids }),
-          })
-        }
-      />
-
       <Dialog
         open={adding}
         onClose={() => setAdding(false)}
@@ -111,34 +110,39 @@ export function VehiclesSection() {
           (waiting > 0 ? ` · ${waiting} ${L.fleet.waitlistCount}` : "")
         }
         action={
-          <div className="flex items-center gap-2">
-            {cars.length > 1 && (
-              <button
-                type="button"
-                onClick={() => setReordering(true)}
-                className="inline-flex h-9 items-center gap-1.5 rounded-md border border-[var(--admin-rule-strong)] px-3 text-sm font-medium text-[var(--admin-ink)] transition-colors hover:bg-[var(--admin-sunk)]"
-              >
-                <ArrowUpDown className="h-4 w-4" aria-hidden="true" />
-                {L.fleet.reorder}
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => setAdding(true)}
-              className="inline-flex h-9 items-center gap-1.5 rounded-md bg-[var(--admin-accent)] px-3 text-sm font-medium text-[var(--admin-accent-ink)] transition-opacity hover:opacity-90"
-            >
-              <Plus className="h-4 w-4" aria-hidden="true" />
-              {L.fleet.addHeading}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => setAdding(true)}
+            className="inline-flex h-9 items-center gap-1.5 rounded-md bg-[var(--admin-accent)] px-3 text-sm font-medium text-[var(--admin-accent-ink)] transition-opacity hover:opacity-90"
+          >
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            {L.fleet.addHeading}
+          </button>
         }
       >
+        {orderable && (
+          <p className="flex flex-wrap items-start gap-x-2 gap-y-1 border-b border-[var(--admin-rule)] px-4 py-2 text-xs text-[var(--admin-faint)]">
+            <GripVertical className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            <span className="min-w-0 flex-1">{L.fleet.reorderHint}</span>
+            <span
+              role="status"
+              className={`font-medium ${
+                order.saving ? "text-[var(--admin-muted)]" : "text-[var(--admin-good)]"
+              }`}
+            >
+              {order.saving ? L.fleet.orderSaving : order.justSaved ? L.fleet.orderSaved : ""}
+            </span>
+          </p>
+        )}
         {cars.length === 0 ? (
           <p className="px-4 py-8 text-center text-sm text-[var(--admin-faint)]">
             {L.fleet.empty}
           </p>
         ) : (
-          <div className="overflow-x-auto">
+          // `relative` so the scroller also clips what is absolutely placed
+          // inside it: the screen-reader "Vermietet: " of a renter's chip sat
+          // past a phone's edge and made the whole page scroll sideways.
+          <div className="relative overflow-x-auto">
             {/* 54rem, down from 76rem.
 
                 The service book added three columns and the actions column
@@ -155,6 +159,11 @@ export function VehiclesSection() {
             <table className="w-full min-w-[54rem] text-sm">
               <thead>
                 <tr className="bg-[var(--admin-sunk)] text-left text-xs uppercase tracking-wider text-[var(--admin-faint)]">
+                  {orderable && (
+                    <th className="w-0 py-2.5 pr-0 pl-2">
+                      <span className="sr-only">{L.fleet.reorder}</span>
+                    </th>
+                  )}
                   <th className="px-4 py-2.5 font-medium">{L.fleet.model}</th>
                   <th className="px-4 py-2.5 font-medium">{L.fleet.plate}</th>
                   <th className="px-4 py-2.5 font-medium">{L.fleet.status}</th>
@@ -165,14 +174,32 @@ export function VehiclesSection() {
                   <th className="px-4 py-2.5" />
                 </tr>
               </thead>
-              <tbody>
-                {cars.map((car) => (
+              <tbody ref={order.bodyRef}>
+                {order.rows.map((car) => (
                   <CarRow
                     key={car.id}
                     car={car}
                     L={L}
                     language={language}
                     busy={busy}
+                    dragging={order.dragging === car.id}
+                    handle={
+                      orderable ? (
+                        <button
+                          type="button"
+                          {...order.handleProps(car.id)}
+                          aria-label={`${L.fleet.dragHandle}: ${car.model} ${car.plate}`}
+                          title={`${L.fleet.dragHandle} · ${L.fleet.dragKeys}`}
+                          className={`grid h-9 w-8 cursor-grab touch-none place-items-center rounded-md hover:bg-[var(--admin-sunk)] hover:text-[var(--admin-ink)] active:cursor-grabbing aria-disabled:cursor-default aria-disabled:opacity-40 ${
+                            order.dragging === car.id
+                              ? "text-[var(--admin-accent)]"
+                              : "text-[var(--admin-faint)]"
+                          }`}
+                        >
+                          <GripVertical className="h-4 w-4" aria-hidden="true" />
+                        </button>
+                      ) : undefined
+                    }
                     onSave={(body) =>
                       write(`/api/admin/cars/${car.id}/`, {
                         method: "PATCH",

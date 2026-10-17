@@ -64,11 +64,17 @@ export function CarRow({
   onUploadLicence,
   onRemoveLicence,
   onMarkOut,
+  handle,
+  dragging = false,
 }: {
   car: Car;
   L: Labels;
   language: AdminLanguage;
   busy: boolean;
+  /** The drag handle for the office's order, in a first cell of its own;
+   *  none when there is nothing to order. */
+  handle?: React.ReactNode;
+  dragging?: boolean;
   onSave: (body: Record<string, string>) => Promise<boolean>;
   onMarkOut: (body: Record<string, string>) => Promise<boolean>;
   onDelete: () => Promise<boolean>;
@@ -192,18 +198,28 @@ export function CarRow({
           if (window.getSelection()?.toString()) return;
           router.push(`/admin/vehicles/${car.id}`);
         }}
-        className="cursor-pointer border-t border-[var(--admin-rule)] transition-colors hover:bg-[var(--admin-sunk)]/50"
+        data-row-id={car.id}
+        className={`cursor-pointer border-t border-[var(--admin-rule)] transition-colors ${
+          dragging
+            ? "bg-[var(--admin-accent-soft)]"
+            : "hover:bg-[var(--admin-sunk)]/50"
+        }`}
       >
-        {/* Still a real link, and still the row's only tab stop. The click
+        {handle !== undefined && <td className="w-0 py-3 pr-0 pl-2">{handle}</td>}
+
+        {/* Still a real link, and the row's one way to the profile from the
+            keyboard (the handle before it only moves the row). The click
             handler above is a convenience for the pointer; a keyboard reaches
             the profile here, and this is what a middle click opens in a new
             tab. */}
         <td className="px-4 py-3">
           <div className="flex items-center gap-2">
             <ColourDot colour={car.colour} language={language} />
+            {/* One line: the handle column before it would otherwise take its
+                width from here and fold "Toyota Prius Hybrid" in two. */}
             <Link
               href={`/admin/vehicles/${car.id}`}
-              className="font-medium underline-offset-2 hover:underline"
+              className="font-medium whitespace-nowrap underline-offset-2 hover:underline"
             >
               {car.model}
             </Link>
