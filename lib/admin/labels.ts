@@ -152,6 +152,13 @@ const de = {
       "Zwei Tage vorher meldet sich das System. Steht das Fahrzeug frei, wird es auf «Werkstatt / MFK» gesetzt.",
     add: "Hinzufügen",
     addHeading: "Fahrzeug hinzufügen",
+    reorder: "Reihenfolge",
+    reorderHint:
+      "Ziehen Sie ein Fahrzeug am Griff an seinen Platz – die Reihenfolge wird sofort gespeichert und gilt auch für das Übergabeformular.",
+    dragHandle: "Ziehen, um zu verschieben",
+    dragKeys: "Pfeiltasten: eine Zeile",
+    orderSaving: "Wird gespeichert …",
+    orderSaved: "Reihenfolge gespeichert",
     close: "Schliessen",
     save: "Speichern",
     edit: "Bearbeiten",
@@ -518,6 +525,8 @@ const de = {
     generic: "Etwas ist schiefgelaufen. Bitte erneut versuchen.",
     signedOut: "Sitzung abgelaufen. Bitte erneut anmelden.",
     duplicatePlate: "Dieses Kontrollschild ist bereits vergeben.",
+    orderMismatch:
+      "Die Fahrzeugliste hat sich inzwischen geändert. Bitte laden Sie die Seite neu und ordnen Sie erneut.",
     statusChangeRefused: "Dieser Statuswechsel ist gerade nicht möglich.",
     alreadyClosed: "Diese Miete ist bereits abgeschlossen.",
     alreadySent: "Dieser Vertrag wurde bereits versendet.",
@@ -674,6 +683,13 @@ const en: typeof de = {
       "The system speaks up two days before. If the car is free, it is moved to “Garage / MFK”.",
     add: "Add",
     addHeading: "Add a vehicle",
+    reorder: "Order",
+    reorderHint:
+      "Drag a vehicle by its handle into place – the order is saved at once and the pickup form follows it.",
+    dragHandle: "Drag to move",
+    dragKeys: "arrow keys: one row",
+    orderSaving: "Saving …",
+    orderSaved: "Order saved",
     close: "Close",
     save: "Save",
     edit: "Edit",
@@ -1035,6 +1051,8 @@ const en: typeof de = {
     generic: "Something went wrong. Please try again.",
     signedOut: "Session expired. Please sign in again.",
     duplicatePlate: "That plate is already registered.",
+    orderMismatch:
+      "The list of vehicles changed in the meantime. Please reload the page and order them again.",
     statusChangeRefused: "That status change isn't possible right now.",
     alreadyClosed: "This rental is already closed.",
     alreadySent: "That contract has already been sent.",
@@ -1076,6 +1094,7 @@ export type AdminLabels = ReturnType<typeof labelsFor>;
 export function messageForCode(L: AdminLabels, code: string | undefined): string {
   const known: Record<string, string> = {
     "duplicate-plate": L.errors.duplicatePlate,
+    "order-mismatch": L.errors.orderMismatch,
     "status-change-refused": L.errors.statusChangeRefused,
     "has-history": L.fleet.hasHistory,
     "already-closed": L.errors.alreadyClosed,

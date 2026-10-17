@@ -65,6 +65,9 @@ export interface Car {
   repairs?: Repair[];
 
   activeRentalId: string | null;
+  /** Who has the car while it is out, "First Last". Null when nobody does or
+   *  the name is blank; optional for a client on an older deployment. */
+  renterName?: string | null;
 }
 
 /**

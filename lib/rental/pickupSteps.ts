@@ -40,6 +40,7 @@ const SECTION_OF_FIELD: Record<string, PickupSection> = {
   amount: "terms",
   deposit: "terms",
   paymentMethod: "terms",
+  totalWeeks: "terms",
   startAt: "terms",
   endAt: "terms",
 

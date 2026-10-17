@@ -46,6 +46,7 @@ const details: ContractDetails = {
     type: "WEEKLY",
     startAt: "2026-08-17T08:00:00.000Z",
     paymentMethod: "twint",
+    totalWeeks: 3,
     weeklyAmountCents: 45_000,
     depositCents: 50_000,
   },
@@ -147,17 +148,20 @@ async function firstPageText(bytes: Uint8Array): Promise<string> {
 
 /**
  * What the renter signs for, as the lessor asked for it on 16.10.2026: a
- * weekly rental with no end, a daily one priced per day, and how it is paid.
+ * weekly rental for business, its weeks and the return they come to; a daily
+ * one for tourism, priced per day; and how it is paid.
  */
 describe("buildContractPdf terms", () => {
-  it("prints a weekly rental as running until the car is back", async () => {
+  it("prints a weekly rental's type, its weeks and the return they come to", async () => {
     const text = await firstPageText(
       await buildContractPdf({ ...base, documentsOnFile: onFile })
     );
-    expect(text).toContain("Wochenmiete");
-    expect(text).toContain("Unbefristet, bis zur Rückgabe des Fahrzeugs");
+    expect(text).toContain("Geschäftlich - wöchentlich / monatlich");
+    expect(text).toMatch(/Anzahl Wochen\s+3/);
+    // Three weeks from Monday 17.08.2026, 10:00 in Zurich.
+    expect(text).toMatch(/Vereinbarte Rückgabe\s+07\.09\.2026/);
+    expect(text).not.toContain("Unbefristet");
     expect(text).toContain("CHF 450.00");
-    expect(text).not.toContain("Anzahl Wochen");
     expect(text).toMatch(/Zahlungsart\s+TWINT/);
   });
 
@@ -178,7 +182,7 @@ describe("buildContractPdf terms", () => {
     const text = await firstPageText(
       await buildContractPdf({ ...base, details: daily, documentsOnFile: onFile })
     );
-    expect(text).toContain("Täglich");
+    expect(text).toContain("Tourismus - Tagesmiete");
     expect(text).toMatch(/Tagespreis\s+CHF 80.00/);
     expect(text).toMatch(/Anzahl Tage\s+4/);
     expect(text).toMatch(/Gesamtpreis\s+CHF 320.00/);

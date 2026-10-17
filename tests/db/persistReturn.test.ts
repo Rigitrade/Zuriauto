@@ -21,6 +21,7 @@ const pickupDetails: ContractDetails = {
     type: "WEEKLY",
     startAt: "2026-08-17T08:00:00.000Z",
     paymentMethod: "twint",
+    totalWeeks: 1,
     weeklyAmountCents: 45_000,
     depositCents: 50_000,
   },
@@ -535,12 +536,18 @@ describe("a submitted return and the money still owed", () => {
 
   it("writes no week of a running weekly rental after the car came back", async () => {
     const { organisationId, store } = await ready();
-    // Weekly from 17.08 until the car comes back, on 26.08, during week 2.
+    // Weekly from 17.08 until the car comes back, on 26.08, during week 2 —
+    // with no number of weeks and no end, as the form recorded weekly rentals
+    // on 16.10.2026.
     const pickup = await rentalOut(
       organisationId,
       store,
       new Date("2026-08-17T08:00:00.000Z")
     );
+    await prisma.rental.update({
+      where: { id: pickup.rentalId },
+      data: { totalWeeks: null, endAt: null },
+    });
     const deps = (now: string) => ({
       client: prisma,
       now: new Date(now),

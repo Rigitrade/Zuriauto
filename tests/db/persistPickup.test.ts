@@ -14,6 +14,7 @@ const details: ContractDetails = {
     type: "WEEKLY",
     startAt: "2026-08-17T08:00:00.000Z",
     paymentMethod: "twint",
+    totalWeeks: 1,
     weeklyAmountCents: 45_000,
     depositCents: 50_000,
   },
@@ -119,7 +120,7 @@ describe("persistPickup", () => {
     );
   });
 
-  it("leaves a weekly rental without an end, and writes week 1", async () => {
+  it("ends a one-week rental a week after the start, and writes week 1", async () => {
     const { organisationId, store } = await ready();
     await persistPickup({
       organisationId,
@@ -131,9 +132,9 @@ describe("persistPickup", () => {
       now: new Date("2026-08-17T08:05:00.000Z"),
     });
     const rental = await prisma.rental.findFirstOrThrow();
-    // Running until the car is back: no end, no number of weeks.
-    expect(rental.endAt).toBeNull();
-    expect(rental.totalWeeks).toBeNull();
+    // One week, the form's default since 16.10.2026: due back a week later.
+    expect(rental.endAt?.toISOString()).toBe("2026-08-24T08:00:00.000Z");
+    expect(rental.totalWeeks).toBe(1);
     expect(rental.weeklyAmountCents).toBe(45_000);
     expect(rental.totalAmountCents).toBeNull();
     expect(rental.depositCents).toBe(50_000);
@@ -145,20 +146,27 @@ describe("persistPickup", () => {
     expect(charges[0].dueDate.toISOString()).toBe("2026-08-17T08:00:00.000Z");
   });
 
-  it("writes every week already begun when the start is entered late", async () => {
+  it("books the weeks the office entered, each week a charge", async () => {
     const { organisationId, store } = await ready();
     await persistPickup({
       organisationId,
-      details,
+      details: { ...details, terms: { ...details.terms, totalWeeks: 3 } as ContractDetails["terms"] },
       vehicleSlug: details.vehicleId,
       uploads,
       pdf,
       store,
-      // Two weeks and a day after the start written on the contract.
-      now: new Date("2026-09-01T08:00:00.000Z"),
+      now: new Date("2026-08-17T08:05:00.000Z"),
     });
+    const rental = await prisma.rental.findFirstOrThrow();
+    expect(rental.totalWeeks).toBe(3);
+    expect(rental.endAt?.toISOString()).toBe("2026-09-07T08:00:00.000Z");
     const weeks = await prisma.charge.findMany({ orderBy: { weekNumber: "asc" } });
     expect(weeks.map((charge) => charge.weekNumber)).toEqual([1, 2, 3]);
+    expect(weeks.map((charge) => charge.dueDate.toISOString())).toEqual([
+      "2026-08-17T08:00:00.000Z",
+      "2026-08-24T08:00:00.000Z",
+      "2026-08-31T08:00:00.000Z",
+    ]);
   });
 
   it("stores a daily rental's own end, its price per day and the total", async () => {

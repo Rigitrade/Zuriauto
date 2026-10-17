@@ -11,10 +11,11 @@ import {
 import { pickupDetails, seedOrganisation, seedRental } from "./fineHelpers";
 
 /**
- * A weekly rental with no number of weeks, as the pickup form records it since
- * 16.10.2026: it runs until the car comes back. Made through `persistPickup`
- * and `closeRental`, as production makes it, and driven through the daily run
- * week by week.
+ * A weekly rental with no number of weeks, as the pickup form recorded it on
+ * 16.10.2026, before the number came back as optional: it runs until the car
+ * comes back. Made through `persistPickup`, then stripped of its week count and
+ * end as those rentals have none, closed through `closeRental`, and driven
+ * through the daily run week by week.
  */
 
 const sent: { to: string; subject: string }[] = [];
@@ -65,11 +66,16 @@ async function aRunningRental() {
       terms: {
         type: "WEEKLY",
         startAt: START.toISOString(),
+        totalWeeks: 1,
         weeklyAmountCents: 45_000,
         depositCents: 50_000,
         paymentMethod: "cash",
       },
     }),
+  });
+  await prisma.rental.update({
+    where: { id: rental.id },
+    data: { totalWeeks: null, endAt: null },
   });
   return { organisationId, rental };
 }

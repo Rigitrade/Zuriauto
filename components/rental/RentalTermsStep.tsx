@@ -7,7 +7,7 @@ import { TypedDateInput } from "@/components/ui/typed-date-input";
 import { paymentMethodName, type labelsFor } from "@/lib/rental/labels";
 import { formatChf, parseChf } from "@/lib/rental/money";
 import { PAYMENT_METHODS, type PaymentMethod } from "@/lib/rental/returnSchema";
-import { rentalDays } from "@/lib/rental/terms";
+import { deriveEndAt, rentalDays, ZURICH } from "@/lib/rental/terms";
 
 /**
  * The commercial terms, entered by whoever runs the handover.
@@ -24,6 +24,8 @@ export interface TermsFormState {
   startDate: string;
   /** HH:MM, from <input type="time">. */
   startTime: string;
+  /** Whole weeks, as typed. Weekly only; empty is one week. */
+  totalWeeks: string;
   endDate: string;
   endTime: string;
   /** The weekly price for WEEKLY, the price per day for FIXED_TERM. */
@@ -40,6 +42,9 @@ export const EMPTY_TERMS: TermsFormState = {
   // hydration would complain. The wizard fills it in on mount.
   startDate: "",
   startTime: "",
+  // One week unless the renter agrees to more: the owner's choice of
+  // 16.10.2026. Each later week is an extension.
+  totalWeeks: "1",
   endDate: "",
   endTime: "",
   amount: "",
@@ -52,6 +57,15 @@ function toIso(date: string, time: string): string {
   if (!date) return "";
   const parsed = new Date(`${date}T${time || "00:00"}`);
   return Number.isNaN(parsed.getTime()) ? "" : parsed.toISOString();
+}
+
+/**
+ * Empty is one week. Anything else goes to the schema as typed, so "abc"
+ * (NaN) and "2.5" fail there, under the field's own message.
+ */
+function weeksOf(raw: string): number {
+  const typed = raw.trim();
+  return typed === "" ? 1 : Number(typed);
 }
 
 /**
@@ -71,6 +85,7 @@ export function toRentalTerms(state: TermsFormState): unknown {
     return {
       type: "WEEKLY",
       startAt,
+      totalWeeks: weeksOf(state.totalWeeks),
       weeklyAmountCents: parseChf(state.amount) ?? -1,
       depositCents,
       paymentMethod,
@@ -126,6 +141,22 @@ export default function RentalTermsStep({ value, onChange, errors, L }: Props) {
     value.amount,
     L,
   ]);
+
+  /**
+   * When a weekly rental is due back, under the number of weeks, so the office
+   * reads the date the contract will print before anyone signs.
+   */
+  const weeklyEnd = useMemo(() => {
+    if (value.type !== "WEEKLY") return null;
+    const start = toIso(value.startDate, value.startTime);
+    const weeks = weeksOf(value.totalWeeks);
+    if (!start || !Number.isInteger(weeks) || weeks < 1 || weeks > 104) return null;
+    return deriveEndAt(new Date(start), weeks).toLocaleString("de-CH", {
+      dateStyle: "short",
+      timeStyle: "short",
+      timeZone: ZURICH,
+    });
+  }, [value.type, value.startDate, value.startTime, value.totalWeeks]);
 
   /** Normalise a francs field on blur, never while typing. */
   const tidy = (key: "amount" | "deposit") => (raw: string) => {
@@ -196,9 +227,27 @@ export default function RentalTermsStep({ value, onChange, errors, L }: Props) {
         </div>
       </TermsField>
 
-      {/* A weekly rental has no end to enter: it runs until the car is back.
-          The number of weeks it used to ask for was dropped at the lessor's
-          request of 16.10.2026. */}
+      {/* Optional, one week when left empty: each later week is an
+          extension (the owner's choice of 16.10.2026). */}
+      {value.type === "WEEKLY" && (
+        <TermsField
+          label={L.terms.totalWeeks}
+          hint={
+            weeklyEnd
+              ? `${L.terms.totalWeeksHint} · ${L.terms.agreedReturn}: ${weeklyEnd}`
+              : L.terms.totalWeeksHint
+          }
+          error={errors.totalWeeks}
+        >
+          <Input
+            type="text"
+            inputMode="numeric"
+            value={value.totalWeeks}
+            onChange={(e) => set("totalWeeks", e.target.value)}
+          />
+        </TermsField>
+      )}
+
       {value.type === "FIXED_TERM" && (
         <TermsField
           label={`${L.terms.end} – ${L.terms.endDate} / ${L.terms.endTime}`}

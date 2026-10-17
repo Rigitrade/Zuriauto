@@ -104,9 +104,10 @@ const MAX_CONDITION_PHOTOS = 4;
  * files them under. A changed start can also mend an end that came before it.
  */
 const TERMS_ERRORS_OF: Record<keyof TermsFormState, string[]> = {
-  type: ["amount", "endAt"],
+  type: ["amount", "endAt", "totalWeeks"],
   startDate: ["startAt", "endAt"],
   startTime: ["startAt", "endAt"],
+  totalWeeks: ["totalWeeks"],
   endDate: ["endAt"],
   endTime: ["endAt"],
   amount: ["amount"],
