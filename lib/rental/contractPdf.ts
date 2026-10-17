@@ -325,8 +325,10 @@ export function writeGtcSections(w: Writer, gtcDoc: GtcDocument): void {
           w.text(block.title, { size: 9.5, font: w.bold });
           w.gap(2);
           break;
+        // A paragraph or list continues the clause above it, so it hangs on
+        // the clause text's edge rather than under the number.
         case "p":
-          w.text(block.text, { size: 9, leading: 1.4 });
+          w.text(block.text, { size: 9, indent: CLAUSE_INDENT, leading: 1.4 });
           w.gap(4);
           break;
         case "clause":
@@ -345,7 +347,7 @@ export function writeGtcSections(w: Writer, gtcDoc: GtcDocument): void {
           break;
         case "list":
           for (const item of block.items) {
-            w.text(`- ${item}`, { size: 9, indent: 10, leading: 1.4 });
+            w.text(`- ${item}`, { size: 9, indent: CLAUSE_INDENT + 8, leading: 1.4 });
           }
           w.gap(4);
           break;

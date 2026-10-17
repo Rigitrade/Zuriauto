@@ -35,8 +35,10 @@ function Block({ block }: { block: GtcBlock }): ReactElement {
         </h5>
       );
 
+    // A paragraph or list continues the clause above it, so it starts on the
+    // clause text's edge rather than under the number.
     case "p":
-      return <p className="leading-relaxed mb-3">{block.text}</p>;
+      return <p className={`${CLAUSE_INDENT} leading-relaxed mb-3`}>{block.text}</p>;
 
     case "clause":
       return (
@@ -61,7 +63,7 @@ function Block({ block }: { block: GtcBlock }): ReactElement {
 
     case "list":
       return (
-        <ul className="list-disc pl-5 mb-3 space-y-1">
+        <ul className="list-disc pl-18 mb-3 space-y-1">
           {block.items.map((item, i) => (
             <li key={i} className="leading-relaxed">
               {item}

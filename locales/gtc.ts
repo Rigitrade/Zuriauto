@@ -1,5 +1,20 @@
 // The terms, in the three languages a renter can read them in.
 //
+// The version of 01.10.2026 is the lessor's revision received on 18.10.2026 as
+// AGB_GTC_18.10.2026.docx, which dates itself "Stand: 01 Oktober 2026 / AK"
+// and ends "Oktober 2026"; the lessor asked for that date to be kept. It adds
+// clause 7.6 on tyre and rim damage (7.6–7.8 become 7.7–7.9), rewrites Art. 9
+// on reachability, breakdowns, accidents at night and towing, adds the tyre
+// row to the table in 11.1, and rewrites 12.3 and 12.4 (the deposit back no
+// earlier than five and no later than ten working days after the return).
+// Clauses that run to several paragraphs now carry their heading as the
+// clause text and their paragraphs as `p` blocks, and 9.3's steps keep their
+// "9.3.1" labels inside the paragraphs, so the clause numbering still runs
+// 9.1, 9.2 … The docx spells "Identitästdokumente" in 3.1 and 15.1; that slip
+// is not carried over. Its German otherwise stands as written; the English and
+// French were translated here, reusing the earlier versions' wording wherever
+// the German did not change.
+//
 // The version of 16.10.2026 is that of 15.10.2026 with one change, asked
 // for by the lessor on 16.10.2026: clause 12.4 pays the deposit back five to
 // ten working days after the return, where it said within ten.
@@ -12,7 +27,7 @@
 // the Code of Obligations as "CO" and writing amounts as the German does. The
 // docx's subtitle ("Fahrzeugvermietung – Rigitrade AG") is not repeated, since
 // every page that shows the terms already names the lessor. Earlier versions
-// (30.07, 06.10, 08.10 and 15.10.2026) are in git history, and their PDFs stay
+// (30.07, 06.10, 08.10, 15.10 and 16.10.2026) are in git history, and their PDFs stay
 // published.
 //
 // This file is the source and the published PDFs are built from it
@@ -25,8 +40,10 @@
  * clauses without headings, so a `clause` carries the number that the contract
  * and the confirmations point at ("15.1"). `lettered` holds the "a) … i)" items
  * under a clause; they carry their own letters, so they are set without
- * bullets. `p`, `sub` and `list` are how earlier versions were written, and
- * every renderer still sets them.
+ * bullets. Since 01.10.2026 a clause that runs to several paragraphs holds
+ * its heading ("Reifen- und Felgenschäden:"), followed by `p` paragraphs and
+ * at most a `list`, which are set on the clause text's edge. `sub` is how
+ * earlier versions were written, and every renderer still sets it.
  */
 export type GtcBlock =
   | { kind: "p"; text: string }
@@ -76,7 +93,7 @@ export const GTC_ENTITY = "Rigitrade AG";
  * carry the same date; the German and French files print it in this exact
  * DD.MM.YYYY form.
  */
-export const GTC_DATE = "16.10.2026";
+export const GTC_DATE = "01.10.2026";
 
 /**
  * Where the current version's PDF is published (built by `pnpm gtc:pdf`). The
@@ -91,16 +108,16 @@ export function gtcPdfPath(language: GtcLanguage): string {
 const gtc: Record<GtcLanguage, GtcDocument> = {
   de: {
     title: "Allgemeine Geschäftsbedingungen (AGB)",
-    updated: "Stand: 16. Oktober 2026",
+    updated: "Stand: 01. Oktober 2026 / AK",
     sections: [
       {
         num: "1",
         title: "Geltungsbereich und Vertragsbestandteil",
         blocks: [
           { kind: "clause", num: "1.1", text: "Diese Allgemeinen Geschäftsbedingungen («AGB») gelten für sämtliche Fahrzeugmietverträge der Rigitrade AG («Vermieterin») mit natürlichen und juristischen Personen («Mieter»)." },
-          { kind: "clause", num: "1.2", text: "Bestandteil des Mietverhältnisses sind der individuelle Fahrzeugmietvertrag, diese AGB sowie ausdrücklich vereinbarte Zusatzbedingungen und Übergabe- bzw. Rückgabeprotokolle. Bei Widersprüchen gehen die individuell vereinbarten Bestimmungen vor, soweit sie ausdrücklich abweichend geregelt sind. Zwingende gesetzliche Bestimmungen bleiben vorbehalten." },
+          { kind: "clause", num: "1.2", text: "Bestandteil des Mietverhältnisses sind der individuelle Fahrzeugmietvertrag, diese AGB sowie ausdrücklich vereinbarte Zusatzbedingungen und Übergabe- bzw. Rückgabeprotokolle. Bei Widersprüchen gehen individuell vereinbarte Bestimmungen vor, soweit sie ausdrücklich abweichend geregelt sind. Zwingende gesetzliche Bestimmungen bleiben vorbehalten." },
           { kind: "clause", num: "1.3", text: "Die AGB werden dem Mieter vor oder bei Vertragsabschluss zugänglich gemacht. Sie werden Vertragsbestandteil, wenn der Mieter ihnen bei Vertragsschluss wirksam zustimmt. Bei Online-Buchungen muss die Zustimmung vor Abschluss der Buchung ermöglicht und nachvollziehbar dokumentiert werden." },
-          { kind: "clause", num: "1.4", text: "Besondere Bedingungen für touristische/private Mieten oder für den berufsmässigen Personentransport gelten ergänzend, soweit sie ausdrücklich in den Mietvertrag einbezogen wurden." },
+          { kind: "clause", num: "1.4", text: "Besondere Bedingungen für touristische und private Mieten oder für den berufsmässigen Personentransport gelten ergänzend, soweit sie ausdrücklich in den Mietvertrag einbezogen wurden." },
           { kind: "clause", num: "1.5", text: "Der Mieter ist verpflichtet, den Mietvertrag, diese AGB und die anwendbaren gesetzlichen Vorschriften während der gesamten Mietdauer einzuhalten." },
         ],
       },
@@ -145,7 +162,7 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
               "e) eine Überladung, die Überschreitung der zulässigen Sitzplatz- oder Gewichtsgrenzen sowie eine Nutzung entgegen den Herstellervorgaben;",
               "f) Rauchen und Dampfen im Fahrzeug, einschliesslich der Verwendung von E-Zigaretten;",
               "g) die Manipulation, Entfernung, Beschädigung oder unbefugte Deaktivierung von GPS-, Ortungs- oder sonstigen Sicherheitseinrichtungen;",
-              "h) die Verwendung des Fahrzeugs trotz eines erkennbaren sicherheitsrelevanten Defekts oder einer Warnmeldung, bei der eine Weiterfahrt nicht sicher oder nicht vertretbar ist;",
+              "h) die Nutzung des Fahrzeugs trotz eines erkennbaren sicherheitsrelevanten Defekts oder einer Warnmeldung, bei der eine Weiterfahrt nicht sicher oder nicht vertretbar ist;",
               "i) die Nutzung ausserhalb des vereinbarten Gebiets oder die grenzüberschreitende Nutzung entgegen Ziffer 5.",
             ],
           },
@@ -182,10 +199,16 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
           { kind: "clause", num: "7.2", text: "Gewöhnliche mechanische Reparaturen und technische Defekte, die der Mieter nicht schuldhaft verursacht hat, gehen grundsätzlich zulasten der Vermieterin, vorbehaltlich der vereinbarten Vertragsbedingungen und zwingender gesetzlicher Rechte." },
           { kind: "clause", num: "7.3", text: "Der Mieter hat vor Fahrtantritt und während der Mietdauer im Rahmen des Zumutbaren auf offensichtliche Mängel, Warnmeldungen, Reifenschäden und andere sicherheitsrelevante Auffälligkeiten zu achten." },
           { kind: "clause", num: "7.4", text: "Bei einer sicherheitsrelevanten Warnmeldung oder einem erheblichen Defekt hat der Mieter die Fahrt an einem sicheren Ort zu unterbrechen und die Vermieterin unverzüglich zu informieren. Eine Weiterfahrt ist nur zulässig, wenn sie nach den Umständen sicher und vertretbar ist oder entsprechend autorisiert wurde." },
-          { kind: "clause", num: "7.5", text: "Der Mieter darf Reparaturen grundsätzlich nur nach vorheriger Zustimmung der Vermieterin veranlassen. Ausgenommen sind notwendige Sofortmassnahmen zur Gefahrenabwehr oder zur Vermeidung eines erheblichen weiteren Schadens, wenn eine rechtzeitige Kontaktaufnahme nicht möglich oder nicht zumutbar ist. Belege sind aufzubewahren." },
-          { kind: "clause", num: "7.6", text: "Das Fahrzeug ist in ordentlichem Zustand zurückzugeben. Normale, vertragsgemässe Abnutzung gilt nicht als Schaden." },
-          { kind: "clause", num: "7.7", text: "Bei übermässiger oder vertragswidriger Verschmutzung, insbesondere durch starke Gerüche, Tierhaare, Rauchspuren, Flüssigkeitsverschüttungen oder sonstige Verschmutzungen, die eine professionelle Spezialreinigung erfordern, kann die Vermieterin die tatsächlich angefallenen, angemessenen Reinigungskosten verrechnen. Eine Mindestpauschale von CHF 150.00 gilt nur, sofern sie vor Vertragsabschluss vereinbart wurde und im konkreten Fall angemessen und rechtlich zulässig ist." },
-          { kind: "clause", num: "7.8", text: "Verlust, Diebstahl oder Beschädigung von Fahrzeugschlüsseln, Fahrzeugausweis, Kontrollschildern, Ladekarten oder anderem überlassenem Zubehör sind unverzüglich zu melden. Der Mieter haftet im gesetzlich zulässigen Umfang für erforderliche und angemessene Ersatzbeschaffungs- und Wiederherstellungskosten, soweit er dafür verantwortlich ist." },
+          { kind: "clause", num: "7.5", text: "Der Mieter darf Reparaturen grundsätzlich nur nach vorheriger Zustimmung der Vermieterin veranlassen. Ausgenommen sind notwendige Sofortmassnahmen zur Gefahrenabwehr oder zur Vermeidung eines erheblichen weiteren Schadens, wenn eine rechtzeitige Kontaktaufnahme nicht möglich oder nicht zumutbar ist. Belege sind aufzubewahren. Für Pannen- und Abschleppdienste gilt ergänzend Ziffer 9." },
+          { kind: "clause", num: "7.6", text: "Reifen- und Felgenschäden:" },
+          { kind: "p", text: "Der Mieter ist verpflichtet, das Fahrzeug mit der gebotenen Sorgfalt zu führen und insbesondere Schäden an Reifen und Felgen zu vermeiden. Dazu gehört insbesondere, Trottoir- und Bordsteinkanten nicht unsachgemäss anzufahren oder zu überfahren sowie Hindernisse mit der gebotenen Vorsicht zu passieren." },
+          { kind: "p", text: "Verursacht der Mieter schuldhaft einen Reifen- oder Felgenschaden, insbesondere einen Einstich, Schnitt, Riss, Flankenschaden oder sonstigen Beschädigungsschaden, haftet er im gesetzlich zulässigen Umfang für die daraus entstehenden Kosten." },
+          { kind: "p", text: "Bei einem vom Mieter schuldhaft verursachten Reifenschaden werden die effektiven Kosten für die erforderliche Reifenreparatur bzw. den erforderlichen Reifenwechsel einschliesslich Montage verrechnet, mindestens jedoch CHF 100.00 pro beschädigtem Reifen. Sofern eine Reparatur nicht fachgerecht möglich oder wirtschaftlich nicht zumutbar ist, werden die effektiven Kosten für den erforderlichen Ersatz des beschädigten Reifens bzw. der beschädigten Felge einschliesslich der erforderlichen Montage verrechnet. Der Ersatz beider Reifen derselben Achse kann zusätzlich verrechnet werden, sofern dies aufgrund gesetzlicher Vorschriften, des tatsächlichen Zustands der Reifen oder verbindlicher Herstellervorgaben erforderlich ist." },
+          { kind: "p", text: "Darüber hinaus haftet der Mieter im gesetzlich zulässigen Umfang für einen durch den Schaden verursachten, tatsächlichen und nachweisbaren Mietausfall sowie für weitere unmittelbar verursachte und angemessene Kosten, soweit diese nicht bereits durch die vorgenannten Beträge abgegolten sind." },
+          { kind: "p", text: "Die Haftung setzt voraus, dass der Schaden dem Mieter rechtlich zugerechnet werden kann. Nicht vom Mieter zu vertretende Schäden, insbesondere Materialfehler oder unvermeidbare Fremdeinwirkungen, bleiben ausgenommen." },
+          { kind: "clause", num: "7.7", text: "Das Fahrzeug ist in ordentlichem Zustand zurückzugeben. Normale, vertragsgemässe Abnutzung gilt nicht als Schaden." },
+          { kind: "clause", num: "7.8", text: "Bei übermässiger oder vertragswidriger Verschmutzung, insbesondere durch starke Gerüche, Tierhaare, Rauchspuren, Flüssigkeitsverschüttungen oder sonstige Verschmutzungen, die eine professionelle Spezialreinigung erfordern, kann die Vermieterin die tatsächlich angefallenen, angemessenen Reinigungskosten verrechnen. Eine Mindestpauschale von CHF 150.00 gilt nur, sofern sie vor Vertragsabschluss vereinbart wurde und im konkreten Fall angemessen und rechtlich zulässig ist." },
+          { kind: "clause", num: "7.9", text: "Verlust, Diebstahl oder Beschädigung von Fahrzeugschlüsseln, Fahrzeugausweis, Kontrollschildern, Ladekarten oder anderem überlassenem Zubehör sind unverzüglich zu melden. Der Mieter haftet im gesetzlich zulässigen Umfang für erforderliche und angemessene Ersatzbeschaffungs- und Wiederherstellungskosten, soweit er dafür verantwortlich ist." },
         ],
       },
       {
@@ -207,19 +230,55 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
           },
           { kind: "clause", num: "8.4", text: "Eine Haftung für Totalschaden, Nutzungsausfall, Mietausfall oder sonstige Folgeschäden besteht nur, soweit die jeweiligen Voraussetzungen nach Gesetz und Vertrag erfüllt sind, ein ersatzfähiger Schaden nachgewiesen ist und keine doppelte Entschädigung erfolgt." },
           { kind: "clause", num: "8.5", text: "Die Haftung der Vermieterin richtet sich nach dem anwendbaren Recht. Haftungsbeschränkungen gelten nur im gesetzlich zulässigen Umfang. Insbesondere bleiben zwingende Haftungsvorschriften und die gesetzlichen Regeln über vorsätzliches oder grobfahrlässiges Verhalten vorbehalten." },
-          { kind: "clause", num: "8.6", text: "Der Mieter hat zumutbare Massnahmen zur Verhinderung und Begrenzung von Schäden zu treffen, den Versicherungsschutz nicht zu gefährden und an der Schadenabwicklung mitzuwirken." },
+          { kind: "clause", num: "8.6", text: "Der Mieter hat zumutbare Massnahmen zur Verhinderung und Begrenzung von Schäden zu treffen, den Versicherungsschutz nicht zu gefährden und an der Schadenabwicklung mitzuwirken. Die Melde- und Mitwirkungspflichten gemäss Ziffer 9 bleiben vorbehalten." },
         ],
       },
       {
         num: "9",
-        title: "Unfall, Diebstahl, Panne und Schadenmeldung",
+        title: "Unfall, Panne, Erreichbarkeit und Schadenmanagement",
         blocks: [
-          { kind: "clause", num: "9.1", text: "Bei einem Unfall hat der Mieter die Unfallstelle zu sichern, erforderlichenfalls Verletzten Hilfe zu leisten und den Rettungsdienst über die Notrufnummer 144 zu alarmieren. Die Polizei ist zu verständigen, wenn dies gesetzlich vorgeschrieben oder aufgrund der Umstände erforderlich ist." },
-          { kind: "clause", num: "9.2", text: "Soweit möglich und gefahrlos, hat der Mieter die Angaben der Beteiligten und Zeugen, Kontrollschilder, Versicherungsinformationen, Fotos der Schäden und Unfallstelle sowie einen Unfallbericht zu sichern." },
-          { kind: "clause", num: "9.3", text: "Der Mieter darf ohne entsprechende Berechtigung kein Schuldanerkenntnis abgeben und keine verbindlichen Vergleiche über Schadenersatzansprüche abschliessen." },
-          { kind: "clause", num: "9.4", text: "Jeder Unfall, Schaden, Diebstahl, Verlust oder sonstige versicherungsrelevante Vorfall ist der Vermieterin unverzüglich, möglichst innerhalb von 24 Stunden nach Kenntnisnahme, zu melden. Ist dies aufgrund von Verletzungen, behördlichen Massnahmen oder anderen wichtigen Gründen nicht möglich oder nicht zumutbar, ist die Meldung nach Wegfall des Hindernisses unverzüglich nachzuholen." },
-          { kind: "clause", num: "9.5", text: "Bei einer Panne hat der Mieter das Fahrzeug an einem sicheren Ort abzustellen, erforderlichenfalls die Pannenhilfe zu verständigen und die Vermieterin unverzüglich zu informieren." },
-          { kind: "clause", num: "9.6", text: "Der Mieter hat bei der Abklärung und Regulierung des Schadens vollständig und wahrheitsgemäss mitzuwirken sowie erforderliche und rechtmässig verlangte Unterlagen bereitzustellen." },
+          { kind: "clause", num: "9.1", text: "Allgemeine Erreichbarkeit des Mieters:" },
+          { kind: "p", text: "Der Mieter ist verpflichtet, während der Mietdauer unter der von ihm angegebenen Mobiltelefonnummer erreichbar zu sein und sicherzustellen, dass sein Mobiltelefon ausreichend geladen und für eingehende Anrufe und Nachrichten empfangsbereit ist." },
+          { kind: "p", text: "Im Falle einer Panne, eines Unfalls, eines technischen Defekts oder eines sonstigen Fahrzeugproblems hat der Mieter sein Mobiltelefon, soweit sicher und zumutbar, so einzustellen, dass Anrufe und Nachrichten der Vermieterin zuverlässig wahrgenommen werden können. Insbesondere sind der Stummmodus und Funktionen wie «Bitte nicht stören» vorübergehend zu deaktivieren, soweit diese die Erreichbarkeit beeinträchtigen." },
+          { kind: "p", text: "Der Mieter hat Rückrufversuche der Vermieterin unverzüglich, spätestens innerhalb von 10 Minuten nach Kenntnisnahme des Rückrufversuchs, zu beantworten. Dies gilt grundsätzlich auch zwischen 00:00 und 07:00 Uhr, sofern keine berechtigten Hinderungsgründe vorliegen. Die Sicherheit des Mieters und Dritter sowie zwingende gesetzliche Vorschriften haben jederzeit Vorrang." },
+          { kind: "clause", num: "9.2", text: "Vorgehen bei Pannen und technischen Defekten:" },
+          { kind: "p", text: "Bei einer Panne, einer Warnmeldung oder einem technischen Defekt hat der Mieter das Fahrzeug unverzüglich an einem sicheren Ort anzuhalten, die erforderlichen Sicherheitsmassnahmen zu treffen und die Vermieterin telefonisch zu informieren. Die Anweisungen der Vermieterin sind zu befolgen, soweit diese rechtmässig, zumutbar und sicher sind." },
+          { kind: "p", text: "Ist die Vermieterin telefonisch nicht erreichbar, hat der Mieter grundsätzlich mindestens 15 Minuten auf einen Rückruf zu warten, sofern dies angesichts der konkreten Situation sicher und zumutbar ist. Während dieser Zeit hat der Mieter der Vermieterin zusätzlich eine WhatsApp-Nachricht mit der Bitte um Rückruf, einer kurzen Beschreibung des Problems und dem Standort des Fahrzeugs zu senden." },
+          { kind: "p", text: "Während der Wartezeit hat der Mieter für einen Rückruf erreichbar zu bleiben und unnötige Telefonate zu vermeiden. Soweit technisch möglich und zumutbar, hat er eine aktive Mailbox sowie Rufumleitungen, die eine unmittelbare Erreichbarkeit verhindern, vorübergehend zu deaktivieren. Die hierfür erforderlichen Einstellungen richten sich nach den Möglichkeiten und Anweisungen des jeweiligen Mobilfunkanbieters." },
+          { kind: "p", text: "Die Wartepflicht gilt nicht, wenn sofortige Massnahmen zur Gefahrenabwehr, zur Sicherung der Unfallstelle oder zur Vermeidung erheblicher Folgeschäden erforderlich sind." },
+          { kind: "clause", num: "9.3", text: "Besondere Vorgehensweise bei Unfällen zwischen 00:00 und 07:00 Uhr:" },
+          { kind: "p", text: "Bei einem Verkehrsunfall zwischen 00:00 und 07:00 Uhr hat der Mieter zusätzlich zu den allgemeinen Melde- und Mitwirkungspflichten die nachfolgenden Schritte einzuhalten, soweit dies angesichts der konkreten Situation sicher und möglich ist." },
+          { kind: "p", text: "9.3.1 Unfallstelle sichern und Unfallprotokoll erstellen: Der Mieter hat das Fahrzeug an einem sicheren Ort anzuhalten, die Unfallstelle abzusichern und erforderliche Erste-Hilfe- oder Notfallmassnahmen einzuleiten. Bei Verletzten oder unmittelbarer Gefahr sind unverzüglich die zuständigen Notdienste zu verständigen. Soweit möglich und sicher, hat der Mieter gemeinsam mit den beteiligten Unfalllenkern ein Unfallprotokoll aufzunehmen. Dabei sind insbesondere die Personalien und Kontaktdaten der Beteiligten, die Kontrollschilder, die Versicherungsangaben sowie die für die Dokumentation des Unfallhergangs erforderlichen Informationen festzuhalten." },
+          { kind: "p", text: "9.3.2 Polizei verständigen: Bei Unfällen zwischen 00:00 und 07:00 Uhr hat der Mieter grundsätzlich die Polizei unter 117 zu kontaktieren, den Unfall zu melden und sich nach dem weiteren Vorgehen zu erkundigen. Gesetzliche Meldepflichten und polizeiliche Anweisungen sind einzuhalten. Bei Verletzten oder akuter Gefahr sind die zuständigen Notdienste unverzüglich zu alarmieren." },
+          { kind: "p", text: "9.3.3 Fotos und Beweissicherung: Der Mieter hat unmittelbar nach dem Unfall, sofern dies gefahrlos möglich ist, aussagekräftige Fotos zur Dokumentation aufzunehmen. Diese sollen insbesondere Folgendes zeigen: die Kontrollschilder sämtlicher beteiligter Fahrzeuge; die Position und Stellung der Fahrzeuge zueinander sowie ihre Lage auf der Unfallstelle; sämtliche sichtbaren Schäden am Mietfahrzeug und an den beteiligten Fahrzeugen; die Unfallstelle, relevante Verkehrssignale und sonstige für die Rekonstruktion des Unfallhergangs wichtige Umstände. Die Fotos und das Unfallprotokoll sind der Vermieterin so schnell wie möglich, vorzugsweise per WhatsApp, zu übermitteln." },
+          { kind: "p", text: "9.3.4 Vermieterin und Pannenhilfe kontaktieren: Nach der Sicherung der Unfallstelle und der erforderlichen Unfallaufnahme hat der Mieter erneut die Vermieterin zu kontaktieren. Ist diese nicht erreichbar oder wird Pannenhilfe benötigt, hat der Mieter die nachfolgende Pannenhilfe zu kontaktieren:" },
+          {
+            kind: "list",
+            items: [
+              "Pannenhilfe-Telefonnummer: 058 275 27 27",
+              "Versicherungs-/Vertragsnummer: 6010 6169 937",
+              "Vertragsname: Katamesh",
+            ],
+          },
+          { kind: "p", text: "Der Mieter hat der Pannenhilfe seine Mobiltelefonnummer, den möglichst genauen Standort des Fahrzeugs sowie eine kurze Beschreibung des Unfalls und des Fahrzeugzustands mitzuteilen. Die Vertragsnummer und der Vertragsname sind zur Identifikation des Vertrags anzugeben. Der Mieter hat die Anweisungen der Pannenhilfe zu befolgen. Nach Übermittlung der erforderlichen Angaben kann er das Gespräch beenden und hat anschliessend an einem sicheren Ort auf die Unterstützung zu warten. Er muss telefonisch erreichbar bleiben, bis die Angelegenheit geklärt ist oder die Hilfe eingetroffen ist." },
+          { kind: "p", text: "9.3.5 Weitere Massnahmen und Dokumentation: Der Mieter hat alle relevanten Informationen, Fotos, Unfallprotokolle, Polizeireferenznummern und Belege aufzubewahren und der Vermieterin auf Verlangen unverzüglich zur Verfügung zu stellen. Notwendige Sofortmassnahmen zur Gefahrenabwehr, zur Sicherung des Fahrzeugs oder zur Vermeidung erheblicher Folgeschäden bleiben jederzeit vorbehalten. Der Mieter hat die Vermieterin über solche Massnahmen so schnell wie möglich zu informieren." },
+          { kind: "clause", num: "9.4", text: "Beauftragung von Abschleppdiensten, Pannendiensten und Werkstätten:" },
+          { kind: "p", text: "Der Mieter darf ohne vorherige ausdrückliche telefonische oder schriftliche Freigabe der Vermieterin grundsätzlich keinen Abschleppdienst, Pannendienst oder eine Werkstatt im Namen oder auf Kosten der Vermieterin beauftragen." },
+          { kind: "p", text: "Diese Einschränkung gilt nicht, wenn sofortige Massnahmen zur Abwehr einer Gefahr für Personen, zur Sicherung des Fahrzeugs oder zur Vermeidung erheblicher Folgeschäden erforderlich sind und die Vermieterin trotz angemessener Kontaktversuche nicht rechtzeitig erreichbar ist. In solchen Fällen darf der Mieter die erforderlichen und verhältnismässigen Massnahmen veranlassen. Er hat die Vermieterin so schnell wie möglich zu informieren und die getroffenen Massnahmen sowie die entstandenen Kosten zu dokumentieren." },
+          { kind: "p", text: "Soweit es die konkrete Situation zulässt, hat der Mieter vor einer Beauftragung die Zustimmung der Vermieterin abzuwarten. Eine Beauftragung ohne vorherige Zustimmung begründet für sich allein keinen automatischen Anspruch auf Kostenübernahme durch die Vermieterin." },
+          { kind: "clause", num: "9.5", text: "Kostenfolgen bei vertragswidriger Beauftragung Dritter:" },
+          { kind: "p", text: "Veranlasst der Mieter entgegen den vorstehenden Bestimmungen ohne erforderliche Freigabe der Vermieterin Leistungen eines Abschleppdienstes, Pannendienstes oder einer Werkstatt, hat er die dadurch verursachten Kosten zu tragen, soweit diese auf einer ihm zurechenbaren Vertragsverletzung beruhen und ihm nach den gesetzlichen Bestimmungen auferlegt werden können." },
+          { kind: "p", text: "Die Kosten können insbesondere Abschlepp-, Anfahrts-, Diagnose-, Reparatur- und Nebenkosten umfassen, sofern sie tatsächlich angefallen, angemessen und nachgewiesen sind. Die Kostenübernahme durch die Vermieterin richtet sich nach dem Mietvertrag, den anwendbaren Versicherungsbedingungen und den gesetzlichen Bestimmungen. Eine doppelte Verrechnung derselben Kosten oder desselben Schadens unter verschiedenen Positionen ist ausgeschlossen." },
+          { kind: "clause", num: "9.6", text: "Unfall, Diebstahl und sonstige Schadenmeldung:" },
+          { kind: "p", text: "Bei einem Unfall hat der Mieter die Unfallstelle zu sichern, erforderlichenfalls Verletzten Hilfe zu leisten und den Rettungsdienst über die Notrufnummer 144 zu alarmieren. Die Polizei ist zu verständigen, wenn dies gesetzlich vorgeschrieben oder aufgrund der Umstände erforderlich ist. Für Unfälle zwischen 00:00 und 07:00 Uhr gilt ergänzend Ziffer 9.3." },
+          { kind: "p", text: "Soweit möglich und gefahrlos, hat der Mieter die Angaben der Beteiligten und Zeugen, Kontrollschilder, Versicherungsinformationen, Fotos der Schäden und Unfallstelle sowie einen Unfallbericht zu sichern." },
+          { kind: "p", text: "Der Mieter darf ohne entsprechende Berechtigung kein Schuldanerkenntnis abgeben und keine verbindlichen Vergleiche über Schadenersatzansprüche abschliessen." },
+          { kind: "p", text: "Jeder Unfall, Schaden, Diebstahl, Verlust oder sonstige versicherungsrelevante Vorfall ist der Vermieterin unverzüglich, möglichst innerhalb von 24 Stunden nach Kenntnisnahme, zu melden. Ist dies aufgrund von Verletzungen, behördlichen Massnahmen oder anderen wichtigen Gründen nicht möglich oder nicht zumutbar, ist die Meldung nach Wegfall des Hindernisses unverzüglich nachzuholen." },
+          { kind: "p", text: "Der Mieter hat bei der Abklärung und Regulierung des Schadens vollständig und wahrheitsgemäss mitzuwirken sowie erforderliche und rechtmässig verlangte Unterlagen bereitzustellen." },
+          { kind: "clause", num: "9.7", text: "Schadenminderung, Mitwirkung und Sicherheit:" },
+          { kind: "p", text: "Der Mieter ist verpflichtet, zumutbare Massnahmen zur Begrenzung von Schäden und Kosten zu treffen und bei der Abklärung und Bearbeitung eines Pannen- oder Schadenfalls angemessen mitzuwirken." },
+          { kind: "p", text: "Der Mieter hat sämtliche verfügbaren Rechnungen, Belege, Fotos, Unfallprotokolle und sonstigen relevanten Unterlagen aufzubewahren und der Vermieterin auf Verlangen unverzüglich zur Verfügung zu stellen." },
+          { kind: "p", text: "Keine Bestimmung dieser Ziffer verpflichtet den Mieter, sich selbst oder Dritte zu gefährden, notwendige Erste-Hilfe-Massnahmen zu verzögern oder gesetzliche Pflichten zu verletzen. Gesetzliche Meldepflichten, polizeiliche Anweisungen und zwingende gesetzliche Vorschriften bleiben vorbehalten." },
         ],
       },
       {
@@ -237,12 +296,12 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
       },
       {
         num: "11",
-        title: "Konventionalstrafen",
+        title: "Konventionalstrafen und Unkostenpauschalen",
         blocks: [
-          { kind: "clause", num: "11.1", text: "Für die nachfolgend aufgeführten schuldhaften Vertragsverletzungen können, sofern die jeweiligen gesetzlichen und vertraglichen Voraussetzungen erfüllt sind, folgende Konventionalstrafen vereinbart werden:" },
+          { kind: "clause", num: "11.1", text: "Für die nachfolgend aufgeführten schuldhaften Vertragsverletzungen bzw. Schadenfälle können, sofern die jeweiligen gesetzlichen und vertraglichen Voraussetzungen erfüllt sind, folgende Konventionalstrafen bzw. Mindestpauschalen vereinbart werden:" },
           {
             kind: "table",
-            head: ["Vertragsverletzung", "Konventionalstrafe"],
+            head: ["Vertragsverletzung / Schadenfall", "Konventionalstrafe / Pauschale"],
             rows: [
               ["Unberechtigte verspätete Rückgabe, pro angefangenem Kalendertag", "CHF 100.00"],
               ["Wesentliche, schuldhafte Falschangabe zur Wohn- oder Zustelladresse, sofern sie für den Vertragsabschluss oder die Durchsetzung von Ansprüchen erheblich ist", "CHF 500.00"],
@@ -250,6 +309,7 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
               ["Rauchen oder Dampfen im Fahrzeug", "CHF 250.00"],
               ["Vorsätzliche oder schuldhafte Manipulation, Entfernung oder unbefugte Deaktivierung des GPS- oder Ortungssystems", "CHF 800.00"],
               ["Schuldhafte, wesentliche Verletzung der Unfallmeldepflicht", "CHF 500.00"],
+              ["Schuldhaft verursachter Reifen- oder Felgenschaden (z. B. Trottoirkantenkontakt, Schnitt, Riss oder unsachgemässe Handhabung)", "Mindestens CHF 100.00 (zzgl. effektiver Ersatzkosten & Mietausfall gemäss Ziff. 7.6)"],
             ],
           },
           { kind: "clause", num: "11.2", text: "Die Konventionalstrafen gelten nur, wenn die jeweilige Vertragsverletzung und die erforderlichen gesetzlichen Voraussetzungen vorliegen. Sie ersetzen nicht die Pflicht, eine Vertragsverletzung zu beenden oder das Fahrzeug zurückzugeben." },
@@ -263,8 +323,9 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
         blocks: [
           { kind: "clause", num: "12.1", text: "Höhe, Zahlungsart und Zeitpunkt der Kaution sowie die akzeptierten Zahlungsmittel werden vor Vertragsabschluss im individuellen Mietvertrag oder in den Buchungsbedingungen festgelegt." },
           { kind: "clause", num: "12.2", text: "Die Kaution dient der Sicherung berechtigter Forderungen aus dem Mietverhältnis. Nachweislich geschuldete und fällige Beträge dürfen im gesetzlich zulässigen Umfang verrechnet werden. Die Vermieterin informiert den Mieter nachvollziehbar über solche Verrechnungen." },
-          { kind: "clause", num: "12.3", text: "Sind bei Rückgabe konkrete Ansprüche erkennbar, die noch nicht abschliessend beziffert werden können, darf ein angemessener Betrag nur so lange zurückbehalten werden, wie dies für die sachgerechte Abklärung und Sicherung des Anspruchs erforderlich und gesetzlich zulässig ist. Ein unbestrittener Restbetrag wird fristgerecht zurückbezahlt." },
-          { kind: "clause", num: "12.4", text: "Sofern im Mietvertrag nichts anderes vereinbart ist, wird die Kaution grundsätzlich fünf bis zehn Arbeitstage nach ordnungsgemässer Rückgabe zurückbezahlt. Die tatsächliche Bearbeitungsdauer eines Karten- oder Zahlungsdienstleisters kann ausserhalb des Einflussbereichs der Vermieterin liegen." },
+          { kind: "clause", num: "12.3", text: "Sind bei der Rückgabe konkrete Ansprüche oder behördliche Anfragen (z. B. angekündigte Bussen, Radar-Fotos oder Halterauskünfte) erkennbar, die noch nicht abschliessend beziffert werden können, darf ein der erwarteten Forderung entsprechender Teilbetrag der Kaution bis zur vollständigen Klärung und Begleichung zurückbehalten werden. Ein unbestrittener Restbetrag wird fristgerecht zurückbezahlt." },
+          { kind: "clause", num: "12.4", text: "Frist für die Kautionsrückzahlung:" },
+          { kind: "p", text: "Die Rückzahlung der Kaution erfolgt frühestens nach 5 und spätestens innerhalb von 10 Arbeitstagen nach ordnungsgemässer Rückgabe des Fahrzeugs. Diese Frist dient insbesondere der Überprüfung und Abwicklung nachträglich eingehender Forderungen, wie etwa Verkehrs- und Ordnungsbussen (z. B. Geschwindigkeits- oder Rotlichtübertretungen / Radarfotos), Mautgebühren oder verdeckten Schäden, die zum Zeitpunkt der Fahrzeugrückgabe noch nicht bekannt waren. Die tatsächliche Gutschriftzeit auf dem Konto oder der Kreditkarte des Mieters kann je nach Zahlungsdienstleister variieren." },
           { kind: "clause", num: "12.5", text: "Bei Zahlungsverzug kann die Vermieterin die gesetzlich zulässigen Mahn-, Inkasso- und Betreibungsschritte einleiten. Die nachfolgenden Gebühren dürfen nur erhoben werden, soweit sie vor Vertragsabschluss wirksam vereinbart wurden und im konkreten Fall gesetzlich zulässig und angemessen sind:" },
           {
             kind: "table",
@@ -273,7 +334,7 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
               ["Bearbeitung einer Verkehrsbusse oder behördlichen Anfrage", "CHF 20.00"],
               ["Mahnung bei Zahlungsverzug", "CHF 20.00"],
               ["Interner administrativer Aufwand im Zusammenhang mit der Einleitung einer Betreibung", "CHF 80.00"],
-              ["Organisation einer erforderlichen Fahrzeugrückholung", "mindestens CHF 400.00"],
+              ["Organisation einer erforderlichen Fahrzeugrückholung", "Mindestens CHF 400.00"],
               ["Verwahrung des Fahrzeugs", "CHF 50.00 pro Tag"],
             ],
           },
@@ -321,7 +382,7 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
         title: "Berufsmässiger Personentransport und Plattformnutzung",
         blocks: [
           { kind: "clause", num: "16.1", text: "Die Nutzung für berufsmässigen Personentransport, Taxi- oder Plattformfahrten ist nur zulässig, wenn sie im individuellen Mietvertrag ausdrücklich vereinbart wurde." },
-          { kind: "clause", num: "16.2", text: "Der Mieter ist dafür verantwortlich, während der gesamten Mietdauer sämtliche für die vereinbarte Nutzung erforderlichen gesetzlichen, behördlichen und vertraglichen Voraussetzungen einzuhalten. Dies umfasst insbesondere erforderliche Fahrberechtigungen, Bewilligungen und anwendbare Vorschriften für den berufsmässigen Personentransport." },
+          { kind: "clause", num: "16.2", text: "Der Mieter ist dafür verantwortlich, während der gesamten Mietdauer sämtliche für die vereinbarte Nutzung erforderlichen gesetzlichen, behördlichen und vertraglichen Voraussetzungen einzuhalten. Dies umfasst insbesondere erforderliche Fahrberechtigungen (z. B. BPT / Code 121), Bewilligungen und anwendbare Vorschriften für den berufsmässigen Personentransport." },
           { kind: "clause", num: "16.3", text: "Der Mieter hat sicherzustellen, dass das Fahrzeug für den vereinbarten Einsatzzweck zugelassen, ausgerüstet und entsprechend versichert ist. Eine Plattformzulassung oder ein bestimmter Umsatz wird von der Vermieterin nicht garantiert." },
           { kind: "clause", num: "16.4", text: "Der Mieter informiert die Vermieterin unverzüglich über den Wegfall, die Einschränkung oder den Entzug einer für die vereinbarte Nutzung erforderlichen Berechtigung." },
         ],
@@ -340,13 +401,13 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
         num: "18",
         title: "Schlussbestimmungen",
         blocks: [
-          { kind: "clause", num: "18.1", text: "Gesamte Vereinbarung. Der individuelle Mietvertrag, diese AGB und ausdrücklich einbezogene Zusatzvereinbarungen bilden die Vereinbarung der Parteien über das betreffende Mietverhältnis. Individuelle, ausdrücklich vereinbarte Vertragsbestimmungen gehen bei Widersprüchen diesen AGB vor." },
-          { kind: "clause", num: "18.2", text: "Änderungen. Änderungen und Ergänzungen des Mietvertrags bedürfen der Textform, soweit nicht gesetzlich eine strengere Form vorgeschrieben ist oder die Parteien ausdrücklich eine strengere Form vereinbaren." },
-          { kind: "clause", num: "18.3", text: "Kein Rechtsverzicht. Die vorübergehende Nichtausübung oder verspätete Durchsetzung eines Rechts durch die Vermieterin gilt nicht als Verzicht auf dieses Recht." },
-          { kind: "clause", num: "18.4", text: "Höhere Gewalt. Keine Partei haftet im gesetzlich zulässigen Umfang für Leistungsstörungen, die unmittelbar auf aussergewöhnliche, nicht beherrschbare und trotz zumutbarer Sorgfalt nicht vermeidbare Ereignisse zurückzuführen sind. Die betroffene Partei informiert die andere Partei soweit möglich unverzüglich und trifft zumutbare Massnahmen zur Begrenzung der Auswirkungen. Zwingende gesetzliche Rechte und Haftungsregeln bleiben vorbehalten." },
-          { kind: "clause", num: "18.5", text: "Salvatorische Klausel. Sollte eine Bestimmung dieser AGB ganz oder teilweise unwirksam oder undurchsetzbar sein oder werden, bleiben die übrigen Bestimmungen im gesetzlich zulässigen Umfang wirksam. Anstelle der unwirksamen Bestimmung gelten die anwendbaren gesetzlichen Vorschriften." },
-          { kind: "clause", num: "18.6", text: "Anwendbares Recht. Es gilt schweizerisches materielles Recht, soweit dessen Anwendung gesetzlich zulässig ist. Zwingende Bestimmungen des internationalen Privatrechts und zwingende Verbraucherschutzvorschriften bleiben vorbehalten." },
-          { kind: "clause", num: "18.7", text: "Gerichtsstand Zürich. Soweit eine Gerichtsstandsvereinbarung gesetzlich zulässig ist, wird für sämtliche Streitigkeiten aus oder im Zusammenhang mit dem Mietverhältnis Zürich, Schweiz, als Gerichtsstand vereinbart. Zwingende gesetzliche Gerichtsstände, insbesondere bei Konsumentenverträgen, bleiben vorbehalten. Wo eine vorgängige Gerichtsstandsvereinbarung gesetzlich nicht zulässig ist, gelten die gesetzlichen Gerichtsstände." },
+          { kind: "clause", num: "18.1", text: "Gesamte Vereinbarung: Der individuelle Mietvertrag, diese AGB und ausdrücklich einbezogene Zusatzvereinbarungen bilden die Vereinbarung der Parteien über das betreffende Mietverhältnis. Individuelle, ausdrücklich vereinbarte Vertragsbestimmungen gehen bei Widersprüchen diesen AGB vor." },
+          { kind: "clause", num: "18.2", text: "Änderungen: Änderungen und Ergänzungen des Mietvertrags bedürfen der Textform, soweit nicht gesetzlich eine strengere Form vorgeschrieben ist oder die Parteien ausdrücklich eine strengere Form vereinbaren." },
+          { kind: "clause", num: "18.3", text: "Kein Rechtsverzicht: Die vorübergehende Nichtausübung oder verspätete Durchsetzung eines Rechts durch die Vermieterin gilt nicht als Verzicht auf dieses Recht." },
+          { kind: "clause", num: "18.4", text: "Höhere Gewalt: Keine Partei haftet im gesetzlich zulässigen Umfang für Leistungsstörungen, die unmittelbar auf aussergewöhnliche, nicht beherrschbare und trotz zumutbarer Sorgfalt nicht vermeidbare Ereignisse zurückzuführen sind. Die betroffene Partei informiert die andere Partei soweit möglich unverzüglich und trifft zumutbare Massnahmen zur Begrenzung der Auswirkungen. Zwingende gesetzliche Rechte und Haftungsregeln bleiben vorbehalten." },
+          { kind: "clause", num: "18.5", text: "Salvatorische Klausel: Sollte eine Bestimmung dieser AGB ganz oder teilweise unwirksam oder undurchsetzbar sein oder werden, bleiben die übrigen Bestimmungen im gesetzlich zulässigen Umfang wirksam. Anstelle der unwirksamen Bestimmung gelten die anwendbaren gesetzlichen Vorschriften." },
+          { kind: "clause", num: "18.6", text: "Anwendbares Recht: Es gilt schweizerisches materielles Recht, soweit dessen Anwendung gesetzlich zulässig ist. Zwingende Bestimmungen des internationalen Privatrechts und zwingende Verbraucherschutzvorschriften bleiben vorbehalten." },
+          { kind: "clause", num: "18.7", text: "Gerichtsstand Zürich: Soweit eine Gerichtsstandsvereinbarung gesetzlich zulässig ist, wird für sämtliche Streitigkeiten aus oder im Zusammenhang mit dem Mietverhältnis Zürich, Schweiz, als Gerichtsstand vereinbart. Zwingende gesetzliche Gerichtsstände, insbesondere bei Konsumentenverträgen, bleiben vorbehalten. Wo eine vorgängige Gerichtsstandsvereinbarung gesetzlich nicht zulässig ist, gelten die gesetzlichen Gerichtsstände." },
         ],
       },
     ],
@@ -354,15 +415,15 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
       lessor: [
         "Vermieterin: Rigitrade AG",
         "Sitz: Tannenstrasse 16, 8424 Embrach, Schweiz",
-        "Geschäftsadresse: Schaffhauserstrasse 550, 8052 Zürich, Schweiz",
+        "Geschäftsadresse: Schaffhauserstrasse 550, 8052 Zürich",
       ],
       text: "Diese AGB gelten nur, soweit sie wirksam in den jeweiligen Mietvertrag einbezogen wurden. Der Mieter bestätigt bei Vertragsabschluss, dass er die AGB zugänglich erhalten und ihnen zugestimmt hat.",
-      signoff: "16.10.2026 / AK",
+      signoff: "Oktober 2026",
     },
   },
   en: {
     title: "General Terms and Conditions (GTC)",
-    updated: "As of 16 October 2026",
+    updated: "As of 1 October 2026 / AK",
     sections: [
       {
         num: "1",
@@ -371,7 +432,7 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
           { kind: "clause", num: "1.1", text: "These General Terms and Conditions (\"GTC\") apply to all vehicle rental agreements of Rigitrade AG (the \"Lessor\") with natural persons and legal entities (the \"Renter\")." },
           { kind: "clause", num: "1.2", text: "The rental relationship comprises the individual vehicle rental agreement, these GTC and any expressly agreed additional terms and handover or return reports. In the event of conflict, the individually agreed provisions take precedence insofar as they expressly provide otherwise. Mandatory statutory provisions remain reserved." },
           { kind: "clause", num: "1.3", text: "The GTC are made available to the Renter before or upon conclusion of the contract. They become part of the contract if the Renter validly agrees to them when the contract is concluded. For online bookings, it must be possible to give this consent before the booking is completed, and the consent must be documented in a verifiable manner." },
-          { kind: "clause", num: "1.4", text: "Special terms for tourist/private rentals or for professional passenger transport apply in addition, insofar as they have been expressly incorporated into the rental agreement." },
+          { kind: "clause", num: "1.4", text: "Special terms for tourist and private rentals or for professional passenger transport apply in addition, insofar as they have been expressly incorporated into the rental agreement." },
           { kind: "clause", num: "1.5", text: "The Renter must comply with the rental agreement, these GTC and the applicable statutory provisions throughout the entire rental period." },
         ],
       },
@@ -453,10 +514,16 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
           { kind: "clause", num: "7.2", text: "Ordinary mechanical repairs and technical defects not culpably caused by the Renter are, as a rule, borne by the Lessor, subject to the agreed contractual terms and mandatory statutory rights." },
           { kind: "clause", num: "7.3", text: "Before setting off and during the rental period, the Renter must, within reason, pay attention to obvious defects, warning messages, tyre damage and other safety-relevant irregularities." },
           { kind: "clause", num: "7.4", text: "In the event of a safety-relevant warning message or a significant defect, the Renter must interrupt the journey at a safe place and inform the Lessor without delay. Continuing the journey is permitted only if it is safe and justifiable in the circumstances or has been authorised accordingly." },
-          { kind: "clause", num: "7.5", text: "As a rule, the Renter may arrange repairs only with the Lessor's prior consent. This does not apply to necessary immediate measures to avert danger or to prevent significant further damage if it is not possible or not reasonable to contact the Lessor in time. Receipts must be kept." },
-          { kind: "clause", num: "7.6", text: "The vehicle must be returned in proper condition. Normal wear and tear in accordance with the contract does not count as damage." },
-          { kind: "clause", num: "7.7", text: "In the event of excessive soiling or soiling contrary to the contract, in particular from strong odours, animal hair, traces of smoke, spilled liquids or other soiling that requires professional specialist cleaning, the Lessor may charge the reasonable cleaning costs actually incurred. A minimum flat rate of CHF 150.00 applies only if it was agreed before the contract was concluded and is reasonable and legally permissible in the specific case." },
-          { kind: "clause", num: "7.8", text: "The loss or theft of, or damage to, vehicle keys, the vehicle registration document, licence plates, charging cards or other accessories provided must be reported without delay. To the extent permitted by law, the Renter is liable for the necessary and reasonable costs of replacement and restoration insofar as the Renter is responsible for them." },
+          { kind: "clause", num: "7.5", text: "As a rule, the Renter may arrange repairs only with the Lessor's prior consent. This does not apply to necessary immediate measures to avert danger or to prevent significant further damage if it is not possible or not reasonable to contact the Lessor in time. Receipts must be kept. Clause 9 also applies to breakdown and towing services." },
+          { kind: "clause", num: "7.6", text: "Tyre and rim damage:" },
+          { kind: "p", text: "The Renter must drive the vehicle with due care and, in particular, avoid damage to tyres and rims. This includes, in particular, not approaching or driving over pavement edges and kerbs improperly and passing obstacles with due caution." },
+          { kind: "p", text: "If the Renter culpably causes damage to a tyre or rim, in particular a puncture, cut, tear, sidewall damage or other damage, the Renter is liable for the resulting costs to the extent permitted by law." },
+          { kind: "p", text: "For tyre damage culpably caused by the Renter, the actual costs of the necessary tyre repair or tyre replacement, including fitting, are charged, but at least CHF 100.00 per damaged tyre. If a repair is not professionally possible or not economically reasonable, the actual costs of the necessary replacement of the damaged tyre or rim, including the necessary fitting, are charged. The replacement of both tyres on the same axle may also be charged if this is required by statutory provisions, the actual condition of the tyres or binding manufacturer specifications." },
+          { kind: "p", text: "In addition, to the extent permitted by law, the Renter is liable for any actual and demonstrable loss of rental income caused by the damage and for other directly caused and reasonable costs, insofar as these are not already covered by the amounts above." },
+          { kind: "p", text: "Liability requires that the damage can be legally attributed to the Renter. Damage for which the Renter is not responsible, in particular material defects or unavoidable external influences, is excluded." },
+          { kind: "clause", num: "7.7", text: "The vehicle must be returned in proper condition. Normal wear and tear in accordance with the contract does not count as damage." },
+          { kind: "clause", num: "7.8", text: "In the event of excessive soiling or soiling contrary to the contract, in particular from strong odours, animal hair, traces of smoke, spilled liquids or other soiling that requires professional specialist cleaning, the Lessor may charge the reasonable cleaning costs actually incurred. A minimum flat rate of CHF 150.00 applies only if it was agreed before the contract was concluded and is reasonable and legally permissible in the specific case." },
+          { kind: "clause", num: "7.9", text: "The loss or theft of, or damage to, vehicle keys, the vehicle registration document, licence plates, charging cards or other accessories provided must be reported without delay. To the extent permitted by law, the Renter is liable for the necessary and reasonable costs of replacement and restoration insofar as the Renter is responsible for them." },
         ],
       },
       {
@@ -478,19 +545,55 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
           },
           { kind: "clause", num: "8.4", text: "Liability for a total loss, loss of use, loss of rental income or other consequential damage exists only insofar as the respective requirements under the law and the contract are met, compensable damage has been proven and no double compensation results." },
           { kind: "clause", num: "8.5", text: "The Lessor's liability is governed by the applicable law. Limitations of liability apply only to the extent permitted by law. In particular, mandatory liability provisions and the statutory rules on intentional or grossly negligent conduct remain reserved." },
-          { kind: "clause", num: "8.6", text: "The Renter must take reasonable measures to prevent and limit damage, must not jeopardise the insurance cover and must cooperate in the handling of claims." },
+          { kind: "clause", num: "8.6", text: "The Renter must take reasonable measures to prevent and limit damage, must not jeopardise the insurance cover and must cooperate in the handling of claims. The reporting and cooperation obligations under clause 9 remain reserved." },
         ],
       },
       {
         num: "9",
-        title: "Accident, Theft, Breakdown and Reporting Damage",
+        title: "Accident, Breakdown, Reachability and Claims Management",
         blocks: [
-          { kind: "clause", num: "9.1", text: "In the event of an accident, the Renter must secure the accident site, give assistance to injured persons where necessary and alert the ambulance service on the emergency number 144. The police must be notified if this is required by law or necessary in the circumstances." },
-          { kind: "clause", num: "9.2", text: "Where possible and safe, the Renter must secure the details of the persons involved and of witnesses, licence plates, insurance information, photos of the damage and of the accident site, and an accident report." },
-          { kind: "clause", num: "9.3", text: "Without the relevant authority, the Renter may not make any acknowledgement of liability or enter into any binding settlement of claims for damages." },
-          { kind: "clause", num: "9.4", text: "Every accident, damage, theft, loss or other incident relevant to insurance must be reported to the Lessor without delay, if possible within 24 hours of becoming aware of it. If this is not possible or not reasonable because of injuries, official measures or other important reasons, the report must be made without delay once the obstacle has ceased." },
-          { kind: "clause", num: "9.5", text: "In the event of a breakdown, the Renter must park the vehicle in a safe place, call breakdown assistance where necessary and inform the Lessor without delay." },
-          { kind: "clause", num: "9.6", text: "The Renter must cooperate fully and truthfully in the investigation and settlement of the damage and provide the documents that are necessary and lawfully requested." },
+          { kind: "clause", num: "9.1", text: "General reachability of the Renter:" },
+          { kind: "p", text: "During the rental period, the Renter must be reachable on the mobile phone number they provided and must ensure that their mobile phone is sufficiently charged and able to receive incoming calls and messages." },
+          { kind: "p", text: "In the event of a breakdown, an accident, a technical defect or any other problem with the vehicle, the Renter must, insofar as safe and reasonable, set their mobile phone so that calls and messages from the Lessor are reliably noticed. In particular, silent mode and functions such as \"Do not disturb\" must be temporarily deactivated insofar as they impair reachability." },
+          { kind: "p", text: "The Renter must respond to the Lessor's attempts to call them back without delay, at the latest within 10 minutes of becoming aware of the call attempt. As a rule, this also applies between 00:00 and 07:00, unless there are legitimate reasons preventing it. The safety of the Renter and of third parties and mandatory statutory provisions always take precedence." },
+          { kind: "clause", num: "9.2", text: "Procedure in the event of breakdowns and technical defects:" },
+          { kind: "p", text: "In the event of a breakdown, a warning message or a technical defect, the Renter must stop the vehicle at a safe place without delay, take the necessary safety measures and inform the Lessor by telephone. The Lessor's instructions must be followed insofar as they are lawful, reasonable and safe." },
+          { kind: "p", text: "If the Lessor cannot be reached by telephone, the Renter must, as a rule, wait at least 15 minutes for a call back, insofar as this is safe and reasonable in the specific situation. During this time, the Renter must also send the Lessor a WhatsApp message asking to be called back, with a short description of the problem and the location of the vehicle." },
+          { kind: "p", text: "While waiting, the Renter must remain reachable for a call back and avoid unnecessary phone calls. Insofar as technically possible and reasonable, the Renter must temporarily deactivate an active voicemail and any call forwarding that prevents immediate reachability. The settings required for this depend on the options and instructions of the respective mobile network provider." },
+          { kind: "p", text: "The obligation to wait does not apply if immediate measures are necessary to avert danger, to secure the scene of an accident or to prevent significant consequential damage." },
+          { kind: "clause", num: "9.3", text: "Special procedure for accidents between 00:00 and 07:00:" },
+          { kind: "p", text: "In the event of a road accident between 00:00 and 07:00, the Renter must, in addition to the general reporting and cooperation obligations, follow the steps below insofar as this is safe and possible in the specific situation." },
+          { kind: "p", text: "9.3.1 Secure the accident site and draw up an accident report: The Renter must stop the vehicle at a safe place, secure the accident site and initiate any necessary first-aid or emergency measures. If anyone is injured or there is immediate danger, the competent emergency services must be notified without delay. Where possible and safe, the Renter must draw up an accident report together with the other drivers involved. It must record in particular the personal and contact details of those involved, the licence plates, the insurance details and the information needed to document how the accident happened." },
+          { kind: "p", text: "9.3.2 Notify the police: For accidents between 00:00 and 07:00, the Renter must, as a rule, contact the police on 117, report the accident and ask how to proceed. Statutory reporting obligations and police instructions must be complied with. If anyone is injured or there is acute danger, the competent emergency services must be alerted without delay." },
+          { kind: "p", text: "9.3.3 Photos and preservation of evidence: Immediately after the accident, if this can be done safely, the Renter must take meaningful photos for documentation. They should show in particular: the licence plates of all vehicles involved; the position of the vehicles in relation to each other and their location at the accident site; all visible damage to the rental vehicle and to the vehicles involved; the accident site, relevant traffic signs and other circumstances important for reconstructing how the accident happened. The photos and the accident report must be sent to the Lessor as quickly as possible, preferably by WhatsApp." },
+          { kind: "p", text: "9.3.4 Contact the Lessor and breakdown assistance: After securing the accident site and recording the accident as required, the Renter must contact the Lessor again. If the Lessor cannot be reached or breakdown assistance is needed, the Renter must contact the following breakdown assistance:" },
+          {
+            kind: "list",
+            items: [
+              "Breakdown assistance telephone number: 058 275 27 27",
+              "Insurance/contract number: 6010 6169 937",
+              "Contract name: Katamesh",
+            ],
+          },
+          { kind: "p", text: "The Renter must give the breakdown assistance their mobile phone number, the most precise possible location of the vehicle and a short description of the accident and of the condition of the vehicle. The contract number and the contract name must be given to identify the contract. The Renter must follow the instructions of the breakdown assistance. After providing the necessary information, the Renter may end the call and must then wait for assistance at a safe place. The Renter must remain reachable by telephone until the matter has been resolved or help has arrived." },
+          { kind: "p", text: "9.3.5 Further measures and documentation: The Renter must keep all relevant information, photos, accident reports, police reference numbers and receipts and make them available to the Lessor without delay on request. Necessary immediate measures to avert danger, to secure the vehicle or to prevent significant consequential damage remain reserved at all times. The Renter must inform the Lessor of any such measures as quickly as possible." },
+          { kind: "clause", num: "9.4", text: "Instructing towing services, breakdown services and garages:" },
+          { kind: "p", text: "Without the Lessor's prior express approval by telephone or in writing, the Renter may, as a rule, not instruct a towing service, breakdown service or garage in the Lessor's name or at the Lessor's expense." },
+          { kind: "p", text: "This restriction does not apply if immediate measures are necessary to avert danger to persons, to secure the vehicle or to prevent significant consequential damage and the Lessor cannot be reached in time despite reasonable attempts to make contact. In such cases, the Renter may arrange the necessary and proportionate measures. The Renter must inform the Lessor as quickly as possible and document the measures taken and the costs incurred." },
+          { kind: "p", text: "Insofar as the specific situation allows, the Renter must wait for the Lessor's consent before giving any such instruction. An instruction given without prior consent does not in itself entitle the Renter to have the costs automatically borne by the Lessor." },
+          { kind: "clause", num: "9.5", text: "Cost consequences of instructing third parties in breach of contract:" },
+          { kind: "p", text: "If, contrary to the above provisions, the Renter arranges services from a towing service, breakdown service or garage without the Lessor's required approval, the Renter must bear the costs caused as a result, insofar as these are based on a breach of contract attributable to the Renter and can be imposed on the Renter under the statutory provisions." },
+          { kind: "p", text: "The costs may include in particular towing, call-out, diagnosis, repair and ancillary costs, provided that they were actually incurred, are reasonable and are proven. Whether the Lessor bears costs is governed by the rental agreement, the applicable insurance conditions and the statutory provisions. Charging the same costs or the same damage twice under different items is excluded." },
+          { kind: "clause", num: "9.6", text: "Accident, theft and other reporting of damage:" },
+          { kind: "p", text: "In the event of an accident, the Renter must secure the accident site, give assistance to injured persons where necessary and alert the ambulance service on the emergency number 144. The police must be notified if this is required by law or necessary in the circumstances. For accidents between 00:00 and 07:00, clause 9.3 also applies." },
+          { kind: "p", text: "Where possible and safe, the Renter must secure the details of the persons involved and of witnesses, licence plates, insurance information, photos of the damage and of the accident site, and an accident report." },
+          { kind: "p", text: "Without the relevant authority, the Renter may not make any acknowledgement of liability or enter into any binding settlement of claims for damages." },
+          { kind: "p", text: "Every accident, damage, theft, loss or other incident relevant to insurance must be reported to the Lessor without delay, if possible within 24 hours of becoming aware of it. If this is not possible or not reasonable because of injuries, official measures or other important reasons, the report must be made without delay once the obstacle has ceased." },
+          { kind: "p", text: "The Renter must cooperate fully and truthfully in the investigation and settlement of the damage and provide the documents that are necessary and lawfully requested." },
+          { kind: "clause", num: "9.7", text: "Mitigation of damage, cooperation and safety:" },
+          { kind: "p", text: "The Renter must take reasonable measures to limit damage and costs and cooperate appropriately in the investigation and handling of a breakdown or claim." },
+          { kind: "p", text: "The Renter must keep all available invoices, receipts, photos, accident reports and other relevant documents and make them available to the Lessor without delay on request." },
+          { kind: "p", text: "No provision of this clause obliges the Renter to endanger themselves or third parties, to delay necessary first-aid measures or to breach statutory obligations. Statutory reporting obligations, police instructions and mandatory statutory provisions remain reserved." },
         ],
       },
       {
@@ -508,12 +611,12 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
       },
       {
         num: "11",
-        title: "Contractual Penalties",
+        title: "Contractual Penalties and Flat-Rate Charges",
         blocks: [
-          { kind: "clause", num: "11.1", text: "For the culpable breaches of contract listed below, the following contractual penalties may be agreed, provided that the respective statutory and contractual requirements are met:" },
+          { kind: "clause", num: "11.1", text: "For the culpable breaches of contract or cases of damage listed below, the following contractual penalties or minimum flat rates may be agreed, provided that the respective statutory and contractual requirements are met:" },
           {
             kind: "table",
-            head: ["Breach of contract", "Contractual penalty"],
+            head: ["Breach of contract / case of damage", "Contractual penalty / flat rate"],
             rows: [
               ["Unjustified late return, per calendar day or part thereof", "CHF 100.00"],
               ["Material, culpable false statement of the residential or postal address, insofar as it is relevant to the conclusion of the contract or to the enforcement of claims", "CHF 500.00"],
@@ -521,6 +624,7 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
               ["Smoking or vaping in the vehicle", "CHF 250.00"],
               ["Intentional or culpable tampering with, removal or unauthorised deactivation of the GPS or tracking system", "CHF 800.00"],
               ["Culpable, material breach of the duty to report an accident", "CHF 500.00"],
+              ["Culpably caused tyre or rim damage (e.g. contact with a kerb, cut, tear or improper handling)", "At least CHF 100.00 (plus actual replacement costs & loss of rental income under clause 7.6)"],
             ],
           },
           { kind: "clause", num: "11.2", text: "The contractual penalties apply only if the respective breach of contract and the necessary statutory requirements are present. They do not replace the obligation to end a breach of contract or to return the vehicle." },
@@ -534,8 +638,9 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
         blocks: [
           { kind: "clause", num: "12.1", text: "The amount, method of payment and timing of the deposit, and the accepted means of payment, are set before the contract is concluded in the individual rental agreement or in the booking terms." },
           { kind: "clause", num: "12.2", text: "The deposit serves to secure legitimate claims arising from the rental relationship. Amounts that are demonstrably owed and due may be set off to the extent permitted by law. The Lessor informs the Renter of any such set-off in a comprehensible manner." },
-          { kind: "clause", num: "12.3", text: "If, on return, specific claims are apparent that cannot yet be finally quantified, a reasonable amount may be withheld only for as long as is necessary for the proper investigation and securing of the claim and permitted by law. An undisputed balance is repaid on time." },
-          { kind: "clause", num: "12.4", text: "Unless otherwise agreed in the rental agreement, the deposit is, as a rule, repaid five to ten working days after the vehicle has been properly returned. The actual processing time of a card or payment service provider may lie outside the Lessor's control." },
+          { kind: "clause", num: "12.3", text: "If, on return, specific claims or enquiries from authorities (e.g. announced fines, speed camera photos or requests for information about the vehicle's keeper) are apparent that cannot yet be finally quantified, a part of the deposit corresponding to the expected claim may be withheld until the matter has been fully clarified and settled. An undisputed balance is repaid on time." },
+          { kind: "clause", num: "12.4", text: "Period for repaying the deposit:" },
+          { kind: "p", text: "The deposit is repaid no earlier than 5 and no later than 10 working days after the vehicle has been properly returned. This period serves in particular to check and settle claims that arrive afterwards, such as traffic and regulatory fines (e.g. speeding or red-light offences / speed camera photos), tolls or hidden damage that were not yet known when the vehicle was returned. The actual time it takes for the amount to be credited to the Renter's account or credit card may vary depending on the payment service provider." },
           { kind: "clause", num: "12.5", text: "In the event of payment default, the Lessor may take the reminder, debt collection and debt enforcement steps permitted by law. The following fees may be charged only insofar as they were validly agreed before the contract was concluded and are permitted by law and reasonable in the specific case:" },
           {
             kind: "table",
@@ -544,7 +649,7 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
               ["Processing a traffic fine or an enquiry from an authority", "CHF 20.00"],
               ["Reminder in the event of payment default", "CHF 20.00"],
               ["Internal administrative work in connection with initiating debt enforcement proceedings", "CHF 80.00"],
-              ["Organising a necessary recovery of the vehicle", "at least CHF 400.00"],
+              ["Organising a necessary recovery of the vehicle", "At least CHF 400.00"],
               ["Storage of the vehicle", "CHF 50.00 per day"],
             ],
           },
@@ -592,7 +697,7 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
         title: "Professional Passenger Transport and Use of Platforms",
         blocks: [
           { kind: "clause", num: "16.1", text: "Use for professional passenger transport, taxi rides or platform rides is permitted only if it has been expressly agreed in the individual rental agreement." },
-          { kind: "clause", num: "16.2", text: "Throughout the rental period, the Renter is responsible for complying with all statutory, regulatory and contractual requirements necessary for the agreed use. This includes in particular the required entitlements to drive, permits and the applicable regulations for professional passenger transport." },
+          { kind: "clause", num: "16.2", text: "Throughout the rental period, the Renter is responsible for complying with all statutory, regulatory and contractual requirements necessary for the agreed use. This includes in particular the required entitlements to drive (e.g. BPT / Code 121), permits and the applicable regulations for professional passenger transport." },
           { kind: "clause", num: "16.3", text: "The Renter must ensure that the vehicle is registered, equipped and insured accordingly for the agreed purpose. The Lessor does not guarantee admission to a platform or any particular turnover." },
           { kind: "clause", num: "16.4", text: "The Renter shall inform the Lessor without delay of the loss, restriction or withdrawal of any authorisation required for the agreed use." },
         ],
@@ -611,13 +716,13 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
         num: "18",
         title: "Final Provisions",
         blocks: [
-          { kind: "clause", num: "18.1", text: "Entire agreement. The individual rental agreement, these GTC and expressly incorporated supplementary agreements constitute the agreement between the parties on the rental relationship concerned. In the event of conflict, individual, expressly agreed contractual provisions take precedence over these GTC." },
-          { kind: "clause", num: "18.2", text: "Amendments. Amendments and supplements to the rental agreement must be made in text form, unless a stricter form is required by law or the parties expressly agree on a stricter form." },
-          { kind: "clause", num: "18.3", text: "No waiver. The Lessor's temporary failure to exercise a right, or its delayed enforcement of a right, does not constitute a waiver of that right." },
-          { kind: "clause", num: "18.4", text: "Force majeure. To the extent permitted by law, neither party is liable for failures of performance directly attributable to extraordinary events that are beyond control and could not be avoided despite reasonable care. The affected party informs the other party without delay where possible and takes reasonable measures to limit the effects. Mandatory statutory rights and liability rules remain reserved." },
-          { kind: "clause", num: "18.5", text: "Severability. Should any provision of these GTC be or become invalid or unenforceable in whole or in part, the remaining provisions remain valid to the extent permitted by law. The applicable statutory provisions apply in place of the invalid provision." },
-          { kind: "clause", num: "18.6", text: "Governing law. Substantive Swiss law applies, insofar as its application is permitted by law. Mandatory provisions of private international law and mandatory consumer protection provisions remain reserved." },
-          { kind: "clause", num: "18.7", text: "Place of jurisdiction Zurich. Insofar as an agreement on jurisdiction is permitted by law, Zurich, Switzerland, is agreed as the place of jurisdiction for all disputes arising from or in connection with the rental relationship. Mandatory statutory places of jurisdiction, in particular for consumer contracts, remain reserved. Where a prior agreement on jurisdiction is not permitted by law, the statutory places of jurisdiction apply." },
+          { kind: "clause", num: "18.1", text: "Entire agreement: The individual rental agreement, these GTC and expressly incorporated supplementary agreements constitute the agreement between the parties on the rental relationship concerned. In the event of conflict, individual, expressly agreed contractual provisions take precedence over these GTC." },
+          { kind: "clause", num: "18.2", text: "Amendments: Amendments and supplements to the rental agreement must be made in text form, unless a stricter form is required by law or the parties expressly agree on a stricter form." },
+          { kind: "clause", num: "18.3", text: "No waiver: The Lessor's temporary failure to exercise a right, or its delayed enforcement of a right, does not constitute a waiver of that right." },
+          { kind: "clause", num: "18.4", text: "Force majeure: To the extent permitted by law, neither party is liable for failures of performance directly attributable to extraordinary events that are beyond control and could not be avoided despite reasonable care. The affected party informs the other party without delay where possible and takes reasonable measures to limit the effects. Mandatory statutory rights and liability rules remain reserved." },
+          { kind: "clause", num: "18.5", text: "Severability: Should any provision of these GTC be or become invalid or unenforceable in whole or in part, the remaining provisions remain valid to the extent permitted by law. The applicable statutory provisions apply in place of the invalid provision." },
+          { kind: "clause", num: "18.6", text: "Governing law: Substantive Swiss law applies, insofar as its application is permitted by law. Mandatory provisions of private international law and mandatory consumer protection provisions remain reserved." },
+          { kind: "clause", num: "18.7", text: "Place of jurisdiction Zurich: Insofar as an agreement on jurisdiction is permitted by law, Zurich, Switzerland, is agreed as the place of jurisdiction for all disputes arising from or in connection with the rental relationship. Mandatory statutory places of jurisdiction, in particular for consumer contracts, remain reserved. Where a prior agreement on jurisdiction is not permitted by law, the statutory places of jurisdiction apply." },
         ],
       },
     ],
@@ -625,15 +730,15 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
       lessor: [
         "Lessor: Rigitrade AG",
         "Registered office: Tannenstrasse 16, 8424 Embrach, Switzerland",
-        "Business address: Schaffhauserstrasse 550, 8052 Zürich, Switzerland",
+        "Business address: Schaffhauserstrasse 550, 8052 Zürich",
       ],
       text: "These GTC apply only insofar as they have been validly incorporated into the respective rental agreement. On concluding the contract, the Renter confirms that the GTC were made accessible to them and that they have agreed to them.",
-      signoff: "16.10.2026 / AK",
+      signoff: "October 2026",
     },
   },
   fr: {
     title: "Conditions Générales de Location (CGV)",
-    updated: "État au 16 octobre 2026",
+    updated: "État au 1er octobre 2026 / AK",
     sections: [
       {
         num: "1",
@@ -642,7 +747,7 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
           { kind: "clause", num: "1.1", text: "Les présentes Conditions générales de location (« CGV ») s'appliquent à tous les contrats de location de véhicules conclus par Rigitrade AG (le « Loueur ») avec des personnes physiques et morales (le « Locataire »)." },
           { kind: "clause", num: "1.2", text: "Font partie de la relation de location le contrat individuel de location de véhicule, les présentes CGV ainsi que les conditions complémentaires expressément convenues et les procès-verbaux de remise et de restitution. En cas de contradiction, les dispositions convenues individuellement prévalent, dans la mesure où elles prévoient expressément une règle différente. Les dispositions légales impératives demeurent réservées." },
           { kind: "clause", num: "1.3", text: "Les CGV sont rendues accessibles au Locataire avant ou lors de la conclusion du contrat. Elles font partie du contrat si le Locataire y consent valablement lors de la conclusion du contrat. Pour les réservations en ligne, le consentement doit pouvoir être donné avant la finalisation de la réservation et être documenté de manière vérifiable." },
-          { kind: "clause", num: "1.4", text: "Les conditions particulières applicables aux locations touristiques/privées ou au transport professionnel de personnes s'appliquent à titre complémentaire, dans la mesure où elles ont été expressément intégrées au contrat de location." },
+          { kind: "clause", num: "1.4", text: "Les conditions particulières applicables aux locations touristiques et privées ou au transport professionnel de personnes s'appliquent à titre complémentaire, dans la mesure où elles ont été expressément intégrées au contrat de location." },
           { kind: "clause", num: "1.5", text: "Le Locataire est tenu de respecter le contrat de location, les présentes CGV et les prescriptions légales applicables pendant toute la durée de la location." },
         ],
       },
@@ -724,10 +829,16 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
           { kind: "clause", num: "7.2", text: "Les réparations mécaniques ordinaires et les défauts techniques que le Locataire n'a pas causés par sa faute sont en principe à la charge du Loueur, sous réserve des conditions contractuelles convenues et des droits légaux impératifs." },
           { kind: "clause", num: "7.3", text: "Avant le départ et pendant la durée de la location, le Locataire doit, dans la mesure de ce qui peut raisonnablement être exigé, prêter attention aux défauts manifestes, messages d'avertissement, dommages aux pneus et autres anomalies affectant la sécurité." },
           { kind: "clause", num: "7.4", text: "En cas de message d'avertissement relatif à la sécurité ou de défaut important, le Locataire doit interrompre le trajet dans un endroit sûr et informer le Loueur sans délai. La poursuite du trajet n'est autorisée que si elle est sûre et justifiable au vu des circonstances ou si elle a été autorisée en conséquence." },
-          { kind: "clause", num: "7.5", text: "En principe, le Locataire ne peut faire effectuer des réparations qu'avec l'accord préalable du Loueur. Font exception les mesures immédiates nécessaires pour écarter un danger ou éviter un dommage supplémentaire important, lorsqu'il n'est pas possible ou pas raisonnablement exigible de contacter le Loueur à temps. Les justificatifs doivent être conservés." },
-          { kind: "clause", num: "7.6", text: "Le véhicule doit être restitué en bon état. L'usure normale conforme au contrat ne constitue pas un dommage." },
-          { kind: "clause", num: "7.7", text: "En cas de salissure excessive ou contraire au contrat, notamment due à de fortes odeurs, des poils d'animaux, des traces de fumée, des liquides renversés ou d'autres salissures nécessitant un nettoyage professionnel spécialisé, le Loueur peut facturer les frais de nettoyage appropriés effectivement encourus. Un forfait minimum de CHF 150.00 ne s'applique que s'il a été convenu avant la conclusion du contrat et qu'il est approprié et juridiquement admissible dans le cas concret." },
-          { kind: "clause", num: "7.8", text: "La perte, le vol ou l'endommagement des clés du véhicule, du permis de circulation, des plaques de contrôle, des cartes de recharge ou d'autres accessoires mis à disposition doivent être signalés sans délai. Dans la mesure autorisée par la loi, le Locataire répond des frais de remplacement et de remise en état nécessaires et appropriés, dans la mesure où il en est responsable." },
+          { kind: "clause", num: "7.5", text: "En principe, le Locataire ne peut faire effectuer des réparations qu'avec l'accord préalable du Loueur. Font exception les mesures immédiates nécessaires pour écarter un danger ou éviter un dommage supplémentaire important, lorsqu'il n'est pas possible ou pas raisonnablement exigible de contacter le Loueur à temps. Les justificatifs doivent être conservés. Le chiffre 9 s'applique en outre aux services de dépannage et de remorquage." },
+          { kind: "clause", num: "7.6", text: "Dommages aux pneus et aux jantes :" },
+          { kind: "p", text: "Le Locataire est tenu de conduire le véhicule avec la diligence requise et notamment d'éviter les dommages aux pneus et aux jantes. Il doit en particulier éviter d'aborder ou de franchir de manière inappropriée les bords de trottoir et les bordures, et franchir les obstacles avec la prudence requise." },
+          { kind: "p", text: "Si le Locataire cause fautivement un dommage à un pneu ou à une jante, notamment une crevaison, une coupure, une déchirure, un dommage au flanc ou tout autre dommage, il répond des frais qui en résultent dans la mesure autorisée par la loi." },
+          { kind: "p", text: "En cas de dommage à un pneu causé fautivement par le Locataire, les frais effectifs de la réparation ou du remplacement nécessaire du pneu, montage compris, sont facturés, mais au minimum CHF 100.00 par pneu endommagé. Si une réparation n'est pas possible dans les règles de l'art ou n'est pas raisonnablement exigible sur le plan économique, les frais effectifs du remplacement nécessaire du pneu ou de la jante endommagés, montage nécessaire compris, sont facturés. Le remplacement des deux pneus d'un même essieu peut en outre être facturé si des prescriptions légales, l'état effectif des pneus ou des prescriptions contraignantes du constructeur l'exigent." },
+          { kind: "p", text: "En outre, dans la mesure autorisée par la loi, le Locataire répond de la perte de location effective et démontrable causée par le dommage ainsi que des autres frais directement causés et appropriés, dans la mesure où ceux-ci ne sont pas déjà couverts par les montants susmentionnés." },
+          { kind: "p", text: "La responsabilité suppose que le dommage puisse être juridiquement imputé au Locataire. Les dommages dont le Locataire ne répond pas, notamment les défauts de matériel ou les influences extérieures inévitables, sont exclus." },
+          { kind: "clause", num: "7.7", text: "Le véhicule doit être restitué en bon état. L'usure normale conforme au contrat ne constitue pas un dommage." },
+          { kind: "clause", num: "7.8", text: "En cas de salissure excessive ou contraire au contrat, notamment due à de fortes odeurs, des poils d'animaux, des traces de fumée, des liquides renversés ou d'autres salissures nécessitant un nettoyage professionnel spécialisé, le Loueur peut facturer les frais de nettoyage appropriés effectivement encourus. Un forfait minimum de CHF 150.00 ne s'applique que s'il a été convenu avant la conclusion du contrat et qu'il est approprié et juridiquement admissible dans le cas concret." },
+          { kind: "clause", num: "7.9", text: "La perte, le vol ou l'endommagement des clés du véhicule, du permis de circulation, des plaques de contrôle, des cartes de recharge ou d'autres accessoires mis à disposition doivent être signalés sans délai. Dans la mesure autorisée par la loi, le Locataire répond des frais de remplacement et de remise en état nécessaires et appropriés, dans la mesure où il en est responsable." },
         ],
       },
       {
@@ -749,19 +860,55 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
           },
           { kind: "clause", num: "8.4", text: "Une responsabilité pour dommage total, perte d'usage, perte de loyers ou autres dommages consécutifs n'existe que dans la mesure où les conditions respectives selon la loi et le contrat sont remplies, qu'un dommage indemnisable est prouvé et qu'il n'en résulte aucune double indemnisation." },
           { kind: "clause", num: "8.5", text: "La responsabilité du Loueur est régie par le droit applicable. Les limitations de responsabilité ne s'appliquent que dans la mesure autorisée par la loi. Demeurent notamment réservées les dispositions impératives en matière de responsabilité et les règles légales relatives au comportement intentionnel ou gravement négligent." },
-          { kind: "clause", num: "8.6", text: "Le Locataire doit prendre les mesures raisonnables pour prévenir et limiter les dommages, ne pas compromettre la couverture d'assurance et collaborer au règlement des sinistres." },
+          { kind: "clause", num: "8.6", text: "Le Locataire doit prendre les mesures raisonnables pour prévenir et limiter les dommages, ne pas compromettre la couverture d'assurance et collaborer au règlement des sinistres. Les obligations de déclaration et de collaboration selon le chiffre 9 demeurent réservées." },
         ],
       },
       {
         num: "9",
-        title: "Accident, vol, panne et déclaration de sinistre",
+        title: "Accident, panne, joignabilité et gestion des sinistres",
         blocks: [
-          { kind: "clause", num: "9.1", text: "En cas d'accident, le Locataire doit sécuriser le lieu de l'accident, porter secours aux blessés si nécessaire et alerter les services de sauvetage au numéro d'urgence 144. La police doit être avisée lorsque la loi l'exige ou que les circonstances le rendent nécessaire." },
-          { kind: "clause", num: "9.2", text: "Dans la mesure du possible et sans danger, le Locataire doit recueillir les coordonnées des personnes impliquées et des témoins, les plaques de contrôle, les informations d'assurance, des photos des dommages et du lieu de l'accident ainsi qu'un constat d'accident." },
-          { kind: "clause", num: "9.3", text: "Sans y être habilité, le Locataire ne peut faire aucune reconnaissance de responsabilité ni conclure de transaction contraignante portant sur des prétentions en dommages-intérêts." },
-          { kind: "clause", num: "9.4", text: "Tout accident, dommage, vol, perte ou autre événement pertinent pour l'assurance doit être déclaré au Loueur sans délai, si possible dans les 24 heures après en avoir eu connaissance. Si cela n'est pas possible ou pas raisonnablement exigible en raison de blessures, de mesures prises par les autorités ou d'autres motifs importants, la déclaration doit être faite sans délai dès que l'empêchement a cessé." },
-          { kind: "clause", num: "9.5", text: "En cas de panne, le Locataire doit garer le véhicule dans un endroit sûr, appeler si nécessaire le service de dépannage et informer le Loueur sans délai." },
-          { kind: "clause", num: "9.6", text: "Le Locataire doit collaborer de manière complète et conforme à la vérité à l'instruction et au règlement du sinistre et fournir les documents nécessaires et légitimement demandés." },
+          { kind: "clause", num: "9.1", text: "Joignabilité générale du Locataire :" },
+          { kind: "p", text: "Pendant la durée de la location, le Locataire est tenu d'être joignable au numéro de téléphone mobile qu'il a indiqué et de s'assurer que son téléphone mobile est suffisamment chargé et prêt à recevoir les appels et messages entrants." },
+          { kind: "p", text: "En cas de panne, d'accident, de défaut technique ou de tout autre problème lié au véhicule, le Locataire doit, dans la mesure où cela est sûr et raisonnablement exigible, régler son téléphone mobile de manière à percevoir de façon fiable les appels et messages du Loueur. Il doit notamment désactiver temporairement le mode silencieux et les fonctions telles que « Ne pas déranger », dans la mesure où elles nuisent à sa joignabilité." },
+          { kind: "p", text: "Le Locataire doit répondre sans délai aux tentatives de rappel du Loueur, au plus tard dans les 10 minutes après en avoir pris connaissance. Cela vaut en principe également entre 00:00 et 07:00, à moins que des motifs légitimes ne l'en empêchent. La sécurité du Locataire et des tiers ainsi que les prescriptions légales impératives priment en tout temps." },
+          { kind: "clause", num: "9.2", text: "Procédure en cas de panne et de défaut technique :" },
+          { kind: "p", text: "En cas de panne, de message d'avertissement ou de défaut technique, le Locataire doit arrêter sans délai le véhicule dans un endroit sûr, prendre les mesures de sécurité nécessaires et informer le Loueur par téléphone. Les instructions du Loueur doivent être suivies dans la mesure où elles sont licites, raisonnablement exigibles et sûres." },
+          { kind: "p", text: "Si le Loueur n'est pas joignable par téléphone, le Locataire doit en principe attendre un rappel pendant au moins 15 minutes, dans la mesure où cela est sûr et raisonnablement exigible au vu de la situation concrète. Pendant ce temps, le Locataire doit en outre envoyer au Loueur un message WhatsApp lui demandant de le rappeler, avec une brève description du problème et l'emplacement du véhicule." },
+          { kind: "p", text: "Pendant le temps d'attente, le Locataire doit rester joignable pour un rappel et éviter les appels téléphoniques inutiles. Dans la mesure où cela est techniquement possible et raisonnablement exigible, il doit désactiver temporairement une messagerie vocale active ainsi que les renvois d'appel qui empêchent une joignabilité immédiate. Les réglages nécessaires dépendent des possibilités et des instructions de l'opérateur de téléphonie mobile concerné." },
+          { kind: "p", text: "L'obligation d'attendre ne s'applique pas lorsque des mesures immédiates sont nécessaires pour écarter un danger, sécuriser le lieu de l'accident ou éviter des dommages consécutifs importants." },
+          { kind: "clause", num: "9.3", text: "Procédure particulière en cas d'accident entre 00:00 et 07:00 :" },
+          { kind: "p", text: "En cas d'accident de la circulation entre 00:00 et 07:00, le Locataire doit, en plus des obligations générales de déclaration et de collaboration, suivre les étapes ci-après, dans la mesure où cela est sûr et possible au vu de la situation concrète." },
+          { kind: "p", text: "9.3.1 Sécuriser le lieu de l'accident et établir un constat : Le Locataire doit arrêter le véhicule dans un endroit sûr, sécuriser le lieu de l'accident et prendre les mesures de premiers secours ou d'urgence nécessaires. En présence de blessés ou de danger immédiat, les services d'urgence compétents doivent être avertis sans délai. Dans la mesure du possible et sans danger, le Locataire doit établir un constat d'accident avec les autres conducteurs impliqués. Celui-ci doit notamment consigner l'identité et les coordonnées des personnes impliquées, les plaques de contrôle, les informations d'assurance ainsi que les informations nécessaires pour documenter le déroulement de l'accident." },
+          { kind: "p", text: "9.3.2 Avertir la police : En cas d'accident entre 00:00 et 07:00, le Locataire doit en principe contacter la police au 117, déclarer l'accident et s'informer de la marche à suivre. Les obligations légales de déclaration et les instructions de la police doivent être respectées. En présence de blessés ou de danger aigu, les services d'urgence compétents doivent être alertés sans délai." },
+          { kind: "p", text: "9.3.3 Photos et conservation des preuves : Immédiatement après l'accident, si cela est possible sans danger, le Locataire doit prendre des photos probantes à des fins de documentation. Celles-ci doivent notamment montrer : les plaques de contrôle de tous les véhicules impliqués ; la position des véhicules les uns par rapport aux autres et leur emplacement sur le lieu de l'accident ; tous les dommages visibles au véhicule de location et aux véhicules impliqués ; le lieu de l'accident, la signalisation routière pertinente et les autres circonstances importantes pour reconstituer le déroulement de l'accident. Les photos et le constat d'accident doivent être transmis au Loueur le plus rapidement possible, de préférence par WhatsApp." },
+          { kind: "p", text: "9.3.4 Contacter le Loueur et l'assistance dépannage : Après avoir sécurisé le lieu de l'accident et effectué le constat nécessaire, le Locataire doit à nouveau contacter le Loueur. Si celui-ci n'est pas joignable ou si une assistance dépannage est nécessaire, le Locataire doit contacter l'assistance dépannage suivante :" },
+          {
+            kind: "list",
+            items: [
+              "Numéro de téléphone de l'assistance dépannage : 058 275 27 27",
+              "Numéro d'assurance/de contrat : 6010 6169 937",
+              "Nom du contrat : Katamesh",
+            ],
+          },
+          { kind: "p", text: "Le Locataire doit communiquer à l'assistance dépannage son numéro de téléphone mobile, l'emplacement le plus précis possible du véhicule ainsi qu'une brève description de l'accident et de l'état du véhicule. Le numéro et le nom du contrat doivent être indiqués pour identifier le contrat. Le Locataire doit suivre les instructions de l'assistance dépannage. Après avoir transmis les informations nécessaires, il peut mettre fin à l'appel et doit ensuite attendre l'assistance dans un endroit sûr. Il doit rester joignable par téléphone jusqu'à ce que l'affaire soit réglée ou que l'aide soit arrivée." },
+          { kind: "p", text: "9.3.5 Autres mesures et documentation : Le Locataire doit conserver toutes les informations pertinentes, photos, constats d'accident, numéros de référence de la police et justificatifs et les mettre sans délai à la disposition du Loueur sur demande. Les mesures immédiates nécessaires pour écarter un danger, sécuriser le véhicule ou éviter des dommages consécutifs importants demeurent réservées en tout temps. Le Locataire doit informer le Loueur de telles mesures le plus rapidement possible." },
+          { kind: "clause", num: "9.4", text: "Mandat de services de remorquage, de dépannage et de garages :" },
+          { kind: "p", text: "Sans l'autorisation préalable expresse du Loueur, donnée par téléphone ou par écrit, le Locataire ne peut en principe mandater aucun service de remorquage, service de dépannage ni garage au nom ou aux frais du Loueur." },
+          { kind: "p", text: "Cette restriction ne s'applique pas lorsque des mesures immédiates sont nécessaires pour écarter un danger pour des personnes, sécuriser le véhicule ou éviter des dommages consécutifs importants et que le Loueur n'est pas joignable à temps malgré des tentatives de contact raisonnables. Dans de tels cas, le Locataire peut faire prendre les mesures nécessaires et proportionnées. Il doit en informer le Loueur le plus rapidement possible et documenter les mesures prises ainsi que les frais encourus." },
+          { kind: "p", text: "Dans la mesure où la situation concrète le permet, le Locataire doit attendre l'accord du Loueur avant de donner un tel mandat. Un mandat donné sans accord préalable ne fonde pas à lui seul un droit automatique à la prise en charge des frais par le Loueur." },
+          { kind: "clause", num: "9.5", text: "Conséquences financières d'un mandat donné à des tiers en violation du contrat :" },
+          { kind: "p", text: "Si, contrairement aux dispositions qui précèdent, le Locataire fait appel aux prestations d'un service de remorquage, d'un service de dépannage ou d'un garage sans l'autorisation requise du Loueur, il supporte les frais ainsi causés, dans la mesure où ceux-ci reposent sur une violation du contrat qui lui est imputable et peuvent lui être mis à charge selon les dispositions légales." },
+          { kind: "p", text: "Ces frais peuvent notamment comprendre les frais de remorquage, de déplacement, de diagnostic, de réparation et les frais accessoires, pour autant qu'ils aient été effectivement encourus et qu'ils soient appropriés et prouvés. La prise en charge des frais par le Loueur est régie par le contrat de location, les conditions d'assurance applicables et les dispositions légales. Toute double facturation des mêmes frais ou du même dommage sous différents postes est exclue." },
+          { kind: "clause", num: "9.6", text: "Accident, vol et autres déclarations de sinistre :" },
+          { kind: "p", text: "En cas d'accident, le Locataire doit sécuriser le lieu de l'accident, porter secours aux blessés si nécessaire et alerter les services de sauvetage au numéro d'urgence 144. La police doit être avisée lorsque la loi l'exige ou que les circonstances le rendent nécessaire. Pour les accidents entre 00:00 et 07:00, le chiffre 9.3 s'applique en complément." },
+          { kind: "p", text: "Dans la mesure du possible et sans danger, le Locataire doit recueillir les coordonnées des personnes impliquées et des témoins, les plaques de contrôle, les informations d'assurance, des photos des dommages et du lieu de l'accident ainsi qu'un constat d'accident." },
+          { kind: "p", text: "Sans y être habilité, le Locataire ne peut faire aucune reconnaissance de responsabilité ni conclure de transaction contraignante portant sur des prétentions en dommages-intérêts." },
+          { kind: "p", text: "Tout accident, dommage, vol, perte ou autre événement pertinent pour l'assurance doit être déclaré au Loueur sans délai, si possible dans les 24 heures après en avoir eu connaissance. Si cela n'est pas possible ou pas raisonnablement exigible en raison de blessures, de mesures prises par les autorités ou d'autres motifs importants, la déclaration doit être faite sans délai dès que l'empêchement a cessé." },
+          { kind: "p", text: "Le Locataire doit collaborer de manière complète et conforme à la vérité à l'instruction et au règlement du sinistre et fournir les documents nécessaires et légitimement demandés." },
+          { kind: "clause", num: "9.7", text: "Limitation du dommage, collaboration et sécurité :" },
+          { kind: "p", text: "Le Locataire est tenu de prendre des mesures raisonnables pour limiter les dommages et les frais et de collaborer de manière appropriée à l'examen et au traitement d'une panne ou d'un sinistre." },
+          { kind: "p", text: "Le Locataire doit conserver toutes les factures, justificatifs, photos, constats d'accident et autres documents pertinents disponibles et les mettre sans délai à la disposition du Loueur sur demande." },
+          { kind: "p", text: "Aucune disposition du présent chiffre n'oblige le Locataire à se mettre en danger ou à mettre des tiers en danger, à retarder les mesures de premiers secours nécessaires ou à violer des obligations légales. Les obligations légales de déclaration, les instructions de la police et les prescriptions légales impératives demeurent réservées." },
         ],
       },
       {
@@ -779,12 +926,12 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
       },
       {
         num: "11",
-        title: "Peines conventionnelles",
+        title: "Peines conventionnelles et forfaits de frais",
         blocks: [
-          { kind: "clause", num: "11.1", text: "Pour les violations fautives du contrat énumérées ci-après, les peines conventionnelles suivantes peuvent être convenues, pour autant que les conditions légales et contractuelles respectives soient remplies :" },
+          { kind: "clause", num: "11.1", text: "Pour les violations fautives du contrat ou les cas de dommage énumérés ci-après, les peines conventionnelles ou forfaits minimaux suivants peuvent être convenus, pour autant que les conditions légales et contractuelles respectives soient remplies :" },
           {
             kind: "table",
-            head: ["Violation du contrat", "Peine conventionnelle"],
+            head: ["Violation du contrat / cas de dommage", "Peine conventionnelle / forfait"],
             rows: [
               ["Restitution tardive injustifiée, par jour civil entamé", "CHF 100.00"],
               ["Indication fausse, essentielle et fautive de l'adresse de domicile ou de l'adresse postale, dans la mesure où elle est déterminante pour la conclusion du contrat ou pour faire valoir des prétentions", "CHF 500.00"],
@@ -792,6 +939,7 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
               ["Fumer ou vapoter dans le véhicule", "CHF 250.00"],
               ["Manipulation, retrait ou désactivation non autorisée, intentionnels ou fautifs, du système GPS ou de localisation", "CHF 800.00"],
               ["Violation fautive et essentielle de l'obligation de déclarer un accident", "CHF 500.00"],
+              ["Dommage à un pneu ou à une jante causé fautivement (p. ex. contact avec une bordure de trottoir, coupure, déchirure ou manipulation inappropriée)", "Au minimum CHF 100.00 (plus les frais de remplacement effectifs et la perte de location selon le ch. 7.6)"],
             ],
           },
           { kind: "clause", num: "11.2", text: "Les peines conventionnelles ne s'appliquent que si la violation du contrat concernée et les conditions légales requises sont réalisées. Elles ne remplacent pas l'obligation de mettre fin à une violation du contrat ou de restituer le véhicule." },
@@ -805,8 +953,9 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
         blocks: [
           { kind: "clause", num: "12.1", text: "Le montant, le mode et la date de paiement de la caution ainsi que les moyens de paiement acceptés sont fixés avant la conclusion du contrat dans le contrat de location individuel ou dans les conditions de réservation." },
           { kind: "clause", num: "12.2", text: "La caution sert à garantir les créances légitimes découlant de la relation de location. Les montants dont il est prouvé qu'ils sont dus et exigibles peuvent être compensés dans la mesure autorisée par la loi. Le Loueur informe le Locataire de manière compréhensible de telles compensations." },
-          { kind: "clause", num: "12.3", text: "Si, lors de la restitution, des prétentions concrètes sont reconnaissables mais ne peuvent pas encore être chiffrées définitivement, un montant approprié ne peut être retenu qu'aussi longtemps que cela est nécessaire à l'examen adéquat et à la garantie de la prétention et autorisé par la loi. Un solde non contesté est remboursé dans les délais." },
-          { kind: "clause", num: "12.4", text: "Sauf convention contraire dans le contrat de location, la caution est en principe remboursée cinq à dix jours ouvrables après la restitution en bonne et due forme du véhicule. La durée effective de traitement d'un prestataire de cartes ou de services de paiement peut échapper à l'influence du Loueur." },
+          { kind: "clause", num: "12.3", text: "Si, lors de la restitution, des prétentions concrètes ou des demandes d'autorités (p. ex. amendes annoncées, photos radar ou demandes de renseignements sur le détenteur) sont reconnaissables mais ne peuvent pas encore être chiffrées définitivement, une partie de la caution correspondant à la créance attendue peut être retenue jusqu'à la clarification et au règlement complets. Un solde non contesté est remboursé dans les délais." },
+          { kind: "clause", num: "12.4", text: "Délai de remboursement de la caution :" },
+          { kind: "p", text: "La caution est remboursée au plus tôt après 5 et au plus tard dans les 10 jours ouvrables suivant la restitution en bonne et due forme du véhicule. Ce délai sert notamment à vérifier et à régler les créances reçues ultérieurement, telles que les amendes de circulation et d'ordre (p. ex. excès de vitesse ou franchissement d'un feu rouge / photos radar), les péages ou les dommages cachés qui n'étaient pas encore connus au moment de la restitution du véhicule. Le délai effectif de crédit sur le compte ou la carte de crédit du Locataire peut varier selon le prestataire de services de paiement." },
           { kind: "clause", num: "12.5", text: "En cas de retard de paiement, le Loueur peut engager les démarches de rappel, d'encaissement et de poursuite autorisées par la loi. Les frais suivants ne peuvent être perçus que dans la mesure où ils ont été valablement convenus avant la conclusion du contrat et sont autorisés par la loi et appropriés dans le cas concret :" },
           {
             kind: "table",
@@ -815,7 +964,7 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
               ["Traitement d'une amende de circulation ou d'une demande d'une autorité", "CHF 20.00"],
               ["Rappel en cas de retard de paiement", "CHF 20.00"],
               ["Charge administrative interne liée à l'introduction d'une poursuite", "CHF 80.00"],
-              ["Organisation d'une récupération nécessaire du véhicule", "au moins CHF 400.00"],
+              ["Organisation d'une récupération nécessaire du véhicule", "Au moins CHF 400.00"],
               ["Gardiennage du véhicule", "CHF 50.00 par jour"],
             ],
           },
@@ -863,7 +1012,7 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
         title: "Transport professionnel de personnes et utilisation de plateformes",
         blocks: [
           { kind: "clause", num: "16.1", text: "L'utilisation pour le transport professionnel de personnes, les courses de taxi ou les courses via des plateformes n'est autorisée que si elle a été expressément convenue dans le contrat de location individuel." },
-          { kind: "clause", num: "16.2", text: "Pendant toute la durée de la location, le Locataire est responsable du respect de toutes les conditions légales, administratives et contractuelles nécessaires à l'usage convenu. Cela comprend notamment les droits de conduire et autorisations requis ainsi que les prescriptions applicables au transport professionnel de personnes." },
+          { kind: "clause", num: "16.2", text: "Pendant toute la durée de la location, le Locataire est responsable du respect de toutes les conditions légales, administratives et contractuelles nécessaires à l'usage convenu. Cela comprend notamment les droits de conduire requis (p. ex. BPT / code 121), les autorisations requises ainsi que les prescriptions applicables au transport professionnel de personnes." },
           { kind: "clause", num: "16.3", text: "Le Locataire doit s'assurer que le véhicule est immatriculé, équipé et assuré en conséquence pour l'usage convenu. Le Loueur ne garantit ni l'admission à une plateforme ni un chiffre d'affaires déterminé." },
           { kind: "clause", num: "16.4", text: "Le Locataire informe sans délai le Loueur de la perte, de la restriction ou du retrait d'une autorisation nécessaire à l'usage convenu." },
         ],
@@ -882,13 +1031,13 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
         num: "18",
         title: "Dispositions finales",
         blocks: [
-          { kind: "clause", num: "18.1", text: "Intégralité de l'accord. Le contrat de location individuel, les présentes CGV et les conventions complémentaires expressément intégrées constituent l'accord des parties relatif à la relation de location concernée. En cas de contradiction, les dispositions contractuelles individuelles expressément convenues prévalent sur les présentes CGV." },
-          { kind: "clause", num: "18.2", text: "Modifications. Les modifications et compléments du contrat de location requièrent la forme textuelle, à moins que la loi ne prescrive une forme plus stricte ou que les parties ne conviennent expressément d'une forme plus stricte." },
-          { kind: "clause", num: "18.3", text: "Absence de renonciation. Le non-exercice temporaire ou l'exercice tardif d'un droit par le Loueur ne vaut pas renonciation à ce droit." },
-          { kind: "clause", num: "18.4", text: "Force majeure. Dans la mesure autorisée par la loi, aucune partie ne répond des perturbations dans l'exécution des prestations directement imputables à des événements extraordinaires, échappant à tout contrôle et inévitables malgré la diligence raisonnablement exigible. La partie concernée en informe l'autre partie sans délai dans la mesure du possible et prend des mesures raisonnables pour en limiter les effets. Les droits légaux et les règles de responsabilité impératifs demeurent réservés." },
-          { kind: "clause", num: "18.5", text: "Clause salvatrice. Si une disposition des présentes CGV est ou devient invalide ou inexécutable en tout ou en partie, les autres dispositions demeurent valables dans la mesure autorisée par la loi. Les dispositions légales applicables remplacent la disposition invalide." },
-          { kind: "clause", num: "18.6", text: "Droit applicable. Le droit matériel suisse est applicable, dans la mesure où son application est autorisée par la loi. Les dispositions impératives du droit international privé et les dispositions impératives en matière de protection des consommateurs demeurent réservées." },
-          { kind: "clause", num: "18.7", text: "For à Zurich. Dans la mesure où une élection de for est autorisée par la loi, Zurich, Suisse, est convenu comme for pour tous les litiges découlant de la relation de location ou en lien avec celle-ci. Les fors légaux impératifs, notamment pour les contrats conclus avec des consommateurs, demeurent réservés. Lorsqu'une élection de for préalable n'est pas autorisée par la loi, les fors légaux s'appliquent." },
+          { kind: "clause", num: "18.1", text: "Intégralité de l'accord : Le contrat de location individuel, les présentes CGV et les conventions complémentaires expressément intégrées constituent l'accord des parties relatif à la relation de location concernée. En cas de contradiction, les dispositions contractuelles individuelles expressément convenues prévalent sur les présentes CGV." },
+          { kind: "clause", num: "18.2", text: "Modifications : Les modifications et compléments du contrat de location requièrent la forme textuelle, à moins que la loi ne prescrive une forme plus stricte ou que les parties ne conviennent expressément d'une forme plus stricte." },
+          { kind: "clause", num: "18.3", text: "Absence de renonciation : Le non-exercice temporaire ou l'exercice tardif d'un droit par le Loueur ne vaut pas renonciation à ce droit." },
+          { kind: "clause", num: "18.4", text: "Force majeure : Dans la mesure autorisée par la loi, aucune partie ne répond des perturbations dans l'exécution des prestations directement imputables à des événements extraordinaires, échappant à tout contrôle et inévitables malgré la diligence raisonnablement exigible. La partie concernée en informe l'autre partie sans délai dans la mesure du possible et prend des mesures raisonnables pour en limiter les effets. Les droits légaux et les règles de responsabilité impératifs demeurent réservés." },
+          { kind: "clause", num: "18.5", text: "Clause salvatrice : Si une disposition des présentes CGV est ou devient invalide ou inexécutable en tout ou en partie, les autres dispositions demeurent valables dans la mesure autorisée par la loi. Les dispositions légales applicables remplacent la disposition invalide." },
+          { kind: "clause", num: "18.6", text: "Droit applicable : Le droit matériel suisse est applicable, dans la mesure où son application est autorisée par la loi. Les dispositions impératives du droit international privé et les dispositions impératives en matière de protection des consommateurs demeurent réservées." },
+          { kind: "clause", num: "18.7", text: "For à Zurich : Dans la mesure où une élection de for est autorisée par la loi, Zurich, Suisse, est convenu comme for pour tous les litiges découlant de la relation de location ou en lien avec celle-ci. Les fors légaux impératifs, notamment pour les contrats conclus avec des consommateurs, demeurent réservés. Lorsqu'une élection de for préalable n'est pas autorisée par la loi, les fors légaux s'appliquent." },
         ],
       },
     ],
@@ -896,10 +1045,10 @@ const gtc: Record<GtcLanguage, GtcDocument> = {
       lessor: [
         "Loueur : Rigitrade AG",
         "Siège : Tannenstrasse 16, 8424 Embrach, Suisse",
-        "Adresse commerciale : Schaffhauserstrasse 550, 8052 Zürich, Suisse",
+        "Adresse commerciale : Schaffhauserstrasse 550, 8052 Zürich",
       ],
       text: "Les présentes CGV ne s'appliquent que dans la mesure où elles ont été valablement intégrées au contrat de location concerné. Lors de la conclusion du contrat, le Locataire confirme que les CGV lui ont été rendues accessibles et qu'il les a acceptées.",
-      signoff: "16.10.2026 / AK",
+      signoff: "Octobre 2026",
     },
   },
 };
