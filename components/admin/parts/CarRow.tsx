@@ -98,6 +98,10 @@ export function CarRow({
   ).length;
   const statusLabel =
     L.fleet.statuses[car.status as keyof typeof L.fleet.statuses] ?? car.status;
+  // Who has the car, in place of "Rented out" (owner, 16.10.2026): the
+  // office reads who has which car at a glance. A car out with no name on
+  // record keeps the word.
+  const rentedTo = rented ? car.renterName ?? null : null;
 
   return (
     <>
@@ -217,12 +221,21 @@ export function CarRow({
 
         <td className="px-4 py-3">
           <span
-            className={`inline-block rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${
+            className={`inline-flex max-w-[13rem] items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${
               STATUS_CHIP[car.status] ??
               "bg-[var(--admin-sunk)] text-[var(--admin-muted)] ring-[var(--admin-rule-strong)]"
             }`}
+            title={rentedTo ? `${statusLabel}: ${rentedTo}` : undefined}
           >
-            {statusLabel}
+            {rentedTo ? (
+              <>
+                <KeyRound className="h-3 w-3 shrink-0" aria-hidden="true" />
+                <span className="sr-only">{statusLabel}: </span>
+                <span className="truncate">{rentedTo}</span>
+              </>
+            ) : (
+              statusLabel
+            )}
           </span>
         </td>
 

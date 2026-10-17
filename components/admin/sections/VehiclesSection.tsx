@@ -1,18 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { ArrowUpDown, Plus } from "lucide-react";
 import { useAdmin } from "@/components/admin/shell/AdminContext";
 import { AddCar } from "@/components/admin/parts/AddCar";
 import { CarRow } from "@/components/admin/parts/CarRow";
 import { Dialog } from "@/components/admin/parts/Dialog";
 import { Panel } from "@/components/admin/parts/Panel";
+import { ReorderCarsDialog } from "@/components/admin/parts/ReorderCarsDialog";
 
 /** Every car in every status — unlike /api/fleet, which shows only what can
  *  be rented. Managing a retired car is the point of this screen. */
 export function VehiclesSection() {
   const { L, language, data, busy, write, writeJson, reload } = useAdmin();
   const [adding, setAdding] = useState(false);
+  const [reordering, setReordering] = useState(false);
 
   const cars = data?.cars ?? [];
   const available = cars.filter((car) => car.status === "available").length;
@@ -28,6 +30,22 @@ export function VehiclesSection() {
 
   return (
     <>
+      <ReorderCarsDialog
+        cars={cars}
+        L={L}
+        language={language}
+        busy={busy}
+        open={reordering}
+        onClose={() => setReordering(false)}
+        onSave={(ids) =>
+          write("/api/admin/cars/order/", {
+            method: "PUT",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ ids }),
+          })
+        }
+      />
+
       <Dialog
         open={adding}
         onClose={() => setAdding(false)}
@@ -93,14 +111,26 @@ export function VehiclesSection() {
           (waiting > 0 ? ` · ${waiting} ${L.fleet.waitlistCount}` : "")
         }
         action={
-          <button
-            type="button"
-            onClick={() => setAdding(true)}
-            className="inline-flex h-9 items-center gap-1.5 rounded-md bg-[var(--admin-accent)] px-3 text-sm font-medium text-[var(--admin-accent-ink)] transition-opacity hover:opacity-90"
-          >
-            <Plus className="h-4 w-4" aria-hidden="true" />
-            {L.fleet.addHeading}
-          </button>
+          <div className="flex items-center gap-2">
+            {cars.length > 1 && (
+              <button
+                type="button"
+                onClick={() => setReordering(true)}
+                className="inline-flex h-9 items-center gap-1.5 rounded-md border border-[var(--admin-rule-strong)] px-3 text-sm font-medium text-[var(--admin-ink)] transition-colors hover:bg-[var(--admin-sunk)]"
+              >
+                <ArrowUpDown className="h-4 w-4" aria-hidden="true" />
+                {L.fleet.reorder}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setAdding(true)}
+              className="inline-flex h-9 items-center gap-1.5 rounded-md bg-[var(--admin-accent)] px-3 text-sm font-medium text-[var(--admin-accent-ink)] transition-opacity hover:opacity-90"
+            >
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              {L.fleet.addHeading}
+            </button>
+          </div>
         }
       >
         {cars.length === 0 ? (

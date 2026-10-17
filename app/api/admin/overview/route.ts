@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { BY_OFFICE_ORDER } from "@/lib/admin/carOrder";
 import { isPdfLicence } from "@/lib/admin/carLicence";
 import { requireAdmin } from "@/lib/admin/session";
 import { fineAttentionCounts } from "@/lib/fines/queries";
@@ -17,6 +18,15 @@ import { fineAttentionCounts } from "@/lib/fines/queries";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+/** "First Last", or null when there is no renter or no name to show. */
+function renterNameOf(
+  customer: { firstName: string; lastName: string } | undefined
+): string | null {
+  if (!customer) return null;
+  const name = `${customer.firstName} ${customer.lastName}`.trim();
+  return name || null;
+}
 
 export interface AdminOverview {
   /** The same shape the sign-in response carries, so a reload can repaint the
@@ -102,6 +112,8 @@ export interface AdminOverview {
 
     /** Set when the car is out, so the row can link to the rental. */
     activeRentalId: string | null;
+    /** Who has the car, "First Last", while it is out; null otherwise. */
+    renterName: string | null;
   }[];
   rentals: {
     id: string;
@@ -204,7 +216,10 @@ export async function GET(request: Request) {
 
   const cars = await prisma.car.findMany({
     where: { organisationId: organisation.id },
-    orderBy: [{ status: "asc" }, { plate: "asc" }],
+    // The office's order, the one the pickup form's list follows too. Until
+    // the fleet is first ordered every car ties there, and status then plate
+    // decide, as they did before.
+    orderBy: [BY_OFFICE_ORDER[0], { status: "asc" }, { plate: "asc" }],
     select: {
       id: true,
       slug: true,
@@ -247,7 +262,13 @@ export async function GET(request: Request) {
       },
       rentals: {
         where: { status: { notIn: ["COMPLETED", "CANCELLED"] } },
-        select: { id: true },
+        orderBy: { startAt: "desc" },
+        // The renter's name, shown where the row said "Rented out" (owner,
+        // 16.10.2026): who has which car, read at a glance.
+        select: {
+          id: true,
+          customer: { select: { firstName: true, lastName: true } },
+        },
         take: 1,
       },
     },
@@ -421,6 +442,7 @@ export async function GET(request: Request) {
         createdAt: repair.createdAt.toISOString(),
       })),
       activeRentalId: car.rentals[0]?.id ?? null,
+      renterName: renterNameOf(car.rentals[0]?.customer),
     })),
     rentals: rentals.map((rental) => {
       const pickup = rental.contracts.find((c) => c.kind === "PICKUP");

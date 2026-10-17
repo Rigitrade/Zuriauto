@@ -102,6 +102,11 @@ model Car {
   /// Owned by the database, never by the seed: a car is taken out of service
   /// by the office, without a deploy.
   status             CarStatus @default(available)
+  /// Where the office put this car in its list, 0 first (owner, 16.10.2026).
+  /// The vehicles screen and the pickup form's car list both follow it. Null
+  /// until the office first orders the fleet, and for a car added since: those
+  /// come after the ordered ones, by slug, so a new car lands at the end.
+  sortOrder          Int?
   /// Reserved for Phase 6. Nothing is built against it until trackers exist.
   telematicsDeviceId String?
 

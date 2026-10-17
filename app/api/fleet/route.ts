@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { BY_OFFICE_ORDER } from "@/lib/admin/carOrder";
 import type { FleetVehicle } from "@/lib/rental/fleet";
 
 /**
@@ -40,7 +41,9 @@ export async function GET(request: Request) {
 
   const cars = await prisma.car.findMany({
     where: { status },
-    orderBy: { slug: "asc" },
+    // The office's order from the vehicles screen, so the pickup form lists
+    // the cars as the office thinks of them (owner, 16.10.2026).
+    orderBy: BY_OFFICE_ORDER,
     select: {
       slug: true,
       model: true,

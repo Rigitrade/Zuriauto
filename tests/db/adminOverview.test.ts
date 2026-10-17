@@ -158,6 +158,29 @@ describe("GET /api/admin/overview", () => {
     expect(out.status).toBe("rented");
   });
 
+  it("names who has each car that is out, and nobody for a car that is not", async () => {
+    // The owner's ask of 16.10.2026: the renter's name where the vehicles
+    // screen said "Rented out", so who has which car is read at a glance.
+    const org = await ensureOrganisation(prisma);
+    await seedFleet(prisma, org.id);
+    await persistPickup({
+      organisationId: org.id,
+      details,
+      vehicleSlug: details.vehicleId,
+      uploads,
+      pdf: { body: new Uint8Array([7]) },
+      store: createMemoryStore(),
+    });
+
+    const body = await (await GET(await signedIn())).json();
+
+    const out = body.cars.find((car: { status: string }) => car.status === "rented");
+    expect(out.renterName).toBe("Anna Meier");
+    const free = body.cars.filter((car: { status: string }) => car.status !== "rented");
+    expect(free.length).toBeGreaterThan(0);
+    expect(free.every((car: { renterName: unknown }) => car.renterName === null)).toBe(true);
+  });
+
   it("counts a contract whose email never left", async () => {
     const org = await ensureOrganisation(prisma);
     await seedFleet(prisma, org.id);

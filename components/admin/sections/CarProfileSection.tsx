@@ -174,8 +174,9 @@ export function CarProfileSection({ carId }: { carId: string }) {
       <Panel
         title={`${car.model} · ${car.plate}`}
         meta={
-          L.fleet.statuses[car.status as keyof typeof L.fleet.statuses] ??
-          car.status
+          (L.fleet.statuses[car.status as keyof typeof L.fleet.statuses] ??
+            car.status) +
+          (car.status === "rented" && car.renterName ? ` · ${car.renterName}` : "")
         }
       >
         <div className="grid gap-4 p-4 sm:grid-cols-[18rem_1fr]">
