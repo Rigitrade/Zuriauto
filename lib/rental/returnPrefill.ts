@@ -18,6 +18,7 @@
  */
 
 import type { PrismaClient } from "@/generated/prisma/client";
+import { asksBolt } from "./bolt";
 import { OPEN_STATUSES } from "./persistReturn";
 
 export interface ReturnPrefill {
@@ -26,6 +27,8 @@ export interface ReturnPrefill {
   email: string;
   /** From the pickup contract. Null when the rental has none on file. */
   pickupMileageKm: number | null;
+  /** Whether the form asks about the Bolt app; see lib/rental/bolt.ts. */
+  asksBolt: boolean;
 }
 
 /**
@@ -50,6 +53,8 @@ export async function findReturnPrefill(
     // Newest first, as persistReturn chooses.
     orderBy: { startAt: "desc" },
     select: {
+      type: true,
+      createdAt: true,
       customer: { select: { firstName: true, lastName: true, email: true } },
       contracts: {
         where: { kind: "PICKUP" },
@@ -66,5 +71,6 @@ export async function findReturnPrefill(
     lastName: rental.customer.lastName,
     email: rental.customer.email,
     pickupMileageKm: rental.contracts[0]?.mileageKm ?? null,
+    asksBolt: asksBolt(rental),
   };
 }

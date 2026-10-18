@@ -9,8 +9,9 @@ import { returnDetailsSchema, type ReturnDetails } from "./returnSchema";
 /**
  * The owner's question of 18.10.2026 for the return form: did the renter take
  * the car off their Bolt account? A car still on a renter's account can be
- * booked for rides by them after it is back with us, so the answer is required
- * on every return and printed on the protocol both sides sign.
+ * booked for rides by them after it is back with us. Asked of the rentals
+ * lib/rental/bolt.ts names, where the form requires it; the schema takes the
+ * return of a daily rental without it. Printed on the protocol when asked.
  */
 
 // pdfjs' worker, handed over in-process as lib/fines/raster.ts does.
@@ -61,12 +62,10 @@ async function pdfText(bytes: Uint8Array): Promise<string> {
 }
 
 describe("the Bolt question on the return", () => {
-  it("is required, and takes yes or no", () => {
+  it("takes yes or no, or no answer where it was not asked", () => {
     const unanswered: Partial<ReturnDetails> = { ...details };
     delete unanswered.boltRemoved;
-    const refused = returnDetailsSchema.safeParse(unanswered);
-    expect(refused.success).toBe(false);
-    expect(refused.error?.issues.map((issue) => issue.path.join("."))).toContain("boltRemoved");
+    expect(returnDetailsSchema.safeParse(unanswered).success).toBe(true);
 
     for (const answer of ["yes", "no"] as const) {
       expect(returnDetailsSchema.safeParse({ ...details, boltRemoved: answer }).success).toBe(true);
@@ -92,5 +91,22 @@ describe("the Bolt question on the return", () => {
     expect(at, text).toBeGreaterThanOrEqual(0);
     // The answer follows its label, before the next field's.
     expect(text.slice(at + label.length, at + label.length + 12)).toContain(answer);
+  });
+
+  it("is left off the protocol of a return it was not asked on", async () => {
+    const unanswered: ReturnDetails = { ...details };
+    delete unanswered.boltRemoved;
+    const text = await pdfText(
+      await buildReturnPdf({
+        details: unanswered,
+        vehicle: findVehicle(details.vehicleId)!,
+        returnNumber: "ZR-20261018-513925-C3D4",
+        issuedAt: new Date("2026-10-18T10:00:00Z"),
+        language: "de",
+        signaturePng: PNG,
+      })
+    );
+    expect(text).toContain("Autoschlüssel retourniert");
+    expect(text).not.toContain("Bolt");
   });
 });

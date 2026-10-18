@@ -171,6 +171,18 @@ describe("the return protocol reaches columns, not only the PDF", () => {
     expect(addendum.dueDate?.toISOString().slice(0, 10)).toBe("2026-09-30");
   });
 
+  it("stores no Bolt answer for a return it was not asked on, rather than a no", async () => {
+    const { organisationId, store } = await ready();
+    await rentalOut(organisationId, store);
+    // A daily rental's form does not ask (lib/rental/bolt.ts), so sends none.
+    await submitReturn(organisationId, store, { boltRemoved: undefined });
+
+    const addendum = await prisma.contract.findFirstOrThrow({
+      where: { kind: "RETURN_ADDENDUM" },
+    });
+    expect(addendum.boltRemoved).toBeNull();
+  });
+
   it("leaves the pickup contract's return columns null", async () => {
     // A pickup has no opinion about whether the key came back. `false` would
     // claim it did not, which is why these are nullable rather than defaulted.

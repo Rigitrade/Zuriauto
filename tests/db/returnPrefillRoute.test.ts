@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { POST } from "@/app/api/rental-return/prefill/route";
 import { prisma } from "@/lib/db";
+import { BOLT_ASKED_OF_ALL_BEFORE } from "@/lib/rental/bolt";
 import { persistPickup, type PickupUpload } from "@/lib/rental/persistPickup";
 import type { ContractDetails } from "@/lib/rental/schema";
 import { createMemoryStore } from "@/lib/storage";
@@ -90,14 +91,48 @@ describe("POST /api/rental-return/prefill", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
 
-    // Exactly these four. No phone, address, birth date or ids — the form
-    // does not ask for them, so the endpoint does not hand them out.
+    // Exactly these. No phone, address, birth date or ids — the form does not
+    // ask for them, so the endpoint does not hand them out.
     expect((await response.json()).prefill).toEqual({
       firstName: "Anna",
       lastName: "Meier",
       email: "anna@example.ch",
       pickupMileageKm: 120_000,
+      // A weekly rental: the form asks about the Bolt app.
+      asksBolt: true,
     });
+  });
+
+  it.each([
+    ["recorded after 18.10.2026", 60_000, false],
+    ["out on 18.10.2026", -60_000, true],
+  ])("tells the form whether to ask a daily rental %s about the Bolt app", async (_, offsetMs, asked) => {
+    const org = await ensureOrganisation(prisma);
+    await seedFleet(prisma, org.id);
+    await persistPickup({
+      organisationId: org.id,
+      details: {
+        ...details,
+        terms: {
+          type: "FIXED_TERM",
+          startAt: "2026-10-17T08:00:00.000Z",
+          endAt: "2026-10-24T17:00:00.000Z",
+          dailyAmountCents: 8_000,
+          depositCents: 0,
+          paymentMethod: "card",
+        },
+      },
+      vehicleSlug: details.vehicleId,
+      uploads,
+      pdf: { body: new Uint8Array([7]) },
+      store: createMemoryStore(),
+    });
+    await prisma.rental.updateMany({
+      data: { createdAt: new Date(BOLT_ASKED_OF_ALL_BEFORE.getTime() + offsetMs) },
+    });
+
+    const response = await POST(request({ vehicleId: "prius-zh513925" }));
+    expect((await response.json()).prefill.asksBolt).toBe(asked);
   });
 
   it("answers null for a car with nothing out on it", async () => {
