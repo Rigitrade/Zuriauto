@@ -161,9 +161,20 @@ renters' payment screenshots cost the office more than the fines. The police
 letter itself offers the alternative — name the driver, and the authority
 deals with them — so for a fine from the police the system now emails the
 authority the owner's own *Lenkerangabe* (Busse-Nr., plate, time, and the
-renter's name, birth date, address, mobile and email; nothing else), copies
-the office, and tells the renter they were named. No handling fee. The fine
-becomes `DRIVER_NAMED`; a later *Mahnung* for it alerts the office.
+renter's name, birth date, address, mobile and email), copies the office, and
+tells the renter they were named. No handling fee. The fine becomes
+`DRIVER_NAMED`; a later *Mahnung* for it alerts the office.
+
+The rental's signed papers go with it, as they are (the owner, 18.10.2026,
+chosen over a reduced copy): the pickup contract, the return protocol once
+there is one, and — for a returning renter whose documents were carried
+forward — the earlier contract that holds the ID and licence photographs
+(`lib/fines/papers.ts`). They prove who had the car and when, and the copies
+answer what the police driver form asks beyond the email (place of origin,
+where and when the licence was issued, its categories), which the pickup does
+not collect. The email lists each file; one missing from the store is left
+out and recorded (`nomination.papers-missing`) rather than holding the
+nomination. The privacy policy says so.
 
 Automatic only when nothing is in doubt (`lib/fines/nomination.ts`): the
 address must be the one the office confirmed for that authority, which is

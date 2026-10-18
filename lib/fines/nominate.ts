@@ -29,6 +29,7 @@ import {
   type NominationDecision,
 } from "./nomination";
 import { alertOffice, notifyRenter, sendFineOnce, type NotifyDeps } from "./notify";
+import { loadPapers, papersFor } from "./papers";
 import { burnFineTokens } from "./token";
 
 export type NominationOutcome = "named" | "held" | "already" | "failed";
@@ -151,6 +152,7 @@ export async function nominateDriver(
   const to = decision.to;
   const car = fine.car!;
   const customer = fine.customer!;
+  let missingPapers: string[] = [];
   const outcome = await sendFineOnce(
     deps,
     {
@@ -159,24 +161,32 @@ export async function nominateDriver(
       dedupeKey: options.dedupeKey ?? "nomination",
       to,
     },
-    async () => ({
-      to,
-      // The office sees every nomination in its own inbox, and the
-      // authority's questions reach a person rather than the sender address.
-      cc: deps.mail!.office,
-      replyTo: deps.mail!.office,
-      ...driverNominationMail({
-        fineNumber: fine.fineNumber!.trim(),
-        plate: car.plate,
-        violationAt: fine.violationAt!,
-        timeKnown: fine.violationTimeKnown,
-        driver: {
-          ...customer,
-          birthDate: customer.birthDate,
-          email: isPlaceholderEmail(customer.email) ? null : customer.email,
-        },
-      }),
-    })
+    async () => {
+      // Read only once the send is claimed, so a run that finds it already
+      // sent fetches no files.
+      const papers = await loadPapers(deps.store, await papersFor(client, fine.rentalId));
+      missingPapers = papers.missing;
+      return {
+        to,
+        // The office sees every nomination in its own inbox, and the
+        // authority's questions reach a person rather than the sender address.
+        cc: deps.mail!.office,
+        replyTo: deps.mail!.office,
+        attachments: papers.attachments,
+        ...driverNominationMail({
+          fineNumber: fine.fineNumber!.trim(),
+          plate: car.plate,
+          violationAt: fine.violationAt!,
+          timeKnown: fine.violationTimeKnown,
+          papers: papers.sent.map((paper) => paper.line),
+          driver: {
+            ...customer,
+            birthDate: customer.birthDate,
+            email: isPlaceholderEmail(customer.email) ? null : customer.email,
+          },
+        }),
+      };
+    }
   );
 
   if (outcome === "already") return "already";
@@ -208,6 +218,9 @@ export async function nominateDriver(
   // nothing left to prove to us.
   await burnFineTokens(client, fineId, now);
   await recordEvent(client, fineId, "driver.named", { to }, options.by ?? null, now);
+  if (missingPapers.length) {
+    await recordEvent(client, fineId, "nomination.papers-missing", { missing: missingPapers }, options.by ?? null, now);
+  }
 
   await tellRenter(deps, fine);
   return "named";

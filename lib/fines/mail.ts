@@ -207,14 +207,21 @@ export function fineThanksMail(ctx: FineMailContext): { subject: string; text: s
  *
  * The owner's own wording of 16.10.2026, as he has been sending it by hand,
  * with "Bussgeld" spelt the Swiss way like the rest of it. German whatever the
- * renter's language: it is written to a Swiss authority. Only what the
- * authority needs to address the fine to the driver; no ID, no contract.
+ * renter's language: it is written to a Swiss authority.
+ *
+ * The rental's signed papers go with it, as they are (owner, 18.10.2026):
+ * between them they show who had the car and when, and the copies of the ID
+ * and licence carry what the authority's driver form asks beyond the text —
+ * place of origin, where and when the licence was issued, its categories.
+ * `papers` names each attachment, one line apiece, so the authority knows
+ * which file to open for what; none, and the list is left out.
  */
 export function driverNominationMail(ctx: {
   fineNumber: string;
   plate: string;
   violationAt: Date;
   timeKnown: boolean;
+  papers: string[];
   driver: {
     firstName: string;
     lastName: string;
@@ -250,6 +257,9 @@ export function driverNominationMail(ctx: {
       `Mobil-Nr.:      ${driver.phone}`,
       ...(driver.email ? [`E-Mail:         ${driver.email}`] : []),
       "",
+      ...(ctx.papers.length
+        ? ["Als Nachweis der Miete liegen bei:", ...ctx.papers.map((paper) => `- ${paper}`), ""]
+        : []),
       "Für Rückfragen stehen wir Ihnen gerne zur Verfügung.",
       "Freundliche Grüsse",
       "Katamesh, Ahmed",

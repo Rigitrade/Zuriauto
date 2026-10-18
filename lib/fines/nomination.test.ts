@@ -166,6 +166,7 @@ describe("driverNominationMail", () => {
       // 21:02 in Zurich, summer time.
       violationAt: new Date("2026-07-18T19:02:00Z"),
       timeKnown: true,
+      papers: [],
       driver: { ...driver, birthDate: driver.birthDate! },
     });
     expect(mail.subject).toBe("Lenkerangabe zu Busse-Nr. 246564 – ZH 401 859");
@@ -203,10 +204,36 @@ describe("driverNominationMail", () => {
       plate: "ZH 1",
       violationAt: new Date("2026-07-17T22:00:00Z"),
       timeKnown: false,
+      papers: [],
       driver: { ...driver, birthDate: driver.birthDate!, country: "Germany", email: null },
     });
     expect(mail.text).toContain("wurde am 18.07.2026 von folgender Person gefahren:");
     expect(mail.text).toContain("8914 Aeugst am Albis, Germany");
     expect(mail.text).not.toContain("E-Mail:");
+  });
+
+  it("lists the rental's papers it carries, after the driver's details", () => {
+    const mail = driverNominationMail({
+      fineNumber: "1",
+      plate: "ZH 1",
+      violationAt: new Date("2026-07-17T22:00:00Z"),
+      timeKnown: false,
+      papers: [
+        "Mietvertrag ZA-20260701-0003 vom 01.07.2026, mit Kopien von Ausweis und Führerausweis",
+        "Rückgabeprotokoll ZR-20260720-401859-C3D4 vom 20.07.2026",
+      ],
+      driver: { ...driver, birthDate: driver.birthDate! },
+    });
+    expect(mail.text).toContain(
+      [
+        "E-Mail:         dahiyam765@gmail.com",
+        "",
+        "Als Nachweis der Miete liegen bei:",
+        "- Mietvertrag ZA-20260701-0003 vom 01.07.2026, mit Kopien von Ausweis und Führerausweis",
+        "- Rückgabeprotokoll ZR-20260720-401859-C3D4 vom 20.07.2026",
+        "",
+        "Für Rückfragen stehen wir Ihnen gerne zur Verfügung.",
+      ].join("\n")
+    );
   });
 });

@@ -6,6 +6,7 @@ import type { FineStatus, PrismaClient } from "@/generated/prisma/client";
 import { isPlaceholderEmail } from "@/lib/rental/placeholder";
 import { driverNominationMail } from "./mail";
 import { driverIsComplete, emailsOnLetter } from "./nomination";
+import { papersFor } from "./papers";
 import { loadIntervals } from "./repo/possessionLoad";
 
 export type FineTab = "review" | "open" | "named" | "paid" | "all";
@@ -154,6 +155,9 @@ export async function fineDetail(client: PrismaClient, fineId: string) {
     delete shown.ocrText;
     return shown;
   });
+  // Listed as they would go; whether each file is still in the store is only
+  // learnt when sending, which records any that was not.
+  const papers = await papersFor(client, fine.rentalId);
   const nomination = {
     authority: fine.authority,
     emailsOnLetter: [
@@ -170,6 +174,7 @@ export async function fineDetail(client: PrismaClient, fineId: string) {
             plate: fine.car.plate,
             violationAt: fine.violationAt,
             timeKnown: fine.violationTimeKnown,
+            papers: papers.map((paper) => paper.line),
             driver: {
               ...fine.customer,
               birthDate: fine.customer.birthDate,

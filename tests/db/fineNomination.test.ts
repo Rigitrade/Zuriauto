@@ -132,7 +132,6 @@ describe("a police fine whose authority the office has confirmed", () => {
     expect(police.text).toContain("Name, Vorname:  MEIER, Anna");
     expect(police.text).toContain("Geburtsdatum:   12.04.1990");
     expect(police.text).toContain("Wohnadresse:    Bahnhofstrasse 1, 8001 Zürich");
-    expect(police.attachments ?? []).toHaveLength(0);
 
     // No fee, no payment link, and not the letter with its payment slip.
     expect(renter.text).toContain("als Lenker gemeldet");
@@ -175,6 +174,124 @@ describe("a police fine whose authority the office has confirmed", () => {
       status: "DRIVER_NAMED",
       driverNamedTo: "ordnungsbussen@uitikon.org",
     });
+  });
+});
+
+describe("the rental's papers go to the authority with the driver's details", () => {
+  // The owner's decision of 18.10.2026: the signed documents as they are, since
+  // between them they show who had the car, when, and the ID and licence the
+  // police form asks about.
+  const pdf = (marker: number) => new Uint8Array([0x25, 0x50, 0x44, 0x46, marker]);
+
+  /** Puts the rental's pickup PDF where the store would have it. */
+  async function storePickup(deps: NotifyDeps, rentalId: string, marker = 1) {
+    const contract = await prisma.contract.findFirstOrThrow({
+      where: { rentalId, kind: "PICKUP" },
+      select: { id: true, contractNumber: true, pdfKey: true },
+    });
+    await deps.store.put(contract.pdfKey!, pdf(marker), "application/pdf");
+    return contract;
+  }
+
+  /** A return protocol on the rental, its PDF stored. */
+  async function storeReturn(deps: NotifyDeps, organisationId: string, rentalId: string) {
+    const returned = await prisma.contract.create({
+      data: {
+        organisationId,
+        rentalId,
+        contractNumber: "ZR-20260905-513925-A1B2",
+        createdBy: "office",
+        kind: "RETURN_ADDENDUM",
+        mileageKm: 121_000,
+        fuelLevel: "half",
+        gtcVersion: "2026-07-31",
+        gtcLanguage: "de",
+        acceptedAt: new Date("2026-09-05T09:00:00Z"),
+        signedAt: new Date("2026-09-05T09:00:00Z"),
+        pdfKey: `contracts/return-${rentalId}.pdf`,
+      },
+    });
+    await deps.store.put(returned.pdfKey!, pdf(2), "application/pdf");
+    return returned;
+  }
+
+  it("attaches the signed contract and the return protocol, as they are", async () => {
+    const { organisationId, fine, deps, sent } = await matchedFine();
+    await confirmUitikon(organisationId);
+    const pickup = await storePickup(deps, fine.rentalId!);
+    const returned = await storeReturn(deps, organisationId, fine.rentalId!);
+
+    await deliverNewFine(deps, fine.id);
+
+    const [police, renter] = sent;
+    expect(police.to).toBe("ordnungsbussen@uitikon.org");
+    expect(police.attachments).toEqual([
+      { filename: `mietvertrag-${pickup.contractNumber}.pdf`, content: pdf(1), contentType: "application/pdf" },
+      { filename: `rueckgabeprotokoll-${returned.contractNumber}.pdf`, content: pdf(2), contentType: "application/pdf" },
+    ]);
+    expect(police.text).toContain(
+      `- Mietvertrag ${pickup.contractNumber} vom 01.06.2026, mit Kopien von Ausweis und Führerausweis`
+    );
+    expect(police.text).toContain(`- Rückgabeprotokoll ${returned.contractNumber} vom 05.09.2026`);
+    // The renter's own mail stays as it was.
+    expect(renter.attachments ?? []).toHaveLength(0);
+  });
+
+  it("sends the contract alone while the car is still out", async () => {
+    const { organisationId, fine, deps, sent } = await matchedFine();
+    await confirmUitikon(organisationId);
+    const pickup = await storePickup(deps, fine.rentalId!);
+
+    await deliverNewFine(deps, fine.id);
+
+    expect(sent[0].attachments?.map((a) => a.filename)).toEqual([`mietvertrag-${pickup.contractNumber}.pdf`]);
+    expect(sent[0].text).not.toContain("Rückgabeprotokoll");
+  });
+
+  it("adds the earlier contract that holds the ID photos of a returning renter", async () => {
+    const { organisationId, fine, deps, sent } = await matchedFine();
+    await confirmUitikon(organisationId);
+    const earlierRental = await seedRental(organisationId, {
+      signedAt: new Date("2026-03-02T08:00:00Z"),
+      details: { vehicleId: "prius-zh401859" },
+    });
+    const earlier = await storePickup(deps, earlierRental.id, 3);
+    const pickup = await storePickup(deps, fine.rentalId!);
+    // This handover reused the documents photographed at the earlier one.
+    await prisma.contract.update({
+      where: { id: pickup.id },
+      data: { documentsReusedFromId: earlier.id, identityCheckedAt: new Date("2026-06-01T08:05:00Z") },
+    });
+
+    await deliverNewFine(deps, fine.id);
+
+    expect(sent[0].attachments?.map((a) => a.filename)).toEqual([
+      `mietvertrag-${pickup.contractNumber}.pdf`,
+      `mietvertrag-${earlier.contractNumber}.pdf`,
+    ]);
+    expect(sent[0].attachments?.[1].content).toEqual(pdf(3));
+    expect(sent[0].text).toContain(`- Mietvertrag ${pickup.contractNumber} vom 01.06.2026`);
+    expect(sent[0].text).not.toContain(`${pickup.contractNumber} vom 01.06.2026, mit Kopien`);
+    expect(sent[0].text).toContain(
+      `- Mietvertrag ${earlier.contractNumber} vom 02.03.2026, mit Kopien von Ausweis und Führerausweis (frühere Miete)`
+    );
+  }, 60_000);
+
+  it("still names the driver when a file is missing, and records which", async () => {
+    const { organisationId, fine, deps, sent } = await matchedFine();
+    await confirmUitikon(organisationId);
+    const pickup = await prisma.contract.findFirstOrThrow({ where: { rentalId: fine.rentalId!, kind: "PICKUP" } });
+
+    await deliverNewFine(deps, fine.id);
+
+    expect(sent[0].to).toBe("ordnungsbussen@uitikon.org");
+    expect(sent[0].attachments ?? []).toHaveLength(0);
+    expect(sent[0].text).not.toContain("liegen bei");
+    expect((await reload(fine.id)).status).toBe("DRIVER_NAMED");
+    const missing = await prisma.fineEvent.findFirstOrThrow({
+      where: { fineId: fine.id, type: "nomination.papers-missing" },
+    });
+    expect(missing.payload).toEqual({ missing: [pickup.contractNumber] });
   });
 });
 
