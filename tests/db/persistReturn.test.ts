@@ -57,6 +57,7 @@ const returnDetails: ReturnDetails = {
   mileageKm: 121_450,
   papersInside: "yes",
   keyReturned: "yes",
+  boltRemoved: "yes",
   fuelLevel: "1/2",
   cleanliness: "clean",
   damages: "Keine neuen Schäden",
@@ -134,6 +135,8 @@ describe("the return protocol reaches columns, not only the PDF", () => {
         cleanliness: "needsWash",
         papersInside: "no",
         keyReturned: "yes",
+        // Still on the renter's Bolt account: the office has to know.
+        boltRemoved: "no",
         tickets: "yes",
         ticketsNote: "Parkbusse Zürich, 40 CHF",
         fullyPaid: "no",
@@ -154,6 +157,7 @@ describe("the return protocol reaches columns, not only the PDF", () => {
     expect(addendum.cleanliness).toBe("needsWash");
     expect(addendum.papersInside).toBe(false);
     expect(addendum.keyReturned).toBe(true);
+    expect(addendum.boltRemoved).toBe(false);
     expect(addendum.tickets).toBe(true);
     expect(addendum.ticketsNote).toBe("Parkbusse Zürich, 40 CHF");
     expect(addendum.fullyPaid).toBe(false);
@@ -167,6 +171,18 @@ describe("the return protocol reaches columns, not only the PDF", () => {
     expect(addendum.dueDate?.toISOString().slice(0, 10)).toBe("2026-09-30");
   });
 
+  it("stores no Bolt answer for a return it was not asked on, rather than a no", async () => {
+    const { organisationId, store } = await ready();
+    await rentalOut(organisationId, store);
+    // A daily rental's form does not ask (lib/rental/bolt.ts), so sends none.
+    await submitReturn(organisationId, store, { boltRemoved: undefined });
+
+    const addendum = await prisma.contract.findFirstOrThrow({
+      where: { kind: "RETURN_ADDENDUM" },
+    });
+    expect(addendum.boltRemoved).toBeNull();
+  });
+
   it("leaves the pickup contract's return columns null", async () => {
     // A pickup has no opinion about whether the key came back. `false` would
     // claim it did not, which is why these are nullable rather than defaulted.
@@ -178,6 +194,7 @@ describe("the return protocol reaches columns, not only the PDF", () => {
     });
     expect(contract.cleanliness).toBeNull();
     expect(contract.keyReturned).toBeNull();
+    expect(contract.boltRemoved).toBeNull();
     expect(contract.depositBack).toBeNull();
     expect(contract.paymentMethods).toEqual([]);
   });

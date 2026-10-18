@@ -67,6 +67,7 @@ interface FormState {
   mileagePickupKm: string;
   papersInside: YesNo;
   keyReturned: YesNo;
+  boltRemoved: YesNo;
   fuelLevel: FuelLevel;
   cleanliness: "" | "clean" | "needsWash";
   damages: string;
@@ -96,6 +97,7 @@ const EMPTY_FORM: FormState = {
   mileagePickupKm: "",
   papersInside: "",
   keyReturned: "",
+  boltRemoved: "",
   fuelLevel: "full",
   cleanliness: "",
   damages: "",
@@ -127,6 +129,7 @@ const OWNER_OF_FIELD: Record<string, number> = {
   fuelLevel: 1,
   papersInside: 2,
   keyReturned: 2,
+  boltRemoved: 2,
   cleanliness: 2,
   damages: 2,
   tickets: 3,
@@ -253,6 +256,9 @@ export default function RentalReturnWizard() {
    * without overwriting anything the renter typed themselves.
    */
   const [prefilled, setPrefilled] = useState<Partial<FormState>>({});
+  // Whether this rental is asked about the Bolt app (lib/rental/bolt.ts), as
+  // the lookup for the chosen car says. Asked until it says otherwise.
+  const [boltAsked, setBoltAsked] = useState(true);
 
   /**
    * Fills the renter step and the pickup mileage from the car's open rental.
@@ -277,7 +283,13 @@ export default function RentalReturnWizard() {
           lastName: string;
           email: string;
           pickupMileageKm: number | null;
+          asksBolt: boolean;
         } | null | undefined;
+        // Asked unless the lookup says this rental is not: a failed lookup
+        // asks one question too many rather than skip one that was due.
+        const asked = found?.asksBolt ?? true;
+        setBoltAsked(asked);
+        if (!asked) setForm((current) => ({ ...current, boltRemoved: "" }));
         const next: Partial<FormState> = found
           ? {
               firstName: found.firstName,
@@ -373,6 +385,7 @@ export default function RentalReturnWizard() {
     if (target === 2) {
       if (!form.papersInside) found.papersInside = L.errors.required;
       if (!form.keyReturned) found.keyReturned = L.errors.required;
+      if (boltAsked && !form.boltRemoved) found.boltRemoved = L.errors.required;
       if (!form.cleanliness) found.cleanliness = L.errors.required;
     }
 
@@ -447,6 +460,7 @@ export default function RentalReturnWizard() {
         : undefined,
       papersInside: form.papersInside,
       keyReturned: form.keyReturned,
+      boltRemoved: boltAsked && form.boltRemoved ? form.boltRemoved : undefined,
       fuelLevel: form.fuelLevel,
       cleanliness: form.cleanliness,
       damages: form.damages,
@@ -818,6 +832,20 @@ export default function RentalReturnWizard() {
                 error={errors.keyReturned}
                 required
               />
+
+              {boltAsked && (
+                <ChoiceField
+                  label={R.bolt}
+                  value={form.boltRemoved}
+                  onChange={(value) => set("boltRemoved", value)}
+                  options={[
+                    { value: "yes", label: R.yes },
+                    { value: "no", label: R.no },
+                  ]}
+                  error={errors.boltRemoved}
+                  required
+                />
+              )}
 
               <ChoiceField
                 label={R.clean}

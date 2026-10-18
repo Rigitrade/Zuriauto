@@ -93,6 +93,10 @@ export function ReturnReview({
               />
               <YesNo label={L.ret.papers} value={r.papersInside} L={L} alertWhen={false} />
               <YesNo label={L.ret.key} value={r.keyReturned} L={L} alertWhen={false} />
+              {/* Not asked of daily rentals, nor before 18.10.2026: no row then. */}
+              {r.boltRemoved !== null && (
+                <YesNo label={L.ret.bolt} value={r.boltRemoved} L={L} alertWhen={false} />
+              )}
               <Row
                 label={L.ret.damages}
                 value={r.damageNotes.trim() || L.ret.noDamages}

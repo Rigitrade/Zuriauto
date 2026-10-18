@@ -37,7 +37,7 @@ describe("GTC confirmations", () => {
   );
 
   it("the terms carry the date of the current version", () => {
-    expect(GTC_DATE).toBe("16.10.2026");
+    expect(GTC_DATE).toBe("01.10.2026");
   });
 
   // These messages name the clauses in words rather than reading

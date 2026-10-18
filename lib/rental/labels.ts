@@ -253,6 +253,7 @@ const de = {
 
     papers: "Fahrzeugausweis im Handschuhfach?",
     key: "Autoschlüssel retourniert?",
+    bolt: "Haben Sie das Fahrzeug aus der Bolt-App entfernt?",
     clean: "Fahrzeug sauber?",
     cleanYes: "Sauber",
     cleanNeedsWash: "Muss gewaschen werden",
@@ -307,6 +308,7 @@ const de = {
       mileagePickup: "Kilometerstand bei Übernahme",
       papers: "Fahrzeugausweis im Handschuhfach",
       key: "Autoschlüssel retourniert",
+      bolt: "Fahrzeug aus der Bolt-App entfernt",
       clean: "Sauberkeit",
       damages: "Neue Schäden",
       damagesNone: "Keine neuen Schäden gemeldet",
@@ -713,6 +715,7 @@ const en: typeof de = {
 
     papers: "Vehicle registration document in the glovebox?",
     key: "Car key returned?",
+    bolt: "Did you remove the car from the Bolt app?",
     clean: "Vehicle clean?",
     cleanYes: "Clean",
     cleanNeedsWash: "Needs to be washed",
@@ -767,6 +770,7 @@ const en: typeof de = {
       mileagePickup: "Mileage at handover",
       papers: "Vehicle registration document in the glovebox",
       key: "Car key returned",
+      bolt: "Car removed from the Bolt app",
       clean: "Cleanliness",
       damages: "New damage",
       damagesNone: "No new damage reported",
