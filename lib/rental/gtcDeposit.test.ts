@@ -5,15 +5,16 @@ import gtc, { GTC_LANGUAGES, type GtcBlock, type GtcLanguage } from "@/locales/g
  * The lessor asked on 07.10.2026 for the deposit's payback period in the
  * terms. Since the GTC of 15.10.2026 it is clause 12.4; the owner's request of
  * 16.10.2026 made it five to ten working days, and the GTC of 01.10.2026 (the
- * lessor's revision received on 18.10.2026) words it as no earlier than five
- * and no later than ten working days after the vehicle has been properly
- * returned, under the heading "Frist für die Kautionsrückzahlung". It must say
- * the same in every language the renter can read the terms in.
+ * lessor's revision received on 18.10.2026) worded it as no earlier than five
+ * and no later than ten working days after the return. The GTC of 22.10.2026
+ * drops the earliest day: the repayment is to be initiated within ten working
+ * days at the latest, unless specific, justified claims are still open. It must
+ * say the same in every language the renter can read the terms in.
  */
 const WORDS: Record<GtcLanguage, { deposit: RegExp; days: RegExp }> = {
-  de: { deposit: /Kaution/, days: /frühestens nach 5 und spätestens innerhalb von 10 Arbeitstagen nach ordnungsgemässer Rückgabe/ },
-  en: { deposit: /deposit/i, days: /no earlier than 5 and no later than 10 working days after the vehicle has been properly returned/ },
-  fr: { deposit: /caution/i, days: /au plus tôt après 5 et au plus tard dans les 10 jours ouvrables suivant la restitution/ },
+  de: { deposit: /Kaution/, days: /soll die Rückzahlung spätestens innerhalb von 10 Arbeitstagen veranlasst werden/ },
+  en: { deposit: /deposit/i, days: /the repayment should be initiated within 10 working days at the latest/ },
+  fr: { deposit: /caution/i, days: /le remboursement doit être initié au plus tard dans les 10 jours ouvrables/ },
 };
 
 /** Clause 12.4's text and the paragraphs that continue it. */

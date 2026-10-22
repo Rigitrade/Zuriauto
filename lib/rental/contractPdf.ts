@@ -303,14 +303,17 @@ export class Writer {
 }
 
 /**
- * Typesets the articles of the terms and the lessor's closing after them.
- * Shared by the contract's appendix and the downloadable GTC (`gtcPdf.ts`), so
- * the two cannot set them differently.
+ * Typesets the lines the terms open with and their articles. Shared by the
+ * contract's appendix and the downloadable GTC (`gtcPdf.ts`), so the two
+ * cannot set them differently.
  */
 export function writeGtcSections(w: Writer, gtcDoc: GtcDocument): void {
   // Clause text hangs to the right of its number, wide enough for "18.7" in
   // bold; lettered items under a clause start on the same edge.
   const CLAUSE_INDENT = 24;
+
+  for (const line of gtcDoc.intro) w.text(line, { size: 9, leading: 1.4 });
+  w.gap(4);
 
   for (const section of gtcDoc.sections) {
     w.ensure(40);
@@ -365,16 +368,6 @@ export function writeGtcSections(w: Writer, gtcDoc: GtcDocument): void {
       }
     }
   }
-
-  const { lessor, text, signoff } = gtcDoc.closing;
-  w.ensure(80);
-  w.gap(10);
-  w.rule();
-  for (const line of lessor) w.text(line, { size: 9, leading: 1.4 });
-  w.gap(4);
-  w.text(text, { size: 9, leading: 1.4 });
-  w.gap(4);
-  w.text(signoff, { size: 9, color: MUTED });
 }
 
 /**

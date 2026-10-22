@@ -180,12 +180,12 @@ const de = {
       truthfulInfoConfirmedAt: {
         title: "Wahrheitsgemässe Angaben",
         statement:
-          "Ich bestätige, dass meine Angaben sowie die von mir vorgelegten Identitätsdokumente, Führerausweise, Bewilligungen und sonstigen Unterlagen nach bestem Wissen vollständig, wahrheitsgemäss und gültig sind.",
+          "Ich bestätige, dass meine Angaben sowie die von mir vorgelegten Identitätsdokumente, Führerausweise, Bewilligungen und sonstigen Unterlagen nach bestem Wissen vollständig, richtig und gültig sind.",
       },
       deceptionNoticeConfirmedAt: {
         title: "Falsche Angaben und Unterlagen",
         statement:
-          "Mir ist bekannt, dass vorsätzlich falsche oder irreführende Angaben sowie gefälschte oder ungültige Unterlagen eine wesentliche Vertragsverletzung darstellen und je nach Sachverhalt strafrechtliche Tatbestände erfüllen können; die Beurteilung obliegt den zuständigen Behörden und Gerichten.",
+          "Mir ist bekannt, dass vorsätzlich falsche oder irreführende Angaben sowie gefälschte oder ungültige Unterlagen eine wesentliche Vertragsverletzung darstellen können. Ob ein strafrechtlich relevanter Sachverhalt vorliegt, beurteilen die zuständigen Behörden und Gerichte.",
       },
     },
   },
@@ -649,12 +649,12 @@ const en: typeof de = {
       truthfulInfoConfirmedAt: {
         title: "Truthful information",
         statement:
-          "I confirm that my information and the identity documents, driving licences, permits and other documents I have presented are, to the best of my knowledge, complete, truthful and valid.",
+          "I confirm that my information and the identity documents, driving licences, permits and other documents I have presented are, to the best of my knowledge, complete, correct and valid.",
       },
       deceptionNoticeConfirmedAt: {
         title: "False information and documents",
         statement:
-          "I understand that intentionally false or misleading information and forged or invalid documents may constitute a material breach of contract and, depending on the facts, may meet the elements of criminal offences; the assessment is a matter for the competent authorities and courts.",
+          "I understand that intentionally false or misleading information and forged or invalid documents may constitute a material breach of contract. Whether the facts are relevant under criminal law is assessed by the competent authorities and courts.",
       },
     },
   },

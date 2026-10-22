@@ -225,6 +225,13 @@ export default function GtcAcceptance({
               Stand: …" after the label. */}
           {L.version} {GTC_DATE}
         </p>
+        <div className="mb-4">
+          {doc.intro.map((line) => (
+            <p key={line} className="leading-relaxed">
+              {line}
+            </p>
+          ))}
+        </div>
 
         {doc.sections.map((section) => (
           <section key={section.num} className="mb-4">
@@ -236,16 +243,6 @@ export default function GtcAcceptance({
             ))}
           </section>
         ))}
-
-        <div className="border-t border-slate-200 pt-3">
-          {doc.closing.lessor.map((line) => (
-            <p key={line} className="leading-relaxed">
-              {line}
-            </p>
-          ))}
-          <p className="mt-2 leading-relaxed">{doc.closing.text}</p>
-          <p className="mt-2 text-xs text-slate-500">{doc.closing.signoff}</p>
-        </div>
       </div>
 
       <TickBox

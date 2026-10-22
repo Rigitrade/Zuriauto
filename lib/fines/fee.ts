@@ -3,8 +3,9 @@
  *
  * GTC §4.2 makes the renter liable for "Verkehrsverstösse/Bussen", and its
  * fee table charges CHF 20 per traffic fine and CHF 20 per Mahnung; in the
- * GTC of 15.10.2026 these are clause 8.3 d) and the table in clause 12.5, at
- * the same fees. The table arrived with the GTC dated 30.07.2026 (commit
+ * GTC of 15.10.2026 these are clause 8.3 d) and the table in clause 12.5, and
+ * in the GTC of 22.10.2026 the list in clause 12.5, at the same fees. The
+ * table arrived with the GTC dated 30.07.2026 (commit
  * 4670c34); a pickup records the date of the GTC it accepted as `gtcVersion`
  * — "30.07.2026", or the ISO form in older test data. A renter who signed an
  * earlier GTC, or none we can read, never agreed to the fee and is not
