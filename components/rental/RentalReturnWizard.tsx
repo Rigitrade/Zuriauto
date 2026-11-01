@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -27,7 +27,7 @@ import {
   type FuelLevel,
 } from "@/lib/rental/fleet";
 import { asRentalLanguage, labelsFor } from "@/lib/rental/labels";
-import { parseMileageKm } from "@/lib/rental/mileage";
+import { drivenKm, parseMileageKm } from "@/lib/rental/mileage";
 import VehiclePicker from "./VehiclePicker";
 import {
   buildReturnNumber,
@@ -36,21 +36,30 @@ import {
   todayIso,
   type PaymentMethod,
 } from "@/lib/rental/returnSchema";
+import {
+  RETURN_TOTAL_STEPS,
+  returnSectionsOf,
+  returnStepOfField,
+  type ReturnSection,
+} from "@/lib/rental/returnSteps";
 import SignaturePad from "./SignaturePad";
 
 /**
  * The vehicle return flow, the pickup contract's counterpart.
  *
- * Stepped like /pickup — vehicle, condition, payment, signature — so the two
- * flows feel like one product and each screen stays short enough to fill in
- * while standing next to the car.
+ * Two steps, like /pickup since the lessor cut both down — the car and its
+ * condition, then the payment, the renter and the signature. The split lives
+ * in lib/rental/returnSteps.ts.
  *
  * The same offline posture as pickup: the PDF is built in the browser, the
  * only server call emails it, and a failed send still hands the customer
  * their signed document.
  */
 
-const TOTAL_STEPS = 4;
+const TOTAL_STEPS = RETURN_TOTAL_STEPS;
+
+/** Separates a section from the one above it within a step. */
+const SECTION_BREAK = "mt-8 border-t border-slate-200 pt-8";
 
 type Status =
   | { kind: "editing" }
@@ -116,38 +125,6 @@ const EMPTY_FORM: FormState = {
   firstName: "",
   email: "",
   place: "Zurich",
-};
-
-/**
- * Which step owns each field, so a schema error found at submit can send the
- * customer back to the screen where the bad value lives.
- */
-const OWNER_OF_FIELD: Record<string, number> = {
-  vehicleId: 1,
-  mileageKm: 1,
-  mileagePickupKm: 1,
-  fuelLevel: 1,
-  papersInside: 2,
-  keyReturned: 2,
-  boltRemoved: 2,
-  cleanliness: 2,
-  damages: 2,
-  tickets: 3,
-  ticketsNote: 3,
-  fullyPaid: 3,
-  paymentMethods: 3,
-  paidAmountChf: 3,
-  paidOn: 3,
-  hasDuePayment: 3,
-  dueAmountChf: 3,
-  dueDate: 3,
-  dueMethod: 3,
-  depositBack: 3,
-  lastName: 4,
-  firstName: 4,
-  email: 4,
-  place: 4,
-  signature: 4,
 };
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -343,6 +320,30 @@ export default function RentalReturnWizard() {
     if (status.kind === "done") window.scrollTo({ top: 0, behavior: "auto" });
   }, [status.kind]);
 
+  // Runs after the render that put the errors (and, after a schema
+  // rejection, the step that shows them) on screen. See `showFirstError`.
+  const [errorScroll, setErrorScroll] = useState(0);
+  const formRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (errorScroll === 0) return;
+    formRef.current
+      ?.querySelector('[role="alert"]')
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [errorScroll]);
+
+  // Live, so the renter sees the distance as they type the readings. The
+  // handover reading is usually already there, filled from the pickup.
+  const returnedKm = parseMileageKm(form.mileageKm);
+  const pickedUpKm = parseMileageKm(form.mileagePickupKm);
+  const driven = drivenKm(returnedKm, pickedUpKm);
+  const drivenHint =
+    driven !== null
+      ? R.drivenKmHint
+      : returnedKm !== null && pickedUpKm !== null
+        ? // Both read, return below handover: say so now, before "Weiter".
+          L.errors.mileageBelowPickup
+        : R.drivenKmPending;
+
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
     setErrors((prev) => {
@@ -364,8 +365,10 @@ export default function RentalReturnWizard() {
 
   function validateStep(target: number): boolean {
     const found: Record<string, string> = {};
+    const sections = returnSectionsOf(target);
+    const checks = (section: ReturnSection) => sections.includes(section);
 
-    if (target === 1) {
+    if (checks("vehicle")) {
       if (!vehicle) found.vehicleId = L.errors.vehicle;
       const returned = parseMileageKm(form.mileageKm);
       if (returned === null) found.mileageKm = L.errors.mileage;
@@ -382,14 +385,14 @@ export default function RentalReturnWizard() {
       }
     }
 
-    if (target === 2) {
+    if (checks("condition")) {
       if (!form.papersInside) found.papersInside = L.errors.required;
       if (!form.keyReturned) found.keyReturned = L.errors.required;
       if (boltAsked && !form.boltRemoved) found.boltRemoved = L.errors.required;
       if (!form.cleanliness) found.cleanliness = L.errors.required;
     }
 
-    if (target === 3) {
+    if (checks("payment")) {
       if (!form.tickets) found.tickets = L.errors.required;
       if (!form.fullyPaid) found.fullyPaid = L.errors.required;
       // The same cross-field rules the schema enforces at submit, checked
@@ -423,7 +426,7 @@ export default function RentalReturnWizard() {
       if (!form.depositBack) found.depositBack = L.errors.required;
     }
 
-    if (target === 4) {
+    if (checks("renter")) {
       if (!form.lastName.trim()) found.lastName = L.errors.required;
       if (!form.firstName.trim()) found.firstName = L.errors.required;
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim())) {
@@ -433,7 +436,20 @@ export default function RentalReturnWizard() {
     }
 
     setErrors(found);
-    return Object.keys(found).length === 0;
+    const valid = Object.keys(found).length === 0;
+    if (!valid) showFirstError();
+    return valid;
+  }
+
+  /**
+   * Brings the first error on screen once it has rendered.
+   *
+   * With two long steps, the field that failed is usually far from the button
+   * that was pressed. Every error message carries `role="alert"`, so the first
+   * in document order is the first on the page.
+   */
+  function showFirstError() {
+    setErrorScroll((n) => n + 1);
   }
 
   function next() {
@@ -449,7 +465,7 @@ export default function RentalReturnWizard() {
   }
 
   async function submit() {
-    if (!validateStep(4) || !vehicle || !signature) return;
+    if (!validateStep(TOTAL_STEPS) || !vehicle || !signature) return;
 
     const parsed = returnDetailsSchema.safeParse({
       vehicleId: form.vehicleId,
@@ -489,8 +505,14 @@ export default function RentalReturnWizard() {
         found[key] = L.errors[message] ?? L.errors.required;
       }
       setErrors(found);
-      // Send them back to the step that owns the first bad field.
-      setStep(OWNER_OF_FIELD[Object.keys(found)[0]] ?? 1);
+      // Send them back to the step that shows the first bad field, then to the
+      // field itself. The earliest step wins, so the first error on screen is
+      // the first one to fix.
+      const steps = Object.keys(found).map(
+        (field) => returnStepOfField(field) ?? 1
+      );
+      setStep(Math.min(...steps));
+      showFirstError();
       return;
     }
 
@@ -707,6 +729,12 @@ export default function RentalReturnWizard() {
 
   const busy = status.kind === "building" || status.kind === "sending";
 
+  // The sections on screen, in order. Every one but the first is set off from
+  // the one above it, so a long step still reads as parts.
+  const shown = returnSectionsOf(step);
+  const sectionClass = (section: ReturnSection, base: string) =>
+    shown[0] === section ? base : `${base} ${SECTION_BREAK}`;
+
   return (
     <section className="bg-gradient-to-b from-slate-50 to-white py-12 sm:py-16">
       <div className="container mx-auto max-w-2xl px-4">
@@ -719,12 +747,19 @@ export default function RentalReturnWizard() {
           </p>
         </header>
 
-        <StepIndicator currentStep={step} totalSteps={TOTAL_STEPS} />
+        <StepIndicator
+          currentStep={step}
+          totalSteps={TOTAL_STEPS}
+          labels={[R.steps.vehicle, R.steps.payment]}
+        />
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
-          {/* --- Step 1: Vehicle ---------------------------------------- */}
-          {step === 1 && (
-            <div className="space-y-5">
+        <div
+          ref={formRef}
+          className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8"
+        >
+          {/* --- Vehicle ------------------------------------------------ */}
+          {shown.includes("vehicle") && (
+            <div className={sectionClass("vehicle", "space-y-5")}>
               <h2 className="text-lg font-semibold text-slate-900">
                 {L.vehicle.heading}
               </h2>
@@ -777,6 +812,20 @@ export default function RentalReturnWizard() {
                 />
               </Field>
 
+              {/* Return minus handover (owner, 01.11.2026). Worked out, not
+                  typed, so it cannot disagree with the two readings above —
+                  and the report prints the same figure. */}
+              <Field label={R.drivenKm} hint={drivenHint}>
+                <div
+                  aria-live="polite"
+                  className="flex h-10 items-center rounded-md border border-input bg-slate-50 px-3 text-sm font-medium tabular-nums text-slate-800"
+                >
+                  {driven === null
+                    ? "—"
+                    : `${driven.toLocaleString("de-CH").replace(/’/g, "'")} km`}
+                </div>
+              </Field>
+
               <Field label={L.vehicle.fuel} required>
                 <div className="grid grid-cols-5 gap-1.5">
                   {FUEL_LEVELS.map((level) => (
@@ -802,9 +851,9 @@ export default function RentalReturnWizard() {
             </div>
           )}
 
-          {/* --- Step 2: Condition -------------------------------------- */}
-          {step === 2 && (
-            <div className="space-y-5">
+          {/* --- Condition ---------------------------------------------- */}
+          {shown.includes("condition") && (
+            <div className={sectionClass("condition", "space-y-5")}>
               <h2 className="text-lg font-semibold text-slate-900">
                 {R.conditionHeading}
               </h2>
@@ -870,9 +919,9 @@ export default function RentalReturnWizard() {
             </div>
           )}
 
-          {/* --- Step 3: Payment ---------------------------------------- */}
-          {step === 3 && (
-            <div className="space-y-5">
+          {/* --- Payment ------------------------------------------------ */}
+          {shown.includes("payment") && (
+            <div className={sectionClass("payment", "space-y-5")}>
               <h2 className="text-lg font-semibold text-slate-900">
                 {R.paymentHeading}
               </h2>
@@ -1035,9 +1084,9 @@ export default function RentalReturnWizard() {
             </div>
           )}
 
-          {/* --- Step 4: Renter and signature ---------------------------- */}
-          {step === 4 && (
-            <div className="space-y-6">
+          {/* --- Renter and signature ----------------------------------- */}
+          {shown.includes("renter") && (
+            <div className={sectionClass("renter", "space-y-6")}>
               <div className="space-y-5">
                 <h2 className="text-lg font-semibold text-slate-900">
                   {R.renterHeading}
@@ -1098,7 +1147,9 @@ export default function RentalReturnWizard() {
                   }}
                 />
                 {errors.signature && (
-                  <p className="text-sm text-rose-600">{errors.signature}</p>
+                  <p role="alert" className="text-sm text-rose-600">
+                    {errors.signature}
+                  </p>
                 )}
               </div>
 
@@ -1242,7 +1293,11 @@ function ChoiceField<T extends string>({
           </button>
         ))}
       </div>
-      {error && <p className="text-sm text-rose-600">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-rose-600">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
@@ -1292,7 +1347,11 @@ function Field({
       </Label>
       {children}
       {hint && !error && <p className="text-xs text-slate-500">{hint}</p>}
-      {error && <p className="text-sm text-rose-600">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-rose-600">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

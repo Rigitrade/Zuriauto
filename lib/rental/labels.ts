@@ -242,6 +242,12 @@ const de = {
     pageIntro:
       "Bitte füllen Sie das Formular bei der Rückgabe aus und unterschreiben Sie direkt auf dem Bildschirm. Sie erhalten die Bestätigung per E-Mail.",
 
+    /** The two return steps, as `lib/rental/returnSteps.ts` splits them. */
+    steps: {
+      vehicle: "Fahrzeug & Zustand",
+      payment: "Zahlung & Unterschrift",
+    },
+
     conditionHeading: "Zustand bei Rückgabe",
     paymentHeading: "Zahlung",
     renterHeading: "Ihre Daten",
@@ -250,6 +256,11 @@ const de = {
     mileagePickup: "Kilometerstand bei Übernahme (km)",
     mileagePickupHint:
       "Optional — steht auf Ihrem Mietvertrag. Das Büro kann ihn sonst nachschlagen.",
+    drivenKm: "Gefahrene Kilometer",
+    drivenKmHint:
+      "Kilometerstand bei Rückgabe minus Kilometerstand bei Übernahme.",
+    drivenKmPending:
+      "Wird berechnet, sobald beide Kilometerstände eingetragen sind.",
 
     papers: "Fahrzeugausweis im Handschuhfach?",
     key: "Autoschlüssel retourniert?",
@@ -306,6 +317,7 @@ const de = {
       returnNumber: "Rückgabe-Nr.",
       mileage: "Kilometerstand bei Rückgabe",
       mileagePickup: "Kilometerstand bei Übernahme",
+      drivenKm: "Gefahrene Kilometer",
       papers: "Fahrzeugausweis im Handschuhfach",
       key: "Autoschlüssel retourniert",
       bolt: "Fahrzeug aus der Bolt-App entfernt",
@@ -704,6 +716,11 @@ const en: typeof de = {
     pageIntro:
       "Please complete this form when returning the vehicle and sign on screen. You will receive the confirmation by email.",
 
+    steps: {
+      vehicle: "Vehicle & condition",
+      payment: "Payment & signature",
+    },
+
     conditionHeading: "Condition at return",
     paymentHeading: "Payment",
     renterHeading: "Your details",
@@ -712,6 +729,9 @@ const en: typeof de = {
     mileagePickup: "Mileage at handover (km)",
     mileagePickupHint:
       "Optional — it is on your rental contract. The office can look it up otherwise.",
+    drivenKm: "Kilometres driven",
+    drivenKmHint: "Mileage at return minus mileage at handover.",
+    drivenKmPending: "Calculated once both readings are filled in.",
 
     papers: "Vehicle registration document in the glovebox?",
     key: "Car key returned?",
@@ -768,6 +788,7 @@ const en: typeof de = {
       returnNumber: "Return no.",
       mileage: "Mileage at return",
       mileagePickup: "Mileage at handover",
+      drivenKm: "Kilometres driven",
       papers: "Vehicle registration document in the glovebox",
       key: "Car key returned",
       bolt: "Car removed from the Bolt app",

@@ -23,3 +23,20 @@ export function parseMileageKm(input: string): number | null {
   const km = Number(cleaned);
   return km <= MILEAGE_MAX_KM ? km : null;
 }
+
+/**
+ * Kilometres driven during a rental: the reading at return minus the reading
+ * at handover (owner, 01.11.2026 — shown on the return form and its report).
+ *
+ * Null when either reading is missing, or when the return reading is the
+ * lower one. That is a typo in one of the two, and the form says so on the
+ * return field; showing a negative distance as well would only repeat it less
+ * clearly.
+ */
+export function drivenKm(
+  returnKm: number | null | undefined,
+  pickupKm: number | null | undefined
+): number | null {
+  if (returnKm == null || pickupKm == null) return null;
+  return returnKm >= pickupKm ? returnKm - pickupKm : null;
+}
