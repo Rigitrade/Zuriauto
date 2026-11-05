@@ -221,6 +221,30 @@ export function weeksBegun(
 }
 
 // ---------------------------------------------------------------------
+// The day the reminders started.
+// ---------------------------------------------------------------------
+
+/**
+ * Nothing due before this Zurich day is requested, reminded or reported.
+ *
+ * The daily run was switched off from the legacy import until 05.11.2026. Its
+ * first run then asked renters for every unpaid week since, some of them
+ * long settled in cash outside the system. The owner wanted the reminders to
+ * start from that day, not to work through the backlog — so the charge and
+ * overdue passes skip anything that fell due before it. The backlog stays in
+ * the dashboard for the office; it is just not chased by mail.
+ *
+ * Read on every call rather than once at import, so a test can move it.
+ */
+export function remindersStart(): string {
+  return process.env.REMINDERS_START || "2026-11-05";
+}
+
+export function isBeforeRemindersStart(day: Date): boolean {
+  return zurichDayString(day) < remindersStart();
+}
+
+// ---------------------------------------------------------------------
 // MFK — the annual technical inspection.
 // ---------------------------------------------------------------------
 

@@ -314,6 +314,31 @@ describe("weeklyChargePass", () => {
     ).toBe(3);
   });
 
+  it("does not chase weeks that fell due before the reminders started", async () => {
+    // Production's run was off for weeks; its first run asked a renter who
+    // had long returned the car for week 2. Nothing before the start day is
+    // requested, reminded or reported.
+    const previous = process.env.REMINDERS_START;
+    process.env.REMINDERS_START = "2026-08-26";
+    try {
+      await withSchedule(new Date("2026-08-18T09:00:00Z"));
+      const later = new Date("2026-09-02T09:00:00Z");
+
+      // Weeks 1 (18.08) and 2 (25.08) are before the start; week 3 (01.09) is not.
+      expect(await weeklyChargePass(deps(later))).toBe(1);
+      expect(sent).toHaveLength(1);
+      expect(sent[0].subject).toContain("Woche 3");
+
+      await prisma.charge.updateMany({
+        where: { weekNumber: { in: [1, 2] } },
+        data: { status: "REQUESTED", requestedAt: later },
+      });
+      expect(await chargeReminderPass(deps(new Date("2026-09-10T09:00:00Z")))).toBe(1);
+    } finally {
+      process.env.REMINDERS_START = previous;
+    }
+  });
+
   it("states the amount in the email, because a static link cannot carry it", async () => {
     const now = new Date("2026-08-18T09:00:00Z");
     await withSchedule(now);

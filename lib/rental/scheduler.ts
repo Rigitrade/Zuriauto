@@ -70,6 +70,7 @@ import {
   isDueForChargeOverdue,
   isDueForChargeReminder,
   isDueForChargeRequest,
+  isBeforeRemindersStart,
   isOwedAfterReturn,
   isMfkDueSoon,
   isMfkExpired,
@@ -372,6 +373,8 @@ export async function weeklyChargePass(deps: SchedulerDeps): Promise<number> {
 
   for (const charge of candidates) {
     if (!isDueForChargeRequest(charge, now)) continue;
+    // The backlog from before the reminders started is not chased by mail.
+    if (isBeforeRemindersStart(charge.dueDate)) continue;
     // A week that had not started when the renter brought the car back.
     if (!isOwedAfterReturn(charge, charge.rental.events[0]?.createdAt ?? null)) continue;
 
@@ -464,6 +467,7 @@ export async function chargeReminderPass(deps: SchedulerDeps): Promise<number> {
 
   for (const charge of candidates) {
     if (!isDueForChargeReminder(charge, now, REMIND_AFTER_HOURS)) continue;
+    if (isBeforeRemindersStart(charge.dueDate)) continue;
 
     const { rental } = charge;
 
@@ -521,6 +525,7 @@ export async function chargeOverduePass(deps: SchedulerDeps): Promise<number> {
 
   for (const charge of candidates) {
     if (!isDueForChargeOverdue(charge, now, ALERT_AFTER_HOURS)) continue;
+    if (isBeforeRemindersStart(charge.dueDate)) continue;
 
     const { rental } = charge;
 
@@ -580,6 +585,7 @@ export async function rentalOverduePass(deps: SchedulerDeps): Promise<number> {
 
   for (const rental of candidates) {
     if (!isRentalOverdue(rental, now)) continue;
+    if (isBeforeRemindersStart(rental.endAt)) continue;
 
     const sent = await sendOnce(
       client,
