@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
-import { timingSafeEqual } from "node:crypto";
 import { prisma } from "@/lib/db";
+import { cronAuthorised } from "@/lib/cron/auth";
 import { sweepExpiredAssets } from "@/lib/admin/retention";
 import { fineDocumentRetryPass } from "@/lib/fines/passes";
 import { freeReader } from "@/lib/fines/reader";
 import { sweepExpiredFineFiles } from "@/lib/fines/retention";
 import { readLifecycleMailConfig } from "@/lib/rental/lifecycleMail";
 import { getAssetStore } from "@/lib/storage";
-import { runDailyPasses } from "@/lib/rental/scheduler";
+import { planPaymentMails, runDailyPasses } from "@/lib/rental/scheduler";
 
 /**
  * The daily run.
@@ -27,26 +27,6 @@ export const runtime = "nodejs";
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
-/** Vercel Cron sends `Authorization: Bearer $CRON_SECRET`. */
-function authorised(request: Request): boolean {
-  const expected = process.env.CRON_SECRET;
-  // Fail closed. An unset secret must not mean an open trigger — this endpoint
-  // sends email to real customers.
-  if (!expected) return false;
-
-  const header = request.headers.get("authorization") ?? "";
-  const supplied = header.startsWith("Bearer ") ? header.slice(7) : "";
-  if (!supplied) return false;
-
-  const a = Buffer.from(supplied);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length) {
-    timingSafeEqual(b, b);
-    return false;
-  }
-  return timingSafeEqual(a, b);
-}
-
 function baseUrl(request: Request): string {
   if (process.env.SITE_URL) return process.env.SITE_URL;
   // Falling back to the request host keeps preview deployments working, where
@@ -56,8 +36,19 @@ function baseUrl(request: Request): string {
 }
 
 async function run(request: Request) {
-  if (!authorised(request)) {
+  if (!cronAuthorised(request)) {
     return NextResponse.json({ code: "unauthorised" }, { status: 401 });
+  }
+
+  /**
+   * The dry run: `?dry=1` answers with every payment email the run would send
+   * (and to whom, and what the safety stop would hold) and sends nothing,
+   * changes nothing. Run it before triggering the job by hand — the lesson of
+   * 05.11.2026. The office sees the same list on the payments page ("E-Mails").
+   */
+  if (new URL(request.url).searchParams.get("dry") === "1") {
+    const plan = await planPaymentMails(prisma, new Date());
+    return NextResponse.json({ ok: true, dryRun: true, ...plan });
   }
 
   const startedAt = Date.now();

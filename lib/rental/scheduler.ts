@@ -50,6 +50,7 @@ import {
   mfkNoticeOfficeMail,
   mfkNoticeRenterMail,
   officeAlertMail,
+  paymentMailHoldMail,
   serviceDueOfficeMail,
   serviceDueRenterMail,
   readLifecycleMailConfig,
@@ -58,6 +59,14 @@ import {
   type LifecycleMailConfig,
 } from "./lifecycleMail";
 import { RETURN_CLOSE_EVENT } from "./closeRental";
+import { formatChf } from "./money";
+import {
+  exceedsCap,
+  OFFICE_ONLY_TEXT,
+  officeOnlyReason,
+  paymentMailCap,
+  type OfficeOnlyReason,
+} from "./paymentMailGuard";
 import { endAtDedupeKey, sendOnce, weekDedupeKey } from "./notify";
 import { mfkDedupeKey, sendOnceForCar } from "./carNotify";
 import {
@@ -82,6 +91,7 @@ import {
   mfkEarlyNoticeWindow,
   generateWeeklyCharges,
   weeksBegun,
+  zurichDayString,
 } from "./passes";
 
 export interface PassSummary {
@@ -93,6 +103,10 @@ export interface PassSummary {
   chargeOverdue: number;
   rentalOverdue: number;
   mfkDue: number;
+  /** Open weeks sent to the office instead of the renter (paymentMailGuard). */
+  chargeOfficeOnly: number;
+  /** Payment emails held back by the safety stop this run. */
+  paymentMailHeld: number;
   /** Two-week MFK notices sent, to the office and renters. */
   mfkNotice: number;
   /** Oil-service notices sent, to the office and renters. */
@@ -112,6 +126,11 @@ export interface SchedulerDeps {
   /** Absolute base for links in emails, e.g. `https://zuriauto.ch`. */
   baseUrl: string;
   mail: LifecycleMailConfig | null;
+  /**
+   * The organisation whose office pressed "Jetzt senden" on the payments
+   * page: its payment emails go out although the safety stop would hold them.
+   */
+  releaseHoldFor?: string;
 }
 
 const REMIND_AFTER_HOURS = Number(
@@ -358,25 +377,235 @@ export async function runningWeeksPass(deps: SchedulerDeps): Promise<number> {
   return added;
 }
 
+type ChargeWithRental = Prisma.ChargeGetPayload<{
+  include: { rental: { include: typeof chargeRentalInclude } };
+}>;
+
+interface Candidates {
+  requests: ChargeWithRental[];
+  reminders: ChargeWithRental[];
+}
+
+/**
+ * Every payment email this run would write about: weeks to request, and
+ * weeks to remind. The one place both passes, the payments page and the
+ * cron's dry run read, so they cannot disagree about what goes out.
+ */
+export async function paymentMailCandidates(
+  client: PrismaClient,
+  now: Date,
+  organisationId?: string
+): Promise<Candidates> {
+  const org = organisationId ? { organisationId } : {};
+  const [scheduled, requested] = await Promise.all([
+    client.charge.findMany({
+      where: { ...org, status: "SCHEDULED", rental: chargeableRental },
+      include: { rental: { include: chargeRentalInclude } },
+      orderBy: [{ dueDate: "asc" }, { weekNumber: "asc" }],
+    }),
+    client.charge.findMany({
+      where: { ...org, status: "REQUESTED", rental: chargeableRental },
+      include: { rental: { include: chargeRentalInclude } },
+      orderBy: [{ dueDate: "asc" }, { weekNumber: "asc" }],
+    }),
+  ]);
+  return {
+    requests: scheduled.filter(
+      (charge) =>
+        isDueForChargeRequest(charge, now) &&
+        // The backlog from before the reminders started is not chased by mail.
+        !isBeforeRemindersStart(charge.dueDate) &&
+        // A week that had not started when the renter brought the car back.
+        isOwedAfterReturn(charge, charge.rental.events[0]?.createdAt ?? null)
+    ),
+    reminders: requested.filter(
+      (charge) =>
+        isDueForChargeReminder(charge, now, REMIND_AFTER_HOURS) &&
+        !isBeforeRemindersStart(charge.dueDate)
+    ),
+  };
+}
+
+/** One line of the plan: what the next run does about one week. */
+export interface PaymentMailPlanRow {
+  chargeId: string;
+  organisationId: string;
+  rentalId: string;
+  kind: "request" | "reminder";
+  /** Set when the office is written to instead of the renter. */
+  officeOnly: OfficeOnlyReason | null;
+  renterName: string;
+  email: string;
+  plate: string;
+  carModel: string;
+  weekNumber: number;
+  amountCents: number;
+  dueDate: Date;
+}
+
+export interface PaymentMailPlan {
+  rows: PaymentMailPlanRow[];
+  cap: number;
+  /** Organisations whose payment emails the safety stop holds back. */
+  held: string[];
+}
+
+function planRows(candidates: Candidates, now: Date): PaymentMailPlanRow[] {
+  const row = (charge: ChargeWithRental, kind: "request" | "reminder"): PaymentMailPlanRow => ({
+    chargeId: charge.id,
+    organisationId: charge.organisationId,
+    rentalId: charge.rentalId,
+    kind,
+    officeOnly: officeOnlyReason(charge, charge.rental, now),
+    renterName: renterName(charge.rental.customer),
+    email: charge.rental.customer.email,
+    plate: charge.rental.car.plate,
+    carModel: charge.rental.car.model,
+    weekNumber: charge.weekNumber,
+    amountCents: charge.amountCents,
+    dueDate: charge.dueDate,
+  });
+  return [
+    ...candidates.requests.map((c) => row(c, "request")),
+    ...candidates.reminders.map((c) => row(c, "reminder")),
+  ];
+}
+
+function heldOrganisations(rows: PaymentMailPlanRow[], releaseHoldFor?: string): string[] {
+  const perOrg = new Map<string, number>();
+  for (const row of rows) perOrg.set(row.organisationId, (perOrg.get(row.organisationId) ?? 0) + 1);
+  return [...perOrg]
+    .filter(([organisationId, count]) => exceedsCap(count) && organisationId !== releaseHoldFor)
+    .map(([organisationId]) => organisationId);
+}
+
+/** What the next run would send, without sending anything: the dry run. */
+export async function planPaymentMails(
+  client: PrismaClient,
+  now: Date,
+  organisationId?: string
+): Promise<PaymentMailPlan> {
+  const rows = planRows(await paymentMailCandidates(client, now, organisationId), now);
+  return { rows, cap: paymentMailCap(), held: heldOrganisations(rows) };
+}
+
+/**
+ * The safety stop. Decides which organisations are held this run and tells
+ * each one's office, once per Zurich day, what was held and why. Office-only
+ * weeks count too: thirty office alerts at once are a backlog as well, and
+ * one list serves the office better.
+ */
+async function paymentMailHold(deps: SchedulerDeps, candidates: Candidates): Promise<Set<string>> {
+  const { client, now, mail, baseUrl } = deps;
+  const rows = planRows(candidates, now);
+  const held = heldOrganisations(rows, deps.releaseHoldFor);
+
+  for (const organisationId of held) {
+    const notice = { organisationId, kind: "PAYMENT_MAIL_HOLD", dedupeKey: zurichDayString(now) };
+    const claimed = await client.officeNotice.createMany({ data: [notice], skipDuplicates: true });
+    if (claimed.count === 0) continue;
+    try {
+      if (!mail) throw new Error("mail-not-configured");
+      const message = paymentMailHoldMail({
+        cap: paymentMailCap(),
+        pageUrl: `${baseUrl}/admin/payments/?tab=mails`,
+        rows: rows
+          .filter((r) => r.organisationId === organisationId)
+          .map((r) => ({ ...r, reminder: r.kind === "reminder", officeOnly: r.officeOnly !== null })),
+      });
+      await sendMail(mail, { to: mail.office, ...message });
+      await client.officeNotice.updateMany({ where: notice, data: { sentAt: now } });
+    } catch (error) {
+      console.error("[scheduler] payment mail hold notice failed:", error);
+      await client.officeNotice.updateMany({ where: notice, data: { error: String(error) } });
+    }
+  }
+  return new Set(held);
+}
+
+/**
+ * A week the renter must not be written to about: straight to the office,
+ * once, and the week is marked OVERDUE so it shows as the office's to chase.
+ */
+async function escalateToOffice(
+  deps: SchedulerDeps,
+  charge: ChargeWithRental,
+  reason: OfficeOnlyReason
+): Promise<number> {
+  const { client, now, mail } = deps;
+  const { rental } = charge;
+
+  const moved = await client.charge.updateMany({
+    where: { id: charge.id, status: { in: ["SCHEDULED", "REQUESTED"] } },
+    data: { status: "OVERDUE", officeAlertedAt: now },
+  });
+  if (moved.count === 0) return 0;
+
+  await sendOnce(
+    client,
+    {
+      organisationId: charge.organisationId,
+      rentalId: rental.id,
+      kind: "CHARGE_OVERDUE",
+      dedupeKey: weekDedupeKey(charge.weekNumber),
+      to: mail?.office ?? "office",
+    },
+    now,
+    async () => {
+      if (!mail) throw new Error("mail-not-configured");
+      const due = zurichDayString(charge.dueDate).split("-").reverse().join(".");
+      const message = officeAlertMail({
+        kind: "chargeOfficeOnly",
+        renterName: renterName(rental.customer),
+        renterEmail: rental.customer.email,
+        renterPhone: rental.customer.phone,
+        carModel: rental.car.model,
+        plate: rental.car.plate,
+        endAt: rental.endAt,
+        detail: [
+          `Woche ${charge.weekNumber}, CHF ${formatChf(charge.amountCents)}, fällig ${due}.`,
+          OFFICE_ONLY_TEXT[reason],
+          "Bezahlt? Auf der Zahlungsseite im Mietkonto erfassen. Nicht geschuldet? Dort erlassen.",
+        ].join("\n"),
+      });
+      await sendMail(mail, { to: mail.office, replyTo: rental.customer.email, ...message });
+    }
+  );
+  return 1;
+}
+
+/** Open weeks sent to the office instead of the renter, in this run. */
+export async function chargeOfficeOnlyPass(deps: SchedulerDeps): Promise<number> {
+  const candidates = await paymentMailCandidates(deps.client, deps.now);
+  const held = await paymentMailHold(deps, candidates);
+  let count = 0;
+  for (const charge of [...candidates.requests, ...candidates.reminders]) {
+    if (held.has(charge.organisationId)) continue;
+    const reason = officeOnlyReason(charge, charge.rental, deps.now);
+    if (reason) count += await escalateToOffice(deps, charge, reason);
+  }
+  return count;
+}
+
+/** How many payment emails the safety stop holds back this run. */
+export async function paymentMailHeldCount(deps: SchedulerDeps): Promise<number> {
+  const rows = planRows(await paymentMailCandidates(deps.client, deps.now), deps.now);
+  const held = new Set(heldOrganisations(rows, deps.releaseHoldFor));
+  return rows.filter((r) => held.has(r.organisationId)).length;
+}
+
 export async function weeklyChargePass(deps: SchedulerDeps): Promise<number> {
   const { client, now, mail } = deps;
 
-  const candidates = await client.charge.findMany({
-    where: {
-      status: "SCHEDULED",
-      rental: chargeableRental,
-    },
-    include: { rental: { include: chargeRentalInclude } },
-  });
+  const all = await paymentMailCandidates(client, now);
+  const held = await paymentMailHold(deps, all);
 
   let count = 0;
 
-  for (const charge of candidates) {
-    if (!isDueForChargeRequest(charge, now)) continue;
-    // The backlog from before the reminders started is not chased by mail.
-    if (isBeforeRemindersStart(charge.dueDate)) continue;
-    // A week that had not started when the renter brought the car back.
-    if (!isOwedAfterReturn(charge, charge.rental.events[0]?.createdAt ?? null)) continue;
+  for (const charge of all.requests) {
+    if (held.has(charge.organisationId)) continue;
+    // Returned, too old, or no address: the office's, never the renter's.
+    if (officeOnlyReason(charge, charge.rental, now)) continue;
 
     const { rental } = charge;
     const reference = `${rental.car.plate} W${charge.weekNumber}`;
@@ -437,6 +666,7 @@ export async function weeklyChargePass(deps: SchedulerDeps): Promise<number> {
           reference,
           language: languageOf(rental),
           isReminder: false,
+          dueDate: charge.dueDate,
         });
         await sendMail(mail, { to: rental.customer.email, ...message });
       }
@@ -455,19 +685,14 @@ export async function weeklyChargePass(deps: SchedulerDeps): Promise<number> {
 export async function chargeReminderPass(deps: SchedulerDeps): Promise<number> {
   const { client, now, mail } = deps;
 
-  const candidates = await client.charge.findMany({
-    where: {
-      status: "REQUESTED",
-      rental: chargeableRental,
-    },
-    include: { rental: { include: chargeRentalInclude } },
-  });
+  const all = await paymentMailCandidates(client, now);
+  const held = await paymentMailHold(deps, all);
 
   let count = 0;
 
-  for (const charge of candidates) {
-    if (!isDueForChargeReminder(charge, now, REMIND_AFTER_HOURS)) continue;
-    if (isBeforeRemindersStart(charge.dueDate)) continue;
+  for (const charge of all.reminders) {
+    if (held.has(charge.organisationId)) continue;
+    if (officeOnlyReason(charge, charge.rental, now)) continue;
 
     const { rental } = charge;
 
@@ -495,6 +720,7 @@ export async function chargeReminderPass(deps: SchedulerDeps): Promise<number> {
           reference: `${rental.car.plate} W${charge.weekNumber}`,
           language: languageOf(rental),
           isReminder: true,
+          dueDate: charge.dueDate,
         });
         await sendMail(mail, { to: rental.customer.email, ...message });
       }
@@ -1208,6 +1434,10 @@ export async function runDailyPasses(
     reminded: await preEndReminderPass(full),
     // Before the charge pass, so a week added today is requested today.
     weeksAdded: await runningWeeksPass(full),
+    // Counted before anything is sent: what the safety stop holds this run.
+    paymentMailHeld: await paymentMailHeldCount(full),
+    // Before the renter passes: what may not go to a renter goes to the office.
+    chargeOfficeOnly: await chargeOfficeOnlyPass(full),
     charged: await weeklyChargePass(full),
     chargeReminded: await chargeReminderPass(full),
     chargeOverdue: await chargeOverduePass(full),
