@@ -389,3 +389,244 @@ export function mfkDueMail(ctx: {
     ].join("\n"),
   };
 }
+
+// ---------------------------------------------------------------------
+// The two-week MFK notice (owner, 05.11.2026).
+//
+// Unlike mfkDueMail, this one also goes to the renter: a renter driving the
+// car for Bolt has to know a fortnight ahead that it will be away for a day.
+// ---------------------------------------------------------------------
+
+/** "in 14 Tagen" / "heute" / "seit 3 Tagen". */
+function inDays(days: number, language: RentalLanguage): string {
+  if (language === "en") {
+    if (days === 0) return "today";
+    if (days === 1) return "tomorrow";
+    return days > 0 ? `in ${days} days` : `${-days} days ago`;
+  }
+  if (days === 0) return "heute";
+  if (days === 1) return "morgen";
+  return days > 0 ? `in ${days} Tagen` : `seit ${-days} Tagen`;
+}
+
+export function mfkNoticeOfficeMail(ctx: {
+  carModel: string;
+  plate: string;
+  mfkDate: Date;
+  daysLeft: number;
+  rental: {
+    renterName: string;
+    renterEmail: string;
+    renterPhone: string;
+    endAt: Date | null;
+    /** False when the renter has no address on file, so was not written to. */
+    renterMailed: boolean;
+  } | null;
+}): { subject: string; text: string } {
+  const when = formatDay(ctx.mfkDate);
+
+  const outcome = ctx.rental
+    ? [
+        "Das Fahrzeug ist vermietet.",
+        ctx.rental.renterMailed
+          ? "Der Mieter wurde per E-Mail informiert."
+          : "Der Mieter hat keine E-Mail-Adresse erfasst – bitte telefonisch informieren.",
+        "",
+        `Mieter:    ${ctx.rental.renterName}`,
+        `Telefon:   ${ctx.rental.renterPhone}`,
+        `E-Mail:    ${ctx.rental.renterEmail}`,
+        `Rückgabe:  ${formatReturn(ctx.rental.endAt)}`,
+      ]
+    : ["Das Fahrzeug ist zurzeit nicht vermietet."];
+
+  return {
+    subject: `MFK ${inDays(ctx.daysLeft, "de")}: ${ctx.plate} – ${when}`,
+    text: [
+      `Die MFK für ${ctx.plate} ist am ${when} fällig (${inDays(ctx.daysLeft, "de")}).`,
+      "",
+      `Fahrzeug:  ${ctx.carModel} (${ctx.plate})`,
+      `MFK:       ${when}`,
+      "",
+      ...outcome,
+      "",
+      "Bitte Prüftermin vereinbaren. Zwei Tage vor dem Datum wird ein freies",
+      "Fahrzeug automatisch auf «Werkstatt / MFK» gesetzt.",
+    ].join("\n"),
+  };
+}
+
+export function mfkNoticeRenterMail(ctx: {
+  firstName: string;
+  carModel: string;
+  plate: string;
+  mfkDate: Date;
+  daysLeft: number;
+  language: RentalLanguage;
+}): { subject: string; text: string } {
+  const when = formatDay(ctx.mfkDate);
+
+  if (ctx.language === "en") {
+    return {
+      subject: `Vehicle inspection (MFK) on ${when} – ${ctx.plate}`,
+      text: [
+        `Hello ${ctx.firstName}`,
+        "",
+        `The ${ctx.carModel} (${ctx.plate}) you are renting is due for its official vehicle inspection (MFK) on ${when} (${inDays(ctx.daysLeft, "en")}).`,
+        "",
+        "The car has to be brought in for the inspection. We will contact you to agree on a time; you can also reply to this email.",
+        "",
+        "Kind regards",
+        "ZURIAUTO",
+      ].join("\n"),
+    };
+  }
+
+  return {
+    subject: `Fahrzeugprüfung (MFK) am ${when} – ${ctx.plate}`,
+    text: [
+      `Guten Tag ${ctx.firstName}`,
+      "",
+      `Für den ${ctx.carModel} (${ctx.plate}), den Sie mieten, ist am ${when} die amtliche Fahrzeugprüfung (MFK) fällig (${inDays(ctx.daysLeft, "de")}).`,
+      "",
+      "Das Fahrzeug muss dafür zur Prüfung gebracht werden. Wir melden uns, um einen Termin abzusprechen – Sie können auch einfach auf diese E-Mail antworten.",
+      "",
+      "Freundliche Grüsse",
+      "ZURIAUTO",
+    ].join("\n"),
+  };
+}
+
+// ---------------------------------------------------------------------
+// The oil service, every 10'000 km (owner, 05.11.2026).
+// ---------------------------------------------------------------------
+
+/** `105'600` — the Swiss grouping, with a plain apostrophe (see formatKm). */
+function km(value: number): string {
+  return value.toLocaleString("de-CH").replace(/’/g, "'");
+}
+
+export interface ServiceMailFigures {
+  dueKm: number;
+  estimatedKmNow: number;
+  estimatedDueOn: Date;
+  /** A real reading, not a projection, has passed the due figure. */
+  overdue: boolean;
+}
+
+export function serviceDueOfficeMail(
+  ctx: ServiceMailFigures & {
+    carModel: string;
+    plate: string;
+    lastReadingKm: number;
+    lastReadingAt: Date;
+    kmPerDay: number;
+    /** "history" when the pace was measured from this car's readings. */
+    rateSource: "history" | "default";
+    rental: {
+      renterName: string;
+      renterEmail: string;
+      renterPhone: string;
+      renterMailed: boolean;
+    } | null;
+  }
+): { subject: string; text: string } {
+  const headline = ctx.overdue
+    ? `Der Ölservice für ${ctx.plate} ist überfällig: fällig bei ${km(ctx.dueKm)} km, abgelesen ${km(ctx.lastReadingKm)} km.`
+    : `Der Ölservice für ${ctx.plate} ist bald fällig: bei ${km(ctx.dueKm)} km, voraussichtlich um den ${formatDay(ctx.estimatedDueOn)}.`;
+
+  const pace =
+    ctx.rateSource === "history"
+      ? `${km(Math.round(ctx.kmPerDay))} km/Tag (aus den Ablesungen dieses Fahrzeugs)`
+      : `${km(Math.round(ctx.kmPerDay))} km/Tag (Annahme: 10'000 km in 45–60 Tagen)`;
+
+  const outcome = ctx.rental
+    ? [
+        ctx.rental.renterMailed
+          ? "Der Mieter wurde per E-Mail informiert."
+          : "Der Mieter hat keine E-Mail-Adresse erfasst – bitte telefonisch informieren.",
+        "",
+        `Mieter:    ${ctx.rental.renterName}`,
+        `Telefon:   ${ctx.rental.renterPhone}`,
+        `E-Mail:    ${ctx.rental.renterEmail}`,
+      ]
+    : ["Das Fahrzeug ist zurzeit nicht vermietet."];
+
+  return {
+    subject: ctx.overdue
+      ? `Service überfällig: ${ctx.plate} – ${km(ctx.dueKm)} km`
+      : `Service fällig: ${ctx.plate} – bei ${km(ctx.dueKm)} km`,
+    text: [
+      headline,
+      "",
+      `Fahrzeug:        ${ctx.carModel} (${ctx.plate})`,
+      `Service fällig:  ${km(ctx.dueKm)} km`,
+      `Letzte Ablesung: ${km(ctx.lastReadingKm)} km am ${formatZurich(ctx.lastReadingAt)}`,
+      `Heute geschätzt: ${km(ctx.estimatedKmNow)} km`,
+      `Tempo:           ${pace}`,
+      "",
+      ...outcome,
+      "",
+      "Nach dem Service bitte den Kilometerstand unter «Service» erfassen.",
+      "Der nächste Service wird dann automatisch auf +10'000 km gesetzt.",
+    ].join("\n"),
+  };
+}
+
+export function serviceDueRenterMail(
+  ctx: ServiceMailFigures & {
+    firstName: string;
+    carModel: string;
+    plate: string;
+    language: RentalLanguage;
+  }
+): { subject: string; text: string } {
+  const around = formatDay(ctx.estimatedDueOn);
+
+  if (ctx.language === "en") {
+    return {
+      subject: ctx.overdue
+        ? `Oil service overdue – ${ctx.plate}`
+        : `Oil service due at ${km(ctx.dueKm)} km – ${ctx.plate}`,
+      text: [
+        `Hello ${ctx.firstName}`,
+        "",
+        ctx.overdue
+          ? `The ${ctx.carModel} (${ctx.plate}) you are renting has passed ${km(ctx.dueKm)} km, when its oil service was due.`
+          : `The ${ctx.carModel} (${ctx.plate}) you are renting is due for its oil service at ${km(ctx.dueKm)} km.`,
+        ...(ctx.overdue
+          ? []
+          : [
+              `By our estimate the car is at about ${km(ctx.estimatedKmNow)} km, so that is around ${around}.`,
+            ]),
+        "",
+        "Please contact us to arrange the service — simply reply to this email.",
+        "",
+        "Kind regards",
+        "ZURIAUTO",
+      ].join("\n"),
+    };
+  }
+
+  return {
+    subject: ctx.overdue
+      ? `Ölservice überfällig – ${ctx.plate}`
+      : `Ölservice fällig bei ${km(ctx.dueKm)} km – ${ctx.plate}`,
+    text: [
+      `Guten Tag ${ctx.firstName}`,
+      "",
+      ctx.overdue
+        ? `Der ${ctx.carModel} (${ctx.plate}), den Sie mieten, hat ${km(ctx.dueKm)} km überschritten – der Ölservice ist fällig.`
+        : `Für den ${ctx.carModel} (${ctx.plate}), den Sie mieten, ist bei ${km(ctx.dueKm)} km der Ölservice fällig.`,
+      ...(ctx.overdue
+        ? []
+        : [
+            `Nach unserer Schätzung steht das Fahrzeug bei etwa ${km(ctx.estimatedKmNow)} km – das ist ungefähr am ${around}.`,
+          ]),
+      "",
+      "Bitte melden Sie sich, um den Service zu vereinbaren – antworten Sie einfach auf diese E-Mail.",
+      "",
+      "Freundliche Grüsse",
+      "ZURIAUTO",
+    ].join("\n"),
+  };
+}

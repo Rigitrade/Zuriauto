@@ -277,6 +277,36 @@ export function mfkDueWindow(now: Date): { to: Date } {
 }
 
 /**
+ * The early MFK notice: two weeks out, to the office and to the renter
+ * (owner, 05.11.2026).
+ *
+ * A second window rather than a wider MFK_NOTICE_DAYS. The two-day pass also
+ * takes an idle car off the road, and doing that a fortnight early would
+ * leave a free car unbookable for two weeks. This one only writes.
+ */
+export const MFK_EARLY_NOTICE_DAYS = Number(
+  process.env.MFK_EARLY_NOTICE_DAYS ?? 14
+);
+
+/** Inside the two-week window, or already past. Same reasoning as isMfkDueSoon. */
+export function isMfkInEarlyNotice(mfkDate: Date, now: Date): boolean {
+  return zurichDaysUntil(mfkDate, now) <= MFK_EARLY_NOTICE_DAYS;
+}
+
+/** Whole calendar days left until the inspection, for the mails. */
+export function mfkDaysLeft(mfkDate: Date, now: Date): number {
+  return zurichDaysUntil(mfkDate, now);
+}
+
+/** The range the early-notice pass queries. */
+export function mfkEarlyNoticeWindow(now: Date): { to: Date } {
+  const to = new TZDate(now.getTime(), ZURICH);
+  to.setDate(to.getDate() + MFK_EARLY_NOTICE_DAYS);
+  to.setHours(23, 59, 59, 999);
+  return { to: new Date(to.getTime()) };
+}
+
+/**
  * Whether a charge is still chased once the renter's return closed the rental.
  *
  * A weekly charge falls due at the start of its week, so a week that had begun
