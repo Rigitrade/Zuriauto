@@ -161,8 +161,11 @@ export function chargeDueMail(ctx: {
   reference: string;
   language: RentalLanguage;
   isReminder: boolean;
+  /** The week's due date; printed so the renter can tell which week is meant. */
+  dueDate?: Date;
 }): { subject: string; text: string } {
   const amount = `CHF ${formatChf(ctx.amountCents)}`;
+  const due = ctx.dueDate ? formatZurichDay(ctx.dueDate) : null;
 
   if (ctx.language === "en") {
     return {
@@ -176,13 +179,21 @@ export function chargeDueMail(ctx: {
           ? `We have not yet received the payment for week ${ctx.weekNumber} of your rental of the ${ctx.carModel} (${ctx.plate}).`
           : `The payment for week ${ctx.weekNumber} of your rental of the ${ctx.carModel} (${ctx.plate}) is now due.`,
         "",
+        // Near the top on purpose: cash paid at the desk reaches the system
+        // only when the office records it, so a renter who paid may still be
+        // written to. They must not have to read to the end to learn that.
+        PAID_ALREADY_EN,
+        "",
         // The amount is stated in words because the static SumUp page cannot
         // be pre-filled — the payer types it in.
         `Amount: ${amount}`,
+        ...(due ? [`Due on: ${due}`] : []),
         `Reference: ${ctx.reference}`,
         "",
         "Please enter the amount above on the payment page:",
         ctx.paymentUrl,
+        "",
+        "Questions? Simply reply to this email.",
         "",
         "Kind regards",
         "ZURIAUTO",
@@ -201,11 +212,89 @@ export function chargeDueMail(ctx: {
         ? `Die Zahlung für Woche ${ctx.weekNumber} Ihrer Miete des ${ctx.carModel} (${ctx.plate}) ist bei uns noch nicht eingegangen.`
         : `Die Zahlung für Woche ${ctx.weekNumber} Ihrer Miete des ${ctx.carModel} (${ctx.plate}) ist jetzt fällig.`,
       "",
+      PAID_ALREADY_DE,
+      "",
       `Betrag: ${amount}`,
+      ...(due ? [`Fällig am: ${due}`] : []),
       `Referenz: ${ctx.reference}`,
       "",
       "Bitte geben Sie den oben genannten Betrag auf der Zahlungsseite ein:",
       ctx.paymentUrl,
+      "",
+      "Fragen? Antworten Sie einfach auf diese E-Mail.",
+      "",
+      "Freundliche Grüsse",
+      "ZURIAUTO",
+    ].join("\n"),
+  };
+}
+
+/** The line every payment request and reminder carries, in both languages. */
+export const PAID_ALREADY_DE =
+  "Bereits bezahlt (z. B. bar im Büro oder per TWINT)? Dann betrachten Sie diese Nachricht bitte als gegenstandslos – Sie müssen nichts tun.";
+export const PAID_ALREADY_EN =
+  "Already paid (e.g. in cash at the office or by TWINT)? Then please ignore this message – there is nothing you need to do.";
+
+/** `05.11.2026`: an instant's Zurich calendar day. */
+function formatZurichDay(at: Date): string {
+  return at.toLocaleDateString("de-CH", {
+    timeZone: "Europe/Zurich",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
+// ---------------------------------------------------------------------
+// Renter: please ignore an earlier payment email
+// ---------------------------------------------------------------------
+
+/**
+ * Sent only when the office presses "Korrektur senden" on a payment email
+ * whose week is paid, settled or waived — never automatically, and never for
+ * a week still owed, where "ignore it" would be untrue.
+ */
+export function chargeCorrectionMail(ctx: {
+  firstName: string;
+  carModel: string;
+  plate: string;
+  weekNumber: number;
+  amountCents: number;
+  /** When the email to be ignored went out. */
+  sentAt: Date;
+  language: RentalLanguage;
+}): { subject: string; text: string } {
+  const amount = `CHF ${formatChf(ctx.amountCents)}`;
+  const sent = formatZurichDay(ctx.sentAt);
+
+  if (ctx.language === "en") {
+    return {
+      subject: `Please ignore: week ${ctx.weekNumber} payment – ${ctx.plate}`,
+      text: [
+        `Hello ${ctx.firstName}`,
+        "",
+        `On ${sent} we sent you a payment request for week ${ctx.weekNumber} (${amount}) of your rental of the ${ctx.carModel} (${ctx.plate}).`,
+        "",
+        "This week is settled on our side. Please ignore that message – there is nothing you need to do.",
+        "",
+        "We apologise for the inconvenience.",
+        "",
+        "Kind regards",
+        "ZURIAUTO",
+      ].join("\n"),
+    };
+  }
+
+  return {
+    subject: `Bitte ignorieren: Zahlung Woche ${ctx.weekNumber} – ${ctx.plate}`,
+    text: [
+      `Guten Tag ${ctx.firstName}`,
+      "",
+      `Am ${sent} haben wir Ihnen eine Zahlungsaufforderung für Woche ${ctx.weekNumber} (${amount}) Ihrer Miete des ${ctx.carModel} (${ctx.plate}) gesendet.`,
+      "",
+      "Diese Woche ist bei uns erledigt. Bitte betrachten Sie die Nachricht als gegenstandslos – Sie müssen nichts tun.",
+      "",
+      "Entschuldigen Sie die Unannehmlichkeiten.",
       "",
       "Freundliche Grüsse",
       "ZURIAUTO",
@@ -274,7 +363,7 @@ export function extensionConfirmedMail(ctx: {
 // ---------------------------------------------------------------------
 
 export function officeAlertMail(ctx: {
-  kind: "overdue" | "chargeOverdue" | "returnIntent" | "extension";
+  kind: "overdue" | "chargeOverdue" | "chargeOfficeOnly" | "returnIntent" | "extension";
   renterName: string;
   renterEmail: string;
   renterPhone: string;
@@ -286,6 +375,7 @@ export function officeAlertMail(ctx: {
   const subjects = {
     overdue: `Überfällig: ${ctx.plate} – ${ctx.renterName}`,
     chargeOverdue: `Zahlung offen: ${ctx.plate} – ${ctx.renterName}`,
+    chargeOfficeOnly: `Zahlung offen (nicht an Mieter gesendet): ${ctx.plate} – ${ctx.renterName}`,
     returnIntent: `Rückgabe angekündigt: ${ctx.plate} – ${ctx.renterName}`,
     extension: `Miete verlängert: ${ctx.plate} – ${ctx.renterName}`,
   } as const;
@@ -293,6 +383,7 @@ export function officeAlertMail(ctx: {
   const headlines = {
     overdue: `Das Fahrzeug ${ctx.plate} ist seit ${formatReturn(ctx.endAt)} überfällig.`,
     chargeOverdue: `Eine Zahlung für ${ctx.plate} ist trotz Erinnerung offen.`,
+    chargeOfficeOnly: `Eine Woche für ${ctx.plate} ist offen. Der Mieter wurde bewusst NICHT automatisch angeschrieben — bitte selbst klären.`,
     returnIntent: `Der Mieter hat die Rückgabe von ${ctx.plate} angekündigt.`,
     extension: `Der Mieter hat die Miete von ${ctx.plate} verlängert.`,
   } as const;
@@ -308,6 +399,35 @@ export function officeAlertMail(ctx: {
       `Fahrzeug:  ${ctx.carModel} (${ctx.plate})`,
       `Rückgabe:  ${formatReturn(ctx.endAt)}`,
       ...(ctx.detail ? ["", ctx.detail] : []),
+    ].join("\n"),
+  };
+}
+
+/**
+ * The safety stop on renter payment emails tripped.
+ *
+ * Far more payment emails than a normal day were about to go out, which is
+ * what the 05.11.2026 backlog looked like. None was sent; the office checks
+ * the list on the payments page and releases it there, or settles what was
+ * paid in cash first.
+ */
+export function paymentMailHoldMail(ctx: {
+  cap: number;
+  rows: { renterName: string; plate: string; weekNumber: number; amountCents: number; dueDate: Date; reminder: boolean; officeOnly?: boolean }[];
+  pageUrl: string;
+}): { subject: string; text: string } {
+  return {
+    subject: `Zahlungs-E-Mails angehalten: ${ctx.rows.length} statt höchstens ${ctx.cap} – bitte prüfen`,
+    text: [
+      `Heute wären ${ctx.rows.length} Zahlungs-E-Mails an Mieter gegangen (normal: höchstens ${ctx.cap}). Zur Sicherheit wurde KEINE gesendet.`,
+      "",
+      "Bitte prüfen: Bar bezahlte Wochen erfassen oder erlassen, dann auf der Zahlungsseite «Jetzt senden» drücken.",
+      ctx.pageUrl,
+      "",
+      ...ctx.rows.map(
+        (r) =>
+          `- ${r.renterName} · ${r.plate} · Woche ${r.weekNumber} · CHF ${formatChf(r.amountCents)} · fällig ${formatZurichDay(r.dueDate)}${r.reminder ? " · Erinnerung" : ""}${r.officeOnly ? " · nur ans Büro" : ""}`
+      ),
     ].join("\n"),
   };
 }

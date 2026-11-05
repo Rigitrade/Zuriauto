@@ -223,6 +223,10 @@ export interface Overview {
   latestContractAt: string | null;
   /** Absent on a deployment older than the fines feature. */
   fineAttention?: { review: number; proof: number; overdue: number };
+  /** Absent on a deployment older than the payments feature. */
+  paymentReview?: number;
+  /** Rentals in "Offene Beträge"; absent before the rental account. */
+  openBalances?: number;
 }
 
 export type Labels = ReturnType<typeof labelsFor>;

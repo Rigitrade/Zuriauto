@@ -301,17 +301,19 @@ describe("weeklyChargePass", () => {
     expect(sent).toHaveLength(1);
   });
 
-  it("catches up a charge whose due date has passed", async () => {
+  it("catches up a charge whose due date has passed, up to two weeks back", async () => {
     const { rental } = await withSchedule(new Date("2026-08-18T09:00:00Z"));
-    // Three weeks later, nothing has run. Weeks 1–3 are all due.
+    // Two weeks later, nothing has run. Weeks 1–3 are all due, but week 1
+    // (18.08) is 15 days old: the office's to chase, not the renter's inbox.
     const later = new Date("2026-09-02T09:00:00Z");
 
-    expect(await weeklyChargePass(deps(later))).toBe(3);
+    expect(await weeklyChargePass(deps(later))).toBe(2);
     expect(
       await prisma.charge.count({
         where: { rentalId: rental.id, status: "REQUESTED" },
       })
-    ).toBe(3);
+    ).toBe(2);
+    expect(sent.map((m) => m.to)).not.toContain("office@zuriauto.ch");
   });
 
   it("does not chase weeks that fell due before the reminders started", async () => {
