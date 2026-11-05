@@ -162,7 +162,9 @@ model Car {
   /// invents is worse than one it stays quiet about.
   /// ---------------------------------------------------------------------
 
-  /// The odometer as last read, in kilometres. Whole kilometres: the
+  /// The odometer as last read, in kilometres. Written by the office, and
+  /// since 05.11.2026 by every pickup and return contract too, so the service
+  /// forecast runs on the handover readings. Whole kilometres: the
   /// dashboard does not show more and a decimal here would imply a precision
   /// the reading does not have.
   currentMileageKm Int?
@@ -181,9 +183,10 @@ model Car {
   serviceDoneOn DateTime? @db.Date
   /// The odometer at which the next service falls due.
   ///
-  /// Typed from the garage's sticker, never computed from an interval: the
-  /// interval differs by model and by how the car is driven, and a number
-  /// this system derived would quietly disagree with the windscreen.
+  /// Typed from the garage's sticker when the office has it. Since 05.11.2026
+  /// the owner's interval fills it otherwise: left empty, or no longer ahead
+  /// of `serviceDoneKm`, it becomes the last service plus 10'000 km (see
+  /// nextServiceDueKm in lib/admin/service.ts). A typed figure still wins.
   serviceDueKm  Int?
 
   /// ---------------------------------------------------------------------
@@ -776,7 +779,14 @@ enum ActionTokenPurpose {
 
 /// Why the office is being written to about a car.
 enum CarNotificationKind {
+  /// Two days out: the office, and an idle car is taken off the road.
   MFK_DUE
+  /// Two weeks out: the office and the renter who has the car (05.11.2026).
+  MFK_NOTICE
+  /// The next oil service is a week or under 1'000 km away (05.11.2026).
+  SERVICE_DUE
+  /// A real odometer reading has passed the service figure.
+  SERVICE_OVERDUE
 }
 
 /// One payable amount against a rental.

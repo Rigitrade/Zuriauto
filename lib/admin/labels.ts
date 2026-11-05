@@ -208,7 +208,7 @@ const de = {
     serviceOverdueBy: "überfällig um",
     serviceOverdue: "Service überfällig",
     serviceHint:
-      "Zahlen vom Armaturenbrett und vom Service-Kleber. Ohne beide Werte warnt das System nicht.",
+      "Zahlen vom Armaturenbrett und vom Service-Kleber. «Nächster Service» leer lassen = letzter Service + 10'000 km. Der Kilometerstand kommt auch aus jeder Übergabe und Rückgabe; Mieter und Büro werden eine Woche vorher per E-Mail erinnert.",
     repairs: "Reparaturen",
     repairsPlanned: "Geplant",
     repairsDone: "Erledigt",
@@ -712,7 +712,7 @@ const en: typeof de = {
     serviceOverdueBy: "overdue by",
     serviceOverdue: "Service overdue",
     serviceHint:
-      "Figures from the dashboard and the service sticker. Without both, the system stays quiet.",
+      "Figures from the dashboard and the service sticker. Leave “next service” empty for last service + 10'000 km. The mileage is also taken from every pickup and return; the renter and the office are reminded by email a week ahead.",
     repairs: "Repairs",
     repairsPlanned: "Planned",
     repairsDone: "Done",

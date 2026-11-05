@@ -15,7 +15,17 @@
  * is what lets the tests drive a rental through three weeks in milliseconds.
  */
 
-import type { Prisma, PrismaClient } from "@/generated/prisma/client";
+import type {
+  CarNotificationKind,
+  Prisma,
+  PrismaClient,
+} from "@/generated/prisma/client";
+import { isPlaceholderEmail } from "./placeholder";
+import {
+  forecastService,
+  isServiceNoticeDue,
+  type OdometerReading,
+} from "./serviceForecast";
 import type { NotifyDeps } from "@/lib/fines/notify";
 import {
   fineDigestPass,
@@ -37,7 +47,11 @@ import { asRentalLanguage, type RentalLanguage } from "./labels";
 import {
   chargeDueMail,
   mfkDueMail,
+  mfkNoticeOfficeMail,
+  mfkNoticeRenterMail,
   officeAlertMail,
+  serviceDueOfficeMail,
+  serviceDueRenterMail,
   readLifecycleMailConfig,
   rentalEndingMail,
   sendMail,
@@ -59,9 +73,12 @@ import {
   isOwedAfterReturn,
   isMfkDueSoon,
   isMfkExpired,
+  isMfkInEarlyNotice,
   isRentalEndingSoon,
   isRentalOverdue,
+  mfkDaysLeft,
   mfkDueWindow,
+  mfkEarlyNoticeWindow,
   generateWeeklyCharges,
   weeksBegun,
 } from "./passes";
@@ -75,6 +92,10 @@ export interface PassSummary {
   chargeOverdue: number;
   rentalOverdue: number;
   mfkDue: number;
+  /** Two-week MFK notices sent, to the office and renters. */
+  mfkNotice: number;
+  /** Oil-service notices sent, to the office and renters. */
+  serviceDue: number;
   /** People on the waiting list written to because a car is free. */
   availabilityNotified: number;
   mailRetried: number;
@@ -781,6 +802,289 @@ export async function mfkDuePass(deps: SchedulerDeps): Promise<number> {
 }
 
 // ---------------------------------------------------------------------
+// 7b. The two-week MFK notice, and 7c. the oil service (owner, 05.11.2026).
+//
+// Both write to two people about one car: the office, and the renter who has
+// it. Each recipient is its own claim — the dedupe key names the office or
+// the rental — so a failed send to one never silences the other, and a car
+// that changes hands inside the window still tells its new renter.
+// ---------------------------------------------------------------------
+
+/** The renter who has the car now, with the language they signed in. */
+const currentRentalSelect = {
+  where: { status: { notIn: ["COMPLETED", "CANCELLED"] } },
+  orderBy: { startAt: "desc" },
+  take: 1,
+  select: {
+    id: true,
+    endAt: true,
+    customer: {
+      select: { firstName: true, lastName: true, email: true, phone: true },
+    },
+    contracts: {
+      where: { kind: "PICKUP" },
+      orderBy: { signedAt: "asc" },
+      take: 1,
+      select: { gtcLanguage: true },
+    },
+  },
+} satisfies Prisma.Car$rentalsArgs;
+
+/** Whether a claim exists and its send went through, this run or an earlier one. */
+async function claimSent(
+  client: PrismaClient,
+  carId: string,
+  kind: CarNotificationKind,
+  dedupeKey: string
+): Promise<boolean> {
+  const row = await client.carNotification.findUnique({
+    where: { carId_kind_dedupeKey: { carId, kind, dedupeKey } },
+    select: { sentAt: true },
+  });
+  return Boolean(row?.sentAt);
+}
+
+/**
+ * Writes the renter (when they have a real address), then the office, which
+ * is told whether the renter heard — so the office knows to phone the ones
+ * who did not.
+ */
+async function notifyRenterAndOffice(
+  deps: SchedulerDeps & { mail: LifecycleMailConfig },
+  car: { id: string; organisationId: string },
+  kind: CarNotificationKind,
+  baseKey: string,
+  rental: { id: string; customer: { email: string } } | null,
+  renterMessage: () => { subject: string; text: string },
+  officeMessage: (renterMailed: boolean) => { subject: string; text: string }
+): Promise<number> {
+  const { client, now, mail } = deps;
+  let sent = 0;
+  let renterMailed = false;
+
+  if (rental && !isPlaceholderEmail(rental.customer.email)) {
+    const key = `${baseKey}:rental:${rental.id}`;
+    const message = renterMessage();
+    if (
+      await sendOnceForCar(
+        client,
+        { organisationId: car.organisationId, carId: car.id, kind, dedupeKey: key, to: rental.customer.email },
+        now,
+        () =>
+          sendMail(mail, {
+            to: rental.customer.email,
+            // From may be a no-reply sender; the renter's answer has to reach
+            // somebody who can book the garage.
+            replyTo: mail.office,
+            ...message,
+          })
+      )
+    ) {
+      sent += 1;
+    }
+    renterMailed = await claimSent(client, car.id, kind, key);
+  }
+
+  const officeKey = `${baseKey}:office`;
+  const message = officeMessage(renterMailed);
+  if (
+    await sendOnceForCar(
+      client,
+      { organisationId: car.organisationId, carId: car.id, kind, dedupeKey: officeKey, to: mail.office },
+      now,
+      () => sendMail(mail, { to: mail.office, ...message })
+    )
+  ) {
+    sent += 1;
+  }
+
+  return sent;
+}
+
+/**
+ * Two weeks before the MFK: the office and the renter.
+ *
+ * Writes only. Taking an idle car off the road stays with mfkDuePass, two
+ * days out — see MFK_EARLY_NOTICE_DAYS for why the two are not one window.
+ */
+export async function mfkNoticePass(deps: SchedulerDeps): Promise<number> {
+  const { client, now, mail } = deps;
+  if (!mail) return 0;
+  const { to } = mfkEarlyNoticeWindow(now);
+
+  const cars = await client.car.findMany({
+    where: {
+      mfkDate: { not: null, lte: to },
+      status: { in: ["available", "rented"] },
+    },
+    orderBy: { mfkDate: "asc" },
+    select: {
+      id: true,
+      organisationId: true,
+      model: true,
+      plate: true,
+      mfkDate: true,
+      rentals: currentRentalSelect,
+    },
+  });
+
+  let sent = 0;
+  for (const car of cars) {
+    const mfkDate = car.mfkDate;
+    if (!mfkDate || !isMfkInEarlyNotice(mfkDate, now)) continue;
+
+    const rental = car.rentals[0] ?? null;
+    const daysLeft = mfkDaysLeft(mfkDate, now);
+
+    sent += await notifyRenterAndOffice(
+      { ...deps, mail },
+      car,
+      "MFK_NOTICE",
+      mfkDedupeKey(mfkDate),
+      rental,
+      () =>
+        mfkNoticeRenterMail({
+          firstName: rental!.customer.firstName,
+          carModel: car.model,
+          plate: car.plate,
+          mfkDate,
+          daysLeft,
+          language: languageOf(rental!),
+        }),
+      (renterMailed) =>
+        mfkNoticeOfficeMail({
+          carModel: car.model,
+          plate: car.plate,
+          mfkDate,
+          daysLeft,
+          rental: rental
+            ? {
+                renterName: renterName(rental.customer),
+                renterEmail: rental.customer.email,
+                renterPhone: rental.customer.phone,
+                endAt: rental.endAt,
+                renterMailed,
+              }
+            : null,
+        })
+    );
+  }
+
+  return sent;
+}
+
+/**
+ * The oil service, every 10'000 km.
+ *
+ * The odometer is read at every pickup and return and whenever the office
+ * types it; serviceForecast.ts projects it forward at the car's own pace (or
+ * 10'000 km in 45–60 days when there is not enough history yet). A week
+ * before the projected day, or with under 1'000 km left, the renter and the
+ * office are told at what reading the service is due and roughly when.
+ *
+ * One notice per service figure, keyed on it: recording the service moves
+ * the figure on by 10'000 km, which is what permits the next notice. An
+ * overdue mail follows only when a real reading — not the projection — has
+ * passed the figure.
+ */
+export async function serviceDuePass(deps: SchedulerDeps): Promise<number> {
+  const { client, now, mail } = deps;
+  if (!mail) return 0;
+
+  const cars = await client.car.findMany({
+    where: {
+      status: { in: ["available", "rented"] },
+      OR: [{ serviceDoneKm: { not: null } }, { serviceDueKm: { not: null } }],
+    },
+    select: {
+      id: true,
+      organisationId: true,
+      model: true,
+      plate: true,
+      currentMileageKm: true,
+      mileageReadAt: true,
+      serviceDoneKm: true,
+      serviceDoneOn: true,
+      serviceDueKm: true,
+      rentals: currentRentalSelect,
+    },
+  });
+
+  let sent = 0;
+  for (const car of cars) {
+    const contracts = await client.contract.findMany({
+      where: { rental: { carId: car.id } },
+      select: { mileageKm: true, signedAt: true },
+    });
+    const readings: OdometerReading[] = contracts.map((c) => ({
+      km: c.mileageKm,
+      at: c.signedAt,
+    }));
+    if (car.currentMileageKm !== null && car.mileageReadAt) {
+      readings.push({ km: car.currentMileageKm, at: car.mileageReadAt });
+    }
+
+    const forecast = forecastService(
+      {
+        serviceDoneKm: car.serviceDoneKm,
+        serviceDueKm: car.serviceDueKm,
+        serviceDoneOn: car.serviceDoneOn,
+        readings,
+      },
+      now
+    );
+    if (!forecast) continue;
+
+    const overdue = forecast.recordedOverdue;
+    if (!overdue && !isServiceNoticeDue(forecast)) continue;
+
+    const rental = car.rentals[0] ?? null;
+    const figures = {
+      dueKm: forecast.dueKm,
+      estimatedKmNow: forecast.estimatedKmNow,
+      estimatedDueOn: forecast.estimatedDueOn,
+      overdue,
+    };
+
+    sent += await notifyRenterAndOffice(
+      { ...deps, mail },
+      car,
+      overdue ? "SERVICE_OVERDUE" : "SERVICE_DUE",
+      String(forecast.dueKm),
+      rental,
+      () =>
+        serviceDueRenterMail({
+          ...figures,
+          firstName: rental!.customer.firstName,
+          carModel: car.model,
+          plate: car.plate,
+          language: languageOf(rental!),
+        }),
+      (renterMailed) =>
+        serviceDueOfficeMail({
+          ...figures,
+          carModel: car.model,
+          plate: car.plate,
+          lastReadingKm: forecast.lastReadingKm,
+          lastReadingAt: forecast.lastReadingAt,
+          kmPerDay: forecast.kmPerDay,
+          rateSource: forecast.rateSource,
+          rental: rental
+            ? {
+                renterName: renterName(rental.customer),
+                renterEmail: rental.customer.email,
+                renterPhone: rental.customer.phone,
+                renterMailed,
+              }
+            : null,
+        })
+    );
+  }
+
+  return sent;
+}
+
+// ---------------------------------------------------------------------
 // 8. The waiting list.
 //
 // The one pass that writes to somebody who is not a customer, and the only
@@ -902,7 +1206,9 @@ export async function runDailyPasses(
     chargeReminded: await chargeReminderPass(full),
     chargeOverdue: await chargeOverduePass(full),
     rentalOverdue: await rentalOverduePass(full),
+    mfkNotice: await mfkNoticePass(full),
     mfkDue: await mfkDuePass(full),
+    serviceDue: await serviceDuePass(full),
     availabilityNotified: await availabilityPass(full),
     mailRetried: await mailRetryPass(full),
     fineDueSoon: await fineDueSoonPass(fines),

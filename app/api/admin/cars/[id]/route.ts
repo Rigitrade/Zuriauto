@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { statusChangeAllowed, updateCarSchema } from "@/lib/admin/cars";
 import { MARKED_OUT_BY } from "@/lib/admin/markOut";
+import { nextServiceDueKm } from "@/lib/admin/service";
 import { requireAdmin } from "@/lib/admin/session";
 import { isPlaceholderEmail } from "@/lib/rental/placeholder";
 
@@ -47,7 +48,13 @@ export async function PATCH(
     where: { id },
     // `currentMileageKm` comes back so the read stamp can be moved only when
     // the reading actually changes — see the note where it is written.
-    select: { id: true, status: true, currentMileageKm: true },
+    select: {
+      id: true,
+      status: true,
+      currentMileageKm: true,
+      serviceDoneKm: true,
+      serviceDueKm: true,
+    },
   });
   if (!car) {
     return NextResponse.json({ code: "not-found" }, { status: 404 });
@@ -63,6 +70,30 @@ export async function PATCH(
       { status: 409 }
     );
   }
+
+  /**
+   * The next service, every 10'000 km (owner, 05.11.2026).
+   *
+   * Recomputed whenever either service figure is sent: a due reading left
+   * empty, or no longer ahead of the last service (the service it described
+   * has just been done), becomes the last service plus the interval. A
+   * figure typed from the garage's sticker that is still ahead is kept.
+   */
+  const serviceTouched =
+    parsed.data.serviceDoneKm !== undefined ||
+    parsed.data.serviceDueKm !== undefined;
+  const serviceDueKm = serviceTouched
+    ? nextServiceDueKm({
+        serviceDoneKm:
+          parsed.data.serviceDoneKm !== undefined
+            ? parsed.data.serviceDoneKm
+            : car.serviceDoneKm,
+        serviceDueKm:
+          parsed.data.serviceDueKm !== undefined
+            ? parsed.data.serviceDueKm
+            : car.serviceDueKm,
+      })
+    : undefined;
 
   try {
     const updated = await prisma.car.update({
@@ -122,9 +153,7 @@ export async function PATCH(
         ...(parsed.data.serviceDoneKm !== undefined && {
           serviceDoneKm: parsed.data.serviceDoneKm,
         }),
-        ...(parsed.data.serviceDueKm !== undefined && {
-          serviceDueKm: parsed.data.serviceDueKm,
-        }),
+        ...(serviceDueKm !== undefined && { serviceDueKm }),
         ...(parsed.data.serviceDoneOn !== undefined && {
           serviceDoneOn: parsed.data.serviceDoneOn
             ? new Date(`${parsed.data.serviceDoneOn}T00:00:00.000Z`)

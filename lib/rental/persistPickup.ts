@@ -8,6 +8,7 @@
  * mode, where a mail failure meant the contract existed nowhere at all.
  */
 
+import { recordOdometer } from "./odometer";
 import { randomUUID } from "node:crypto";
 import type {
   AssetKind,
@@ -189,6 +190,9 @@ export async function persistPickup(
         where: { id: car.id },
         data: { status: "rented" },
       });
+
+      // The handover's reading feeds the oil-service reminder.
+      await recordOdometer(tx, { id: car.id }, details.mileageKm, now);
 
       // The weekly schedule, generated up front rather than derived at run
       // time, so the charge pass walks rows instead of doing date arithmetic.
