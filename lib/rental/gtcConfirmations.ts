@@ -7,9 +7,9 @@
  * points at it by number. Each part gets its own tick, so the renter cannot
  * say afterwards that the warning about deception was buried in the terms.
  * Since the GTC of 15.10.2026 the two points are clauses 15.1 (the renter's
- * information is complete, truthful and valid) and 15.5 (false information
- * can be a material breach and an offence); until then they were Art. 11.1
- * and 11.2.
+ * information is complete, correct and valid) and 15.5 (false information
+ * can be a material breach, and whether it is an offence is for the
+ * authorities to judge); until then they were Art. 11.1 and 11.2.
  *
  * `key` is the field on the contract that records when the box was ticked;
  * `ref` is the clause number in `locales/gtc.ts`, checked by the tests to

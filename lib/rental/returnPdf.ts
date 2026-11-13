@@ -24,6 +24,7 @@ import {
 } from "./contractPdf";
 import { fuelLevelToFraction, type FleetVehicle } from "./fleet";
 import { labelsFor, type RentalLanguage } from "./labels";
+import { drivenKm } from "./mileage";
 import type { PaymentMethod, ReturnDetails } from "./returnSchema";
 
 export interface ReturnPdfInput {
@@ -100,8 +101,9 @@ export async function buildReturnPdf(input: ReturnPdfInput): Promise<Uint8Array>
   w.field(P.model, vehicle.model);
   w.field(P.plate, vehicle.plate);
   if (vehicle.vin) w.field(P.vin, vehicle.vin);
-  // Handover first, then return, as on the paper protocol — so the distance
-  // driven reads straight off the document. Omitted when not supplied.
+  // Handover first, then return, as on the paper protocol, then the
+  // difference between them (owner, 01.11.2026). The handover reading and the
+  // distance are omitted when the handover reading was not supplied.
   if (details.mileagePickupKm !== undefined) {
     w.field(
       R.pdf.mileagePickup,
@@ -109,6 +111,10 @@ export async function buildReturnPdf(input: ReturnPdfInput): Promise<Uint8Array>
     );
   }
   w.field(R.pdf.mileage, `${formatMileage(details.mileageKm)} ${P.km}`);
+  const driven = drivenKm(details.mileageKm, details.mileagePickupKm);
+  if (driven !== null) {
+    w.field(R.pdf.drivenKm, `${formatMileage(driven)} ${P.km}`);
+  }
   w.field(P.fuel, fuelLevelToFraction(details.fuelLevel));
 
   // --- Condition at return ---------------------------------------------

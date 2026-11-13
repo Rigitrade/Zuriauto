@@ -23,12 +23,6 @@ const PAGE: Record<GtcLanguage, [string, string]> = {
   fr: ["Page", "sur"],
 };
 
-const LESSOR: Record<GtcLanguage, string> = {
-  de: "Vermieterin",
-  en: "Lessor",
-  fr: "Loueur",
-};
-
 export async function buildGtcPdf(language: GtcLanguage): Promise<Uint8Array> {
   const gtcDoc = gtc[language];
   const doc = await PDFDocument.create();
@@ -55,9 +49,8 @@ export async function buildGtcPdf(language: GtcLanguage): Promise<Uint8Array> {
     font: bold,
     color: INK,
   });
-  w.gap(20);
-  w.text(`${LESSOR[language]}: ${GTC_ENTITY}`, { size: 9, color: MUTED });
-  w.gap(10);
+  // The lessor is named by the terms' own first line, set with them below.
+  w.gap(30);
   w.text(gtcDoc.title, { size: 15, font: bold });
   w.gap(2);
   w.text(gtcDoc.updated, { size: 9, color: MUTED });

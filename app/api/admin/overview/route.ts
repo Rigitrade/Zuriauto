@@ -4,6 +4,8 @@ import { BY_OFFICE_ORDER } from "@/lib/admin/carOrder";
 import { isPdfLicence } from "@/lib/admin/carLicence";
 import { requireAdmin } from "@/lib/admin/session";
 import { fineAttentionCounts } from "@/lib/fines/queries";
+import { openBalances } from "@/lib/payments/account";
+import { paymentReviewCount } from "@/lib/payments/queries";
 
 /**
  * Everything the fleet page shows, in one call.
@@ -195,6 +197,9 @@ export interface AdminOverview {
   latestContractAt: string | null;
   /** Traffic fines waiting for the office — the bell's fourth source. */
   fineAttention: { review: number; proof: number; overdue: number };
+  paymentReview: number;
+  /** Rentals with money owed, a missing deposit or weeks to decide. */
+  openBalances: number;
 }
 
 /** Enough to act on this morning. The count beside it reports the true total,
@@ -388,6 +393,8 @@ export async function GET(request: Request) {
   ]);
 
   const fineAttention = await fineAttentionCounts(prisma, new Date());
+  const paymentReview = await paymentReviewCount(prisma);
+  const owing = (await openBalances(prisma, organisation.id, new Date())).length;
 
   const payload: AdminOverview = {
     me: {
@@ -516,6 +523,8 @@ export async function GET(request: Request) {
     })),
     latestContractAt: latest?.signedAt.toISOString() ?? null,
     fineAttention,
+    paymentReview,
+    openBalances: owing,
   };
 
   return NextResponse.json(payload);

@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="description" content="How to start building the TWINT payment-email feature: what it does, what to have ready, and the first steps in order.">
+<title>TWINT Payments Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  html { -webkit-text-size-adjust: 100%; }
+  :root {
+    --ground: #F1F4F6; --surface: #FFFFFF; --sunk: #E7ECEF;
+    --ink: #13181C; --soft: #56626C; --faint: #8A959E;
+    --rule: #D6DDE2; --accent: #2C3E5C;
+    --ok: #2C6A4E; --ok-soft: #DDEBE3;
+    --warn: #855F0D; --warn-soft: #F3E9D2;
+    --stop: #97292A; --stop-soft: #F2DDDD;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0E1216; --surface: #161C21; --sunk: #1D242A;
+      --ink: #E3E9ED; --soft: #97A3AD; --faint: #6C7883;
+      --rule: #252D35; --accent: #93B2DA;
+      --ok: #6DB48D; --ok-soft: #16251D;
+      --warn: #D2A250; --warn-soft: #262013;
+      --stop: #E08787; --stop-soft: #2A1A1A;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0E1216; --surface: #161C21; --sunk: #1D242A;
+    --ink: #E3E9ED; --soft: #97A3AD; --faint: #6C7883;
+    --rule: #252D35; --accent: #93B2DA;
+    --ok: #6DB48D; --ok-soft: #16251D;
+    --warn: #D2A250; --warn-soft: #262013;
+    --stop: #E08787; --stop-soft: #2A1A1A;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0 16px 5rem;
+    background: var(--ground); color: var(--ink);
+    font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+    font-size: 1rem; line-height: 1.6;
+  }
+  .wrap { max-width: 50rem; margin: 0 auto; }
+  header { padding: 3rem 0 1.5rem; border-bottom: 1px solid var(--rule); }
+  .eyebrow { font-family: "IBM Plex Mono", monospace; font-size: .8rem; color: var(--soft); letter-spacing: .04em; text-transform: uppercase; }
+  h1 { font-size: 2rem; line-height: 1.2; margin: .4rem 0 .6rem; }
+  h2 { font-size: 1.3rem; margin: 2.6rem 0 .6rem; }
+  h3 { font-size: 1.05rem; margin: 1.6rem 0 .4rem; }
+  p, li { max-width: 68ch; }
+  .lead { font-size: 1.1rem; color: var(--soft); margin: 0; }
+  code { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: .875em; background: var(--sunk); border-radius: 3px; padding: .1em .35em; overflow-wrap: anywhere; }
+  pre { background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: .9rem 1rem; overflow-x: auto; font-size: .85rem; line-height: 1.5; }
+  pre code { background: none; padding: 0; }
+  a { color: var(--accent); }
+  .card { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 1rem 1.2rem; margin: 1rem 0; }
+  .note { border-left: 4px solid var(--warn); background: var(--warn-soft); padding: .8rem 1rem; border-radius: 6px; margin: 1rem 0; }
+  .stop { border-left: 4px solid var(--stop); background: var(--stop-soft); padding: .8rem 1rem; border-radius: 6px; margin: 1rem 0; }
+  .good { border-left: 4px solid var(--ok); background: var(--ok-soft); padding: .8rem 1rem; border-radius: 6px; margin: 1rem 0; }
+  .table-scroll { overflow-x: auto; margin: 1rem 0; }
+  table { border-collapse: collapse; width: 100%; background: var(--surface); font-size: .92rem; }
+  th, td { text-align: left; vertical-align: top; padding: .55rem .7rem; border-bottom: 1px solid var(--rule); }
+  th { font-weight: 600; background: var(--sunk); }
+  ol.steps { padding-left: 1.3rem; }
+  ol.steps > li { margin-bottom: .7rem; }
+  .flow { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin: 1rem 0; }
+  .flow span.box { background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: .45rem .7rem; font-size: .9rem; }
+  .flow span.box.main { border: 2px solid var(--accent); font-weight: 600; }
+  .flow span.arrow { color: var(--faint); }
+  .tag { display: inline-block; font-family: "IBM Plex Mono", monospace; font-size: .75rem; padding: .05rem .4rem; border-radius: 4px; background: var(--sunk); color: var(--soft); }
+  footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); color: var(--faint); font-size: .85rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">Zuriauto · internal · 12.10.2026</div>
+  <h1>TWINT payments from the email — how to start</h1>
+  <p class="lead">TWINT emails us every time someone pays. The site will read those emails, work out which renter and which week each payment is for, and mark that week as paid. When it is not sure, it asks the office with one click.</p>
+</header>
+
+<h2>1. What we are building, in one picture</h2>
+<div class="flow" aria-label="How a payment moves through the system">
+  <span class="box">TWINT email arrives</span><span class="arrow">→</span>
+  <span class="box">Really from TWINT? (signature)</span><span class="arrow">→</span>
+  <span class="box">Read the fields</span><span class="arrow">→</span>
+  <span class="box">Find car, renter, week</span><span class="arrow">→</span>
+  <span class="box main">Two clues agree → week PAID</span>
+</div>
+<p>If the clues do not agree, the payment waits on a new admin screen, <strong>Zahlungen</strong>, with the reason in plain words and the most likely rental already selected.</p>
+
+<div class="card">
+  <strong>The three clues</strong>
+  <ul>
+    <li><strong>Reference</strong>: the customer's message names our car and a week, e.g. <code>ZH 513 925 W3</code>. Payment requests already ask renters to write exactly this.</li>
+    <li><strong>Car + time</strong>: the message names our car, and we know who had that car at the minute of the payment. This uses the same rule as the traffic fines.</li>
+    <li><strong>Payer</strong>: the email or phone TWINT shows belongs to one of our customers.</li>
+  </ul>
+  A payment is booked by itself only when <em>reference + exact amount</em> match, or <em>car-and-time renter = payer + exact amount</em>. One clue alone is never enough.
+</div>
+
+<h2>2. What to have ready before writing any code</h2>
+<div class="table-scroll">
+<table>
+  <thead><tr><th>What</th><th>Who</th><th>Why</th></tr></thead>
+  <tbody>
+    <tr><td>The password of the mailbox that receives TWINT's emails (<code>info@zuriauto.ch</code>), put in <code>.env.local</code></td><td>You / Eng Ahmed</td><td>To look at the real emails first. Never paste it in a chat or commit it.</td></tr>
+    <tr><td>Docker running (<code>pnpm db:up</code>)</td><td>You</td><td>The database tests need the local Postgres.</td></tr>
+    <tr><td>A test payment of CHF 1.00 through our TWINT link with a pre-filled reference</td><td>Eng Ahmed</td><td>To see where the reference appears in TWINT's email. Needed before Task 10.</td></tr>
+    <tr><td>A decision: read <code>info@</code> directly, or a separate <code>payments@zuriauto.ch</code> that gets a copy</td><td>Owner</td><td>A separate mailbox means the site never holds the password to customer mail. Recommended.</td></tr>
+    <tr><td>A decision: Vercel Pro, or a free external scheduler (cron-job.org)</td><td>Owner</td><td>The free Vercel plan runs scheduled jobs only once a day. Payments should be checked every ~10 minutes.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2>3. Your first hour</h2>
+<ol class="steps">
+  <li>Create a branch:
+<pre><code>git checkout main
+git pull
+git checkout -b feat/twint-payments</code></pre></li>
+  <li>Read the two documents, in this order. They are the source of truth; this page only gets you started.
+    <ul>
+      <li>Design: <code>docs/superpowers/specs/2026-10-12-twint-payments-design.md</code></li>
+      <li>Plan, task by task with code and tests: <code>docs/superpowers/plans/2026-10-12-twint-payments.md</code></li>
+    </ul>
+  </li>
+  <li>Install the three mail libraries, pinned:
+<pre><code>pnpm add imapflow@2.0.7 mailparser@3.9.28 mailauth@6.0.0
+pnpm add -D @types/mailparser</code></pre></li>
+  <li>Add the mailbox login to <code>.env.local</code> (this file is git-ignored):
+<pre><code>TWINT_IMAP_USER=info@zuriauto.ch
+TWINT_IMAP_PASS=the-mailbox-password</code></pre></li>
+  <li>Create <code>scripts/twint-peek.mjs</code> from Task 0 of the plan, add <code>"twint:peek": "node --env-file=.env.local scripts/twint-peek.mjs"</code> to <code>package.json</code>, and run:
+<pre><code>pnpm twint:peek</code></pre>
+    It opens the mailbox <strong>read-only</strong>, prints each TWINT email's fields (payer names hidden) and ends with a summary.</li>
+  <li>Answer the four gate questions from Task 0 and write the answers into the design document. Then start Task 1.</li>
+</ol>
+
+<div class="stop">
+  <strong>Stop and rethink if</strong> the summary shows emails that are not <em>DKIM pass</em>, or the field labels are different from <code>Betrag</code>, <code>Transaktionsdatum</code>, <code>Transaktions-Nr.</code>, <code>Name des Stores</code>, <code>Name</code>, <code>Kontakt</code>, <code>Nachricht</code>. The whole design assumes both.
+</div>
+
+<h2>4. The tasks, in order</h2>
+<p>Each task ends with tests passing and one commit. Write the test first and watch it fail, then write the code.</p>
+<div class="table-scroll">
+<table>
+  <thead><tr><th>#</th><th>Task</th><th>You are done when</th></tr></thead>
+  <tbody>
+    <tr><td>0</td><td>Look at the real mailbox</td><td><code>pnpm twint:peek</code> works and the gate questions are answered</td></tr>
+    <tr><td>1</td><td>Tables <code>Payment</code> and <code>PaymentEvent</code></td><td>Migration applied; the same TWINT transaction cannot be stored twice</td></tr>
+    <tr><td>2</td><td>Read the email (parser)</td><td>Amount, date (Zurich time), transaction number and message come out right, including <code>CHF 1'250.00</code></td></tr>
+    <tr><td>3</td><td>Only TWINT's signature counts</td><td>A forged email in TWINT's layout is refused</td></tr>
+    <tr><td>4</td><td>The decision rules (pure)</td><td>All "book / ask the office" cases pass as table tests</td></tr>
+    <tr><td>5</td><td>Gather clues from the database</td><td>Plate, renter at that minute, referenced week and payer are found</td></tr>
+    <tr><td>6</td><td>Store and book one email</td><td>A good email marks the week PAID; reading it again changes nothing</td></tr>
+    <tr><td>7</td><td>Read the mailbox on a schedule</td><td><code>/api/cron/payments/</code> runs locally against the real mailbox</td></tr>
+    <tr><td>8</td><td>Office actions</td><td>Book, ignore and undo work and record who did it</td></tr>
+    <tr><td>9</td><td>The "Zahlungen" screen</td><td>Seen working in a browser, desktop and phone width</td></tr>
+    <tr><td>10</td><td>Reference pre-filled in the TWINT link</td><td>Payment-request emails carry a TWINT link with <code>trxInfo</code> (only after the test payment)</td></tr>
+    <tr><td>11</td><td>Setup notes and going live</td><td><code>docs/PAYMENTS-SETUP.md</code> written; preview deployment checked</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2>5. Where the code goes</h2>
+<div class="table-scroll">
+<table>
+  <thead><tr><th>Folder / file</th><th>What lives there</th></tr></thead>
+  <tbody>
+    <tr><td><code>lib/payments/twint/</code></td><td>Everything TWINT-specific: <code>parse.ts</code>, <code>authentic.ts</code>, <code>signals.ts</code>, <code>decide.ts</code>, <code>evidence.ts</code>, <code>ingest.ts</code>, <code>mailbox.ts</code>, <code>pass.ts</code></td></tr>
+    <tr><td><code>lib/payments/</code></td><td><code>book.ts</code> (the only place a payment marks a week PAID), <code>events.ts</code>, <code>actions.ts</code>, <code>queries.ts</code></td></tr>
+    <tr><td><code>lib/fines/plates.ts</code>, <code>lib/fines/possession.ts</code></td><td><strong>Reused, not copied</strong>: finding our plate in messy text, and who had the car at a given minute</td></tr>
+    <tr><td><code>app/api/cron/payments/</code></td><td>The scheduled trigger (same secret as the daily cron)</td></tr>
+    <tr><td><code>app/api/admin/payments/</code>, <code>app/admin/payments/</code></td><td>The admin screen and its API</td></tr>
+    <tr><td><code>tests/db/payment*.test.ts</code></td><td>Database tests (<code>pnpm test:db</code>)</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2>6. Settings</h2>
+<div class="table-scroll">
+<table>
+  <thead><tr><th>Variable</th><th>Default</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td><code>TWINT_IMAP_USER</code></td><td>—</td><td>Mailbox to read. Empty = feature switched off.</td></tr>
+    <tr><td><code>TWINT_IMAP_PASS</code></td><td>—</td><td>Its password</td></tr>
+    <tr><td><code>TWINT_IMAP_HOST</code></td><td><code>imap.hostinger.com</code></td><td>Our mail is on Hostinger</td></tr>
+    <tr><td><code>TWINT_IMAP_PORT</code></td><td><code>993</code></td><td>IMAP over SSL</td></tr>
+    <tr><td><code>TWINT_IMAP_MAILBOX</code></td><td><code>INBOX</code></td><td>Folder to read</td></tr>
+    <tr><td><code>TWINT_LOOKBACK_DAYS</code></td><td><code>14</code></td><td>How far back each run looks. Re-reading is harmless.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2>7. Rules that must not be broken</h2>
+<div class="stop">
+  <ul>
+    <li><strong>Open the mailbox read-only.</strong> Never mark, move or delete an email.</li>
+    <li><strong>Never follow a link in a TWINT email.</strong> One of them refunds the payment.</li>
+    <li><strong>No signature, no record.</strong> Only <code>no-reply@twintpay.ch</code> with a DKIM pass for <code>twintpay.ch</code> is read.</li>
+    <li><strong>Never book on one clue.</strong> And never pay a different week because the named one is already paid.</li>
+    <li><strong>No AI agent and no passwords in code or chat.</strong> The email is a fixed template; a plain parser is cheaper, testable and gives the same answer every time.</li>
+  </ul>
+</div>
+
+<h2>8. Useful commands</h2>
+<pre><code>pnpm db:up                     # local Postgres in Docker
+pnpm test                      # unit tests
+pnpm test:db                   # database tests
+pnpm twint:peek                # look at the real TWINT emails, read-only
+pnpm twint:peek -- --html 1234 # raw HTML of one email, to save as an anonymised fixture
+pnpm dev                       # run the site locally
+
+# trigger the payment run locally (CRON_SECRET from .env.local)
+curl -X POST -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron/payments/</code></pre>
+
+<h2>9. If something goes wrong</h2>
+<div class="table-scroll">
+<table>
+  <thead><tr><th>You see</th><th>Likely cause</th><th>Do</th></tr></thead>
+  <tbody>
+    <tr><td><code>unsigned</code> counts above 0</td><td>A forwarded copy lost its signature, or a fake email</td><td>Run <code>pnpm twint:peek</code> and look at that uid's DKIM line</td></tr>
+    <tr><td><code>unreadable</code> counts above 0</td><td>TWINT changed the email layout</td><td>Save the HTML with <code>--html</code>, add it as a test fixture, fix <code>parse.ts</code></td></tr>
+    <tr><td>Route answers <code>skipped: not-configured</code></td><td><code>TWINT_IMAP_USER</code> or <code>_PASS</code> missing</td><td>Set both in <code>.env.local</code> / Vercel</td></tr>
+    <tr><td>IMAP login fails</td><td>Wrong password, or the mailbox name</td><td>Check the login in Hostinger webmail first</td></tr>
+    <tr><td>Most payments wait for review</td><td>Customers do not write the reference</td><td>Do Task 10 (pre-filled link); make Nachricht mandatory in the TWINT portal</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="good">
+  <strong>Not in this version, on purpose:</strong> importing TWINT's portal export, handling refunds automatically, splitting one payment across several weeks. If the email route turns out too noisy, the sturdier option is a payment provider with webhooks (Stripe or Payrexx), where the reference cannot be edited by the customer.
+</div>
+
+<footer>
+  Sources: design <code>docs/superpowers/specs/2026-10-12-twint-payments-design.md</code> · plan <code>docs/superpowers/plans/2026-10-12-twint-payments.md</code> · feasibility report of 11.10.2026.
+</footer>
+
+</div>
+</body>
+</html>

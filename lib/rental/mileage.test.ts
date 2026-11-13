@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MILEAGE_MAX_KM, parseMileageKm } from "./mileage";
+import { drivenKm, MILEAGE_MAX_KM, parseMileageKm } from "./mileage";
 import { returnDetailsSchema } from "./returnSchema";
 import { contractDetailsSchema } from "./schema";
 
@@ -48,5 +48,30 @@ describe("the schemas take the readings the form takes", () => {
         parseMileageKm(String(km)) !== null
       );
     }
+  });
+});
+
+describe("drivenKm", () => {
+  it("is the return reading minus the handover reading", () => {
+    expect(drivenKm(66_000, 65_500)).toBe(500);
+  });
+
+  it("is zero for a car handed back without being driven", () => {
+    expect(drivenKm(65_500, 65_500)).toBe(0);
+  });
+
+  it.each([
+    [66_000, null],
+    [66_000, undefined],
+    [null, 65_500],
+    [undefined, 65_500],
+  ])("is unknown while a reading is missing (%j, %j)", (returned, picked) => {
+    expect(drivenKm(returned, picked)).toBeNull();
+  });
+
+  // The form flags the return reading instead; a negative distance on the
+  // screen or the report would be the same typo, said less clearly.
+  it("is unknown when the return reading is below the handover", () => {
+    expect(drivenKm(65_000, 65_500)).toBeNull();
   });
 });

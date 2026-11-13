@@ -10,9 +10,10 @@
  * a service falls due at a distance. Deriving a date from an assumed monthly
  * mileage would be wrong in both directions at once: a car that spent a month
  * on the forecourt would be called in early, and a taxi doing 4'000 km a month
- * would sail past its interval. So this counts kilometres, and the office
- * enters the figure off the garage's sticker rather than the system inventing
- * an interval that would quietly disagree with the windscreen.
+ * would sail past its interval. So this counts kilometres. The due figure is
+ * the garage's sticker when the office types it, and otherwise the last
+ * service plus 10'000 km (owner, 05.11.2026 — see nextServiceDueKm). The
+ * daily reminder adds a projected date on top, in lib/rental/serviceForecast.ts.
  *
  * Pure, and client-side: the overview endpoint sends plain integers and this
  * runs in the browser, so the table can re-render on an edit without a round
@@ -28,6 +29,35 @@
  * than restating the number.
  */
 export const SERVICE_NOTICE_KM = 1_000;
+
+/**
+ * The oil-service interval: every 10'000 km (owner, 05.11.2026).
+ *
+ * Until then the due reading was only ever typed off the garage's sticker.
+ * The owner asked for it to follow from the last service instead, so a car
+ * whose sticker nobody copied is still called in. A figure the office does
+ * type still wins: see nextServiceDueKm.
+ */
+export const SERVICE_INTERVAL_KM = 10_000;
+
+/**
+ * The odometer reading at which the next service falls due.
+ *
+ * The office's own figure when it is still ahead of the last service. When it
+ * is missing, or no longer ahead (the service it described has since been
+ * done), the last service plus the interval. Null only when there is neither
+ * a typed figure nor a recorded service to count from.
+ */
+export function nextServiceDueKm(car: {
+  serviceDoneKm?: number | null;
+  serviceDueKm?: number | null;
+}): number | null {
+  const done = reading(car.serviceDoneKm);
+  const due = reading(car.serviceDueKm);
+  if (done === null) return due;
+  if (due !== null && due > done) return due;
+  return done + SERVICE_INTERVAL_KM;
+}
 
 export type ServiceStanding =
   /** Not enough recorded to say anything — so nothing is said. */
@@ -64,7 +94,8 @@ function reading(value: number | null | undefined): number | null {
  */
 export function kmUntilService(car: ServiceFigures): number | null {
   const current = reading(car.currentMileageKm);
-  const due = reading(car.serviceDueKm);
+  // The typed figure, or the last service plus the interval.
+  const due = nextServiceDueKm(car);
   if (current === null || due === null) return null;
   return due - current;
 }

@@ -87,13 +87,14 @@ export function fineNoticeMail(ctx: FineMailContext): { subject: string; text: s
         "",
         "Once you have paid, please confirm it here with a screenshot of the payment:",
         ctx.payUrl,
-        // No clause number, in either language: the fee table is 10 in the
-        // terms of 30.07–08.10.2026 and 12.5 from 15.10.2026, and the renter
-        // is held to the version they signed.
+        // No clause number, in either language: the fees are a table in 10 in
+        // the terms of 30.07–08.10.2026, a table in 12.5 from 15.10.2026 and a
+        // list in 12.5 from 22.10.2026, and the renter is held to the version
+        // they signed. So the mail names neither the clause nor the table.
         ...(ctx.feeCents > 0
           ? [
               "",
-              `Under the fee table in our terms we charge a handling fee of ${chf(ctx.feeCents)}. Please pay it by card or TWINT, quoting fine ${reference}:`,
+              `Under the fees set out in our terms we charge a handling fee of ${chf(ctx.feeCents)}. Please pay it by card or TWINT, quoting fine ${reference}:`,
               `Card:  ${PAYMENT_URL}`,
               `TWINT: ${TWINT_URL}`,
             ]
@@ -136,7 +137,7 @@ export function fineNoticeMail(ctx: FineMailContext): { subject: string; text: s
       ...(ctx.feeCents > 0
         ? [
             "",
-            `Gemäss der Gebührentabelle unserer AGB verrechnen wir eine Bearbeitungsgebühr von ${chf(ctx.feeCents)}. Bitte bezahlen Sie diese per Karte oder TWINT mit dem Vermerk «Busse ${reference}»:`,
+            `Gemäss den Gebühren in unseren AGB verrechnen wir eine Bearbeitungsgebühr von ${chf(ctx.feeCents)}. Bitte bezahlen Sie diese per Karte oder TWINT mit dem Vermerk «Busse ${reference}»:`,
             `Karte: ${PAYMENT_URL}`,
             `TWINT: ${TWINT_URL}`,
           ]

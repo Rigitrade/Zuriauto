@@ -11,6 +11,10 @@ This is the order to do it in, and the reason for each step.
 
 ## The one thing that must not be skipped
 
+> **Restored 05.11.2026** (owner's go-ahead): `"schedule": "0 6 * * *"`, which
+> is UTC — 07:00 in Zurich in winter, 08:00 in summer. The first run was
+> triggered by hand the same day.
+
 **The daily cron is switched off for the first 48 hours**, by an empty `crons`
 array in `vercel.json`. JSON has no comments, so this file is the only record
 of it.

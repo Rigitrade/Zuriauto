@@ -221,6 +221,30 @@ export function weeksBegun(
 }
 
 // ---------------------------------------------------------------------
+// The day the reminders started.
+// ---------------------------------------------------------------------
+
+/**
+ * Nothing due before this Zurich day is requested, reminded or reported.
+ *
+ * The daily run was switched off from the legacy import until 05.11.2026. Its
+ * first run then asked renters for every unpaid week since, some of them
+ * long settled in cash outside the system. The owner wanted the reminders to
+ * start from that day, not to work through the backlog — so the charge and
+ * overdue passes skip anything that fell due before it. The backlog stays in
+ * the dashboard for the office; it is just not chased by mail.
+ *
+ * Read on every call rather than once at import, so a test can move it.
+ */
+export function remindersStart(): string {
+  return process.env.REMINDERS_START || "2026-11-05";
+}
+
+export function isBeforeRemindersStart(day: Date): boolean {
+  return zurichDayString(day) < remindersStart();
+}
+
+// ---------------------------------------------------------------------
 // MFK — the annual technical inspection.
 // ---------------------------------------------------------------------
 
@@ -277,19 +301,52 @@ export function mfkDueWindow(now: Date): { to: Date } {
 }
 
 /**
+ * The early MFK notice: two weeks out, to the office and to the renter
+ * (owner, 05.11.2026).
+ *
+ * A second window rather than a wider MFK_NOTICE_DAYS. The two-day pass also
+ * takes an idle car off the road, and doing that a fortnight early would
+ * leave a free car unbookable for two weeks. This one only writes.
+ */
+export const MFK_EARLY_NOTICE_DAYS = Number(
+  process.env.MFK_EARLY_NOTICE_DAYS ?? 14
+);
+
+/** Inside the two-week window, or already past. Same reasoning as isMfkDueSoon. */
+export function isMfkInEarlyNotice(mfkDate: Date, now: Date): boolean {
+  return zurichDaysUntil(mfkDate, now) <= MFK_EARLY_NOTICE_DAYS;
+}
+
+/** Whole calendar days left until the inspection, for the mails. */
+export function mfkDaysLeft(mfkDate: Date, now: Date): number {
+  return zurichDaysUntil(mfkDate, now);
+}
+
+/** The range the early-notice pass queries. */
+export function mfkEarlyNoticeWindow(now: Date): { to: Date } {
+  const to = new TZDate(now.getTime(), ZURICH);
+  to.setDate(to.getDate() + MFK_EARLY_NOTICE_DAYS);
+  to.setHours(23, 59, 59, 999);
+  return { to: new Date(to.getTime()) };
+}
+
+/**
  * Whether a charge is still chased once the renter's return closed the rental.
  *
  * A weekly charge falls due at the start of its week, so a week that had begun
  * before the car came back was driven and is owed; one that had not is not
  * requested. Week 0 is the balance the renter declared on the return form,
  * which by its nature falls due afterwards. `returnedAt` is null for a rental
- * not closed by a return, which this rule does not touch.
+ * not closed by a return, which this rule does not touch. A week the office
+ * decided to keep owed after an early return (`keptAfterReturn`,
+ * lib/payments/afterClose.ts) is chased like one that had begun.
  */
 export function isOwedAfterReturn(
-  charge: { weekNumber: number; dueDate: Date },
+  charge: { weekNumber: number; dueDate: Date; keptAfterReturn?: boolean },
   returnedAt: Date | null
 ): boolean {
   if (returnedAt === null) return true;
   if (charge.weekNumber === 0) return true;
+  if (charge.keptAfterReturn) return true;
   return charge.dueDate.getTime() < returnedAt.getTime();
 }

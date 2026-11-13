@@ -27,6 +27,7 @@
  * See docs/superpowers/specs/2026-08-28-return-persistence-design.md.
  */
 
+import { recordOdometer } from "./odometer";
 import { randomUUID } from "node:crypto";
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
@@ -344,6 +345,14 @@ async function writeOnce(
         })),
       });
     }
+
+    // The return's reading feeds the oil-service reminder.
+    await recordOdometer(
+      tx,
+      { rentals: { some: { id: rentalId } } },
+      details.mileageKm,
+      now
+    );
 
     await tx.rentalEvent.create({
       data: {

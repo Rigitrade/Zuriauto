@@ -154,6 +154,16 @@ export default function GTCPage() {
 
           <div className="bg-white p-4 md:p-6 rounded-xl shadow-lg border border-slate-200">
             <div className="prose max-w-none text-slate-700">
+              {/* What the lessor's document says before Art. 1: who the
+                  lessor is and which version applies. */}
+              <div className="mb-6 px-2">
+                {doc.intro.map((line) => (
+                  <p key={line} className="leading-relaxed">
+                    {line}
+                  </p>
+                ))}
+              </div>
+
               {doc.sections.map((section) => (
                 <div key={section.num} data-gtc-section={section.num} className="mb-6 px-2">
                   <h4 className="uppercase font-semibold mb-3 text-slate-900 tracking-[2px]">
@@ -164,18 +174,6 @@ export default function GTCPage() {
                   ))}
                 </div>
               ))}
-
-              {/* The lessor's own closing, after the last article: who the
-                  lessor is, when the terms apply, and the sign-off. */}
-              <div className="mt-8 pt-6 px-2 border-t border-slate-200 text-sm">
-                {doc.closing.lessor.map((line) => (
-                  <p key={line} className="leading-relaxed">
-                    {line}
-                  </p>
-                ))}
-                <p className="leading-relaxed mt-3">{doc.closing.text}</p>
-                <p className="mt-3 text-slate-500">{doc.closing.signoff}</p>
-              </div>
 
               <LegalNotice />
 

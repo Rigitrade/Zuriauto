@@ -56,7 +56,7 @@ function figures(doc: GtcDocument): Record<string, string> {
       (texts[clause] ??= []).push(...words);
     }
   }
-  texts.closing = [...doc.closing.lessor, doc.closing.text, doc.closing.signoff];
+  texts.intro = doc.intro;
 
   return Object.fromEntries(
     Object.entries(texts).map(([clause, parts]) => [

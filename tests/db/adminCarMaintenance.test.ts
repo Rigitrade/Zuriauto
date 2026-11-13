@@ -100,6 +100,36 @@ describe("the service book", () => {
     expect(car.serviceDoneOn?.toISOString().slice(0, 10)).toBe("2026-03-14");
   });
 
+  it("sets the next service 10'000 km after the last when none is typed", async () => {
+    const id = await aCar();
+
+    await patchCarWith(id, { serviceDoneKm: "97000", serviceDueKm: "" });
+
+    const car = await prisma.car.findUniqueOrThrow({ where: { id } });
+    expect(car.serviceDueKm).toBe(107_000);
+  });
+
+  it("moves the next service on when a newer service is recorded", async () => {
+    const id = await aCar();
+    await patchCarWith(id, { serviceDoneKm: "97000", serviceDueKm: "107000" });
+
+    // The dialog posts every field: the old due figure comes back unchanged
+    // alongside the new service. It describes the service just done.
+    await patchCarWith(id, { serviceDoneKm: "107200", serviceDueKm: "107000" });
+
+    const car = await prisma.car.findUniqueOrThrow({ where: { id } });
+    expect(car.serviceDueKm).toBe(117_200);
+  });
+
+  it("keeps a due figure from the garage's sticker that is still ahead", async () => {
+    const id = await aCar();
+
+    await patchCarWith(id, { serviceDoneKm: "97000", serviceDueKm: "112000" });
+
+    const car = await prisma.car.findUniqueOrThrow({ where: { id } });
+    expect(car.serviceDueKm).toBe(112_000);
+  });
+
   it("stamps the read time when the odometer moves", async () => {
     const id = await aCar();
     await patchCarWith(id, { currentMileageKm: "100000" });

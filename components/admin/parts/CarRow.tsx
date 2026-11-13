@@ -199,9 +199,12 @@ export function CarRow({
           router.push(`/admin/vehicles/${car.id}`);
         }}
         data-row-id={car.id}
+        // Lifted while it is dragged: in front of the rows it passes over,
+        // which slide underneath it. Its model link is not a link while it
+        // is carried under the pointer, so no hover underline either.
         className={`cursor-pointer border-t border-[var(--admin-rule)] transition-colors ${
           dragging
-            ? "bg-[var(--admin-accent-soft)]"
+            ? "relative z-10 bg-[var(--admin-accent-soft)] shadow-[0_10px_28px_-8px_rgba(15,40,45,0.35)] [&_a]:no-underline!"
             : "hover:bg-[var(--admin-sunk)]/50"
         }`}
       >

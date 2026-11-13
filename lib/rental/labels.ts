@@ -180,12 +180,12 @@ const de = {
       truthfulInfoConfirmedAt: {
         title: "Wahrheitsgemässe Angaben",
         statement:
-          "Ich bestätige, dass meine Angaben sowie die von mir vorgelegten Identitätsdokumente, Führerausweise, Bewilligungen und sonstigen Unterlagen nach bestem Wissen vollständig, wahrheitsgemäss und gültig sind.",
+          "Ich bestätige, dass meine Angaben sowie die von mir vorgelegten Identitätsdokumente, Führerausweise, Bewilligungen und sonstigen Unterlagen nach bestem Wissen vollständig, richtig und gültig sind.",
       },
       deceptionNoticeConfirmedAt: {
         title: "Falsche Angaben und Unterlagen",
         statement:
-          "Mir ist bekannt, dass vorsätzlich falsche oder irreführende Angaben sowie gefälschte oder ungültige Unterlagen eine wesentliche Vertragsverletzung darstellen und je nach Sachverhalt strafrechtliche Tatbestände erfüllen können; die Beurteilung obliegt den zuständigen Behörden und Gerichten.",
+          "Mir ist bekannt, dass vorsätzlich falsche oder irreführende Angaben sowie gefälschte oder ungültige Unterlagen eine wesentliche Vertragsverletzung darstellen können. Ob ein strafrechtlich relevanter Sachverhalt vorliegt, beurteilen die zuständigen Behörden und Gerichte.",
       },
     },
   },
@@ -242,6 +242,12 @@ const de = {
     pageIntro:
       "Bitte füllen Sie das Formular bei der Rückgabe aus und unterschreiben Sie direkt auf dem Bildschirm. Sie erhalten die Bestätigung per E-Mail.",
 
+    /** The two return steps, as `lib/rental/returnSteps.ts` splits them. */
+    steps: {
+      vehicle: "Fahrzeug & Zustand",
+      payment: "Zahlung & Unterschrift",
+    },
+
     conditionHeading: "Zustand bei Rückgabe",
     paymentHeading: "Zahlung",
     renterHeading: "Ihre Daten",
@@ -250,6 +256,11 @@ const de = {
     mileagePickup: "Kilometerstand bei Übernahme (km)",
     mileagePickupHint:
       "Optional — steht auf Ihrem Mietvertrag. Das Büro kann ihn sonst nachschlagen.",
+    drivenKm: "Gefahrene Kilometer",
+    drivenKmHint:
+      "Kilometerstand bei Rückgabe minus Kilometerstand bei Übernahme.",
+    drivenKmPending:
+      "Wird berechnet, sobald beide Kilometerstände eingetragen sind.",
 
     papers: "Fahrzeugausweis im Handschuhfach?",
     key: "Autoschlüssel retourniert?",
@@ -306,6 +317,7 @@ const de = {
       returnNumber: "Rückgabe-Nr.",
       mileage: "Kilometerstand bei Rückgabe",
       mileagePickup: "Kilometerstand bei Übernahme",
+      drivenKm: "Gefahrene Kilometer",
       papers: "Fahrzeugausweis im Handschuhfach",
       key: "Autoschlüssel retourniert",
       bolt: "Fahrzeug aus der Bolt-App entfernt",
@@ -649,12 +661,12 @@ const en: typeof de = {
       truthfulInfoConfirmedAt: {
         title: "Truthful information",
         statement:
-          "I confirm that my information and the identity documents, driving licences, permits and other documents I have presented are, to the best of my knowledge, complete, truthful and valid.",
+          "I confirm that my information and the identity documents, driving licences, permits and other documents I have presented are, to the best of my knowledge, complete, correct and valid.",
       },
       deceptionNoticeConfirmedAt: {
         title: "False information and documents",
         statement:
-          "I understand that intentionally false or misleading information and forged or invalid documents may constitute a material breach of contract and, depending on the facts, may meet the elements of criminal offences; the assessment is a matter for the competent authorities and courts.",
+          "I understand that intentionally false or misleading information and forged or invalid documents may constitute a material breach of contract. Whether the facts are relevant under criminal law is assessed by the competent authorities and courts.",
       },
     },
   },
@@ -704,6 +716,11 @@ const en: typeof de = {
     pageIntro:
       "Please complete this form when returning the vehicle and sign on screen. You will receive the confirmation by email.",
 
+    steps: {
+      vehicle: "Vehicle & condition",
+      payment: "Payment & signature",
+    },
+
     conditionHeading: "Condition at return",
     paymentHeading: "Payment",
     renterHeading: "Your details",
@@ -712,6 +729,9 @@ const en: typeof de = {
     mileagePickup: "Mileage at handover (km)",
     mileagePickupHint:
       "Optional — it is on your rental contract. The office can look it up otherwise.",
+    drivenKm: "Kilometres driven",
+    drivenKmHint: "Mileage at return minus mileage at handover.",
+    drivenKmPending: "Calculated once both readings are filled in.",
 
     papers: "Vehicle registration document in the glovebox?",
     key: "Car key returned?",
@@ -768,6 +788,7 @@ const en: typeof de = {
       returnNumber: "Return no.",
       mileage: "Mileage at return",
       mileagePickup: "Mileage at handover",
+      drivenKm: "Kilometres driven",
       papers: "Vehicle registration document in the glovebox",
       key: "Car key returned",
       bolt: "Car removed from the Bolt app",

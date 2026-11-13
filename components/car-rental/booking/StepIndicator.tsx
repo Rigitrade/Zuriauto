@@ -5,9 +5,9 @@ interface StepIndicatorProps {
   currentStep: number;
   totalSteps: number;
   /**
-   * A name under each step. Optional: the booking and return forms show
-   * numbers only. Worth giving when there are few steps, each holding several
-   * parts, so the bar says what each one is for.
+   * A name under each step. Optional: the booking form shows numbers only.
+   * Worth giving when there are few steps, each holding several parts, so the
+   * bar says what each one is for — as the pickup and return forms do.
    */
   labels?: string[];
 }

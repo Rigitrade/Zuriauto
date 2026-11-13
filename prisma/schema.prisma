@@ -89,6 +89,10 @@ model Organisation {
   fines         Fine[]
   fineDocuments FineDocument[]
   fineAuthorities FineAuthority[]
+  payments      Payment[]
+  payerAliases  PayerAlias[]
+  /// Weeks due before this moment were settled by the cut-over script.
+  paymentsCutoverAt DateTime?
 }
 
 model Car {
@@ -163,7 +167,9 @@ model Car {
   /// invents is worse than one it stays quiet about.
   /// ---------------------------------------------------------------------
 
-  /// The odometer as last read, in kilometres. Whole kilometres: the
+  /// The odometer as last read, in kilometres. Written by the office, and
+  /// since 05.11.2026 by every pickup and return contract too, so the service
+  /// forecast runs on the handover readings. Whole kilometres: the
   /// dashboard does not show more and a decimal here would imply a precision
   /// the reading does not have.
   currentMileageKm Int?
@@ -182,9 +188,10 @@ model Car {
   serviceDoneOn DateTime? @db.Date
   /// The odometer at which the next service falls due.
   ///
-  /// Typed from the garage's sticker, never computed from an interval: the
-  /// interval differs by model and by how the car is driven, and a number
-  /// this system derived would quietly disagree with the windscreen.
+  /// Typed from the garage's sticker when the office has it. Since 05.11.2026
+  /// the owner's interval fills it otherwise: left empty, or no longer ahead
+  /// of `serviceDoneKm`, it becomes the last service plus 10'000 km (see
+  /// nextServiceDueKm in lib/admin/service.ts). A typed figure still wins.
   serviceDueKm  Int?
 
   /// ---------------------------------------------------------------------
@@ -415,6 +422,7 @@ model Customer {
   organisation Organisation @relation(fields: [organisationId], references: [id])
   rentals      Rental[]
   fines        Fine[]
+  payerAliases PayerAlias[]
 
   @@unique([organisationId, email])
   @@index([organisationId, phoneKey])
@@ -472,6 +480,7 @@ model Rental {
   notifications Notification[]
   fines         Fine[]
   tokens        ActionToken[]
+  payments      Payment[]
 
   @@index([organisationId, status, endAt])
   @@index([carId, startAt, endAt])
@@ -748,16 +757,21 @@ enum ChargeStatus {
   OVERDUE
   PAID
   VOID
+  /// Due before the payments feature went live, and counted as settled then
+  /// (scripts/payments-cutover.ts). Not open: nothing chases it, nothing books
+  /// to it. The office can reopen it (lib/payments/cutover.ts).
+  SETTLED
 }
 
-/// How the renter pays: chosen at the pickup ("Zahlungsart"), printed on the
-/// contract. The same four the office takes payments by.
+/// How a payment reached us. TWINT payments arrive by email; the others the
+/// office records by hand (lib/payments/office.ts).
 enum PaymentMethod {
   TWINT
   CASH
   CARD
   BANK
 }
+
 
 enum NotificationKind {
   RENTAL_ENDING
@@ -767,6 +781,9 @@ enum NotificationKind {
   CHARGE_OVERDUE
   EXTENSION_CONFIRMED
   RETURN_INTENT
+  /// "Please ignore our payment email": sent only when the office presses
+  /// "Korrektur senden" on the payments page (lib/payments/mails.ts).
+  CHARGE_CORRECTION
 }
 
 enum ActionTokenPurpose {
@@ -777,7 +794,14 @@ enum ActionTokenPurpose {
 
 /// Why the office is being written to about a car.
 enum CarNotificationKind {
+  /// Two days out: the office, and an idle car is taken off the road.
   MFK_DUE
+  /// Two weeks out: the office and the renter who has the car (05.11.2026).
+  MFK_NOTICE
+  /// The next oil service is a week or under 1'000 km away (05.11.2026).
+  SERVICE_DUE
+  /// A real odometer reading has passed the service figure.
+  SERVICE_OVERDUE
 }
 
 /// One payable amount against a rental.
@@ -799,9 +823,13 @@ model Charge {
   remindedAt      DateTime?
   officeAlertedAt DateTime?
   paidAt          DateTime?
+  /// The office decided this week stays owed although the rental closed before
+  /// it began (lib/payments/afterClose.ts). isOwedAfterReturn honours it.
+  keptAfterReturn Boolean      @default(false)
   createdAt       DateTime     @default(now())
 
-  rental Rental @relation(fields: [rentalId], references: [id])
+  rental   Rental    @relation(fields: [rentalId], references: [id])
+  payments Payment[]
 
   /// The old project's rule, kept: two runs cannot create two week-3 charges.
   @@unique([rentalId, weekNumber])
@@ -832,10 +860,33 @@ model Notification {
 
   createdAt DateTime @default(now())
 
+  /// The office looked at a payment email on the payments page ("E-Mails")
+  /// and answered it: "correction" (a please-ignore email went out) or
+  /// "dismissed" (nothing to do). Unset for every other kind.
+  reviewedAt     DateTime?
+  reviewedById   String?
+  reviewedByName String?
+  reviewOutcome  String?
+
   rental Rental @relation(fields: [rentalId], references: [id])
 
   @@unique([rentalId, kind, dedupeKey])
   @@index([sentAt, attempts])
+}
+
+/// A message to the office about the whole run rather than one rental — the
+/// payment-email safety stop. The unique key is the idempotency, as on
+/// Notification: one notice per organisation, kind and Zurich day.
+model OfficeNotice {
+  id             String   @id @default(cuid())
+  organisationId String
+  kind           String
+  dedupeKey      String
+  sentAt         DateTime?
+  error          String?
+  createdAt      DateTime @default(now())
+
+  @@unique([organisationId, kind, dedupeKey])
 }
 
 /// A single-use link that authenticates a renter who has no account.
@@ -1223,4 +1274,172 @@ model FineNotification {
   fine Fine @relation(fields: [fineId], references: [id])
 
   @@unique([fineId, kind, dedupeKey])
+}
+
+/// Where a payment stands. See docs/superpowers/specs/2026-10-12-twint-payments-design.md.
+enum PaymentStatus {
+  /// Paid a charge (or credited a rental), by the system or by a person.
+  BOOKED
+  NEEDS_REVIEW
+  /// A test payment, or one that is not ours to book. Kept, never deleted.
+  IGNORED
+}
+
+enum PaymentReviewReason {
+  NO_PLATE
+  PLATE_NOT_IN_FLEET
+  PLATE_AMBIGUOUS
+  PLATE_DOUBTFUL
+  NO_RENTAL_AT_TIME
+  HANDOVER_BOUNDARY
+  OVERLAPPING_RENTALS
+  PAYER_MISMATCH
+  AMOUNT_MISMATCH
+  CHARGE_ALREADY_PAID
+  /// The text names a week no rental of that car has.
+  REFERENCE_UNKNOWN
+  /// The named week is owed on a rental that did not clearly have the car.
+  REFERENCE_AMBIGUOUS
+  /// Paid around the pickup, and the amount is not clearly the deposit, week 1
+  /// or both.
+  PICKUP_PAYMENT
+  /// Paid by the renter after the rental closed, and no open item has this amount.
+  PAID_AFTER_RETURN
+  /// Paid before the cut-over: the weeks it could pay were settled then, so a
+  /// later open week of the same amount is not what it paid.
+  BEFORE_CUTOVER
+  /// The amount fits an open week, but none is due yet (more than a week
+  /// ahead): a payment in advance, or for something else.
+  NO_WEEK_DUE
+}
+
+/// One TWINT transaction, as its notification email reported it.
+model Payment {
+  id             String @id @default(cuid())
+  organisationId String
+
+  /// TWINT's Transaktions-Nr. The unique key below is what makes reading the
+  /// mailbox again harmless.
+  externalId  String
+  amountCents Int
+  currency    String   @default("CHF")
+  /// TWINT's Transaktionsdatum: Zurich wall clock, to the minute.
+  paidAt      DateTime
+  storeName   String?
+  payerName   String?
+  payerEmail  String?
+  payerPhone  String?
+  /// The customer's free text — where a plate and a week are, if anywhere.
+  message     String?
+  method       PaymentMethod @default(TWINT)
+  /// The part of the amount that is the deposit. Deposit received = the sum
+  /// over the rental's BOOKED payments. A payment pays at most the deposit and
+  /// one week.
+  depositCents Int           @default(0)
+  /// The office's note on a payment it recorded by hand.
+  note         String?
+
+  status       PaymentStatus
+  reviewReason PaymentReviewReason?
+  /// "reference+amount", "holder+payer+amount" or "office".
+  matchedBy    String?
+  /// Rentals the office chooses between when the rule could not.
+  candidates   String[] @default([])
+
+  rentalId String?
+  chargeId String?
+  /// The IMAP UID it was read from, for finding the email again.
+  mailUid  Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organisation Organisation   @relation(fields: [organisationId], references: [id])
+  rental       Rental?        @relation(fields: [rentalId], references: [id])
+  charge       Charge?        @relation(fields: [chargeId], references: [id])
+  events       PaymentEvent[]
+
+  @@unique([organisationId, externalId])
+  @@index([organisationId, status])
+  @@index([chargeId])
+}
+
+/// A payer's email or phone the office confirmed pays for a customer — a
+/// friend, a partner, a second phone. Lets their next payment count as the
+/// customer's (lib/payments/payerAlias.ts).
+model PayerAlias {
+  id             String @id @default(cuid())
+  organisationId String
+  customerId     String
+  /// "email" (lowercased) or "phone" (E.164, normalisePhone).
+  kind           String
+  value          String
+  /// The booking that taught it; undoing that booking forgets it.
+  sourcePaymentId String?
+  createdById     String?
+  createdByName   String?
+  createdAt       DateTime @default(now())
+
+  organisation Organisation @relation(fields: [organisationId], references: [id])
+  /// Cascade: an alias means nothing without its customer, and a placeholder
+  /// renter is deleted with its car (app/api/admin/cars/[id]/route.ts).
+  customer     Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([organisationId, kind, value, customerId])
+  @@index([organisationId, kind, value])
+  @@index([sourcePaymentId])
+}
+
+/// The payment's timeline: received, booked, ignored, undone — and by whom.
+model PaymentEvent {
+  id        String   @id @default(cuid())
+  paymentId String
+  type      String
+  payload   Json?
+  /// Null for the system.
+  actorId   String?
+  actorName String?
+  createdAt DateTime @default(now())
+
+  payment Payment @relation(fields: [paymentId], references: [id])
+
+  @@index([paymentId, createdAt])
+}
+
+/// Why an email claiming to be from TWINT did not become a payment.
+enum PaymentMailIssueReason {
+  /// No valid TWINT signature: forged, or broken in forwarding.
+  UNSIGNED
+  /// Signed, but the fields could not be read — TWINT changed its layout.
+  UNREADABLE
+  /// Signed and read, but paid to another merchant's store.
+  OTHER_STORE
+}
+
+/// A TWINT email the office has to look at, because nothing was booked from
+/// it. Kept until somebody marks it done, so a layout change or a forged
+/// notification does not vanish into a log line.
+///
+/// No relation to Organisation, like the other audit tables: it lists in
+/// tests/db/setup.ts by name.
+model PaymentMailIssue {
+  id             String @id @default(cuid())
+  organisationId String
+
+  /// The Message-ID, else the IMAP UID: what makes reading the mailbox again
+  /// add nothing.
+  messageKey String
+  reason     PaymentMailIssueReason
+  /// The field that could not be read, or the other store's name.
+  detail     String?
+  subject    String?
+  receivedAt DateTime?
+
+  resolvedAt     DateTime?
+  resolvedById   String?
+  resolvedByName String?
+  createdAt      DateTime  @default(now())
+
+  @@unique([organisationId, messageKey])
+  @@index([organisationId, resolvedAt])
 }
