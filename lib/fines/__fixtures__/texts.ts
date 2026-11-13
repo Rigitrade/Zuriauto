@@ -90,3 +90,63 @@ RECHNUNG - Nachzahlung Ihrer Tankrechnung
 Rechnungsdatum 02.09.2026
 Tankstelle Zürich-Altstetten 18.08.2026 16:02
 Betrag CHF 23.40`;
+
+/**
+ * A Stadtpolizei Zürich Übertretungsanzeige as Tesseract read the scan the
+ * office uploaded on 2026-11-13, misreadings included. Its QR-bill was printed
+ * too faintly to decode, so this text is all there is: the number stands under
+ * "Verzeigungs-Nr." in the heading (without its leading zero) and again as
+ * "V-Nr." under the slip's "Zusätzliche Informationen", and the account only
+ * as the slip prints it.
+ */
+export const STADTPOLIZEI_ZH_FAINT_SLIP = `Stadt Zürich Stadt Zürich
+IS Stadtpolizei Stadtpolizei
+PONZE Verkehrskontrollabteilung
+Fachbereich Zentralstelle für
+Verkehrs- und Ordnungsbussen
+Verzeigungs-Nr.: 29435921 005 3 Bahnhofquai 5
+, Postfach
+Zürich, 22.10.2026 / D011CH.docx 51 8021 Zürich
+Tel +41 44 411 76 76
+Besuchen Sie den
+Online-Bussenschalter:
+Rigitrade AG EC www.stadt-zuerich.ch/bussen
+Tannenstrasse 16 ee ea
+1 : © ri Fils
+8424 Embrach ie En
+BSH LIEM
+On
+Übertretungsanzeige
+Durch die Stadtpolizei Zürich wurde(n) folgende Übertretung(en) festgestellt:
+Ziffer(n) 200.a Überschreiten der zulässigen Parkzeit
+203.2 Ändern der eingestellten Ankunftszeit, ohne wegzufahren
+Bussenbetrag: Fr. 80.00
+Kontrollschild-Nr. : ZH 919906 Kategorie: Personenwagen
+Übertretungsort : Zürich 11, Oberwiesenstrasse 16
+Datum : 22.09.2026, 11:00 - 11:34 Uhr
+Falls Sie von oben genanntem Vorhalt bisher keine Kenntnis erlangt oder einen Einzahlungsschein gewünscht haben, gilt
+dieses Schreiben als Übertretungsanzeige. Für weitere Informationen zur Übertretung, die Bezahlung der Ordnungsbusse
+oder die Eingabe begründeter Einwendungen steht Ihnen auch unser Online-Bussenschalter zur Verfügung.
+Bitte Rückseite beachten
+WWW Vor der Einzahlung abzutrennen / A detacher avant le versement / Da staccare prima del versamento VYWV
+Empfangsschein Zahlteil Konto / Zahlbar an
+CH79 3000 0001 8000 2231 7
+Konto / Zahlbar an ns
+CH79 3000 0001 8000 2231 7 Se = en a DA
+Stadt Zürich Ps - adtpolizei Verkehrskontrollabteilun
+Stadtpolizei Verkehrskontrollabteilung Da in FE 8001 Zürich 7
+8001 Zürich EL „LEE SERIEN
+= EMS 3
+Referenz L FE dat EL ‚ET Referenz
+00 31899 31890 00294 35921 00533 A na ol PP M E 0031899 31890 00294 35921 00533
+Zahlbar durch x HL Be a
+Rigitra da A 6 be FL EM 7 Zusätzliche Informationen
+Tannenstrasse 16 = E- Mn = EACH Ay V-Nr. 029435921 005 3, Kennzeichen ZH 919906
+8424 Embrach | a if
+Mi En Km —Zahlbar durch
+Tl dn Th val-Ls —Rigitrade AG
+. w ; Tannenstrasse 16
+8424 Embrach
+Währung Betrag Währung Betrag
+Chr 180.00 CHF 80.00
+Annahmesielle`;

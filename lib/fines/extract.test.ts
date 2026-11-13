@@ -8,6 +8,7 @@ import {
   PARKPRO_PRIVATE,
   POLICE_TI_MULTA,
   POLICE_VD_RAPPEL,
+  STADTPOLIZEI_ZH_FAINT_SLIP,
 } from "./__fixtures__/texts";
 
 const KAPO_QR = parseQrBill(
@@ -233,5 +234,44 @@ describe("extractFields — Stadtpolizei Zürich, the moment under a bare \"Datu
     const x = extractFields(text, null, "de");
     expect(x.violationDate).toMatchObject({ value: "2026-10-02", status: "READ" });
     expect(x.violationTime).toMatchObject({ value: "10:21", status: "READ" });
+  });
+});
+
+describe("extractFields — Stadtpolizei Zürich, a slip too faint to decode (the real OCR)", () => {
+  const x = extractFields(STADTPOLIZEI_ZH_FAINT_SLIP, null, "de");
+
+  it("reads the Verzeigungs-Nr. as the fine's number", () => {
+    expect(x.fineNumber).toMatchObject({ value: "29435921 005 3", status: "READ", source: "ocr" });
+  });
+
+  it("reads the account the slip prints, once its check digits agree", () => {
+    expect(x.issuerIban).toMatchObject({ value: "CH7930000001800022317", status: "READ", source: "ocr" });
+  });
+
+  it("is a police notice, with what the earlier letters already gave", () => {
+    expect(x.kind).toBe("NOTICE");
+    expect(x.issuerKind).toBe("POLICE");
+    expect(x.amountCents).toMatchObject({ value: 8000, status: "READ" });
+    expect(x.plateText).toMatchObject({ value: "ZH 919906", status: "READ" });
+    expect(x.violationDate).toMatchObject({ value: "2026-09-22", status: "READ" });
+  });
+});
+
+describe("extractFields — a printed account", () => {
+  const letter = (account: string) =>
+    ["Stadtpolizei Zürich", "Bussenbetrag: Fr. 80.00", "Konto / Zahlbar an", account].join("\n");
+
+  it("takes nothing whose check digits disagree: one misread digit", () => {
+    expect(extractFields(letter("CH79 3000 0001 8000 2231 8"), null, "de").issuerIban.status).toBe("MISSING");
+  });
+
+  it("takes nothing when the letter prints two different valid accounts", () => {
+    const text = `${letter("CH79 3000 0001 8000 2231 7")}\n${letter("CH24 3000 0001 8000 0080 3")}`;
+    expect(extractFields(text, null, "de").issuerIban.status).toBe("MISSING");
+  });
+
+  it("leaves the QR slip's account as it is", () => {
+    const x = extractFields(letter("CH79 3000 0001 8000 2231 7"), KAPO_QR, "de");
+    expect(x.issuerIban).toMatchObject({ value: "CH2430000001800000803", status: "CONFIRMED", source: "qr" });
   });
 });
