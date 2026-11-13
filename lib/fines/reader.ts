@@ -63,8 +63,21 @@ export const freeReader: FineReader = {
     const words: OcrWord[] = [];
     let language: FineLanguage | null = null;
 
+    // Each step's time in the function log, so a reading that runs into the
+    // time limit shows where it stood (13.11.2026: one sat "being read" with
+    // nothing to say why).
+    const started = Date.now();
+    let last = started;
+    const step = (what: string) => {
+      const now = Date.now();
+      console.info(`[fines] read ${what}: ${now - last} ms (total ${now - started} ms)`);
+      last = now;
+    };
+
     const pages = await forEachPage(pdf, async (page, index) => {
+      step(`page ${index + 1} drawn ${page.width}x${page.height}`);
       qrTexts.push(...(await decodeQrCodes(page)));
+      step(`page ${index + 1} QR, slip ${pickQrBill(qrTexts) ? "found" : "not found"}`);
 
       if (index === 0) {
         // Pass one only when the slip does not already name the language:
@@ -75,12 +88,14 @@ export const freeReader: FineReader = {
         if (!language) {
           const first = await recognise(await page.ocrPng(), ["deu", "fra", "ita"]);
           language = detectLanguage(first.text, slip);
+          step(`page 1 language vote (deu+fra+ita) → ${language ?? "none"}`);
         }
       }
 
       const result = await recognise(await page.ocrPng(), [TESSERACT[language ?? "de"]]);
       texts.push(result.text);
       words.push(...result.words);
+      step(`page ${index + 1} OCR (${language ?? "de"})`);
     });
 
     const qr = pickQrBill(qrTexts);
