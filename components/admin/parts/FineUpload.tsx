@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Check, Loader2, TriangleAlert, Upload } from "lucide-react";
+import { Check, Loader2, Trash2, TriangleAlert, Upload } from "lucide-react";
+import { useAdmin } from "@/components/admin/shell/AdminContext";
 import type { Labels } from "@/components/admin/types";
 import {
   LETTER_ACCEPT,
@@ -24,6 +25,11 @@ import { compressImage } from "@/lib/rental/imageCompress";
  * A photo of a letter is turned into a one-page PDF first, here in the
  * browser (see lib/fines/imageLetter.ts), and from then on is a scan like
  * any other.
+ *
+ * A scan refused as already uploaded names the letter it duplicates, and the
+ * line offers to delete that one: a letter whose reading went wrong otherwise
+ * blocked its own second try. The server decides whether it may go (see
+ * lib/fines/discard.ts); the office then drops the scan in again.
  */
 
 type Line = {
@@ -34,10 +40,13 @@ type Line = {
     | "uploading"
     | "done"
     | "duplicate"
+    | "deleted"
     | "failed"
     | "notPdf"
     | "unreadable"
     | "tooLarge";
+  /** For a duplicate: the letter already uploaded. */
+  existingId?: string | null;
 };
 
 const MAX_BYTES = 20 * 1024 * 1024;
@@ -59,12 +68,28 @@ async function photoAsPdf(file: File): Promise<Blob> {
 }
 
 export function FineUpload({ L, onUploaded }: { L: Labels; onUploaded: () => void }) {
+  const { write, busy } = useAdmin();
   const [lines, setLines] = useState<Line[]>([]);
   const [dragging, setDragging] = useState(false);
   const input = useRef<HTMLInputElement>(null);
 
-  const set = (key: string, state: Line["state"]) =>
-    setLines((current) => current.map((line) => (line.key === key ? { ...line, state } : line)));
+  const set = (key: string, state: Line["state"], existingId?: string | null) =>
+    setLines((current) =>
+      current.map((line) => (line.key === key ? { ...line, state, ...(existingId !== undefined ? { existingId } : {}) } : line))
+    );
+
+  const duplicateOf = async (key: string, response: Response) => {
+    const body = await response.json().catch(() => ({}));
+    set(key, "duplicate", typeof body.documentId === "string" ? body.documentId : null);
+  };
+
+  async function deleteExisting(line: Line) {
+    if (!line.existingId || !window.confirm(L.fines.deleteLetterConfirm)) return;
+    if (await write(`/api/admin/fines/documents/${line.existingId}/`, { method: "DELETE" })) {
+      set(line.key, "deleted");
+      onUploaded();
+    }
+  }
 
   async function uploadOne(file: File, key: string) {
     let letter: Blob = file;
@@ -87,7 +112,7 @@ export function FineUpload({ L, onUploaded }: { L: Labels; onUploaded: () => voi
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ sha256: hash, bytes: letter.size }),
       });
-      if (slot.status === 409) return set(key, "duplicate");
+      if (slot.status === 409) return duplicateOf(key, slot);
       if (slot.status === 413) return set(key, "tooLarge");
       if (!slot.ok) return set(key, "failed");
       const { documentId, key: storageKey, url, headers } = await slot.json();
@@ -100,7 +125,7 @@ export function FineUpload({ L, onUploaded }: { L: Labels; onUploaded: () => voi
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ documentId, key: storageKey, sha256: hash }),
       });
-      if (registered.status === 409) return set(key, "duplicate");
+      if (registered.status === 409) return duplicateOf(key, registered);
       if (registered.status === 415) return set(key, "notPdf");
       if (!registered.ok) return set(key, "failed");
       set(key, "done");
@@ -127,6 +152,7 @@ export function FineUpload({ L, onUploaded }: { L: Labels; onUploaded: () => voi
     uploading: L.fines.uploading,
     done: L.fines.uploaded,
     duplicate: L.fines.duplicate,
+    deleted: L.fines.deletedUploadAgain,
     failed: L.fines.uploadFailed,
     notPdf: L.fines.notPdf,
     unreadable: L.fines.imageUnreadable,
@@ -178,14 +204,14 @@ export function FineUpload({ L, onUploaded }: { L: Labels; onUploaded: () => voi
               <span className="min-w-0 truncate">{line.name}</span>
               <span
                 className={`flex shrink-0 items-center gap-1.5 text-xs ${
-                  line.state === "done"
+                  line.state === "done" || line.state === "deleted"
                     ? "text-[var(--admin-good)]"
                     : line.state === "hashing" || line.state === "uploading"
                       ? "text-[var(--admin-muted)]"
                       : "text-[var(--admin-crit)]"
                 }`}
               >
-                {line.state === "done" ? (
+                {line.state === "done" || line.state === "deleted" ? (
                   <Check className="h-3.5 w-3.5" aria-hidden="true" />
                 ) : line.state === "hashing" || line.state === "uploading" ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
@@ -193,6 +219,17 @@ export function FineUpload({ L, onUploaded }: { L: Labels; onUploaded: () => voi
                   <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" />
                 )}
                 {words[line.state]}
+                {line.state === "duplicate" && line.existingId && (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void deleteExisting(line)}
+                    className="ml-2 inline-flex h-7 items-center gap-1 rounded-md border border-[var(--admin-rule-strong)] px-2 text-xs text-[var(--admin-crit)] hover:bg-[var(--admin-sunk)]"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                    {L.fines.deleteExisting}
+                  </button>
+                )}
               </span>
             </li>
           ))}
