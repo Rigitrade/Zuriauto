@@ -198,6 +198,9 @@ async function attachToExisting(
         data.paidVia = null;
         follow = "reopened";
         break;
+      // A reminder after the driver was named means the authority did not
+      // take it up with them: the office asks why, nobody pays it blind.
+      case "DRIVER_NAMED":
       case "HANDLED_OTHERWISE":
       case "VOID":
         follow = "office";

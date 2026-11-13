@@ -50,11 +50,14 @@ export async function processFineDocument(
     select: { id: true, organisationId: true, storageKey: true },
   });
 
+  const started = Date.now();
+  console.info(`[fines] reading ${documentId}`);
   try {
     const object = await store.get(document.storageKey);
     if (!object) throw new Error(`The stored letter is missing: ${document.storageKey}`);
 
     const read = await reader.read(object.body, now);
+    console.info(`[fines] read ${documentId} in ${Date.now() - started} ms: ${read.extraction.kind}`);
     await client.fineDocument.update({
       where: { id: documentId },
       data: {
@@ -71,6 +74,7 @@ export async function processFineDocument(
     });
 
     await attachDocument(deps, document, read);
+    console.info(`[fines] routed ${documentId} after ${Date.now() - started} ms`);
     return "processed";
   } catch (error) {
     console.error(`[fines] processing ${documentId} failed:`, error);

@@ -14,6 +14,8 @@ import { isPlaceholderEmail } from "@/lib/rental/placeholder";
 import { recordEvent, type Actor } from "./events";
 import { handlingFeeCents } from "./fee";
 import { fineThanksMail } from "./mail";
+import { nominateDriver } from "./nominate";
+import { isEmailAddress } from "./nomination";
 import { notifyRenter, sendFineOnce, type NotifyDeps } from "./notify";
 import { momentOf, responsibleAt } from "./possession";
 import { loadIntervals } from "./repo/possessionLoad";
@@ -23,6 +25,8 @@ import { asRentalLanguage } from "@/lib/rental/labels";
 export const fineActionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("assign"), rentalId: z.string().min(1) }),
   z.object({ action: z.literal("send") }),
+  /** Name the driver to `email`, which becomes the authority's confirmed one. */
+  z.object({ action: z.literal("nominate"), email: z.string().trim().min(3).max(200) }),
   z.object({
     action: z.literal("correct"),
     field: z.enum(["violationAt", "carId", "amountCents", "fineNumber", "dueDate"]),
@@ -235,6 +239,23 @@ export async function applyFineAction(
       // A dedupe key of its own: a deliberate send is never "already sent",
       // which is the point when the first one bounced.
       await notifyRenter(deps, fineId, "notice", { dedupeKey: `manual-${now.getTime()}` });
+      break;
+    }
+    case "nominate": {
+      // Open fines only, and never one a renter has already paid and proved.
+      if (fine.status !== "NEEDS_REVIEW" && fine.status !== "NOTIFIED") return CONFLICT;
+      if (!fine.rentalId || !fine.customer) return CONFLICT;
+      if (!isEmailAddress(action.email)) return BAD;
+      const outcome = await nominateDriver(deps, fineId, {
+        to: action.email,
+        by: actor,
+        // Its own key, as a deliberate send: after a bounce, sending again
+        // to a corrected address must not be "already sent".
+        dedupeKey: `manual-${now.getTime()}`,
+      });
+      // Held means the driver's details or the Busse-Nr. are missing, which
+      // the review reason now says.
+      if (outcome === "held") return CONFLICT;
       break;
     }
     case "correct":

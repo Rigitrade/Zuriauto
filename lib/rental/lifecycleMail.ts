@@ -55,6 +55,8 @@ export async function sendMail(
     subject: string;
     text: string;
     replyTo?: string;
+    /** The office, on what is written to an authority in its name. */
+    cc?: string;
     /** The fines mails carry the issuer's letter, for its payment slip. */
     attachments?: { filename: string; content: Uint8Array; contentType: string }[];
   }

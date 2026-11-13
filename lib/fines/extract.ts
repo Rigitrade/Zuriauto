@@ -92,6 +92,40 @@ function fineNumberFrom(text: string, qr: QrBill | null, lines: string[]): Field
   return value ? field(value, "READ", "ocr", snippetOf(found.line)) : missing();
 }
 
+/** A Swiss or Liechtenstein IBAN as a slip prints it: "CH79 3000 0001 8000 2231 7". */
+const PRINTED_IBAN = /\b(?:CH|LI)\s?\d{2}(?:\s?[0-9A-Z]{4}){4}\s?[0-9A-Z]\b/g;
+
+/** ISO 13616: the account moved behind its country and check digits, as a
+ *  number, leaves 1 when divided by 97. One misread digit never passes. */
+export function ibanChecks(iban: string): boolean {
+  const moved = iban.slice(4) + iban.slice(0, 4);
+  let rest = 0;
+  for (const char of moved) {
+    const digits = /\d/.test(char) ? char : String(char.charCodeAt(0) - 55);
+    for (const digit of digits) rest = (rest * 10 + Number(digit)) % 97;
+  }
+  return rest === 1;
+}
+
+/**
+ * The issuer's account: the QR slip's when it decodes; otherwise the one the
+ * slip prints, if its check digits agree and the letter prints no other. A
+ * faint print (the Stadtpolizei Zürich's of 13.11.2026) can leave the QR
+ * unreadable while its text reads cleanly, and the account is how the
+ * authority is recognised.
+ */
+function ibanFrom(text: string, qr: QrBill | null): Field<string> {
+  if (qr?.iban) return field(qr.iban, "CONFIRMED", "qr", qr.iban);
+  const found = new Map<string, string>();
+  for (const match of text.matchAll(PRINTED_IBAN)) {
+    const iban = match[0].replace(/\s/g, "");
+    if (ibanChecks(iban) && !found.has(iban)) found.set(iban, match[0]);
+  }
+  if (found.size !== 1) return missing();
+  const [[iban, printed]] = [...found];
+  return field(iban, "READ", "ocr", printed);
+}
+
 /** "CHF 40.00", "40,00", "Fr. 120.–" → cents. */
 function amountIn(text: string): number | null {
   const match = /(?:CHF|Fr\.)?\s*(\d{1,6})(?:[.,](\d{2}|–|-))?(?!\d)/.exec(text);
@@ -352,7 +386,7 @@ export function extractFields(
     issuerName: qr?.creditorName
       ? field(qr.creditorName, "CONFIRMED", "qr", qr.creditorName)
       : missing(),
-    issuerIban: qr?.iban ? field(qr.iban, "CONFIRMED", "qr", qr.iban) : missing(),
+    issuerIban: ibanFrom(text, qr),
     fineNumber: fineNumberFrom(text, qr, lines),
     paymentReference: referenceFrom(qr, lines),
     amountCents,

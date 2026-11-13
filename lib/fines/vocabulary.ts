@@ -34,8 +34,10 @@ export const LABELS = {
   place: ci(
     String.raw`\b(?:[ÜU]bertretungsort|Tatort|[ÖO]rtlichkeit|Lieu de l'infraction|Lieu|Luogo dell'infrazione|Luogo)\b`
   ),
+  /** "Verzeigungs-Nr." heads the Stadtpolizei Zürich's letters, and its slip
+   *  repeats the number as "V-Nr." (scan of 13.11.2026). */
   fineNumber: ci(
-    String.raw`(?:\bOB-?Nr\.?|\bBussen-?Nr\.?|\bReferenz-?Nr\.?|\bVerf[üu]gungs-?Nr\.?|N°\s*OB\b|N°\s*d'amende|\bNo\.?\s*OB\b|\bN\.\s*MD\b|\bN\.\s*multa\b)`
+    String.raw`(?:\bOB-?Nr\.?|\bBussen-?Nr\.?|\bReferenz-?Nr\.?|\bVerf[üu]gungs-?Nr\.?|\bVerzeigungs-?Nr\.?|\bV-Nr\.?|N°\s*OB\b|N°\s*d'amende|\bNo\.?\s*OB\b|\bN\.\s*MD\b|\bN\.\s*multa\b)`
   ),
   /**
    * With the plural the forms print: "Ziffer/n", "chiffre(s)", "cifra/e".

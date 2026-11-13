@@ -21,7 +21,7 @@ import { formatChf } from "@/lib/rental/money";
  * reading letters with AI would be worth paying for.
  */
 
-type Tab = "review" | "open" | "paid" | "all";
+type Tab = "review" | "open" | "named" | "paid" | "all";
 
 interface Row {
   id: string;
@@ -128,6 +128,7 @@ export function FinesSection() {
     ["all", F.tabAll],
     ["review", F.tabReview],
     ["open", F.tabOpen],
+    ["named", F.tabNamed],
     ["paid", F.tabPaid],
   ];
 

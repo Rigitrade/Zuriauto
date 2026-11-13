@@ -20,6 +20,7 @@ import { recordEvent } from "./events";
 import {
   fineNoticeMail,
   fineReopenedMail,
+  formatFineMoment,
   officeFineAlertMail,
   type FineMailContext,
   type OfficeFineAlertKind,
@@ -30,6 +31,8 @@ export interface SentMail {
   to: string;
   subject: string;
   text: string;
+  replyTo?: string;
+  cc?: string;
   attachments?: { filename: string; content: Uint8Array; contentType: string }[];
 }
 
@@ -49,7 +52,9 @@ type FineNotificationKind =
   | "FINE_REOPENED"
   | "FINE_PAID"
   | "OFFICE_ALERT"
-  | "OFFICE_DIGEST";
+  | "OFFICE_DIGEST"
+  | "DRIVER_NOMINATION"
+  | "RENTER_NAMED";
 
 function isUniqueViolation(error: unknown): boolean {
   return (error as { code?: string })?.code === "P2002";
@@ -180,6 +185,15 @@ export async function notifyRenter(
   const fine = await loadFine(client, fineId);
 
   if (reason === "office") {
+    if (fine.status === "DRIVER_NAMED") {
+      const named = fine.driverNamedAt ? formatFineMoment(fine.driverNamedAt, false) : "—";
+      return alertOffice(
+        deps,
+        fine,
+        "namedReminder",
+        `Der Lenker wurde am ${named} an ${fine.driverNamedTo ?? "die Behörde"} gemeldet. Bitte bei der Behörde nachfragen, bevor jemand bezahlt.`
+      );
+    }
     return alertOffice(deps, fine, "closedReminder", "Eine Mahnung ist für diese Busse eingegangen.");
   }
   if (!fine.customer || !fine.car || !fine.rentalId || fine.violationAt === null) return "skipped";
