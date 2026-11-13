@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { RotateCw, Trash2 } from "lucide-react";
 import { useAdmin } from "@/components/admin/shell/AdminContext";
 import { FineDetail } from "@/components/admin/parts/FineDetail";
-import { FineLegacyImport } from "@/components/admin/parts/FineLegacyImport";
 import { FineUpload } from "@/components/admin/parts/FineUpload";
 import { Panel } from "@/components/admin/parts/Panel";
 import { formatChf } from "@/lib/rental/money";
@@ -158,8 +157,6 @@ export function FinesSection() {
           void reload();
         }}
       />
-
-      <FineLegacyImport L={L} onImported={() => void load()} />
 
       <Panel
         title={F.heading}
