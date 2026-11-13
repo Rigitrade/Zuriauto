@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { RotateCw } from "lucide-react";
+import { RotateCw, Trash2 } from "lucide-react";
 import { useAdmin } from "@/components/admin/shell/AdminContext";
 import { FineDetail } from "@/components/admin/parts/FineDetail";
 import { FineUpload } from "@/components/admin/parts/FineUpload";
@@ -49,6 +49,10 @@ interface Pending {
 /** A reading this old died with its function; see STALE_CLAIM_MS. */
 const STALE_MS = 10 * 60 * 1000;
 
+function readingNow(d: Pending): boolean {
+  return d.status === "PROCESSING" && !!d.claimedAt && Date.now() - Date.parse(d.claimedAt) <= STALE_MS;
+}
+
 function canRetry(d: Pending): boolean {
   return (
     d.status === "FAILED" ||
@@ -78,7 +82,7 @@ export function FinesSection() {
   const params = useSearchParams();
   const router = useRouter();
 
-  const tab = (["review", "open", "paid", "all"].includes(params.get("tab") ?? "") ? params.get("tab") : "all") as Tab;
+  const tab = (["review", "open", "named", "paid", "all"].includes(params.get("tab") ?? "") ? params.get("tab") : "all") as Tab;
   const fineId = params.get("fine");
 
   const [listing, setListing] = useState<Listing | null>(null);
@@ -186,23 +190,39 @@ export function FinesSection() {
                   <span>
                     {zurich(d.uploadedAt, true)} · {d.uploadedByName} ·{" "}
                     <span className={d.status === "FAILED" ? "text-[var(--admin-crit)]" : "text-[var(--admin-muted)]"}>
-                      {label("doc", d.status)}
+                      {d.status === "PROCESSED" ? F.letterUnattached : label("doc", d.status)}
                     </span>
                     {d.error && <span className="block text-xs text-[var(--admin-faint)]">{d.error}</span>}
                   </span>
-                  {canRetry(d) && (
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={async () => {
-                        if (await write(`/api/admin/fines/documents/${d.id}/process/`, { method: "POST" })) await load();
-                      }}
-                      className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[var(--admin-rule-strong)] px-3 text-sm hover:bg-[var(--admin-sunk)]"
-                    >
-                      <RotateCw className="h-3.5 w-3.5" aria-hidden="true" />
-                      {F.processAgain}
-                    </button>
-                  )}
+                  <span className="flex gap-2">
+                    {canRetry(d) && (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={async () => {
+                          if (await write(`/api/admin/fines/documents/${d.id}/process/`, { method: "POST" })) await load();
+                        }}
+                        className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[var(--admin-rule-strong)] px-3 text-sm hover:bg-[var(--admin-sunk)]"
+                      >
+                        <RotateCw className="h-3.5 w-3.5" aria-hidden="true" />
+                        {F.processAgain}
+                      </button>
+                    )}
+                    {!readingNow(d) && (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={async () => {
+                          if (!window.confirm(F.deleteLetterConfirm)) return;
+                          if (await write(`/api/admin/fines/documents/${d.id}/`, { method: "DELETE" })) await load();
+                        }}
+                        className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[var(--admin-rule-strong)] px-3 text-sm text-[var(--admin-crit)] hover:bg-[var(--admin-sunk)]"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                        {F.deleteLetter}
+                      </button>
+                    )}
+                  </span>
                 </li>
               ))}
             </ul>

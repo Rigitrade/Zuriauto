@@ -52,11 +52,18 @@ export async function listFines(client: PrismaClient, tab: FineTab, now: Date) {
     },
   });
 
-  // Letters not yet attached to a fine: still being read, or failed.
+  // Letters not yet attached to a fine: still being read, or failed. Also one
+  // read but never attached — its run died between the two — which no list
+  // showed, while the upload refused the scan as already there.
   const documents =
     tab === "review" || tab === "all"
       ? await client.fineDocument.findMany({
-          where: { status: { in: ["UPLOADED", "PROCESSING", "FAILED"] } },
+          where: {
+            OR: [
+              { status: { in: ["UPLOADED", "PROCESSING", "FAILED"] } },
+              { status: "PROCESSED", fineId: null },
+            ],
+          },
           orderBy: { uploadedAt: "desc" },
           select: { id: true, status: true, attempts: true, error: true, uploadedAt: true, uploadedByName: true, claimedAt: true },
         })
