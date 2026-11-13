@@ -37,6 +37,8 @@ interface Detail {
     handlingFeeStatus: string;
     rentalId: string | null;
     closedNote: string | null;
+    legacyDriverName: string | null;
+    legacySource: string | null;
     car: { id: string; plate: string; model: string } | null;
     customer: { firstName: string; lastName: string; email: string; phone: string } | null;
   };
@@ -51,6 +53,14 @@ interface Detail {
   proofs: { id: string; verdict: string; submittedAt: string; paidOn: string | null; accepted: boolean | null }[];
   events: { id: string; type: string; actorName: string | null; createdAt: string }[];
   candidates: { rentalId: string; from: string; to: string | null; renterName: string; email: string; phone: string }[];
+  legacyDrivers: {
+    id: string;
+    violationAt: string;
+    violationTimeKnown: boolean;
+    legacyDriverName: string | null;
+    offenceTextDe: string | null;
+    location: string | null;
+  }[];
   nomination: {
     authority: { name: string; email: string | null; confirmedAt: string | null } | null;
     emailsOnLetter: string[];
@@ -197,7 +207,7 @@ export function FineDetail({
           )}
         </h2>
         <span className="text-sm">
-          <strong>{label("status", fine.status)}</strong>
+          <strong>{fine.legacySource ? F.legacyStatus : label("status", fine.status)}</strong>
           {fine.reviewReason && <span className="text-[var(--admin-attn)]"> · {label("reason", fine.reviewReason)}</span>}
           {fine.reminderLevel > 0 && <span className="text-[var(--admin-faint)]"> · {F.reminder} {fine.reminderLevel}</span>}
         </span>
@@ -258,6 +268,59 @@ export function FineDetail({
               </div>
             )}
           </section>
+
+          {fine.legacySource && (
+            <section className="rounded-xl border border-[var(--admin-rule)] bg-[var(--admin-surface)] p-4 text-sm">
+              <h3 className="font-semibold">
+                {F.legacyDriver}: {fine.legacyDriverName}
+              </h3>
+              <dl className="mt-2 grid grid-cols-[7rem_1fr] gap-x-2 gap-y-1">
+                {fine.amountCents !== null && (
+                  <>
+                    <dt className="text-[var(--admin-faint)]">{label("field", "amountCents")}</dt>
+                    <dd>CHF {formatChf(fine.amountCents)}</dd>
+                  </>
+                )}
+                {fine.location && (
+                  <>
+                    <dt className="text-[var(--admin-faint)]">{label("field", "location")}</dt>
+                    <dd>{fine.location}</dd>
+                  </>
+                )}
+                {fine.fineNumber && (
+                  <>
+                    <dt className="text-[var(--admin-faint)]">{label("field", "fineNumber")}</dt>
+                    <dd>{fine.fineNumber}</dd>
+                  </>
+                )}
+                {fine.offenceTextDe && (
+                  <>
+                    <dt className="text-[var(--admin-faint)]">{label("field", "offenceText")}</dt>
+                    <dd>{fine.offenceTextDe}</dd>
+                  </>
+                )}
+              </dl>
+            </section>
+          )}
+
+          {detail.legacyDrivers.length > 0 && (
+            <section className="rounded-xl border border-[var(--admin-rule)] bg-[var(--admin-surface)] p-4">
+              <h3 className="text-sm font-semibold">{F.legacyDriversHeading}</h3>
+              <p className="mt-0.5 text-xs text-[var(--admin-faint)]">{F.legacyDriversHint}</p>
+              <ul className="mt-2 space-y-1.5 text-sm">
+                {detail.legacyDrivers.map((d) => (
+                  <li key={d.id} className="rounded-md bg-[var(--admin-sunk)] p-2">
+                    <strong>{d.legacyDriverName}</strong>
+                    <span className="block text-xs text-[var(--admin-faint)]">
+                      {zurich(d.violationAt, d.violationTimeKnown)}
+                      {d.location ? ` · ${d.location}` : ""}
+                      {d.offenceTextDe ? ` · ${d.offenceTextDe}` : ""}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           {detail.candidates.length > 0 && (
             <section className="rounded-xl border border-[var(--admin-rule)] bg-[var(--admin-surface)] p-4">

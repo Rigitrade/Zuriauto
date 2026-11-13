@@ -43,12 +43,25 @@ export interface CarHistoryPeriod {
   contractNumber: string | null;
 }
 
+/** A fine from the office's list from before the system: who drove the car at
+ *  that moment, as the list names them. Evidence of one moment, not a period. */
+export interface CarHistorySighting {
+  fineId: string;
+  at: string;
+  timeKnown: boolean;
+  driver: string;
+  offence: string | null;
+  location: string | null;
+  amountCents: number | null;
+}
+
 export interface CarHistory {
   car: { id: string; slug: string; model: string; plate: string; status: string };
   /** Echoed back so the screen can say which window it is reporting rather
    *  than leaving an empty result ambiguous. */
   window: { from: string; to: string } | null;
   periods: CarHistoryPeriod[];
+  sightings: CarHistorySighting[];
 }
 
 export async function GET(
@@ -129,6 +142,25 @@ export async function GET(
     }
   }
 
+  // The paper months: the old fines list is the only record of who drove.
+  const sightings = await prisma.fine.findMany({
+    where: {
+      carId: car.id,
+      legacySource: { not: null },
+      ...(window ? { violationAt: { gte: window.from, lte: window.to } } : {}),
+    },
+    orderBy: { violationAt: "desc" },
+    select: {
+      id: true,
+      violationAt: true,
+      violationTimeKnown: true,
+      legacyDriverName: true,
+      offenceTextDe: true,
+      location: true,
+      amountCents: true,
+    },
+  });
+
   // Written before the response, and whether or not anything matched: a run of
   // searches that find nobody is exactly the shape of somebody trawling the
   // fleet, and only recording the hits would leave that invisible.
@@ -139,7 +171,7 @@ export async function GET(
       username: user.username,
       windowFrom: window?.from ?? null,
       windowTo: window?.to ?? null,
-      matches: rentals.length,
+      matches: rentals.length + sightings.length,
     },
   });
 
@@ -161,6 +193,15 @@ export async function GET(
       // rather than in the browser: the rule is about evidence, and a client
       // that guessed it would offer the form and then be refused by the route.
       editablePeriod: mayEditPeriod(authors.get(rental.id) ?? []),
+    })),
+    sightings: sightings.map((fine) => ({
+      fineId: fine.id,
+      at: fine.violationAt!.toISOString(),
+      timeKnown: fine.violationTimeKnown,
+      driver: fine.legacyDriverName ?? "",
+      offence: fine.offenceTextDe,
+      location: fine.location,
+      amountCents: fine.amountCents,
     })),
   };
 

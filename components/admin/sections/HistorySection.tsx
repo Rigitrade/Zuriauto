@@ -254,6 +254,7 @@ export function HistorySection() {
   }
 
   const periods = history?.periods ?? [];
+  const sightings = history?.sightings ?? [];
   const windowed = Boolean(history?.window);
 
   return (
@@ -333,34 +334,73 @@ export function HistorySection() {
         </p>
       ) : loading ? (
         <p className="px-4 py-8 text-center text-sm text-[var(--admin-faint)]">…</p>
-      ) : periods.length === 0 ? (
-        /* Two different facts, and the office has to be able to tell them
-           apart: this car has never been rented, or it was rented plenty but
-           not over the days asked about — in which case it sat with the
-           office, and nobody who appears elsewhere on this screen is
-           answerable for the fine. */
-        <p className="px-4 py-8 text-center text-sm text-[var(--admin-faint)]">
-          {windowed ? L.history.noneInWindow : L.history.noneEver}
-        </p>
       ) : (
         <>
-          {windowed && (
-            <p className="border-b border-[var(--admin-rule)] bg-[var(--admin-sunk)] px-4 py-2 text-xs font-medium text-[var(--admin-muted)]">
-              {L.history.heldBy}
+          {periods.length === 0 ? (
+            /* Two different facts, and the office has to be able to tell them
+               apart: this car has never been rented, or it was rented plenty but
+               not over the days asked about — in which case it sat with the
+               office, and nobody who appears elsewhere on this screen is
+               answerable for the fine. */
+            <p className="px-4 py-8 text-center text-sm text-[var(--admin-faint)]">
+              {windowed ? L.history.noneInWindow : L.history.noneEver}
             </p>
+          ) : (
+            <>
+              {windowed && (
+                <p className="border-b border-[var(--admin-rule)] bg-[var(--admin-sunk)] px-4 py-2 text-xs font-medium text-[var(--admin-muted)]">
+                  {L.history.heldBy}
+                </p>
+              )}
+              <ul>
+                {periods.map((period) => (
+                  <HistoryPeriod
+                    key={period.id}
+                    period={period}
+                    L={L}
+                    highlight={windowed}
+                    busy={loading}
+                    onSavePeriod={(body) => savePeriod(period.id, body)}
+                  />
+                ))}
+              </ul>
+            </>
           )}
-          <ul>
-            {periods.map((period) => (
-              <HistoryPeriod
-                key={period.id}
-                period={period}
-                L={L}
-                highlight={windowed}
-                busy={loading}
-                onSavePeriod={(body) => savePeriod(period.id, body)}
-              />
-            ))}
-          </ul>
+
+          {/* The paper months: who the office's old fines list says was
+              driving. Moments, not periods, and labelled as such. */}
+          {sightings.length > 0 && (
+            <div className="border-t border-[var(--admin-rule)]">
+              <p className="bg-[var(--admin-sunk)] px-4 py-2 text-xs font-medium text-[var(--admin-muted)]">
+                {L.history.sightingsHeading}
+                <span className="block font-normal text-[var(--admin-faint)]">{L.history.sightingsHint}</span>
+              </p>
+              <ul className="divide-y divide-[var(--admin-rule)] text-sm">
+                {sightings.map((sighting) => (
+                  <li key={sighting.fineId} className="flex flex-wrap items-baseline justify-between gap-2 px-4 py-2.5">
+                    <span>
+                      <strong>{sighting.driver}</strong>
+                      <span className="block text-xs text-[var(--admin-faint)]">
+                        {[sighting.location, sighting.offence].filter(Boolean).join(" · ")}
+                      </span>
+                    </span>
+                    <a
+                      href={`/admin/fines/?tab=all&fine=${sighting.fineId}`}
+                      className="whitespace-nowrap text-xs text-[var(--admin-muted)] underline underline-offset-2"
+                    >
+                      {new Date(sighting.at).toLocaleString("de-CH", {
+                        timeZone: "Europe/Zurich",
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                        ...(sighting.timeKnown ? { hour: "2-digit", minute: "2-digit" } : {}),
+                      })}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </>
       )}
     </Panel>

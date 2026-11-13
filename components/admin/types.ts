@@ -172,6 +172,16 @@ export interface CarHistory {
   /** Null when the whole history was asked for. */
   window: { from: string; to: string } | null;
   periods: CarPeriod[];
+  /** Fines from the office's old list: who drove at that moment. */
+  sightings: {
+    fineId: string;
+    at: string;
+    timeKnown: boolean;
+    driver: string;
+    offence: string | null;
+    location: string | null;
+    amountCents: number | null;
+  }[];
 }
 
 export interface Account {

@@ -1173,6 +1173,13 @@ model Fine {
   driverNamedAt      DateTime?
   driverNamedTo      String?
 
+  /// Set on a fine taken over from the office's list from before the system
+  /// (paper rentals): what the list called the driver, and which list it came
+  /// from. Such a fine is closed history — it sends nothing and charges
+  /// nothing; it answers "who drove this car then".
+  legacyDriverName   String?
+  legacySource       String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

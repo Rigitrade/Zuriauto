@@ -6,6 +6,7 @@ import type { FineStatus, PrismaClient } from "@/generated/prisma/client";
 import { isPlaceholderEmail } from "@/lib/rental/placeholder";
 import { driverNominationMail } from "./mail";
 import { driverIsComplete, emailsOnLetter } from "./nomination";
+import { legacyDriversNear } from "./legacy";
 import { papersFor } from "./papers";
 import { loadIntervals } from "./repo/possessionLoad";
 
@@ -47,6 +48,8 @@ export async function listFines(client: PrismaClient, tab: FineTab, now: Date) {
       reminderLevel: true,
       handlingFeeStatus: true,
       createdAt: true,
+      legacyDriverName: true,
+      legacySource: true,
       car: { select: { plate: true, model: true } },
       customer: { select: { firstName: true, lastName: true } },
     },
@@ -80,11 +83,13 @@ export async function listFines(client: PrismaClient, tab: FineTab, now: Date) {
   ).length;
 
   return {
-    fines: fines.map(({ car, customer, ...fine }) => ({
+    fines: fines.map(({ car, customer, legacyDriverName, legacySource, ...fine }) => ({
       ...fine,
       plate: car?.plate ?? null,
       carModel: car?.model ?? null,
-      renterName: customer ? `${customer.firstName} ${customer.lastName}` : null,
+      // A fine from the old list names its driver as the list did.
+      renterName: customer ? `${customer.firstName} ${customer.lastName}` : legacyDriverName,
+      legacy: legacySource !== null,
     })),
     documents,
     stats: { last30: created.length, auto },
@@ -93,6 +98,9 @@ export async function listFines(client: PrismaClient, tab: FineTab, now: Date) {
 
 /** Rentals of the car whose possession touches the week either side. */
 const CANDIDATE_WINDOW_MS = 7 * DAY_MS;
+
+/** How far either side the old fines list is searched for who drove the car. */
+const LEGACY_WINDOW_MS = 60 * DAY_MS;
 
 export async function fineDetail(client: PrismaClient, fineId: string) {
   const fine = await client.fine.findUnique({
@@ -155,6 +163,13 @@ export async function fineDetail(client: PrismaClient, fineId: string) {
     });
   }
 
+  // With no renter found, what the office's old list says about who drove
+  // this car around then: a lead to follow, never an assignment.
+  const legacyDrivers =
+    fine.carId && fine.violationAt && !fine.rentalId && fine.legacySource === null
+      ? await legacyDriversNear(client, fine.carId, fine.violationAt, LEGACY_WINDOW_MS)
+      : [];
+
   // The letters' text stays on the server: it is long, and the addresses on it
   // are all the screen needs.
   const documents = fine.documents.map((document) => {
@@ -197,6 +212,7 @@ export async function fineDetail(client: PrismaClient, fineId: string) {
     proofs: fine.proofs,
     events: fine.events,
     candidates,
+    legacyDrivers,
     nomination,
   };
 }
