@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { BY_OFFICE_ORDER } from "@/lib/admin/carOrder";
 import { isPdfLicence } from "@/lib/admin/carLicence";
 import { requireAdmin } from "@/lib/admin/session";
+import { isSiteOwner } from "@/lib/admin/siteOwner";
 import { fineAttentionCounts } from "@/lib/fines/queries";
 import { openBalances } from "@/lib/payments/account";
 import { paymentReviewCount } from "@/lib/payments/queries";
@@ -42,6 +43,8 @@ export interface AdminOverview {
     role: "owner" | "staff";
     /** The company's brand, for the shell (multi-company phase B). */
     companyName: string;
+    /** ZURIAUTO's owner only: may create partner companies in Konten. */
+    canManagePartners: boolean;
   };
   cars: {
     id: string;
@@ -400,6 +403,7 @@ export async function GET(request: Request) {
       displayName: user.displayName,
       role: user.role,
       companyName: (await loadCompanyIdentity(prisma, organisation.id)).brandName,
+      canManagePartners: await isSiteOwner(user),
     },
     cars: cars.map((car) => ({
       id: car.id,

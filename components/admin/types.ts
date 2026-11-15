@@ -201,6 +201,8 @@ export type Me = {
   /** The account's company's brand, shown in the shell (phase B). Optional,
    *  so a client running against an older deployment shows ZURIAUTO. */
   companyName?: string;
+  /** ZURIAUTO's owner only: may create partner companies in Konten. */
+  canManagePartners?: boolean;
 };
 
 export interface UnsentContract {

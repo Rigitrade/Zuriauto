@@ -57,6 +57,16 @@ const CASES: Record<string, Partial<Record<Method, Case>>> = {
   "cars/order": { PUT: { body: (a) => ({ ids: [a.carId] }) } },
   "cars": { POST: { body: () => ({ model: "VW Golf", plate: "ZH 555555" }) } },
   "company": { GET: {}, PATCH: { body: () => ({ phone: "+41 00 000 00 00" }) } },
+  // ZURIAUTO's owner only (A is the oldest, so the site company here).
+  "partners": {
+    GET: {},
+    POST: {
+      body: () => ({
+        brandName: "X CARS", legalName: "X GmbH", slug: "x-cars", officeEmail: "office@x.ch",
+        owner: { displayName: "X", username: "x-owner", password: "lang-genug-123" },
+      }),
+    },
+  },
   "charges/[id]/reopen": { POST: { params: (a) => ({ id: a.chargeId }), body: () => ({}) } },
   "charges/[id]/waive": { POST: { params: (a) => ({ id: a.chargeId }), body: () => ({ note: "Goodwill" }) } },
   "contracts/[id]/pdf": { GET: { params: (a) => ({ id: a.contractId }) } },
