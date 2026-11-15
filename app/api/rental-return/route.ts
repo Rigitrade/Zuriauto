@@ -1,6 +1,7 @@
 import { after, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import { prisma } from "@/lib/db";
+import { findSiteOrganisation } from "@/lib/organisation";
 import { sendFinesFromReturn } from "@/lib/fines/renter";
 import { readLifecycleMailConfig } from "@/lib/rental/lifecycleMail";
 import { buildCustomerEmail } from "@/lib/rental/customerEmail";
@@ -169,9 +170,7 @@ async function recordReturn(
   }
 
   try {
-    const organisation = await prisma.organisation.findFirst({
-      select: { id: true },
-    });
+    const organisation = await findSiteOrganisation();
     if (!organisation) {
       console.error("[rental-return] no organisation row — run pnpm db:seed");
       return null;

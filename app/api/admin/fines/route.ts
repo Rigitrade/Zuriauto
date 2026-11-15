@@ -14,7 +14,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ code: "unauthorised" }, { status: 401 });
   }
   const tab = asTab(new URL(request.url).searchParams.get("tab"));
-  return NextResponse.json(await listFines(prisma, tab, new Date()), {
+  return NextResponse.json(await listFines(prisma, user.organisationId, tab, new Date()), {
     headers: { "cache-control": "no-store" },
   });
 }

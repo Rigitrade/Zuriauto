@@ -22,11 +22,21 @@ import { newUserSchema, USERNAME_PATTERN } from "../lib/admin/users";
 export async function ensureOrganisation(
   client: PrismaClient
 ): Promise<{ id: string }> {
-  const existing = await client.organisation.findFirst({ select: { id: true } });
+  // ZURIAUTO-only tool. By slug first, then the oldest: with more than one
+  // company in the database, "any company" would be a coin toss.
+  const bySlug = await client.organisation.findUnique({
+    where: { slug: "zuriauto" },
+    select: { id: true },
+  });
+  if (bySlug) return bySlug;
+  const existing = await client.organisation.findFirst({
+    orderBy: { createdAt: "asc" },
+    select: { id: true },
+  });
   if (existing) return existing;
 
   return client.organisation.create({
-    data: { name: process.env.ORGANISATION_NAME ?? "ZURIAUTO" },
+    data: { name: process.env.ORGANISATION_NAME ?? "ZURIAUTO", slug: "zuriauto" },
     select: { id: true },
   });
 }

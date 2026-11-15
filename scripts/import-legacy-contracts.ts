@@ -60,6 +60,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../generated/prisma/client";
 import type { Prisma } from "../generated/prisma/client";
 import { normalisePhone } from "../lib/rental/phone";
+import { findSiteOrganisationWith } from "../lib/organisationCore";
 import { normaliseEmail } from "../lib/rental/customers";
 
 const APPLY = process.argv.includes("--apply");
@@ -245,7 +246,9 @@ async function main() {
   });
 
   try {
+    // ZURIAUTO-only tool: the site company, never "any company".
     const org = await client.organisation.findFirst({
+      where: { id: (await findSiteOrganisationWith(client))?.id ?? "" },
       select: { id: true, name: true },
     });
     if (!org) {

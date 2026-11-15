@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/admin/session";
+import { inCompany, notFound } from "@/lib/admin/scope";
 import { decideWeeksAfterClose } from "@/lib/payments/afterClose";
 
 /**
@@ -18,6 +19,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const user = await requireAdmin(request);
   if (!user) return NextResponse.json({ code: "unauthorised" }, { status: 401 });
 
+  if (!(await inCompany.rental(prisma, user.organisationId, (await params).id))) {
+    return notFound();
+  }
+
   let body: unknown;
   try {
     body = await request.json();
@@ -29,7 +34,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   // Single tenant, as every payments route: the rental must be this organisation's.
   const id = (await params).id;
-  const organisation = await prisma.organisation.findFirst({ select: { id: true } });
+  const organisation = { id: user.organisationId };
   const rental = organisation
     ? await prisma.rental.findFirst({ where: { id, organisationId: organisation.id }, select: { id: true } })
     : null;

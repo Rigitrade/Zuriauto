@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { resolveDoneOn, updateRepairSchema } from "@/lib/admin/cars";
 import { requireAdmin } from "@/lib/admin/session";
+import { notFound, repairInCompany } from "@/lib/admin/scope";
 import { zurichDayString } from "@/lib/rental/passes";
 
 /**
@@ -38,6 +39,13 @@ export async function PATCH(
   const user = await requireAdmin(request);
   if (!user) {
     return NextResponse.json({ code: "unauthorised" }, { status: 401 });
+  }
+
+  {
+    const { id: carId, repairId: rid } = await params;
+    if (!(await repairInCompany(prisma, user.organisationId, carId, rid))) {
+      return notFound();
+    }
   }
 
   const { id, repairId } = await params;
@@ -111,6 +119,13 @@ export async function DELETE(
   const user = await requireAdmin(request);
   if (!user) {
     return NextResponse.json({ code: "unauthorised" }, { status: 401 });
+  }
+
+  {
+    const { id: carId, repairId: rid } = await params;
+    if (!(await repairInCompany(prisma, user.organisationId, carId, rid))) {
+      return notFound();
+    }
   }
 
   const { id, repairId } = await params;

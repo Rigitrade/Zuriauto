@@ -29,8 +29,7 @@ function baseUrl(request: Request): string {
 export async function POST(request: Request) {
   const user = await requireAdmin(request);
   if (!user) return NextResponse.json({ code: "unauthorised" }, { status: 401 });
-  const organisation = await prisma.organisation.findFirst({ select: { id: true } });
-  if (!organisation) return NextResponse.json({ code: "not-found" }, { status: 404 });
+  const organisation = { id: user.organisationId };
 
   const deps: SchedulerDeps = {
     client: prisma,
@@ -38,6 +37,7 @@ export async function POST(request: Request) {
     baseUrl: baseUrl(request),
     mail: readLifecycleMailConfig(),
     releaseHoldFor: organisation.id,
+    onlyOrganisation: organisation.id,
   };
   const officeOnly = await chargeOfficeOnlyPass(deps);
   const requested = await weeklyChargePass(deps);

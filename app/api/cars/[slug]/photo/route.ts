@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { findSiteOrganisation } from "@/lib/organisation";
 import { getAssetStore } from "@/lib/storage";
 
 /**
@@ -45,8 +46,10 @@ export async function GET(
 ) {
   const { slug } = await params;
 
+  // Slugs are unique per company, so the site's company names which car.
+  const site = await findSiteOrganisation();
   const car = await prisma.car.findFirst({
-    where: { slug },
+    where: { slug, organisationId: site?.id ?? "" },
     select: { photoKey: true, photoContentType: true, photoUpdatedAt: true },
   });
 

@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/admin/session";
+import { notFound } from "@/lib/admin/scope";
 import {
   LETTER_CONTENT_TYPE,
   MAX_LETTER_BYTES,
@@ -58,6 +59,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ code: "bad-request" }, { status: 400 });
   }
 
+  // A slot another company already registered is not this office's: it is
+  // neither read nor, on a refusal below, deleted (multi-company phase A).
+  const foreign = await prisma.fineDocument.findFirst({
+    where: {
+      OR: [{ id: documentId }, { storageKey: key }],
+      NOT: { organisationId: user.organisationId },
+    },
+    select: { id: true },
+  });
+  if (foreign) return notFound();
+
   const store = getAssetStore();
   const object = await store.get(key);
   if (!object) {
@@ -83,7 +95,7 @@ export async function POST(request: Request) {
   }
   if (pages < 1 || pages > MAX_LETTER_PAGES) return refuse("too-many-pages", 413);
 
-  const organisation = await prisma.organisation.findFirstOrThrow({ select: { id: true } });
+  const organisation = { id: user.organisationId };
   try {
     await prisma.fineDocument.create({
       data: {

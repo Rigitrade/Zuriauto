@@ -4,6 +4,9 @@ import { ingestMail } from "@/lib/payments/twint/ingest";
 import { paymentDetail, paymentList, paymentMailIssues, paymentReviewCount } from "@/lib/payments/queries";
 import { applyPaymentAction, resolveMailIssue } from "@/lib/payments/actions";
 import { closeAt, seedOrganisation, seedRental } from "./fineHelpers";
+
+/** The one company these tests use (ensureOrganisation is idempotent). */
+const orgId = async () => (await seedOrganisation()).id;
 import { rawMail } from "./paymentHelpers";
 
 async function onePaidOneWaiting() {
@@ -19,17 +22,17 @@ describe("payment queries", () => {
   it("lists what waits on the review tab, and counts it for the Overview", async () => {
     await onePaidOneWaiting();
 
-    const review = await paymentList(prisma, "review");
+    const review = await paymentList(prisma, await orgId(), "review");
     expect(review).toHaveLength(1);
     expect(review[0]).toMatchObject({ status: "NEEDS_REVIEW", reviewReason: "NO_PLATE", message: "Danke" });
-    expect(await paymentReviewCount(prisma)).toBe(1);
-    expect(await paymentList(prisma, "all")).toHaveLength(2);
+    expect(await paymentReviewCount(prisma, await orgId())).toBe(1);
+    expect(await paymentList(prisma, await orgId(), "all")).toHaveLength(2);
   });
 
   it("shows a booked payment with its renter, car and week", async () => {
     await onePaidOneWaiting();
 
-    const [booked] = await paymentList(prisma, "booked");
+    const [booked] = await paymentList(prisma, await orgId(), "booked");
     expect(booked).toMatchObject({ renterName: "Anna Meier", plate: "ZH 513 925", weekNumber: 2 });
   });
 
@@ -46,14 +49,14 @@ describe("payment queries", () => {
     const org = await seedOrganisation();
     await ingestMail({ client: prisma, organisationId: org.id, verify: async () => false }, rawMail({}, 7));
 
-    expect(await paymentReviewCount(prisma)).toBe(1);
-    const [issue] = await paymentMailIssues(prisma);
+    expect(await paymentReviewCount(prisma, await orgId())).toBe(1);
+    const [issue] = await paymentMailIssues(prisma, await orgId());
     expect(issue).toMatchObject({ reason: "UNSIGNED", subject: "Erfolgreiche Transaktion" });
 
     expect(await resolveMailIssue(prisma, issue.id, { id: "u1", displayName: "Ahmed" })).toEqual({ ok: true });
     expect(await resolveMailIssue(prisma, issue.id, { id: "u1", displayName: "Ahmed" })).toEqual({ ok: false, code: "conflict" });
-    expect(await paymentReviewCount(prisma)).toBe(0);
-    expect(await paymentMailIssues(prisma)).toEqual([]);
+    expect(await paymentReviewCount(prisma, await orgId())).toBe(0);
+    expect(await paymentMailIssues(prisma, await orgId())).toEqual([]);
   });
 
   it("offers a rental that has already ended, for a balance paid after the return", async () => {
@@ -92,7 +95,7 @@ describe("payment queries", () => {
     const rest = await waiting(3, "CHF 80.00");
     await applyPaymentAction(prisma, rest.id, { action: "book", rentalId: rental.id, chargeId: balance.id }, office);
 
-    const booked = await paymentList(prisma, "booked");
+    const booked = await paymentList(prisma, await orgId(), "booked");
     const row = (id: string) => booked.find((p) => p.id === id);
     expect(row(both.id)).toMatchObject({ purpose: "deposit+week", weekNumber: 1, method: "TWINT", depositCents: 50_000 });
     expect(row(credit.id)).toMatchObject({ purpose: "credit" });

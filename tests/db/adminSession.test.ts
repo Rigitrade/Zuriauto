@@ -41,6 +41,27 @@ describe("requireAdmin", () => {
     expect(identity?.role).toBe("staff");
   });
 
+  it("returns the account's company", async () => {
+    await ensureOrganisation(prisma);
+    const second = await prisma.organisation.create({
+      data: { name: "Meier AG" },
+      select: { id: true },
+    });
+    const user = await prisma.adminUser.create({
+      data: {
+        organisationId: second.id,
+        username: "meier",
+        displayName: "Meier",
+        role: "owner",
+        passwordHash: await hashPassword("Sommer2026!"),
+      },
+      select: { id: true },
+    });
+
+    const identity = await requireAdmin(withCookie(issueAdminSession(user.id)));
+    expect(identity?.organisationId).toBe(second.id);
+  });
+
   it("refuses a cookie naming a user who does not exist", async () => {
     const token = issueAdminSession("clxdoesnotexist0000000000");
     expect(await requireAdmin(withCookie(token))).toBeNull();

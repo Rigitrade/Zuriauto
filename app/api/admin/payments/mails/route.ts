@@ -15,8 +15,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const user = await requireAdmin(request);
   if (!user) return NextResponse.json({ code: "unauthorised" }, { status: 401 });
-  const organisation = await prisma.organisation.findFirst({ select: { id: true } });
-  if (!organisation) return NextResponse.json({ next: [], held: false, cap: 0, sent: [] });
+  const organisation = { id: user.organisationId };
 
   const now = new Date();
   const [plan, sent] = await Promise.all([

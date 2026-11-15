@@ -4,6 +4,7 @@ import { statusChangeAllowed, updateCarSchema } from "@/lib/admin/cars";
 import { MARKED_OUT_BY } from "@/lib/admin/markOut";
 import { nextServiceDueKm } from "@/lib/admin/service";
 import { requireAdmin } from "@/lib/admin/session";
+import { inCompany, notFound } from "@/lib/admin/scope";
 import { isPlaceholderEmail } from "@/lib/rental/placeholder";
 
 /**
@@ -27,6 +28,10 @@ export async function PATCH(
   const user = await requireAdmin(request);
   if (!user) {
     return NextResponse.json({ code: "unauthorised" }, { status: 401 });
+  }
+
+  if (!(await inCompany.car(prisma, user.organisationId, (await params).id))) {
+    return notFound();
   }
 
   const { id } = await params;
@@ -208,6 +213,10 @@ export async function DELETE(
   const user = await requireAdmin(request);
   if (!user) {
     return NextResponse.json({ code: "unauthorised" }, { status: 401 });
+  }
+
+  if (!(await inCompany.car(prisma, user.organisationId, (await params).id))) {
+    return notFound();
   }
 
   const { id } = await params;

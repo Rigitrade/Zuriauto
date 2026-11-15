@@ -7,6 +7,7 @@ import {
   refuseCarLicence,
 } from "@/lib/admin/carLicence";
 import { requireAdmin } from "@/lib/admin/session";
+import { inCompany, notFound } from "@/lib/admin/scope";
 import { carLicenceKey, getAssetStore } from "@/lib/storage";
 
 /**
@@ -42,6 +43,10 @@ export async function GET(
   const user = await requireAdmin(request);
   if (!user) {
     return NextResponse.json({ code: "unauthorised" }, { status: 401 });
+  }
+
+  if (!(await inCompany.car(prisma, user.organisationId, (await params).id))) {
+    return notFound();
   }
 
   const { id } = await params;
@@ -95,6 +100,10 @@ export async function PUT(
   const user = await requireAdmin(request);
   if (!user) {
     return NextResponse.json({ code: "unauthorised" }, { status: 401 });
+  }
+
+  if (!(await inCompany.car(prisma, user.organisationId, (await params).id))) {
+    return notFound();
   }
 
   const { id } = await params;
@@ -168,6 +177,10 @@ export async function DELETE(
   const user = await requireAdmin(request);
   if (!user) {
     return NextResponse.json({ code: "unauthorised" }, { status: 401 });
+  }
+
+  if (!(await inCompany.car(prisma, user.organisationId, (await params).id))) {
+    return notFound();
   }
 
   const { id } = await params;

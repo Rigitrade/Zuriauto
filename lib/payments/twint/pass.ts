@@ -6,6 +6,7 @@
  */
 
 import type { PrismaClient } from "@/generated/prisma/client";
+import { siteOrganisation } from "@/lib/organisation";
 import { ingestMail, type IngestOutcome, type RawMail } from "./ingest";
 
 export async function twintPaymentPass(deps: {
@@ -13,7 +14,7 @@ export async function twintPaymentPass(deps: {
   fetchMails: () => Promise<RawMail[]>;
   verify?: (raw: Buffer) => Promise<boolean>;
 }): Promise<Record<IngestOutcome | "failed", number>> {
-  const organisation = await deps.client.organisation.findFirstOrThrow({ select: { id: true } });
+  const organisation = await siteOrganisation(deps.client);
   const counts: Record<IngestOutcome | "failed", number> = {
     booked: 0,
     review: 0,

@@ -82,13 +82,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ code: "rate-limited" }, { status: 429 });
   }
 
-  // No organisationId here — correct only because the system runs a single
-  // Organisation today, the same assumption every admin route makes (see
-  // the fuller note in app/api/admin/users/[id]/route.ts). If a second
-  // organisation ever exists, `username` is unique per organisation, not
-  // globally, so this lookup could match either of two identically-named
-  // users non-deterministically — signing somebody into the wrong
-  // organisation's account. Scope by organisationId before that happens.
+  // No organisationId needed: usernames are unique across every company
+  // (a database index since multi-company phase A, 15.11.2026), so the name
+  // alone names one account.
   const user = await prisma.adminUser.findFirst({
     where: { username: credentials.username, disabledAt: null },
     select: {

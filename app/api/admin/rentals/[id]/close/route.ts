@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/admin/session";
+import { inCompany, notFound } from "@/lib/admin/scope";
 import { closeRental, RentalAlreadyClosed } from "@/lib/rental/closeRental";
 
 /**
@@ -28,6 +29,10 @@ export async function POST(
   const user = await requireAdmin(request);
   if (!user) {
     return NextResponse.json({ code: "unauthorised" }, { status: 401 });
+  }
+
+  if (!(await inCompany.rental(prisma, user.organisationId, (await params).id))) {
+    return notFound();
   }
 
   const { id } = await params;

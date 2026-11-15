@@ -351,7 +351,7 @@ describe("fineAttentionCounts", () => {
       },
     });
     expect(fine.status).toBe("NEEDS_REVIEW");
-    expect(await fineAttentionCounts(prisma, new Date("2026-10-03T12:00:00Z"))).toEqual({
+    expect(await fineAttentionCounts(prisma, org.id, new Date("2026-10-03T12:00:00Z"))).toEqual({
       // The fine in review, and the letter that failed for good.
       review: 2,
       proof: 1,

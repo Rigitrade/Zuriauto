@@ -40,9 +40,13 @@ const rowInclude = {
   charge: { select: { weekNumber: true } },
 } as const;
 
-export async function paymentList(client: PrismaClient, tab: PaymentTab): Promise<PaymentRow[]> {
+export async function paymentList(
+  client: PrismaClient,
+  organisationId: string,
+  tab: PaymentTab
+): Promise<PaymentRow[]> {
   const payments = await client.payment.findMany({
-    where: { status: { in: STATUS_OF[tab] } },
+    where: { organisationId, status: { in: STATUS_OF[tab] } },
     orderBy: { paidAt: "desc" },
     take: 200,
     include: rowInclude,
@@ -66,10 +70,10 @@ export async function paymentList(client: PrismaClient, tab: PaymentTab): Promis
 }
 
 /** What the Overview counts: payments to book, and TWINT emails nothing was booked from. */
-export async function paymentReviewCount(client: PrismaClient): Promise<number> {
+export async function paymentReviewCount(client: PrismaClient, organisationId: string): Promise<number> {
   const [payments, issues] = await Promise.all([
-    client.payment.count({ where: { status: "NEEDS_REVIEW" } }),
-    client.paymentMailIssue.count({ where: { resolvedAt: null } }),
+    client.payment.count({ where: { organisationId, status: "NEEDS_REVIEW" } }),
+    client.paymentMailIssue.count({ where: { organisationId, resolvedAt: null } }),
   ]);
   return payments + issues;
 }
@@ -83,9 +87,12 @@ export interface PaymentMailIssueRow {
 }
 
 /** The TWINT emails the office has not marked done yet, newest first. */
-export async function paymentMailIssues(client: PrismaClient): Promise<PaymentMailIssueRow[]> {
+export async function paymentMailIssues(
+  client: PrismaClient,
+  organisationId: string
+): Promise<PaymentMailIssueRow[]> {
   const issues = await client.paymentMailIssue.findMany({
-    where: { resolvedAt: null },
+    where: { organisationId, resolvedAt: null },
     orderBy: { createdAt: "desc" },
     take: 100,
   });

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { hashPassword } from "@/lib/admin/password";
 import { requireAdmin } from "@/lib/admin/session";
+import { inCompany, notFound } from "@/lib/admin/scope";
 import { updateUserSchema } from "@/lib/admin/users";
 
 /**
@@ -27,6 +28,10 @@ export async function PATCH(
   const actor = await requireAdmin(request);
   if (!actor) {
     return NextResponse.json({ code: "unauthorised" }, { status: 401 });
+  }
+
+  if (!(await inCompany.adminUser(prisma, actor.organisationId, (await params).id))) {
+    return notFound();
   }
 
   const { id } = await params;
@@ -70,12 +75,8 @@ export async function PATCH(
     (patch.disabled === true || patch.role === "staff");
 
   if (losesOwner) {
-    // Scoped to all owners, not this organisation's owners — correct only
-    // because the system runs a single Organisation today, the same
-    // assumption every admin route makes by resolving it with `findFirst`.
-    // If a second organisation ever exists, this count would include a
-    // foreign owner and could wave through the exact lockout it exists to
-    // prevent; re-scope it by organisationId before that happens.
+    // This company's owners only: another company's owners cannot
+    // administer this one (multi-company phase A, 15.11.2026).
     //
     // The count and the update below are also not atomic: two owners
     // demoting/disabling two different owners at the same instant could each
@@ -88,7 +89,12 @@ export async function PATCH(
     // isolation-level change, and keeps the (expensive) scrypt hashing
     // outside the transaction.
     const otherOwners = await prisma.adminUser.count({
-      where: { role: "owner", disabledAt: null, id: { not: target.id } },
+      where: {
+        organisationId: actor.organisationId,
+        role: "owner",
+        disabledAt: null,
+        id: { not: target.id },
+      },
     });
     if (otherOwners === 0) {
       return NextResponse.json({ code: "last-owner" }, { status: 409 });

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { findSiteOrganisation } from "@/lib/organisation";
 import { findCustomersByPhone } from "@/lib/rental/findCustomers";
 import { normalisePhone } from "@/lib/rental/phone";
 import { hashIp, rateLimited } from "@/lib/rental/rateLimit";
@@ -92,9 +93,7 @@ export async function POST(request: Request) {
 
   const phoneKey = normalisePhone(phone);
 
-  const organisation = await prisma.organisation.findFirst({
-    select: { id: true },
-  });
+  const organisation = await findSiteOrganisation();
   if (!organisation) {
     console.error("[customer-lookup] no organisation row — run pnpm db:seed");
     return NextResponse.json({ code: "not-configured" }, { status: 503 });

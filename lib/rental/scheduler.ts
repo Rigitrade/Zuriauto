@@ -20,6 +20,7 @@ import type {
   Prisma,
   PrismaClient,
 } from "@/generated/prisma/client";
+import { findSiteOrganisationWith } from "@/lib/organisationCore";
 import { isPlaceholderEmail } from "./placeholder";
 import {
   forecastService,
@@ -131,6 +132,12 @@ export interface SchedulerDeps {
    * page: its payment emails go out although the safety stop would hold them.
    */
   releaseHoldFor?: string;
+  /**
+   * Limit the payment-email passes to one company. Set by "Jetzt senden",
+   * which is one office's button and must not send another company's mails
+   * (multi-company phase A, 15.11.2026). The daily run leaves it unset.
+   */
+  onlyOrganisation?: string;
 }
 
 const REMIND_AFTER_HOURS = Number(
@@ -576,7 +583,7 @@ async function escalateToOffice(
 
 /** Open weeks sent to the office instead of the renter, in this run. */
 export async function chargeOfficeOnlyPass(deps: SchedulerDeps): Promise<number> {
-  const candidates = await paymentMailCandidates(deps.client, deps.now);
+  const candidates = await paymentMailCandidates(deps.client, deps.now, deps.onlyOrganisation);
   const held = await paymentMailHold(deps, candidates);
   let count = 0;
   for (const charge of [...candidates.requests, ...candidates.reminders]) {
@@ -589,7 +596,7 @@ export async function chargeOfficeOnlyPass(deps: SchedulerDeps): Promise<number>
 
 /** How many payment emails the safety stop holds back this run. */
 export async function paymentMailHeldCount(deps: SchedulerDeps): Promise<number> {
-  const rows = planRows(await paymentMailCandidates(deps.client, deps.now), deps.now);
+  const rows = planRows(await paymentMailCandidates(deps.client, deps.now, deps.onlyOrganisation), deps.now);
   const held = new Set(heldOrganisations(rows, deps.releaseHoldFor));
   return rows.filter((r) => held.has(r.organisationId)).length;
 }
@@ -597,7 +604,7 @@ export async function paymentMailHeldCount(deps: SchedulerDeps): Promise<number>
 export async function weeklyChargePass(deps: SchedulerDeps): Promise<number> {
   const { client, now, mail } = deps;
 
-  const all = await paymentMailCandidates(client, now);
+  const all = await paymentMailCandidates(client, now, deps.onlyOrganisation);
   const held = await paymentMailHold(deps, all);
 
   let count = 0;
@@ -685,7 +692,7 @@ export async function weeklyChargePass(deps: SchedulerDeps): Promise<number> {
 export async function chargeReminderPass(deps: SchedulerDeps): Promise<number> {
   const { client, now, mail } = deps;
 
-  const all = await paymentMailCandidates(client, now);
+  const all = await paymentMailCandidates(client, now, deps.onlyOrganisation);
   const held = await paymentMailHold(deps, all);
 
   let count = 0;
@@ -1337,11 +1344,18 @@ export async function availabilityPass(deps: SchedulerDeps): Promise<number> {
 
   // Nothing free, nothing to say. Asked first because it is one indexed count
   // and it is false on most days the list is non-empty.
-  const available = await client.car.count({ where: { status: "available" } });
+  // The waiting list is the public site's, so only the site company's cars
+  // count: a partner company's free car is not one this list can rent
+  // (multi-company phase A, 15.11.2026).
+  const site = await findSiteOrganisationWith(client);
+  if (!site) return 0;
+  const available = await client.car.count({
+    where: { organisationId: site.id, status: "available" },
+  });
   if (available === 0) return 0;
 
   const waiting = await client.availabilityAlert.findMany({
-    where: { notifiedAt: null, cancelledAt: null },
+    where: { organisationId: site.id, notifiedAt: null, cancelledAt: null },
     // Longest wait first. If the batch cap truncates the run, the people who
     // have been waiting since last week hear before today's arrivals.
     orderBy: { createdAt: "asc" },
