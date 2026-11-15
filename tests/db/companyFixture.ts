@@ -14,6 +14,8 @@ import { getAssetStore } from "@/lib/storage";
 export interface CompanyFixture {
   label: "A" | "B";
   organisationId: string;
+  /** The company's phone in its settings (phase B), unusual like the plate. */
+  companyPhone: string;
   ownerId: string;
   headers: Record<string, string>;
   carId: string;
@@ -44,8 +46,9 @@ export async function buildCompany(label: "A" | "B"): Promise<CompanyFixture> {
   const renterLastName = label === "A" ? "Zzyzx" : "Yyxw";
   const store = getAssetStore();
 
+  const companyPhone = label === "A" ? "+41 44 917 17 17" : "+41 44 928 28 28";
   const org = await prisma.organisation.create({
-    data: { name: `Company ${label}`, slug: `co-${tag}` },
+    data: { name: `Company ${label}`, slug: `co-${tag}`, phone: companyPhone, officeEmail: `office-${tag}@example.ch` },
     select: { id: true },
   });
   const organisationId = org.id;
@@ -241,6 +244,7 @@ export async function buildCompany(label: "A" | "B"): Promise<CompanyFixture> {
   return {
     label,
     organisationId,
+    companyPhone,
     ownerId: owner.id,
     headers: { cookie: `${ADMIN_COOKIE}=${issueAdminSession(owner.id)}` },
     carId: car.id,
@@ -269,6 +273,7 @@ export async function buildCompany(label: "A" | "B"): Promise<CompanyFixture> {
  */
 export async function snapshot(f: CompanyFixture): Promise<string> {
   const org = { organisationId: f.organisationId };
+  const company = await prisma.organisation.findUnique({ where: { id: f.organisationId } });
   const [cars, rentals, charges, payments, repairs, fines, documents, proofs, notifications, issues, users, contracts, assets] =
     await Promise.all([
       prisma.car.findMany({ where: org, orderBy: { id: "asc" } }),
@@ -287,6 +292,7 @@ export async function snapshot(f: CompanyFixture): Promise<string> {
     ]);
   const letter = await getAssetStore().get(f.fineDocumentKey);
   return JSON.stringify({
+    company,
     cars, rentals, charges, payments, repairs, fines, documents, proofs,
     notifications, issues, users, contracts, assets,
     letterBytes: letter ? Array.from(letter.body) : null,

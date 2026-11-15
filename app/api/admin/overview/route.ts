@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { loadCompanyIdentity } from "@/lib/company/load";
 import { prisma } from "@/lib/db";
 import { BY_OFFICE_ORDER } from "@/lib/admin/carOrder";
 import { isPdfLicence } from "@/lib/admin/carLicence";
@@ -39,6 +40,8 @@ export interface AdminOverview {
     username: string;
     displayName: string;
     role: "owner" | "staff";
+    /** The company's brand, for the shell (multi-company phase B). */
+    companyName: string;
   };
   cars: {
     id: string;
@@ -396,6 +399,7 @@ export async function GET(request: Request) {
       username: user.username,
       displayName: user.displayName,
       role: user.role,
+      companyName: (await loadCompanyIdentity(prisma, organisation.id)).brandName,
     },
     cars: cars.map((car) => ({
       id: car.id,

@@ -1,3 +1,5 @@
+import { loadCompanyIdentity } from "@/lib/company/load";
+import { companyMail } from "@/lib/company/mailEnvelope";
 import { prisma } from "@/lib/db";
 import {
   readLifecycleMailConfig,
@@ -35,7 +37,9 @@ export async function notifyReturnIntent(
   rental: RentalForNotice & { customerName: string; customerPhone: string },
   now: Date
 ): Promise<void> {
-  const mail = readLifecycleMailConfig();
+  // The rental's company is told, in its own name (multi-company phase B).
+  const shared = readLifecycleMailConfig();
+  const mail = shared && companyMail(shared, await loadCompanyIdentity(prisma, rental.organisationId));
   if (!mail) return;
 
   await sendOnce(
@@ -69,10 +73,12 @@ export async function notifyReturnIntent(
 
 export async function notifyExtension(
   rental: RentalForNotice & { customerName: string; customerPhone: string },
-  detail: { weeks: number; newEndAt: Date; amountCents: number; paymentUrl: string },
+  detail: { weeks: number; newEndAt: Date; amountCents: number; paymentUrl: string | null },
   now: Date
 ): Promise<void> {
-  const mail = readLifecycleMailConfig();
+  const company = await loadCompanyIdentity(prisma, rental.organisationId);
+  const shared = readLifecycleMailConfig();
+  const mail = shared && companyMail(shared, company);
   if (!mail) return;
 
   // The renter's confirmation, with the amount and the pay link.
@@ -89,6 +95,7 @@ export async function notifyExtension(
     now,
     async () => {
       const message = extensionConfirmedMail({
+        company,
         firstName: rental.customerFirstName,
         carModel: rental.carModel,
         plate: rental.carPlate,

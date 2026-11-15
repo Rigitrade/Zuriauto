@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { loadCompanyIdentity } from "@/lib/company/load";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/admin/session";
 import { inCompany, notFound } from "@/lib/admin/scope";
@@ -109,9 +110,16 @@ export async function POST(
       mileageKm: contract.mileageKm,
       language: asRentalLanguage(contract.gtcLanguage),
     },
-    Buffer.from(stored.body)
+    Buffer.from(stored.body),
+    // The signed-in office's company, which is the contract's: the wall
+    // above answered 404 for any other.
+    await loadCompanyIdentity(prisma, user.organisationId)
   );
 
+  if (outcome.delivered === "none" && outcome.error === "company-office-missing") {
+    // A partner with no office address: nothing to retry until it has one.
+    return NextResponse.json({ code: "company-office-missing" }, { status: 409 });
+  }
   if (outcome.delivered === "none") {
     // Includes the unconfigured case, which is a 503 rather than a 500: the
     // request was fine and will work once somebody sets SMTP.

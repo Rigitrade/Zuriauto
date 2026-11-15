@@ -1,11 +1,15 @@
 import { after, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
+import { ZURIAUTO_IDENTITY } from "@/lib/company/identity";
+import { loadCompanyIdentity } from "@/lib/company/load";
+import { companyMail } from "@/lib/company/mailEnvelope";
 import { prisma } from "@/lib/db";
 import { findSiteOrganisation } from "@/lib/organisation";
 import { sendFinesFromReturn } from "@/lib/fines/renter";
 import { readLifecycleMailConfig } from "@/lib/rental/lifecycleMail";
 import { buildCustomerEmail } from "@/lib/rental/customerEmail";
 import { labelsFor } from "@/lib/rental/labels";
+import { withCompany } from "@/lib/company/identity";
 import { isPlaceholderEmail } from "@/lib/rental/placeholder";
 import {
   persistReturn,
@@ -92,6 +96,8 @@ interface MailConfig {
   from: string;
   office: string;
   archive?: string;
+  /** A partner's office, for its renters' replies (phase B). */
+  replyTo?: string;
 }
 
 function readMailConfig(): MailConfig | null {
@@ -301,13 +307,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ code: "bad-request" }, { status: 400 });
   }
 
-  const config = readMailConfig();
-  if (!config) {
+  const shared = readMailConfig();
+  if (!shared) {
     // The browser falls back to download and share on this code.
     return NextResponse.json({ code: "mail-not-configured" }, { status: 503 });
   }
 
-  const L = labelsFor(meta.language);
+  // The returns form serves the site company (ZURIAUTO) until phase C gives
+  // each company its own return link; the report is in its name.
+  const site = await findSiteOrganisation();
+  const company = site ? await loadCompanyIdentity(prisma, site.id) : ZURIAUTO_IDENTITY;
+  const config = companyMail(shared, company);
+  if (!config) {
+    return NextResponse.json({ code: "mail-not-configured" }, { status: 503 });
+  }
+
+  const L = withCompany(labelsFor(meta.language), company);
   const pdfBytes = new Uint8Array(await file.arrayBuffer());
   const attachment = {
     filename: `${meta.returnNumber}.pdf`,
@@ -403,10 +418,12 @@ export async function POST(request: Request) {
       referenceNumber: meta.returnNumber,
       hello: L.ret.email.customerHello,
       body: L.ret.email.customerBody,
+      company,
     });
 
     await transport.sendMail({
       from: config.from,
+      ...(config.replyTo ? { replyTo: config.replyTo } : {}),
       to: meta.customerEmail,
       subject: `${L.ret.email.customerSubject} – ${meta.returnNumber}`,
       text: customerEmail.text,

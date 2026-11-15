@@ -56,6 +56,7 @@ const CASES: Record<string, Partial<Record<Method, Case>>> = {
   },
   "cars/order": { PUT: { body: (a) => ({ ids: [a.carId] }) } },
   "cars": { POST: { body: () => ({ model: "VW Golf", plate: "ZH 555555" }) } },
+  "company": { GET: {}, PATCH: { body: () => ({ phone: "+41 00 000 00 00" }) } },
   "charges/[id]/reopen": { POST: { params: (a) => ({ id: a.chargeId }), body: () => ({}) } },
   "charges/[id]/waive": { POST: { params: (a) => ({ id: a.chargeId }), body: () => ({ note: "Goodwill" }) } },
   "contracts/[id]/pdf": { GET: { params: (a) => ({ id: a.contractId }) } },
@@ -174,7 +175,7 @@ function leakMarkers(a: CompanyFixture): string[] {
   return [
     a.plate, a.renterLastName, a.carId, a.customerId, a.rentalId, a.contractId, a.assetId,
     a.chargeId, a.paymentId, a.repairId, a.fineId, a.fineDocumentId, a.proofId,
-    a.notificationId, a.mailIssueId, a.ownerId,
+    a.notificationId, a.mailIssueId, a.ownerId, a.companyPhone,
   ];
 }
 

@@ -9,6 +9,7 @@
 
 import { z } from "zod";
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
+import { loadCompanyIdentity } from "@/lib/company/load";
 import { zurichInstant } from "@/lib/admin/rentalPeriod";
 import { isPlaceholderEmail } from "@/lib/rental/placeholder";
 import { recordEvent, type Actor } from "./events";
@@ -16,7 +17,7 @@ import { handlingFeeCents } from "./fee";
 import { fineThanksMail } from "./mail";
 import { nominateDriver } from "./nominate";
 import { isEmailAddress } from "./nomination";
-import { notifyRenter, sendFineOnce, type NotifyDeps } from "./notify";
+import { inCompanyName, notifyRenter, sendFineOnce, type NotifyDeps } from "./notify";
 import { momentOf, responsibleAt } from "./possession";
 import { loadIntervals } from "./repo/possessionLoad";
 import { burnFineTokens } from "./token";
@@ -126,9 +127,11 @@ async function thank(deps: NotifyDeps, fineId: string): Promise<void> {
   });
   if (!fine.customer || !fine.car || !fine.violationAt || isPlaceholderEmail(fine.customer.email)) return;
   const { customer, car } = fine;
-  await sendFineOnce(deps, { fineId, kind: "FINE_PAID", dedupeKey: "paid", to: customer.email }, async () => ({
+  const company = await loadCompanyIdentity(deps.client, fine.organisationId);
+  await sendFineOnce(inCompanyName(deps, company), { fineId, kind: "FINE_PAID", dedupeKey: "paid", to: customer.email }, async () => ({
     to: customer.email,
     ...fineThanksMail({
+      company,
       language: asRentalLanguage(fine.rental?.contracts[0]?.gtcLanguage),
       firstName: customer.firstName,
       plate: car.plate,

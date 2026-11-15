@@ -16,9 +16,9 @@ import {
   StandardFonts,
   rgb,
 } from "pdf-lib";
+import { POWERED_BY, type PublicCompany } from "@/lib/company/identity";
 import gtc, {
   GTC_DATE,
-  GTC_ENTITY,
   type GtcDocument,
   type GtcLanguage,
 } from "@/locales/gtc";
@@ -463,6 +463,38 @@ export interface ContractPdfInput {
   signaturePng: Uint8Array;
   /** The full terms as an appendix. On by default. */
   includeGtcAppendix?: boolean;
+  /**
+   * The renting company (multi-company phase B, 15.11.2026): its brand heads
+   * the contract, its legal name is the lessor, its place is the default
+   * signing place. Required, so no caller can forget it and print ZURIAUTO
+   * on a partner's contract.
+   */
+  company: PublicCompany;
+}
+
+/**
+ * The brand the customer booked with, above the entity actually named as
+ * lessor. Both belong on a contract: one is what they recognise, the other is
+ * who they are contracting with. A partner company adds "powered by
+ * ZURIAUTO" (Ahmed, 15.11.2026). Shared with the return report.
+ */
+export function writeCompanyHeader(w: Writer, company: PublicCompany, lessorLabel: string): void {
+  w.page.drawText(toWinAnsi(company.brandName), {
+    x: MARGIN,
+    y: w.cursor,
+    size: 18,
+    font: w.bold,
+    color: INK,
+  });
+  w.gap(20);
+  w.text(`${lessorLabel}: ${company.legalName}`, { size: 9, color: MUTED });
+  if (company.poweredBy) w.text(POWERED_BY, { size: 8, color: MUTED });
+  w.gap(10);
+}
+
+/** "Zurich, 22.08.2026, 10:00", leaving out a place nobody gave. */
+export function placeAndDate(place: string, issuedAt: Date): string {
+  return [place, formatDate(toIsoDate(issuedAt)), formatTime(issuedAt)].filter(Boolean).join(", ");
 }
 
 export async function buildContractPdf(
@@ -489,20 +521,7 @@ export async function buildContractPdf(
   const w = new Writer(doc, font, bold);
 
   // --- Header ----------------------------------------------------------
-  // The brand the customer booked with, above the entity actually named as
-  // lessor in the terms. Both belong on a contract: one is what they
-  // recognise, the other is who they are contracting with. GTC_ENTITY comes
-  // from the terms themselves, so the two cannot disagree.
-  w.page.drawText(toWinAnsi("ZURIAUTO"), {
-    x: MARGIN,
-    y: w.cursor,
-    size: 18,
-    font: bold,
-    color: INK,
-  });
-  w.gap(20);
-  w.text(`${L.lessor}: ${GTC_ENTITY}`, { size: 9, color: MUTED });
-  w.gap(10);
+  writeCompanyHeader(w, input.company, L.lessor);
   w.text(L.title, { size: 14, font: bold });
   w.gap(6);
   w.field(L.contractNumber, contractNumber);
@@ -612,8 +631,7 @@ export async function buildContractPdf(
   w.gap(2);
   // Place, date and time as three comma-separated parts, matching the label.
   w.text(
-    `${L.placeAndDate}: ${details.place || "Zurich"}, ` +
-      `${formatDate(toIsoDate(issuedAt))}, ${formatTime(issuedAt)}`,
+    `${L.placeAndDate}: ${placeAndDate(details.place || input.company.signingPlace, issuedAt)}`,
     { size: 9, color: MUTED }
   );
 

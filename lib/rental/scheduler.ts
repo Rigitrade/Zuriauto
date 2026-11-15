@@ -36,7 +36,7 @@ import {
 } from "@/lib/fines/passes";
 import { freeReader } from "@/lib/fines/reader";
 import { getAssetStore } from "@/lib/storage";
-import { PAYMENT_URL } from "@/lib/payment";
+import { companyIdentityCache } from "@/lib/company/load";
 import { getPaymentProvider } from "@/lib/payments";
 import {
   MANAGE_TOKEN_TTL_HOURS,
@@ -205,11 +205,14 @@ export async function preEndReminderPass(deps: SchedulerDeps): Promise<number> {
   });
 
   let count = 0;
+  // Each rental's company signs its mail (multi-company phase B).
+  const companyOf = companyIdentityCache(client);
 
   for (const rental of candidates) {
     // Belt and braces: the window above and the predicate here agree, but the
     // predicate is the one under test.
     if (!isRentalEndingSoon(rental, now)) continue;
+    const company = await companyOf(rental.organisationId);
 
     const sent = await sendOnce(
       client,
@@ -243,6 +246,7 @@ export async function preEndReminderPass(deps: SchedulerDeps): Promise<number> {
         });
 
         const message = rentalEndingMail({
+          company,
           firstName: rental.customer.firstName,
           carModel: rental.car.model,
           plate: rental.car.plate,
@@ -608,6 +612,7 @@ export async function weeklyChargePass(deps: SchedulerDeps): Promise<number> {
   const held = await paymentMailHold(deps, all);
 
   let count = 0;
+  const companyOf = companyIdentityCache(client);
 
   for (const charge of all.requests) {
     if (held.has(charge.organisationId)) continue;
@@ -616,6 +621,7 @@ export async function weeklyChargePass(deps: SchedulerDeps): Promise<number> {
 
     const { rental } = charge;
     const reference = `${rental.car.plate} W${charge.weekNumber}`;
+    const company = await companyOf(charge.organisationId);
 
     // Claim the transition BEFORE talking to the provider. The provider call is
     // the one step here that is not idempotent — a real processor would issue
@@ -627,8 +633,13 @@ export async function weeklyChargePass(deps: SchedulerDeps): Promise<number> {
     });
     if (claimed.count === 0) continue;
 
-    let request: { url: string; providerRef: string | null };
-    try {
+    let request: { url: string | null; providerRef: string | null };
+    if (company.poweredBy) {
+      // A partner's renter pays the partner, never through ZURIAUTO's payment
+      // provider (multi-company phase B; partner payments deferred by Ahmed,
+      // 15.11.2026). Its own page, or no link at all.
+      request = { url: company.paymentUrl, providerRef: null };
+    } else try {
       request = await getPaymentProvider().createRequest({
         amountCents: charge.amountCents,
         currency: charge.currency,
@@ -643,7 +654,7 @@ export async function weeklyChargePass(deps: SchedulerDeps): Promise<number> {
         `[scheduler] payment request failed for charge ${charge.id}:`,
         error
       );
-      request = { url: PAYMENT_URL, providerRef: null };
+      request = { url: company.paymentUrl, providerRef: null };
     }
 
     await client.charge.update({
@@ -664,6 +675,7 @@ export async function weeklyChargePass(deps: SchedulerDeps): Promise<number> {
       async () => {
         if (!mail) throw new Error("mail-not-configured");
         const message = chargeDueMail({
+          company,
           firstName: rental.customer.firstName,
           carModel: rental.car.model,
           plate: rental.car.plate,
@@ -696,12 +708,14 @@ export async function chargeReminderPass(deps: SchedulerDeps): Promise<number> {
   const held = await paymentMailHold(deps, all);
 
   let count = 0;
+  const companyOf = companyIdentityCache(client);
 
   for (const charge of all.reminders) {
     if (held.has(charge.organisationId)) continue;
     if (officeOnlyReason(charge, charge.rental, now)) continue;
 
     const { rental } = charge;
+    const company = await companyOf(charge.organisationId);
 
     await sendOnce(
       client,
@@ -716,6 +730,7 @@ export async function chargeReminderPass(deps: SchedulerDeps): Promise<number> {
       async () => {
         if (!mail) throw new Error("mail-not-configured");
         const message = chargeDueMail({
+          company,
           firstName: rental.customer.firstName,
           carModel: rental.car.model,
           plate: rental.car.plate,
@@ -723,7 +738,7 @@ export async function chargeReminderPass(deps: SchedulerDeps): Promise<number> {
           amountCents: charge.amountCents,
           // Stored when the charge was requested. The fallback matters only
           // for rows written before paymentUrl existed.
-          paymentUrl: charge.paymentUrl ?? PAYMENT_URL,
+          paymentUrl: charge.paymentUrl ?? company.paymentUrl,
           reference: `${rental.car.plate} W${charge.weekNumber}`,
           language: languageOf(rental),
           isReminder: true,
@@ -1168,9 +1183,11 @@ export async function mfkNoticePass(deps: SchedulerDeps): Promise<number> {
   });
 
   let sent = 0;
+  const companyOf = companyIdentityCache(client);
   for (const car of cars) {
     const mfkDate = car.mfkDate;
     if (!mfkDate || !isMfkInEarlyNotice(mfkDate, now)) continue;
+    const company = await companyOf(car.organisationId);
 
     const rental = car.rentals[0] ?? null;
     const daysLeft = mfkDaysLeft(mfkDate, now);
@@ -1183,6 +1200,7 @@ export async function mfkNoticePass(deps: SchedulerDeps): Promise<number> {
       rental,
       () =>
         mfkNoticeRenterMail({
+          company,
           firstName: rental!.customer.firstName,
           carModel: car.model,
           plate: car.plate,
@@ -1250,6 +1268,7 @@ export async function serviceDuePass(deps: SchedulerDeps): Promise<number> {
   });
 
   let sent = 0;
+  const companyOf = companyIdentityCache(client);
   for (const car of cars) {
     const contracts = await client.contract.findMany({
       where: { rental: { carId: car.id } },
@@ -1278,6 +1297,7 @@ export async function serviceDuePass(deps: SchedulerDeps): Promise<number> {
     if (!overdue && !isServiceNoticeDue(forecast)) continue;
 
     const rental = car.rentals[0] ?? null;
+    const company = await companyOf(car.organisationId);
     const figures = {
       dueKm: forecast.dueKm,
       estimatedKmNow: forecast.estimatedKmNow,
@@ -1294,6 +1314,7 @@ export async function serviceDuePass(deps: SchedulerDeps): Promise<number> {
       () =>
         serviceDueRenterMail({
           ...figures,
+          company,
           firstName: rental!.customer.firstName,
           carModel: car.model,
           plate: car.plate,

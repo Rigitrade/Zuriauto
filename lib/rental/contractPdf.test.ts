@@ -2,6 +2,7 @@ import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 // @ts-expect-error -- pdfjs ships no types for its worker module.
 import * as pdfjsWorker from "pdfjs-dist/legacy/build/pdf.worker.mjs";
 import { describe, expect, it } from "vitest";
+import { publicCompany, ZURIAUTO_IDENTITY } from "@/lib/company/identity";
 import { buildContractPdf, type ContractPdfInput } from "./contractPdf";
 import { findVehicle } from "./fleet";
 import type { ContractDetails } from "./schema";
@@ -79,6 +80,7 @@ const base = {
   // Skipped so the tests measure the document pages rather than twenty pages
   // of terms, and so they stay fast.
   includeGtcAppendix: false,
+  company: publicCompany(ZURIAUTO_IDENTITY),
 };
 
 const captured = {

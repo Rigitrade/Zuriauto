@@ -84,6 +84,24 @@ model Organisation {
   /// existing page (lib/organisation.ts `isValidCompanySlug`). ZURIAUTO is
   /// `zuriauto`. Null only for a company that has no public links yet.
   slug       String?           @unique
+  /// The company's identity on documents and mails (multi-company phase B,
+  /// 15.11.2026), edited by its owner under Admin → Firma. All optional: an
+  /// empty column falls back to ZURIAUTO's value for the site company and to
+  /// `name` (or nothing) for any other, see lib/company/identity.ts.
+  brandName    String?
+  legalName    String?
+  street       String?
+  postalCode   String?
+  city         String?
+  uid          String?
+  phone        String?
+  /// Office mail recipients, comma-separated. Null for ZURIAUTO = MAIL_OFFICE.
+  officeEmail  String?
+  signerName   String?
+  website      String?
+  signingPlace String?
+  paymentUrl   String?
+  twintUrl     String?
   createdAt  DateTime          @default(now())
   cars       Car[]
   customers  Customer[]

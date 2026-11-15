@@ -8,6 +8,8 @@
  */
 
 import nodemailer from "nodemailer";
+import { withCompany, type CompanyIdentity } from "@/lib/company/identity";
+import { companyMail } from "@/lib/company/mailEnvelope";
 import { buildCustomerEmail } from "./customerEmail";
 import { labelsFor } from "./labels";
 
@@ -19,6 +21,8 @@ interface MailConfig {
   from: string;
   /** Comma-separated list is allowed, so several people can be notified. */
   office: string;
+  /** A partner's office, for its renters' replies (phase B). */
+  replyTo?: string;
   /**
    * Blind copy kept as the archive. It runs in parallel with the database
    * through Phase 2 and should not be switched off until the database has
@@ -112,12 +116,16 @@ export interface ContractMailFields {
  */
 export async function sendContractMails(
   meta: ContractMailFields,
-  pdf: Buffer
+  pdf: Buffer,
+  /** The renting company: sender name, office, wordmark (phase B). */
+  company: CompanyIdentity
 ): Promise<MailOutcome> {
-  const config = readMailConfig();
-  if (!config) return { delivered: "none", error: "mail-not-configured" };
+  const shared = readMailConfig();
+  if (!shared) return { delivered: "none", error: "mail-not-configured" };
+  const config = companyMail(shared, company);
+  if (!config) return { delivered: "none", error: "company-office-missing" };
 
-  const L = labelsFor(meta.language);
+  const L = withCompany(labelsFor(meta.language), company);
   const attachment = {
     filename: `${meta.contractNumber}.pdf`,
     content: pdf,
@@ -170,10 +178,12 @@ export async function sendContractMails(
       referenceNumber: meta.contractNumber,
       hello: L.email.customerHello,
       body: L.email.customerBody,
+      company,
     });
 
     await transport.sendMail({
       from: config.from,
+      ...(config.replyTo ? { replyTo: config.replyTo } : {}),
       to: meta.customerEmail,
       subject: `${L.email.customerSubject} – ${meta.contractNumber}`,
       text: customerEmail.text,

@@ -4,6 +4,7 @@ import { applyFineAction } from "@/lib/fines/actions";
 import { deliverNewFine } from "@/lib/fines/nominate";
 import { notifyRenter, type NotifyDeps, type SentMail } from "@/lib/fines/notify";
 import { createMemoryStore } from "@/lib/storage";
+import { seedFleet } from "@/prisma/seed";
 import { FINE_NOW, seedOrganisation, seedRental } from "./fineHelpers";
 
 /**
@@ -463,5 +464,35 @@ describe("after the driver was named", () => {
     await deliverNewFine(failing, fine.id);
     expect(await reload(fine.id)).toMatchObject({ status: "NEEDS_REVIEW", reviewReason: "MAIL_FAILED" });
     expect(sent.map((m) => m.to)).toEqual(["info@zuriauto.ch"]);
+  });
+});
+
+describe("a partner company's nomination (multi-company phase B, review fix)", () => {
+  it("goes out under the partner's name, copied and answered to the partner's office", async () => {
+    await seedOrganisation();
+    const partner = await prisma.organisation.create({
+      data: { name: "Meier Mietwagen GmbH", slug: "meier", brandName: "MEIER CARS", officeEmail: "office@meier.example" },
+    });
+    await seedFleet(prisma, partner.id);
+    const { fine, deps, sent } = await matchedFine({ organisationId: partner.id });
+    await confirmUitikon(partner.id);
+    const configs: { from: string; replyTo?: string }[] = [];
+    deps.send = async (config, message) => {
+      configs.push(config);
+      sent.push(message);
+    };
+
+    await deliverNewFine(deps, fine.id);
+
+    expect(sent.map((m) => m.to)).toEqual(["ordnungsbussen@uitikon.org", "anna@example.ch"]);
+    const [police] = sent;
+    expect(police.cc).toBe("office@meier.example");
+    expect(police.replyTo).toBe("office@meier.example");
+    expect(configs.map((c) => c.from)).toEqual([
+      '"MEIER CARS" <noreply@zuriauto.ch>',
+      '"MEIER CARS" <noreply@zuriauto.ch>',
+    ]);
+    // The renter's reply reaches the partner, not the shared sender mailbox.
+    expect(configs[1].replyTo).toBe("office@meier.example");
   });
 });

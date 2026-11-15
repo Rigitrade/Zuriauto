@@ -9,12 +9,17 @@
  * that it is paid to the issuer and not to us, and how to tell us it was.
  */
 
-import { PAYMENT_URL, TWINT_URL } from "@/lib/payment";
+import { signOff, type CompanyBrand, type CompanyIdentity } from "@/lib/company/identity";
 import { formatChf } from "@/lib/rental/money";
 import { formatDay } from "@/lib/rental/lifecycleMail";
 import type { RentalLanguage } from "@/lib/rental/labels";
 
+/** What a fine mail needs of the keeper: its name and its payment links. */
+export type FineCompany = Pick<CompanyIdentity, "brandName" | "poweredBy" | "paymentUrl" | "twintUrl">;
+
 export interface FineMailContext {
+  /** The renting company, the car's keeper (multi-company phase B). */
+  company: FineCompany;
   language: RentalLanguage;
   firstName: string;
   plate: string;
@@ -54,6 +59,31 @@ function chf(cents: number): string {
   return `CHF ${formatChf(cents)}`;
 }
 
+/**
+ * The handling fee: paid by card or TWINT on the company's own pages, or at
+ * its office when it has none — never on ZURIAUTO's pages for a partner.
+ */
+function feeLines(ctx: FineMailContext, reference: string, language: RentalLanguage): string[] {
+  const { paymentUrl, twintUrl } = ctx.company;
+  const fee = chf(ctx.feeCents);
+  if (language === "en") {
+    const head = `Under the fees set out in our terms we charge a handling fee of ${fee}.`;
+    if (!paymentUrl && !twintUrl) return [`${head} Please pay it to our office, quoting fine ${reference}.`];
+    return [
+      `${head} Please pay it by card or TWINT, quoting fine ${reference}:`,
+      ...(paymentUrl ? [`Card:  ${paymentUrl}`] : []),
+      ...(twintUrl ? [`TWINT: ${twintUrl}`] : []),
+    ];
+  }
+  const head = `Gemäss den Gebühren in unseren AGB verrechnen wir eine Bearbeitungsgebühr von ${fee}.`;
+  if (!paymentUrl && !twintUrl) return [`${head} Bitte bezahlen Sie diese an unser Büro mit dem Vermerk «Busse ${reference}».`];
+  return [
+    `${head} Bitte bezahlen Sie diese per Karte oder TWINT mit dem Vermerk «Busse ${reference}»:`,
+    ...(paymentUrl ? [`Karte: ${paymentUrl}`] : []),
+    ...(twintUrl ? [`TWINT: ${twintUrl}`] : []),
+  ];
+}
+
 export function fineNoticeMail(ctx: FineMailContext): { subject: string; text: string } {
   const day = formatFineMoment(ctx.violationAt, false);
   const when = formatFineMoment(ctx.violationAt, ctx.timeKnown);
@@ -83,7 +113,7 @@ export function fineNoticeMail(ctx: FineMailContext): { subject: string; text: s
         ...(ctx.issuerName ? [`Issued by: ${ctx.issuerName}`] : []),
         ...(reference ? [`Number:    ${reference}`] : []),
         "",
-        "Please pay the amount directly to the issuer, using the payment slip in the attached letter (scan the QR code with your banking app). ZURIAUTO does not collect it.",
+        `Please pay the amount directly to the issuer, using the payment slip in the attached letter (scan the QR code with your banking app). ${ctx.company.brandName} does not collect it.`,
         "",
         "Once you have paid, please confirm it here with a screenshot of the payment:",
         ctx.payUrl,
@@ -94,16 +124,13 @@ export function fineNoticeMail(ctx: FineMailContext): { subject: string; text: s
         ...(ctx.feeCents > 0
           ? [
               "",
-              `Under the fees set out in our terms we charge a handling fee of ${chf(ctx.feeCents)}. Please pay it by card or TWINT, quoting fine ${reference}:`,
-              `Card:  ${PAYMENT_URL}`,
-              `TWINT: ${TWINT_URL}`,
+              ...feeLines(ctx, reference, "en"),
             ]
           : []),
         "",
         "An unpaid fine comes back as a reminder with further costs.",
         "",
-        "Kind regards",
-        "ZURIAUTO",
+        ...signOff(ctx.company, "en"),
       ].join("\n"),
     };
   }
@@ -130,23 +157,20 @@ export function fineNoticeMail(ctx: FineMailContext): { subject: string; text: s
       ...(ctx.issuerName ? [`Absender:    ${ctx.issuerName}`] : []),
       ...(reference ? [`Nummer:      ${reference}`] : []),
       "",
-      "Bitte bezahlen Sie den Betrag direkt an den Absender, mit dem Einzahlungsschein im beigefügten Schreiben (QR-Code mit Ihrer Banking-App scannen). ZURIAUTO zieht ihn nicht ein.",
+      `Bitte bezahlen Sie den Betrag direkt an den Absender, mit dem Einzahlungsschein im beigefügten Schreiben (QR-Code mit Ihrer Banking-App scannen). ${ctx.company.brandName} zieht ihn nicht ein.`,
       "",
       "Sobald Sie bezahlt haben, bestätigen Sie es bitte hier mit einem Screenshot der Zahlung:",
       ctx.payUrl,
       ...(ctx.feeCents > 0
         ? [
             "",
-            `Gemäss den Gebühren in unseren AGB verrechnen wir eine Bearbeitungsgebühr von ${chf(ctx.feeCents)}. Bitte bezahlen Sie diese per Karte oder TWINT mit dem Vermerk «Busse ${reference}»:`,
-            `Karte: ${PAYMENT_URL}`,
-            `TWINT: ${TWINT_URL}`,
+            ...feeLines(ctx, reference, "de"),
           ]
         : []),
       "",
       "Eine unbezahlte Busse kommt als Mahnung mit weiteren Kosten zurück.",
       "",
-      "Freundliche Grüsse",
-      "ZURIAUTO",
+      ...signOff(ctx.company, "de"),
     ].join("\n"),
   };
 }
@@ -166,8 +190,7 @@ export function fineReopenedMail(ctx: FineMailContext): { subject: string; text:
         "",
         "If not, please pay it now with the slip in the attached reminder.",
         "",
-        "Kind regards",
-        "ZURIAUTO",
+        ...signOff(ctx.company, "en"),
       ].join("\n"),
     };
   }
@@ -183,8 +206,7 @@ export function fineReopenedMail(ctx: FineMailContext): { subject: string; text:
       "",
       "Falls nicht, bezahlen Sie die Busse bitte jetzt mit dem Einzahlungsschein der beigelegten Mahnung.",
       "",
-      "Freundliche Grüsse",
-      "ZURIAUTO",
+      ...signOff(ctx.company, "de"),
     ].join("\n"),
   };
 }
@@ -194,12 +216,12 @@ export function fineThanksMail(ctx: FineMailContext): { subject: string; text: s
   if (ctx.language === "en") {
     return {
       subject: `Payment confirmed: fine for ${ctx.plate} of ${day}`,
-      text: [`Hello ${ctx.firstName}`, "", "Thank you — we have recorded your payment of the fine.", "", "Kind regards", "ZURIAUTO"].join("\n"),
+      text: [`Hello ${ctx.firstName}`, "", "Thank you — we have recorded your payment of the fine.", "", ...signOff(ctx.company, "en")].join("\n"),
     };
   }
   return {
     subject: `Zahlung bestätigt: Busse für ${ctx.plate} vom ${day}`,
-    text: [`Guten Tag ${ctx.firstName}`, "", "Vielen Dank — wir haben Ihre Zahlung der Busse vermerkt.", "", "Freundliche Grüsse", "ZURIAUTO"].join("\n"),
+    text: [`Guten Tag ${ctx.firstName}`, "", "Vielen Dank — wir haben Ihre Zahlung der Busse vermerkt.", "", ...signOff(ctx.company, "de")].join("\n"),
   };
 }
 
@@ -218,6 +240,8 @@ export function fineThanksMail(ctx: FineMailContext): { subject: string; text: s
  * which file to open for what; none, and the list is left out.
  */
 export function driverNominationMail(ctx: {
+  /** The keeper writing to the authority (multi-company phase B). */
+  company: NominationCompany;
   fineNumber: string;
   plate: string;
   violationAt: Date;
@@ -262,17 +286,33 @@ export function driverNominationMail(ctx: {
         ? ["Als Nachweis der Miete liegen bei:", ...ctx.papers.map((paper) => `- ${paper}`), ""]
         : []),
       "Für Rückfragen stehen wir Ihnen gerne zur Verfügung.",
-      "Freundliche Grüsse",
-      "Katamesh, Ahmed",
-      "*************",
-      "Zuriauto.ch",
-      "Eine Marke der Rigitrade AG",
-      "T. +41 58 513 99 96",
-      "",
-      "Schaffhauserstrasse 550",
-      "8052 Zürich",
+      ...nominationSignature(ctx.company),
     ].join("\n"),
   };
+}
+
+/** What the police letter needs of the keeper, for its signature block. */
+export type NominationCompany = Pick<
+  CompanyIdentity,
+  "brandName" | "legalName" | "signerName" | "website" | "phone" | "street" | "postalCode" | "city"
+>;
+
+/**
+ * The letter's signature block, as ZURIAUTO has always signed it, from the
+ * keeper's own settings. A line the keeper has not filled in is left out.
+ */
+function nominationSignature(c: NominationCompany): string[] {
+  const place = [c.postalCode, c.city].filter(Boolean).join(" ");
+  const address = [c.street, place].filter((line): line is string => Boolean(line));
+  return [
+    "Freundliche Grüsse",
+    ...(c.signerName ? [c.signerName] : []),
+    "*************",
+    c.website ? c.website.charAt(0).toUpperCase() + c.website.slice(1) : c.brandName,
+    ...(c.legalName !== c.brandName ? [`Eine Marke der ${c.legalName}`] : []),
+    ...(c.phone ? [`T. ${c.phone}`] : []),
+    ...(address.length ? ["", ...address] : []),
+  ];
 }
 
 /**
@@ -281,6 +321,8 @@ export function driverNominationMail(ctx: {
  * who paid it while the authority re-issues the fine to them would pay twice.
  */
 export function renterNamedMail(ctx: {
+  /** The keeper, for the sign-off (multi-company phase B). */
+  company: CompanyBrand;
   language: RentalLanguage;
   firstName: string;
   plate: string;
@@ -314,8 +356,7 @@ export function renterNamedMail(ctx: {
         "",
         `We have named you to ${issuer ?? "the issuing authority"} as the driver. They will send the fine to you directly; please pay it to them when it arrives. Please do not pay anything to us.`,
         "",
-        "Kind regards",
-        "ZURIAUTO",
+        ...signOff(ctx.company, "en"),
       ].join("\n"),
     };
   }
@@ -336,8 +377,7 @@ export function renterNamedMail(ctx: {
       "",
       `Wir haben Sie ${issuer ? `der Behörde (${issuer})` : "der Behörde"} als Lenker gemeldet. Die Busse wird Ihnen direkt zugestellt; bitte bezahlen Sie sie dann dort. Bitte bezahlen Sie nichts an uns.`,
       "",
-      "Freundliche Grüsse",
-      "ZURIAUTO",
+      ...signOff(ctx.company, "de"),
     ].join("\n"),
   };
 }

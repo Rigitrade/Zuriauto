@@ -14,6 +14,9 @@
  */
 
 import type { PrismaClient } from "@/generated/prisma/client";
+import { ownMailDomains } from "@/lib/company/identity";
+import { loadCompanyIdentity } from "@/lib/company/load";
+import { inCompanyName } from "./notify";
 import { asRentalLanguage } from "@/lib/rental/labels";
 import { isPlaceholderEmail } from "@/lib/rental/placeholder";
 import type { NotifyReason } from "./attach";
@@ -100,8 +103,11 @@ export async function nominateDriver(
   const { client, now } = deps;
   const fine = await loadForNomination(client, fineId);
   const authority = await authorityOf(client, fine);
+  // The car's keeper writes the letter (multi-company phase B).
+  const company = await loadCompanyIdentity(client, fine.organisationId);
+  const ownDomains = ownMailDomains(company);
   const emails = [
-    ...new Set(fine.documents.flatMap((document) => emailsOnLetter(document.ocrText ?? ""))),
+    ...new Set(fine.documents.flatMap((document) => emailsOnLetter(document.ocrText ?? "", ownDomains))),
   ];
   const driver: Driver | null = fine.customer;
 
@@ -153,8 +159,10 @@ export async function nominateDriver(
   const car = fine.car!;
   const customer = fine.customer!;
   let missingPapers: string[] = [];
+  // The keeper writes, copies and is answered (multi-company phase B).
+  const keeper = inCompanyName(deps, company);
   const outcome = await sendFineOnce(
-    deps,
+    keeper,
     {
       fineId,
       kind: "DRIVER_NOMINATION",
@@ -170,10 +178,11 @@ export async function nominateDriver(
         to,
         // The office sees every nomination in its own inbox, and the
         // authority's questions reach a person rather than the sender address.
-        cc: deps.mail!.office,
-        replyTo: deps.mail!.office,
+        cc: keeper.mail!.office,
+        replyTo: keeper.mail!.office,
         attachments: papers.attachments,
         ...driverNominationMail({
+          company,
           fineNumber: fine.fineNumber!.trim(),
           plate: car.plate,
           violationAt: fine.violationAt!,
@@ -231,12 +240,14 @@ export async function nominateDriver(
 async function tellRenter(deps: NotifyDeps, fine: LoadedFine): Promise<void> {
   const customer = fine.customer!;
   if (isPlaceholderEmail(customer.email)) return;
+  const company = await loadCompanyIdentity(deps.client, fine.organisationId);
   const outcome = await sendFineOnce(
-    deps,
+    inCompanyName(deps, company),
     { fineId: fine.id, kind: "RENTER_NAMED", dedupeKey: "named", to: customer.email },
     async () => ({
       to: customer.email,
       ...renterNamedMail({
+        company,
         language: asRentalLanguage(fine.rental?.contracts[0]?.gtcLanguage),
         firstName: customer.firstName,
         plate: fine.car!.plate,

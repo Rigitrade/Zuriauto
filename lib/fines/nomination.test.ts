@@ -1,3 +1,4 @@
+import { ownMailDomains, ZURIAUTO_IDENTITY } from "@/lib/company/identity";
 import { describe, expect, it } from "vitest";
 import { KAPO_ZH_OCR } from "./__fixtures__/texts";
 import { driverNominationMail } from "./mail";
@@ -8,6 +9,8 @@ import {
   type Driver,
   type NominationFacts,
 } from "./nomination";
+
+const ZURIAUTO_DOMAINS = ownMailDomains(ZURIAUTO_IDENTITY);
 
 /** The head of the Kommunalpolizei Uitikon letter of 12.10.2026, as OCR reads it. */
 const UITIKON = `Kommunalpolizei Uitikon
@@ -44,32 +47,32 @@ const facts = (over: Partial<NominationFacts> = {}): NominationFacts => ({
 
 describe("emailsOnLetter", () => {
   it("finds the authority's address in the letter head", () => {
-    expect(emailsOnLetter(UITIKON)).toEqual(["ordnungsbussen@uitikon.org"]);
+    expect(emailsOnLetter(UITIKON, ZURIAUTO_DOMAINS)).toEqual(["ordnungsbussen@uitikon.org"]);
   });
 
   it("finds none on the Kantonspolizei Zürich letter, which prints none", () => {
-    expect(emailsOnLetter(KAPO_ZH_OCR)).toEqual([]);
+    expect(emailsOnLetter(KAPO_ZH_OCR, ZURIAUTO_DOMAINS)).toEqual([]);
   });
 
   it("leaves out our own addresses and the placeholder domain", () => {
     expect(
-      emailsOnLetter("info@zuriauto.ch office@rigitrade.ch renter-1@unrecorded.invalid bussen@stadt-zuerich.ch")
+      emailsOnLetter("info@zuriauto.ch office@rigitrade.ch renter-1@unrecorded.invalid bussen@stadt-zuerich.ch", ZURIAUTO_DOMAINS)
     ).toEqual(["bussen@stadt-zuerich.ch"]);
   });
 
   it("closes up spaces OCR puts round the @, and lowercases", () => {
-    expect(emailsOnLetter("Ordnungsbussen @ Uitikon.org")).toEqual(["ordnungsbussen@uitikon.org"]);
+    expect(emailsOnLetter("Ordnungsbussen @ Uitikon.org", ZURIAUTO_DOMAINS)).toEqual(["ordnungsbussen@uitikon.org"]);
   });
 
   it("lists each address once, and every different one", () => {
-    expect(emailsOnLetter("a@polizei.ch, a@polizei.ch. b@polizei.ch")).toEqual([
+    expect(emailsOnLetter("a@polizei.ch, a@polizei.ch. b@polizei.ch", ZURIAUTO_DOMAINS)).toEqual([
       "a@polizei.ch",
       "b@polizei.ch",
     ]);
   });
 
   it("does not guess at an address OCR broke", () => {
-    expect(emailsOnLetter("ordnungsbussen@uitikon,org")).toEqual([]);
+    expect(emailsOnLetter("ordnungsbussen@uitikon,org", ZURIAUTO_DOMAINS)).toEqual([]);
   });
 });
 
@@ -161,6 +164,7 @@ describe("nominationEnabled", () => {
 describe("driverNominationMail", () => {
   it("is the owner's email, filled in", () => {
     const mail = driverNominationMail({
+      company: ZURIAUTO_IDENTITY,
       fineNumber: "246564",
       plate: "ZH 401 859",
       // 21:02 in Zurich, summer time.
@@ -200,6 +204,7 @@ describe("driverNominationMail", () => {
 
   it("leaves out the hour when the letter gave none, and names a foreign country", () => {
     const mail = driverNominationMail({
+      company: ZURIAUTO_IDENTITY,
       fineNumber: "1",
       plate: "ZH 1",
       violationAt: new Date("2026-07-17T22:00:00Z"),
@@ -214,6 +219,7 @@ describe("driverNominationMail", () => {
 
   it("lists the rental's papers it carries, after the driver's details", () => {
     const mail = driverNominationMail({
+      company: ZURIAUTO_IDENTITY,
       fineNumber: "1",
       plate: "ZH 1",
       violationAt: new Date("2026-07-17T22:00:00Z"),

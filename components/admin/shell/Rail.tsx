@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Building2,
   CarFront,
   History,
   KeyRound,
@@ -64,6 +65,9 @@ export function railItems(L: Labels, me: Me, attention: number): Item[] {
       icon: Users,
       ownerOnly: true,
     },
+    // The company's own details (multi-company phase B): owner-only, like
+    // the accounts beside it.
+    { href: "/admin/company", label: L.nav.company, icon: Building2, ownerOnly: true },
     { href: "/admin/password", label: L.nav.myPassword, icon: Lock },
   ].filter((item) => !item.ownerOnly || me.role === "owner");
 }

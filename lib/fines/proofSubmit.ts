@@ -8,10 +8,11 @@
  */
 
 import { extensionFor } from "@/lib/storage";
+import { loadCompanyIdentity } from "@/lib/company/load";
 import { fineProofKey } from "./keys";
 import { recordEvent } from "./events";
 import { fineThanksMail } from "./mail";
-import { alertOffice, sendFineOnce, type NotifyDeps } from "./notify";
+import { alertOffice, inCompanyName, sendFineOnce, type NotifyDeps } from "./notify";
 import { verifyProofText, type ProofVerdict } from "./proof";
 import { burnFineTokens, resolveFinePaymentToken } from "./token";
 import { asRentalLanguage } from "@/lib/rental/labels";
@@ -85,12 +86,14 @@ export async function submitProof(
       if (fine.customer && fine.car && fine.violationAt) {
         const customer = fine.customer;
         const car = fine.car;
+        const company = await loadCompanyIdentity(client, fine.organisationId);
         await sendFineOnce(
-          deps,
+          inCompanyName(deps, company),
           { fineId: fine.id, kind: "FINE_PAID", dedupeKey: "paid", to: customer.email },
           async () => ({
             to: customer.email,
             ...fineThanksMail({
+              company,
               language: asRentalLanguage(fine.rental?.contracts[0]?.gtcLanguage),
               firstName: customer.firstName,
               plate: car.plate,
