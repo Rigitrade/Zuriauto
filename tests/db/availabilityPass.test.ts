@@ -82,6 +82,18 @@ describe("availabilityPass", () => {
     sent.length = 0;
   });
 
+  it("says nothing to ZURIAUTO's waiting list when only another company has a free car", async () => {
+    const zuri = await fleetAll("rented");
+    const other = await prisma.organisation.create({ data: { name: "Meier AG", slug: "meier" } });
+    await prisma.car.create({
+      data: { organisationId: other.id, slug: "golf-zh1", model: "VW Golf", plate: "ZH 1", status: "available" },
+    });
+    await waiting(zuri, "waits@example.ch");
+
+    expect(await availabilityPass(deps())).toBe(0);
+    expect(sent).toHaveLength(0);
+  });
+
   it("says nothing while the whole fleet is out", async () => {
     const org = await fleetAll("rented");
     await waiting(org, "hopeful@example.ch");

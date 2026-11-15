@@ -33,6 +33,10 @@ export interface AdminIdentity {
   username: string;
   displayName: string;
   role: "owner" | "staff";
+  /** The company this account works for. Every office read and write is
+   *  confined to it (multi-company phase A, 15.11.2026). Read from the row on
+   *  each request, like `role`, so moving an account takes effect at once. */
+  organisationId: string;
 }
 
 function secret(): string {
@@ -163,6 +167,7 @@ export async function requireAdmin(
       username: true,
       displayName: true,
       role: true,
+      organisationId: true,
       disabledAt: true,
       credentialsChangedAt: true,
     },
@@ -176,6 +181,7 @@ export async function requireAdmin(
     username: user.username,
     displayName: user.displayName,
     role: user.role,
+    organisationId: user.organisationId,
   };
 }
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/admin/session";
+import { inCompany, notFound } from "@/lib/admin/scope";
 import { applyPaymentAction, paymentActionSchema } from "@/lib/payments/actions";
 
 /** An office action on a payment. See lib/payments/actions.ts for each one. */
@@ -13,6 +14,10 @@ const STATUS = { "bad-request": 400, conflict: 409, "not-found": 404 } as const;
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await requireAdmin(request);
   if (!user) return NextResponse.json({ code: "unauthorised" }, { status: 401 });
+
+  if (!(await inCompany.payment(prisma, user.organisationId, (await params).id))) {
+    return notFound();
+  }
 
   let body: unknown;
   try {

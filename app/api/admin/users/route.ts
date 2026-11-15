@@ -32,16 +32,12 @@ async function ownerOr(request: Request) {
 }
 
 export async function GET(request: Request) {
-  const { error } = await ownerOr(request);
+  const { error, owner } = await ownerOr(request);
   if (error) return error;
 
-  // No organisationId filter — correct only because the system runs a
-  // single Organisation today, the same assumption every admin route makes
-  // (see the fuller note in app/api/admin/users/[id]/route.ts). If a second
-  // organisation ever exists, this `findMany` would hand one organisation's
-  // owner the other's entire roster; scope it by organisationId before
-  // that happens.
+  // The owner's own company only (multi-company phase A, 15.11.2026).
   const users = await prisma.adminUser.findMany({
+    where: { organisationId: owner!.organisationId },
     orderBy: [{ role: "asc" }, { username: "asc" }],
     // passwordHash is absent on purpose: it never leaves the server, not even
     // to an owner.
@@ -77,14 +73,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ code: "bad-request" }, { status: 400 });
   }
 
-  const organisation = await prisma.organisation.findFirst({ select: { id: true } });
-  if (!organisation) {
-    console.error("[admin] no organisation row — run pnpm db:seed");
-    return NextResponse.json({ code: "not-configured" }, { status: 503 });
-  }
+  const organisation = { id: owner!.organisationId };
 
   const taken = await prisma.adminUser.findFirst({
-    where: { organisationId: organisation.id, username: input.username },
+    // Across every company: sign-in knows only the name, so two companies
+    // sharing one would make it a coin toss which account opens.
+    where: { username: input.username },
     select: { id: true },
   });
   if (taken) {

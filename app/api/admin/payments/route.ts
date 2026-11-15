@@ -13,6 +13,8 @@ export async function GET(request: Request) {
   if (!user) return NextResponse.json({ code: "unauthorised" }, { status: 401 });
   const asked = new URL(request.url).searchParams.get("tab") as PaymentTab | null;
   const tab = asked && TABS.includes(asked) ? asked : "review";
-  const [payments, issues] = await Promise.all([paymentList(prisma, tab), paymentMailIssues(prisma)]);
+  const [payments, issues] = await Promise.all([paymentList(prisma, user.organisationId, tab),
+    paymentMailIssues(prisma, user.organisationId),
+  ]);
   return NextResponse.json({ payments, issues }, { headers: { "cache-control": "no-store" } });
 }

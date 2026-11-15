@@ -227,7 +227,12 @@ export async function applyFineAction(
   switch (action.action) {
     case "assign": {
       if (!open) return CONFLICT;
-      const rental = await client.rental.findUnique({ where: { id: action.rentalId }, select: { carId: true } });
+      // The fine's own company only: a rental id arrives in the body, past the
+      // route's check of the fine (multi-company phase A, 15.11.2026).
+      const rental = await client.rental.findFirst({
+        where: { id: action.rentalId, organisationId: fine.organisationId },
+        select: { carId: true },
+      });
       if (!rental || (fine.carId && rental.carId !== fine.carId)) return CONFLICT;
       if (!fine.carId) await client.fine.update({ where: { id: fineId }, data: { carId: rental.carId } });
       await assignRental(client, fineId, action.rentalId);

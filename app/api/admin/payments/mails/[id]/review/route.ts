@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/admin/session";
+import { inCompany, notFound } from "@/lib/admin/scope";
 import { readLifecycleMailConfig } from "@/lib/rental/lifecycleMail";
 import { mailReviewSchema, reviewPaymentMail } from "@/lib/payments/mails";
 
@@ -21,6 +22,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const user = await requireAdmin(request);
   if (!user) return NextResponse.json({ code: "unauthorised" }, { status: 401 });
 
+  if (!(await inCompany.notification(prisma, user.organisationId, (await params).id))) {
+    return notFound();
+  }
+
   let body: unknown;
   try {
     body = await request.json();
@@ -30,8 +35,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const parsed = mailReviewSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ code: "bad-request" }, { status: 400 });
 
-  const organisation = await prisma.organisation.findFirst({ select: { id: true } });
-  if (!organisation) return NextResponse.json({ code: "not-found" }, { status: 404 });
+  const organisation = { id: user.organisationId };
 
   const result = await reviewPaymentMail(prisma, {
     organisationId: organisation.id,

@@ -11,6 +11,7 @@
  */
 
 import type { PrismaClient } from "@/generated/prisma/client";
+import { siteOrganisation } from "@/lib/organisation";
 import { decidePayment, type Decision } from "./decide";
 import { gatherEvidence } from "./evidence";
 import { readMail, type MailReading, type RawMail, type ReadOptions } from "./ingest";
@@ -41,7 +42,7 @@ export async function dryRunMails(
   return client.$transaction(
     async (tx) => {
       await tx.$executeRaw`SET TRANSACTION READ ONLY`;
-      const organisation = await tx.organisation.findFirstOrThrow({ select: { id: true } });
+      const organisation = await siteOrganisation(tx);
       // Before the first deploy the live database has no Payment table yet.
       const [{ present }] = await tx.$queryRaw<{ present: boolean }[]>`
         SELECT to_regclass('"Payment"') IS NOT NULL AS present`;

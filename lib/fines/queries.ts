@@ -28,10 +28,15 @@ export function asTab(value: string | null): FineTab {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-export async function listFines(client: PrismaClient, tab: FineTab, now: Date) {
+export async function listFines(
+  client: PrismaClient,
+  organisationId: string,
+  tab: FineTab,
+  now: Date
+) {
   const statuses = TAB_STATUSES[tab];
   const fines = await client.fine.findMany({
-    where: statuses ? { status: { in: statuses } } : {},
+    where: statuses ? { organisationId, status: { in: statuses } } : { organisationId },
     orderBy: [{ violationAt: "desc" }, { createdAt: "desc" }],
     take: 500,
     select: {
@@ -222,15 +227,15 @@ export async function fineDetail(client: PrismaClient, fineId: string) {
  * not read after every attempt, proofs to check, and sent fines past their
  * deadline with no word from the renter.
  */
-export async function fineAttentionCounts(client: PrismaClient, now: Date) {
+export async function fineAttentionCounts(client: PrismaClient, organisationId: string, now: Date) {
   const today = new Date(`${new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Zurich" }).format(now)}T00:00:00Z`);
   const [review, failedLetters, proof, overdue] = await Promise.all([
-    client.fine.count({ where: { status: "NEEDS_REVIEW" } }),
+    client.fine.count({ where: { organisationId, status: "NEEDS_REVIEW" } }),
     // 3 is MAX_ATTEMPTS in process.ts, not imported: that module pulls in the
     // reader, and the overview endpoint has no business loading Tesseract.
-    client.fineDocument.count({ where: { status: "FAILED", attempts: { gte: 3 } } }),
-    client.fine.count({ where: { status: "PROOF_SUBMITTED" } }),
-    client.fine.count({ where: { status: "NOTIFIED", dueDate: { lt: today } } }),
+    client.fineDocument.count({ where: { organisationId, status: "FAILED", attempts: { gte: 3 } } }),
+    client.fine.count({ where: { organisationId, status: "PROOF_SUBMITTED" } }),
+    client.fine.count({ where: { organisationId, status: "NOTIFIED", dueDate: { lt: today } } }),
   ]);
   return { review: review + failedLetters, proof, overdue };
 }

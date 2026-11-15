@@ -1,5 +1,7 @@
+import { prisma } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin/session";
+import { inCompany, notFound } from "@/lib/admin/scope";
 import { applyFineAction, fineActionSchema } from "@/lib/fines/actions";
 import { notifyDeps } from "@/lib/fines/run";
 
@@ -19,6 +21,10 @@ export async function POST(
   const user = await requireAdmin(request);
   if (!user) {
     return NextResponse.json({ code: "unauthorised" }, { status: 401 });
+  }
+
+  if (!(await inCompany.fine(prisma, user.organisationId, (await params).id))) {
+    return notFound();
   }
 
   let body: unknown;

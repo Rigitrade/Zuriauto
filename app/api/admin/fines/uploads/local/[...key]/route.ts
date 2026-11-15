@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/admin/session";
+import { notFound } from "@/lib/admin/scope";
 import { MAX_LETTER_BYTES } from "@/lib/fines/keys";
 import { getAssetStore } from "@/lib/storage";
 
@@ -31,6 +33,17 @@ export async function PUT(
   if (!key.startsWith("fines/")) {
     return NextResponse.json({ code: "bad-request" }, { status: 400 });
   }
+  // A letter slot another company already holds is not this office's to
+  // write (multi-company phase A, 15.11.2026). A fresh slot has no row yet.
+  const documentId = key.split("/")[1] ?? "";
+  const foreign = await prisma.fineDocument.findFirst({
+    where: {
+      OR: [{ storageKey: key }, { id: documentId }],
+      NOT: { organisationId: user.organisationId },
+    },
+    select: { id: true },
+  });
+  if (foreign) return notFound();
   const body = new Uint8Array(await request.arrayBuffer());
   if (body.byteLength > MAX_LETTER_BYTES) {
     return NextResponse.json({ code: "too-large" }, { status: 413 });

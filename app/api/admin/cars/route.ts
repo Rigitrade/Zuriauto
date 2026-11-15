@@ -34,12 +34,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const organisation = await prisma.organisation.findFirst({
-    select: { id: true },
-  });
-  if (!organisation) {
-    return NextResponse.json({ code: "not-configured" }, { status: 503 });
-  }
+  const organisation = { id: user.organisationId };
 
   const { model, plate, vin, colour, mfkDate, mfkLastDate } = parsed.data;
 

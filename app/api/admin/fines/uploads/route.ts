@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ code: "too-large", maxBytes: MAX_LETTER_BYTES }, { status: 413 });
   }
 
-  const organisation = await prisma.organisation.findFirstOrThrow({ select: { id: true } });
+  const organisation = { id: user.organisationId };
   const existing = await prisma.fineDocument.findUnique({
     where: { organisationId_sha256: { organisationId: organisation.id, sha256 } },
     select: { id: true },

@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const user = await requireAdmin(request);
   if (!user) return NextResponse.json({ code: "unauthorised" }, { status: 401 });
-  const organisation = await prisma.organisation.findFirst({ select: { id: true } });
+  const organisation = { id: user.organisationId };
   const rows = organisation ? await openBalances(prisma, organisation.id, new Date()) : [];
   return NextResponse.json({ rows }, { headers: { "cache-control": "no-store" } });
 }

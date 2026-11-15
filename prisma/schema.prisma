@@ -79,6 +79,11 @@ enum AdminRole {
 model Organisation {
   id         String            @id @default(cuid())
   name       String
+  /// The company's short name in its public links, zuriauto.ch/<slug>/pickup
+  /// (multi-company design, 15.11.2026). Lowercase; never the name of an
+  /// existing page (lib/organisation.ts `isValidCompanySlug`). ZURIAUTO is
+  /// `zuriauto`. Null only for a company that has no public links yet.
+  slug       String?           @unique
   createdAt  DateTime          @default(now())
   cars       Car[]
   customers  Customer[]
@@ -932,7 +937,9 @@ model AdminUser {
   organisationId String
 
   /// Lowercased and trimmed on write. `[a-z0-9._-]{3,32}`.
-  username    String
+  /// Unique across every company, not only within one: sign-in has only
+  /// the name to go on (multi-company phase A, 15.11.2026).
+  username    String @unique
   /// What attribution shows, e.g. "Eng Ahmed".
   displayName String
   role        AdminRole @default(staff)

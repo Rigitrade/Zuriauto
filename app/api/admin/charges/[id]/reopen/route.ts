@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/admin/session";
+import { inCompany, notFound } from "@/lib/admin/scope";
 import { reopenCharge } from "@/lib/payments/cutover";
 
 /**
@@ -15,9 +16,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const user = await requireAdmin(request);
   if (!user) return NextResponse.json({ code: "unauthorised" }, { status: 401 });
 
+  if (!(await inCompany.charge(prisma, user.organisationId, (await params).id))) {
+    return notFound();
+  }
+
   const id = (await params).id;
   // Single tenant, as every payments route: the week must be this organisation's.
-  const organisation = await prisma.organisation.findFirst({ select: { id: true } });
+  const organisation = { id: user.organisationId };
   const charge = organisation
     ? await prisma.charge.findFirst({ where: { id, organisationId: organisation.id }, select: { id: true } })
     : null;

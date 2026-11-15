@@ -19,6 +19,7 @@ import { PrismaClient } from "../generated/prisma/client";
 import { zurichInstant } from "../lib/admin/rentalPeriod";
 import { applyCutover, CutoverAlreadyApplied, planCutover } from "../lib/payments/cutover";
 import { formatChf } from "../lib/rental/money";
+import { findSiteOrganisationWith } from "../lib/organisationCore";
 
 async function main() {
   config({ path: ".env.local" });
@@ -36,7 +37,13 @@ async function main() {
 
   const client = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
   try {
-    const organisation = await client.organisation.findFirstOrThrow({ select: { id: true, paymentsCutoverAt: true } });
+    // ZURIAUTO-only tool: the site company, never "any company".
+    const site = await findSiteOrganisationWith(client);
+    if (!site) throw new Error("No organisation row: run pnpm db:seed.");
+    const organisation = await client.organisation.findUniqueOrThrow({
+      where: { id: site.id },
+      select: { id: true, paymentsCutoverAt: true },
+    });
     if (organisation.paymentsCutoverAt) {
       console.log(`The cut-over was already applied, for weeks due before ${organisation.paymentsCutoverAt.toISOString()}.`);
       if (!force) console.log("A second run would settle weeks owed since then; it needs --force.\n");

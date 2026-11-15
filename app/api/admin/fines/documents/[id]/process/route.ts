@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/admin/session";
+import { inCompany, notFound } from "@/lib/admin/scope";
 import { STALE_CLAIM_MS } from "@/lib/fines/process";
 import { runFineDocument } from "@/lib/fines/run";
 import { afterResponse } from "@/lib/fines/schedule";
@@ -22,6 +23,10 @@ export async function POST(
   const user = await requireAdmin(request);
   if (!user) {
     return NextResponse.json({ code: "unauthorised" }, { status: 401 });
+  }
+
+  if (!(await inCompany.fineDocument(prisma, user.organisationId, (await params).id))) {
+    return notFound();
   }
   const { id } = await params;
   const reset = await prisma.fineDocument.updateMany({

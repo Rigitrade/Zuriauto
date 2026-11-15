@@ -30,10 +30,7 @@ export async function PUT(request: Request) {
     return NextResponse.json({ code: "bad-request" }, { status: 400 });
   }
 
-  const organisation = await prisma.organisation.findFirst({ select: { id: true } });
-  if (!organisation) {
-    return NextResponse.json({ code: "not-configured" }, { status: 503 });
-  }
+  const organisation = { id: user.organisationId };
 
   const outcome = await saveCarOrder(prisma, organisation.id, parsed.data.ids);
   if (!outcome.ok) {

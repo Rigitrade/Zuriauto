@@ -191,6 +191,26 @@ describe("PATCH /api/admin/users/[id]", () => {
     expect(await response.json()).toEqual({ code: "last-owner" });
   });
 
+  it("refuses to disable a company's last owner though another company has owners", async () => {
+    await makeUser("owner", "zuri-chef");
+    const other = await prisma.organisation.create({ data: { name: "Meier AG" }, select: { id: true } });
+    const meier = await prisma.adminUser.create({
+      data: {
+        organisationId: other.id,
+        username: "meier-chef",
+        displayName: "Meier",
+        role: "owner",
+        passwordHash: await hashPassword("Sommer2026!"),
+      },
+      select: { id: true },
+    });
+
+    const response = await PATCH(as(meier.id, { disabled: true }, "PATCH"), params(meier.id));
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ code: "last-owner" });
+  });
+
   it("refuses to demote the last enabled owner", async () => {
     const owner = await makeUser("owner", "chef");
     const response = await PATCH(

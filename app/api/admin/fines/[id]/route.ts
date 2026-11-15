@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/admin/session";
+import { inCompany, notFound } from "@/lib/admin/scope";
 import { fineDetail } from "@/lib/fines/queries";
 
 /**
@@ -19,6 +20,10 @@ export async function GET(
   const user = await requireAdmin(request);
   if (!user) {
     return NextResponse.json({ code: "unauthorised" }, { status: 401 });
+  }
+
+  if (!(await inCompany.fine(prisma, user.organisationId, (await params).id))) {
+    return notFound();
   }
   const detail = await fineDetail(prisma, (await params).id);
   if (!detail) {

@@ -212,13 +212,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ code: "unauthorised" }, { status: 401 });
   }
 
-  const organisation = await prisma.organisation.findFirst({
-    select: { id: true },
-  });
-  if (!organisation) {
-    console.error("[admin] no organisation row — run pnpm db:seed");
-    return NextResponse.json({ code: "not-configured" }, { status: 503 });
-  }
+  const organisation = { id: user.organisationId };
 
   const cars = await prisma.car.findMany({
     where: { organisationId: organisation.id },
@@ -392,8 +386,8 @@ export async function GET(request: Request) {
     }),
   ]);
 
-  const fineAttention = await fineAttentionCounts(prisma, new Date());
-  const paymentReview = await paymentReviewCount(prisma);
+  const fineAttention = await fineAttentionCounts(prisma, organisation.id, new Date());
+  const paymentReview = await paymentReviewCount(prisma, organisation.id);
   const owing = (await openBalances(prisma, organisation.id, new Date())).length;
 
   const payload: AdminOverview = {
