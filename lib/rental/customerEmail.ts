@@ -12,8 +12,8 @@
  * scoring. The wordmark is therefore text, as it is in the PDF header.
  */
 
-import { PAYMENT_URL, TWINT_URL } from "@/lib/payment";
-import { labelsFor, type RentalLanguage } from "./labels";
+import { POWERED_BY, signOff, withCompany, type CompanyIdentity } from "@/lib/company/identity";
+import { labelsFor, type RentalLanguage, payHintFor } from "./labels";
 
 export interface CustomerEmailInput {
   language: RentalLanguage;
@@ -24,6 +24,11 @@ export interface CustomerEmailInput {
   /** The one-line message: "Im Anhang finden Sie …". */
   hello: string;
   body: string;
+  /**
+   * The renting company (multi-company phase B, 15.11.2026): its wordmark,
+   * sign-off, footer and payment links. A partner adds "powered by ZURIAUTO".
+   */
+  company: CompanyIdentity;
 }
 
 /** The customer's name is form input; anything else would be an XSS vector
@@ -43,9 +48,11 @@ export function buildCustomerEmail(input: CustomerEmailInput): {
   text: string;
   html: string;
 } {
-  const L = labelsFor(input.language);
+  const { company } = input;
+  const L = withCompany(labelsFor(input.language), company);
   const name = escapeHtml(input.customerName.trim());
-  const [signOff, brand = "ZURIAUTO"] = L.email.customerSignature.split("\n");
+  const closing = signOff(company, input.language);
+  const { paymentUrl, twintUrl } = company;
 
   const text = [
     `${input.hello} ${input.customerName.trim()}`,
@@ -54,14 +61,47 @@ export function buildCustomerEmail(input: CustomerEmailInput): {
     "",
     `${input.referenceLabel}: ${input.referenceNumber}`,
     "",
-    `${L.email.customerPayment}`,
-    PAYMENT_URL,
-    "",
-    `${L.email.customerPaymentTwint}`,
-    TWINT_URL,
-    "",
-    L.email.customerSignature,
+    // A link the company does not have is left out, never filled with
+    // ZURIAUTO's: a partner's renter must not pay ZURIAUTO.
+    ...(paymentUrl ? [L.email.customerPayment, paymentUrl, ""] : []),
+    ...(twintUrl ? [L.email.customerPaymentTwint, twintUrl, ""] : []),
+    ...closing,
   ].join("\n");
+
+  const payButtons = [
+    paymentUrl
+      ? `                <td style="padding:0 10px 0 0;">
+                  <a href="${escapeHtml(paymentUrl)}" style="display:inline-block;background-color:#0f172a;color:#ffffff;text-decoration:none;font-family:${FONT};font-size:14px;padding:11px 24px;border-radius:6px;">${escapeHtml(L.result.payWithCard)}</a>
+                </td>`
+      : null,
+    twintUrl
+      ? `                <td>
+                  <a href="${escapeHtml(twintUrl)}" style="display:inline-block;border:1px solid #0f172a;color:#0f172a;text-decoration:none;font-family:${FONT};font-size:14px;padding:10px 24px;border-radius:6px;">${escapeHtml(L.result.payWithTwint)}</a>
+                </td>`
+      : null,
+  ].filter(Boolean);
+
+  const payment = payButtons.length
+    ? `
+            <p style="margin:0 0 14px;color:#475569;">${escapeHtml(payHintFor(input.language, L.result, company))}</p>
+            <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 32px;">
+              <tr>
+${payButtons.join("\n")}
+              </tr>
+            </table>
+`
+    : "\n";
+
+  const footer = [
+    escapeHtml(company.brandName),
+    company.legalName !== company.brandName ? `A brand by ${escapeHtml(company.legalName)}` : null,
+    company.website
+      ? `<a href="https://${escapeHtml(company.website)}" style="color:#94a3b8;">${escapeHtml(company.website)}</a>`
+      : null,
+    company.poweredBy ? POWERED_BY : null,
+  ]
+    .filter(Boolean)
+    .join(" &middot; ");
 
   // Deliberately plain: a white page, one wordmark, one rule, text, two
   // buttons. A rental confirmation should read like a letter, not a campaign.
@@ -77,7 +117,7 @@ export function buildCustomerEmail(input: CustomerEmailInput): {
       <table role="presentation" align="left" cellpadding="0" cellspacing="0" style="max-width:540px;width:100%;text-align:left;">
         <tr>
           <td style="padding:0 0 16px;border-bottom:2px solid #0f172a;">
-            <span style="font-family:${FONT};font-size:17px;letter-spacing:5px;font-weight:bold;color:#0f172a;">ZURIAUTO</span>
+            <span style="font-family:${FONT};font-size:17px;letter-spacing:5px;font-weight:bold;color:#0f172a;">${escapeHtml(company.brandName)}</span>
           </td>
         </tr>
         <tr>
@@ -85,20 +125,8 @@ export function buildCustomerEmail(input: CustomerEmailInput): {
             <p style="margin:0 0 16px;">${escapeHtml(input.hello)} ${name}</p>
             <p style="margin:0 0 16px;">${escapeHtml(input.body)}</p>
             <p style="margin:0 0 28px;color:#475569;">${escapeHtml(input.referenceLabel)}: <strong style="color:#0f172a;">${escapeHtml(input.referenceNumber)}</strong></p>
-
-            <p style="margin:0 0 14px;color:#475569;">${escapeHtml(L.result.payHint)}</p>
-            <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 32px;">
-              <tr>
-                <td style="padding:0 10px 0 0;">
-                  <a href="${PAYMENT_URL}" style="display:inline-block;background-color:#0f172a;color:#ffffff;text-decoration:none;font-family:${FONT};font-size:14px;padding:11px 24px;border-radius:6px;">${escapeHtml(L.result.payWithCard)}</a>
-                </td>
-                <td>
-                  <a href="${TWINT_URL}" style="display:inline-block;border:1px solid #0f172a;color:#0f172a;text-decoration:none;font-family:${FONT};font-size:14px;padding:10px 24px;border-radius:6px;">${escapeHtml(L.result.payWithTwint)}</a>
-                </td>
-              </tr>
-            </table>
-
-            <p style="margin:0;">${escapeHtml(signOff)}<br />${escapeHtml(brand)}</p>
+${payment}
+            <p style="margin:0;">${closing.map(escapeHtml).join("<br />")}</p>
           </td>
         </tr>
         <tr>
@@ -106,7 +134,7 @@ export function buildCustomerEmail(input: CustomerEmailInput): {
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
               <tr>
                 <td style="border-top:1px solid #e2e8f0;padding:14px 0 0;font-family:${FONT};font-size:12px;color:#94a3b8;">
-                  ZURIAUTO &middot; A brand by Rigitrade AG &middot; <a href="https://zuriauto.ch" style="color:#94a3b8;">zuriauto.ch</a>
+                  ${footer}
                 </td>
               </tr>
             </table>

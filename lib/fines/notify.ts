@@ -12,6 +12,9 @@
  */
 
 import type { PrismaClient } from "@/generated/prisma/client";
+import type { CompanyIdentity } from "@/lib/company/identity";
+import { companyMail } from "@/lib/company/mailEnvelope";
+import { loadCompanyIdentity } from "@/lib/company/load";
 import { asRentalLanguage } from "@/lib/rental/labels";
 import { sendMail, type LifecycleMailConfig } from "@/lib/rental/lifecycleMail";
 import type { AssetStore } from "@/lib/storage";
@@ -58,6 +61,15 @@ type FineNotificationKind =
 
 function isUniqueViolation(error: unknown): boolean {
   return (error as { code?: string })?.code === "P2002";
+}
+
+/**
+ * The same deps, sending in the company's name (multi-company phase B): its
+ * display name, its office, its renters' replies. No mail when a partner has
+ * no office address yet.
+ */
+export function inCompanyName(deps: NotifyDeps, company: CompanyIdentity): NotifyDeps {
+  return { ...deps, mail: deps.mail ? companyMail(deps.mail, company) : null };
 }
 
 /** Claims, sends, records. True only when this call sent it. */
@@ -197,6 +209,8 @@ export async function notifyRenter(
     return alertOffice(deps, fine, "closedReminder", "Eine Mahnung ist für diese Busse eingegangen.");
   }
   if (!fine.customer || !fine.car || !fine.rentalId || fine.violationAt === null) return "skipped";
+  // The car's keeper writes to its renter (multi-company phase B).
+  const company = await loadCompanyIdentity(client, fine.organisationId);
 
   const kind: FineNotificationKind =
     reason === "notice"
@@ -213,13 +227,14 @@ export async function notifyRenter(
         : `level-${fine.reminderLevel}`);
   const to = fine.customer.email;
 
-  const outcome = await sendFineOnce(deps, { fineId, kind, dedupeKey, to }, async () => {
+  const outcome = await sendFineOnce(inCompanyName(deps, company), { fineId, kind, dedupeKey, to }, async () => {
     const token = await issueFinePaymentToken(
       client,
       { id: fine.id, organisationId: fine.organisationId, rentalId: fine.rentalId!, dueDate: fine.dueDate },
       now
     );
     const ctx: FineMailContext = {
+      company,
       language: asRentalLanguage(fine.rental?.contracts[0]?.gtcLanguage),
       firstName: fine.customer!.firstName,
       plate: fine.car!.plate,

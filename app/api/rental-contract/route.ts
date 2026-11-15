@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { loadCompanyIdentity } from "@/lib/company/load";
 import { prisma } from "@/lib/db";
 import { findSiteOrganisation } from "@/lib/organisation";
 import type { AssetKind } from "@/generated/prisma/client";
@@ -126,6 +127,15 @@ export async function POST(request: Request) {
   }
 
   const pdfBytes = new Uint8Array(await file.arrayBuffer());
+  // Before the contract is recorded: once it is, mail is best-effort and a
+  // failed lookup must not answer an error for a contract that was saved.
+  let company;
+  try {
+    company = await loadCompanyIdentity(prisma, organisation.id);
+  } catch (error) {
+    console.error("[rental-contract] could not read the company:", error);
+    return NextResponse.json({ code: "not-recorded" }, { status: 503 });
+  }
 
   let saved;
   try {
@@ -149,7 +159,8 @@ export async function POST(request: Request) {
   // Committed. From here, mail is best-effort.
   const outcome = await sendContractMails(
     { ...meta, contractNumber: saved.contractNumber },
-    Buffer.from(pdfBytes)
+    Buffer.from(pdfBytes),
+    company
   );
 
   await prisma.contract.update({

@@ -3,6 +3,8 @@
  */
 
 import type { FineStatus, PrismaClient } from "@/generated/prisma/client";
+import { ownMailDomains } from "@/lib/company/identity";
+import { loadCompanyIdentity } from "@/lib/company/load";
 import { isPlaceholderEmail } from "@/lib/rental/placeholder";
 import { driverNominationMail } from "./mail";
 import { driverIsComplete, emailsOnLetter } from "./nomination";
@@ -185,10 +187,13 @@ export async function fineDetail(client: PrismaClient, fineId: string) {
   // Listed as they would go; whether each file is still in the store is only
   // learnt when sending, which records any that was not.
   const papers = await papersFor(client, fine.rentalId);
+  const company = await loadCompanyIdentity(client, fine.organisationId);
   const nomination = {
     authority: fine.authority,
     emailsOnLetter: [
-      ...new Set(fine.documents.flatMap((document) => emailsOnLetter(document.ocrText ?? ""))),
+      ...new Set(
+        fine.documents.flatMap((document) => emailsOnLetter(document.ocrText ?? "", ownMailDomains(company)))
+      ),
     ],
     namedAt: fine.driverNamedAt,
     namedTo: fine.driverNamedTo,
@@ -197,6 +202,7 @@ export async function fineDetail(client: PrismaClient, fineId: string) {
     preview:
       fine.customer && fine.car && fine.violationAt && fine.fineNumber && driverIsComplete(fine.customer)
         ? driverNominationMail({
+            company,
             fineNumber: fine.fineNumber.trim(),
             plate: fine.car.plate,
             violationAt: fine.violationAt,

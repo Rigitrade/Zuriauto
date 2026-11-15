@@ -360,7 +360,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             a long vehicle list scrolls under a navigation that stays put. */}
         <aside className="sticky top-0 hidden h-screen w-56 shrink-0 flex-col border-r border-[var(--admin-rule)] bg-[var(--admin-surface)] md:flex lg:w-60">
           <div className="px-5 py-5">
-            <p className="text-[0.9375rem] font-bold tracking-tight">ZURIAUTO</p>
+            <p className="text-[0.9375rem] font-bold tracking-tight">{me.companyName ?? "ZURIAUTO"}</p>
             <p className="text-xs text-[var(--admin-faint)]">{L.signIn.heading}</p>
           </div>
 
@@ -392,7 +392,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                 {/* The brand only appears here below md, where the sidebar
                     carrying it is not on screen. */}
                 <p className="text-sm font-bold tracking-tight md:hidden">
-                  ZURIAUTO
+                  {me.companyName ?? "ZURIAUTO"}
                 </p>
                 <h1 className="truncate text-lg font-semibold tracking-tight">
                   {current?.label ?? L.nav.overview}

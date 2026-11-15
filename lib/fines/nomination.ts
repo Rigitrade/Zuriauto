@@ -55,9 +55,6 @@ export interface NominationFacts {
   confirmedEmail: string | null;
 }
 
-/** Our own addresses: a letter addressed to us shows them too. */
-const OWN_DOMAINS = ["zuriauto.ch", "rigitrade.ch"];
-
 const EMAIL = /[a-z0-9._%+-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}/g;
 
 /**
@@ -66,8 +63,11 @@ const EMAIL = /[a-z0-9._%+-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}/g;
  * Spaces OCR puts around the "@" are closed up; nothing else is repaired. An
  * address the pattern does not accept is not guessed at — it is simply not
  * found, and the fine waits for the office as "no address on the letter".
+ *
+ * `ownDomains` are the keeper's own (lib/company/identity.ts
+ * `ownMailDomains`): a letter addressed to us shows them too.
  */
-export function emailsOnLetter(text: string): string[] {
+export function emailsOnLetter(text: string, ownDomains: string[]): string[] {
   const found = text
     .toLowerCase()
     .replace(/\s*@\s*/g, "@")
@@ -78,7 +78,7 @@ export function emailsOnLetter(text: string): string[] {
     .filter((address) => {
       const domain = address.split("@")[1] ?? "";
       return (
-        !OWN_DOMAINS.some((own) => domain === own || domain.endsWith(`.${own}`)) &&
+        !ownDomains.some((own) => domain === own || domain.endsWith(`.${own}`)) &&
         !isPlaceholderEmail(address)
       );
     });

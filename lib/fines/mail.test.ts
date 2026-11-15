@@ -7,8 +7,10 @@ import {
   officeFineDigestMail,
   type FineMailContext,
 } from "./mail";
+import { ZURIAUTO_IDENTITY } from "@/lib/company/identity";
 
 const CTX: FineMailContext = {
+  company: ZURIAUTO_IDENTITY,
   language: "de",
   firstName: "Anna",
   plate: "ZH 513 925",

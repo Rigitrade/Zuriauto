@@ -20,13 +20,13 @@ import { TypedDateInput } from "@/components/ui/typed-date-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useI18n } from "@/lib/hooks/use-i18n";
-import { PAYMENT_URL, TWINT_URL } from "@/lib/payment";
+import { publicCompany, withCompany, ZURIAUTO_IDENTITY, type PublicCompany } from "@/lib/company/identity";
 import {
   type FleetVehicle,
   FUEL_LEVELS,
   type FuelLevel,
 } from "@/lib/rental/fleet";
-import { asRentalLanguage, labelsFor } from "@/lib/rental/labels";
+import { asRentalLanguage, labelsFor, payHintFor } from "@/lib/rental/labels";
 import { drivenKm, parseMileageKm } from "@/lib/rental/mileage";
 import VehiclePicker from "./VehiclePicker";
 import {
@@ -159,7 +159,10 @@ function dataUrlToBytes(dataUrl: string): Uint8Array {
 export default function RentalReturnWizard() {
   const { currentLanguage } = useI18n();
   const language = asRentalLanguage(currentLanguage);
-  const L = labelsFor(language);
+  // The company these forms serve, from /api/fleet (multi-company phase B):
+  // ZURIAUTO until the answer arrives, as the compiled-in fleet is.
+  const [company, setCompany] = useState<PublicCompany>(() => publicCompany(ZURIAUTO_IDENTITY));
+  const L = withCompany(labelsFor(language), company);
   const R = L.ret;
 
   const methodName: Record<PaymentMethod, string> = {
@@ -204,6 +207,14 @@ export default function RentalReturnWizard() {
       .then((response) => (response.ok ? response.json() : null))
       .then((payload) => {
         if (cancelled || !payload) return;
+        if (payload.company) {
+          const next = payload.company as PublicCompany;
+          setCompany(next);
+          // The company's signing place, unless somebody already typed one.
+          setForm((prev) =>
+            prev.place === EMPTY_FORM.place ? { ...prev, place: next.signingPlace } : prev
+          );
+        }
         const list = payload.vehicles as FleetVehicle[];
         setVehicles(list);
         // One car out means there is nothing to choose; preselect it rather
@@ -531,6 +542,7 @@ export default function RentalReturnWizard() {
         returnNumber,
         issuedAt,
         language,
+        company,
         signaturePng: dataUrlToBytes(signature),
         ownerSignaturePng: ownerSignature
           ? dataUrlToBytes(ownerSignature)
@@ -686,13 +698,15 @@ export default function RentalReturnWizard() {
 
             {/* An open balance noted on the report can be settled here and
                 now; shown on every outcome, as at pickup. */}
+            {(company.paymentUrl || company.twintUrl) && (
             <div className="mt-7 border-t border-slate-100 pt-6">
-              <p className="text-sm text-slate-600">{L.result.payHint}</p>
+              <p className="text-sm text-slate-600">{payHintFor(language, L.result, company)}</p>
 
               {payChoiceOpen ? (
                 <div className="mt-3 flex flex-col justify-center gap-2 sm:flex-row">
+                  {company.paymentUrl && (
                   <a
-                    href={PAYMENT_URL}
+                    href={company.paymentUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700"
@@ -700,8 +714,10 @@ export default function RentalReturnWizard() {
                     <CreditCard className="h-4 w-4" />
                     {L.result.payWithCard}
                   </a>
+                  )}
+                  {company.twintUrl && (
                   <a
-                    href={TWINT_URL}
+                    href={company.twintUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-700"
@@ -709,6 +725,7 @@ export default function RentalReturnWizard() {
                     <Smartphone className="h-4 w-4" />
                     {L.result.payWithTwint}
                   </a>
+                  )}
                 </div>
               ) : (
                 <button
@@ -721,6 +738,7 @@ export default function RentalReturnWizard() {
                 </button>
               )}
             </div>
+            )}
           </div>
         </div>
       </section>

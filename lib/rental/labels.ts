@@ -211,16 +211,16 @@ const de = {
   result: {
     successTitle: "Vertrag abgeschlossen",
     successBody:
-      "Der unterschriebene Vertrag wurde an Sie und an ZURIAUTO gesendet.",
-    partialTitle: "Vertrag an ZURIAUTO gesendet",
+      "Der unterschriebene Vertrag wurde an Sie und an {company} gesendet.",
+    partialTitle: "Vertrag an {company} gesendet",
     partialBody:
       "Ihre Kopie konnte nicht zugestellt werden. Bitte laden Sie den Vertrag hier herunter.",
     storedTitle: "Vertrag erfasst",
     storedBody:
-      "Der Vertrag ist bei ZURIAUTO hinterlegt. Der E-Mail-Versand hat nicht geklappt — bitte laden Sie ihn hier herunter.",
+      "Der Vertrag ist bei {company} hinterlegt. Der E-Mail-Versand hat nicht geklappt — bitte laden Sie ihn hier herunter.",
     offlineTitle: "Vertrag erstellt",
     offlineBody:
-      "Der Versand per E-Mail ist derzeit nicht möglich. Bitte laden Sie den Vertrag herunter und senden Sie ihn an ZURIAUTO.",
+      "Der Versand per E-Mail ist derzeit nicht möglich. Bitte laden Sie den Vertrag herunter und senden Sie ihn an {company}.",
     download: "PDF herunterladen",
     share: "Teilen",
     contractNumber: "Vertrags-Nr.",
@@ -302,13 +302,13 @@ const de = {
     result: {
       successTitle: "Rückgabe übermittelt",
       successBody:
-        "Das unterschriebene Rückgabeprotokoll wurde an Sie und an ZURIAUTO gesendet.",
-      partialTitle: "Protokoll an ZURIAUTO gesendet",
+        "Das unterschriebene Rückgabeprotokoll wurde an Sie und an {company} gesendet.",
+      partialTitle: "Protokoll an {company} gesendet",
       partialBody:
         "Ihre Kopie konnte nicht zugestellt werden. Bitte laden Sie das Protokoll hier herunter.",
       offlineTitle: "Protokoll erstellt",
       offlineBody:
-        "Der Versand per E-Mail ist derzeit nicht möglich. Bitte laden Sie das Protokoll herunter und senden Sie es an ZURIAUTO.",
+        "Der Versand per E-Mail ist derzeit nicht möglich. Bitte laden Sie das Protokoll herunter und senden Sie es an {company}.",
       referenceNumber: "Rückgabe-Nr.",
     },
 
@@ -342,7 +342,7 @@ const de = {
 
     email: {
       officeSubject: "Fahrzeugrückgabe",
-      customerSubject: "Ihre Rückgabebestätigung – ZURIAUTO",
+      customerSubject: "Ihre Rückgabebestätigung – {company}",
       /** The renter's name is appended: "Guten Tag Max Muster". */
       customerHello: "Guten Tag",
       customerBody:
@@ -504,7 +504,7 @@ const de = {
 
   email: {
     officeSubject: "Neuer Mietvertrag",
-    customerSubject: "Ihr Mietvertrag – ZURIAUTO",
+    customerSubject: "Ihr Mietvertrag – {company}",
     // Split so the payment link lands before the sign-off rather than trailing
     // after it, which reads as an afterthought.
     /** The renter's name is appended: "Guten Tag Max Muster". */
@@ -513,7 +513,7 @@ const de = {
       "Im Anhang finden Sie Ihren unterschriebenen Mietvertrag.",
     customerPayment: "Zahlung per Kreditkarte:",
     customerPaymentTwint: "Zahlung per TWINT:",
-    customerSignature: "Freundliche Grüsse\nZURIAUTO",
+    customerSignature: "Freundliche Grüsse\n{company}",
   },
 };
 
@@ -691,16 +691,16 @@ const en: typeof de = {
 
   result: {
     successTitle: "Contract completed",
-    successBody: "The signed contract has been sent to you and to ZURIAUTO.",
-    partialTitle: "Contract sent to ZURIAUTO",
+    successBody: "The signed contract has been sent to you and to {company}.",
+    partialTitle: "Contract sent to {company}",
     partialBody:
       "Your copy could not be delivered. Please download the contract here.",
     storedTitle: "Contract recorded",
     storedBody:
-      "The contract is on file with ZURIAUTO. The email did not go out — please download it here.",
+      "The contract is on file with {company}. The email did not go out — please download it here.",
     offlineTitle: "Contract created",
     offlineBody:
-      "Email delivery is currently unavailable. Please download the contract and send it to ZURIAUTO.",
+      "Email delivery is currently unavailable. Please download the contract and send it to {company}.",
     download: "Download PDF",
     share: "Share",
     contractNumber: "Contract no.",
@@ -773,13 +773,13 @@ const en: typeof de = {
     result: {
       successTitle: "Return submitted",
       successBody:
-        "The signed return report has been sent to you and to ZURIAUTO.",
-      partialTitle: "Report sent to ZURIAUTO",
+        "The signed return report has been sent to you and to {company}.",
+      partialTitle: "Report sent to {company}",
       partialBody:
         "Your copy could not be delivered. Please download the report here.",
       offlineTitle: "Report created",
       offlineBody:
-        "Email delivery is currently unavailable. Please download the report and send it to ZURIAUTO.",
+        "Email delivery is currently unavailable. Please download the report and send it to {company}.",
       referenceNumber: "Return no.",
     },
 
@@ -813,7 +813,7 @@ const en: typeof de = {
 
     email: {
       officeSubject: "Vehicle return",
-      customerSubject: "Your return confirmation – ZURIAUTO",
+      customerSubject: "Your return confirmation – {company}",
       customerHello: "Hello",
       customerBody: "Please find your signed return report attached.",
     },
@@ -970,12 +970,12 @@ const en: typeof de = {
 
   email: {
     officeSubject: "New rental contract",
-    customerSubject: "Your rental contract – ZURIAUTO",
+    customerSubject: "Your rental contract – {company}",
     customerHello: "Hello",
     customerBody: "Please find your signed rental contract attached.",
     customerPayment: "Pay by credit card:",
     customerPaymentTwint: "Pay by TWINT:",
-    customerSignature: "Kind regards\nZURIAUTO",
+    customerSignature: "Kind regards\n{company}",
   },
 };
 
@@ -1002,4 +1002,29 @@ export function paymentMethodName(
 
 export function labelsFor(lang: RentalLanguage): RentalLabels {
   return RENTAL_LABELS[lang];
+}
+
+/**
+ * The sentence above the payment buttons names only the ways the company
+ * offers (multi-company phase B): a partner with only a card link must not
+ * promise TWINT.
+ */
+const PAY_HINT_ONE_WAY = {
+  de: {
+    card: "Sie können die Miete direkt und sicher per Kreditkarte bezahlen.",
+    twint: "Sie können die Miete direkt und sicher per TWINT bezahlen.",
+  },
+  en: {
+    card: "You can pay the rental securely by credit card right away.",
+    twint: "You can pay the rental securely by TWINT right away.",
+  },
+} as const;
+
+export function payHintFor(
+  language: RentalLanguage,
+  result: { payHint: string },
+  links: { paymentUrl: string | null; twintUrl: string | null }
+): string {
+  if (links.paymentUrl && links.twintUrl) return result.payHint;
+  return PAY_HINT_ONE_WAY[language][links.twintUrl ? "twint" : "card"];
 }

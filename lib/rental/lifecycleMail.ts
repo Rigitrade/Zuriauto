@@ -14,6 +14,7 @@
 
 import nodemailer from "nodemailer";
 import { formatChf } from "./money";
+import { signOff, type CompanyBrand } from "@/lib/company/identity";
 import type { RentalLanguage } from "./labels";
 
 export interface LifecycleMailConfig {
@@ -23,6 +24,8 @@ export interface LifecycleMailConfig {
   pass: string;
   from: string;
   office: string;
+  /** Where renters' replies go when a message names none: a partner's office. */
+  replyTo?: string;
 }
 
 export function readLifecycleMailConfig(): LifecycleMailConfig | null {
@@ -73,6 +76,7 @@ export async function sendMail(
 
   await transport.sendMail({
     from: config.from,
+    ...(config.replyTo ? { replyTo: config.replyTo } : {}),
     ...message,
     attachments: message.attachments?.map((attachment) => ({
       ...attachment,
@@ -96,6 +100,8 @@ function formatReturn(endAt: Date | null): string {
 }
 
 interface RentalContext {
+  /** The renting company, for the sign-off (multi-company phase B). */
+  company: CompanyBrand;
   firstName: string;
   carModel: string;
   plate: string;
@@ -125,8 +131,7 @@ export function rentalEndingMail(
         "",
         "The link works once and expires in two weeks. If it has stopped working, reply to this email and we will send a new one.",
         "",
-        "Kind regards",
-        "ZURIAUTO",
+        ...signOff(ctx.company, "en"),
       ].join("\n"),
     };
   }
@@ -143,8 +148,7 @@ export function rentalEndingMail(
       "",
       "Der Link ist einmalig gültig und läuft in zwei Wochen ab. Falls er nicht mehr funktioniert, antworten Sie einfach auf diese E-Mail.",
       "",
-      "Freundliche Grüsse",
-      "ZURIAUTO",
+      ...signOff(ctx.company, "de"),
     ].join("\n"),
   };
 }
@@ -154,12 +158,15 @@ export function rentalEndingMail(
 // ---------------------------------------------------------------------
 
 export function chargeDueMail(ctx: {
+  /** The renting company, for the sign-off (multi-company phase B). */
+  company: CompanyBrand;
   firstName: string;
   carModel: string;
   plate: string;
   weekNumber: number;
   amountCents: number;
-  paymentUrl: string;
+  /** Null when the company has no payment page: the lines are left out. */
+  paymentUrl: string | null;
   reference: string;
   language: RentalLanguage;
   isReminder: boolean;
@@ -192,13 +199,11 @@ export function chargeDueMail(ctx: {
         ...(due ? [`Due on: ${due}`] : []),
         `Reference: ${ctx.reference}`,
         "",
-        "Please enter the amount above on the payment page:",
-        ctx.paymentUrl,
-        "",
+        // No link for a company without a payment page: never ZURIAUTO's.
+        ...(ctx.paymentUrl ? ["Please enter the amount above on the payment page:", ctx.paymentUrl, ""] : []),
         "Questions? Simply reply to this email.",
         "",
-        "Kind regards",
-        "ZURIAUTO",
+        ...signOff(ctx.company, "en"),
       ].join("\n"),
     };
   }
@@ -220,13 +225,11 @@ export function chargeDueMail(ctx: {
       ...(due ? [`Fällig am: ${due}`] : []),
       `Referenz: ${ctx.reference}`,
       "",
-      "Bitte geben Sie den oben genannten Betrag auf der Zahlungsseite ein:",
-      ctx.paymentUrl,
-      "",
+      // No link for a company without a payment page: never ZURIAUTO's.
+      ...(ctx.paymentUrl ? ["Bitte geben Sie den oben genannten Betrag auf der Zahlungsseite ein:", ctx.paymentUrl, ""] : []),
       "Fragen? Antworten Sie einfach auf diese E-Mail.",
       "",
-      "Freundliche Grüsse",
-      "ZURIAUTO",
+      ...signOff(ctx.company, "de"),
     ].join("\n"),
   };
 }
@@ -257,6 +260,8 @@ function formatZurichDay(at: Date): string {
  * a week still owed, where "ignore it" would be untrue.
  */
 export function chargeCorrectionMail(ctx: {
+  /** The renting company, for the sign-off (multi-company phase B). */
+  company: CompanyBrand;
   firstName: string;
   carModel: string;
   plate: string;
@@ -281,8 +286,7 @@ export function chargeCorrectionMail(ctx: {
         "",
         "We apologise for the inconvenience.",
         "",
-        "Kind regards",
-        "ZURIAUTO",
+        ...signOff(ctx.company, "en"),
       ].join("\n"),
     };
   }
@@ -298,8 +302,7 @@ export function chargeCorrectionMail(ctx: {
       "",
       "Entschuldigen Sie die Unannehmlichkeiten.",
       "",
-      "Freundliche Grüsse",
-      "ZURIAUTO",
+      ...signOff(ctx.company, "de"),
     ].join("\n"),
   };
 }
@@ -309,13 +312,16 @@ export function chargeCorrectionMail(ctx: {
 // ---------------------------------------------------------------------
 
 export function extensionConfirmedMail(ctx: {
+  /** The renting company, for the sign-off (multi-company phase B). */
+  company: CompanyBrand;
   firstName: string;
   carModel: string;
   plate: string;
   weeksAdded: number;
   newEndAt: Date;
   amountCents: number;
-  paymentUrl: string;
+  /** Null when the company has no payment page: the lines are left out. */
+  paymentUrl: string | null;
   language: RentalLanguage;
 }): { subject: string; text: string } {
   const when = formatZurich(ctx.newEndAt);
@@ -332,11 +338,9 @@ export function extensionConfirmedMail(ctx: {
         "",
         `Additional amount: ${amount}`,
         "",
-        "You can pay here:",
-        ctx.paymentUrl,
-        "",
-        "Kind regards",
-        "ZURIAUTO",
+        // No link for a company without a payment page: never ZURIAUTO's.
+        ...(ctx.paymentUrl ? ["You can pay here:", ctx.paymentUrl, ""] : []),
+        ...signOff(ctx.company, "en"),
       ].join("\n"),
     };
   }
@@ -351,11 +355,9 @@ export function extensionConfirmedMail(ctx: {
       "",
       `Zusätzlicher Betrag: ${amount}`,
       "",
-      "Hier können Sie bezahlen:",
-      ctx.paymentUrl,
-      "",
-      "Freundliche Grüsse",
-      "ZURIAUTO",
+      // No link for a company without a payment page: never ZURIAUTO's.
+      ...(ctx.paymentUrl ? ["Hier können Sie bezahlen:", ctx.paymentUrl, ""] : []),
+      ...signOff(ctx.company, "de"),
     ].join("\n"),
   };
 }
@@ -578,6 +580,8 @@ export function mfkNoticeOfficeMail(ctx: {
 }
 
 export function mfkNoticeRenterMail(ctx: {
+  /** The renting company, for the sign-off (multi-company phase B). */
+  company: CompanyBrand;
   firstName: string;
   carModel: string;
   plate: string;
@@ -597,8 +601,7 @@ export function mfkNoticeRenterMail(ctx: {
         "",
         "The car has to be brought in for the inspection. We will contact you to agree on a time; you can also reply to this email.",
         "",
-        "Kind regards",
-        "ZURIAUTO",
+        ...signOff(ctx.company, "en"),
       ].join("\n"),
     };
   }
@@ -612,8 +615,7 @@ export function mfkNoticeRenterMail(ctx: {
       "",
       "Das Fahrzeug muss dafür zur Prüfung gebracht werden. Wir melden uns, um einen Termin abzusprechen – Sie können auch einfach auf diese E-Mail antworten.",
       "",
-      "Freundliche Grüsse",
-      "ZURIAUTO",
+      ...signOff(ctx.company, "de"),
     ].join("\n"),
   };
 }
@@ -696,6 +698,8 @@ export function serviceDueOfficeMail(
 
 export function serviceDueRenterMail(
   ctx: ServiceMailFigures & {
+    /** The renting company, for the sign-off (multi-company phase B). */
+    company: CompanyBrand;
     firstName: string;
     carModel: string;
     plate: string;
@@ -723,8 +727,7 @@ export function serviceDueRenterMail(
         "",
         "Please contact us to arrange the service — simply reply to this email.",
         "",
-        "Kind regards",
-        "ZURIAUTO",
+        ...signOff(ctx.company, "en"),
       ].join("\n"),
     };
   }
@@ -747,8 +750,7 @@ export function serviceDueRenterMail(
       "",
       "Bitte melden Sie sich, um den Service zu vereinbaren – antworten Sie einfach auf diese E-Mail.",
       "",
-      "Freundliche Grüsse",
-      "ZURIAUTO",
+      ...signOff(ctx.company, "de"),
     ].join("\n"),
   };
 }

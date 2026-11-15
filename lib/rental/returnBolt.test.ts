@@ -2,6 +2,7 @@ import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 // @ts-expect-error -- pdfjs ships no types for its worker module.
 import * as pdfjsWorker from "pdfjs-dist/legacy/build/pdf.worker.mjs";
 import { describe, expect, it } from "vitest";
+import { publicCompany, ZURIAUTO_IDENTITY } from "@/lib/company/identity";
 import { findVehicle } from "./fleet";
 import { buildReturnPdf } from "./returnPdf";
 import { returnDetailsSchema, type ReturnDetails } from "./returnSchema";
@@ -85,6 +86,7 @@ describe("the Bolt question on the return", () => {
         issuedAt: new Date("2026-10-18T10:00:00Z"),
         language,
         signaturePng: PNG,
+        company: publicCompany(ZURIAUTO_IDENTITY),
       })
     );
     const at = text.indexOf(label);
@@ -104,6 +106,7 @@ describe("the Bolt question on the return", () => {
         issuedAt: new Date("2026-10-18T10:00:00Z"),
         language: "de",
         signaturePng: PNG,
+        company: publicCompany(ZURIAUTO_IDENTITY),
       })
     );
     expect(text).toContain("Autoschlüssel retourniert");

@@ -18,6 +18,8 @@
 
 import { z } from "zod";
 import type { PrismaClient } from "@/generated/prisma/client";
+import { loadCompanyIdentity } from "@/lib/company/load";
+import { companyMail } from "@/lib/company/mailEnvelope";
 import type { Actor } from "@/lib/fines/events";
 import { asRentalLanguage } from "@/lib/rental/labels";
 import { chargeCorrectionMail, sendMail, type LifecycleMailConfig } from "@/lib/rental/lifecycleMail";
@@ -182,6 +184,10 @@ export async function reviewPaymentMail(
   if (!mail) return { ok: false, code: "mail-not-configured" };
 
   const { rental } = original;
+  const company = await loadCompanyIdentity(client, organisationId);
+  // In the company's name; its renter's reply reaches its office.
+  const companyConfig = companyMail(mail, company);
+  if (!companyConfig) return { ok: false, code: "mail-not-configured" };
   const sent = await sendOnce(
     client,
     {
@@ -194,6 +200,7 @@ export async function reviewPaymentMail(
     now,
     async () => {
       const message = chargeCorrectionMail({
+        company,
         firstName: rental.customer.firstName,
         carModel: rental.car.model,
         plate: rental.car.plate,
@@ -202,7 +209,7 @@ export async function reviewPaymentMail(
         sentAt: original.sentAt!,
         language: asRentalLanguage(rental.contracts[0]?.gtcLanguage),
       });
-      await sendMail(mail, { to: rental.customer.email, replyTo: mail.office, ...message });
+      await sendMail(companyConfig, { to: rental.customer.email, replyTo: companyConfig.office, ...message });
     }
   );
 

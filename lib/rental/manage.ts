@@ -8,7 +8,7 @@
  */
 
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
-import { PAYMENT_URL } from "@/lib/payment";
+import { loadCompanyIdentity } from "@/lib/company/load";
 import { getPaymentProvider } from "@/lib/payments";
 import { hashToken, tokenIsUsable } from "./actionToken";
 import { generateWeeklyCharges } from "./passes";
@@ -202,7 +202,8 @@ export function quoteExtension(
 
 export interface ExtensionResult {
   quote: ExtensionQuote;
-  paymentUrl: string;
+  /** Null for a company with no payment page: the renter pays its office. */
+  paymentUrl: string | null;
 }
 
 /**
@@ -322,8 +323,15 @@ export async function extendRental(
   // is spent. Letting a provider outage throw here would show the renter a
   // failure for something that succeeded — and their retry would hit a 410,
   // leaving them convinced they had not extended when they had.
-  let paymentUrl = PAYMENT_URL;
-  try {
+  const { organisationId } = await client.rental.findUniqueOrThrow({
+    where: { id: rentalId },
+    select: { organisationId: true },
+  });
+  const company = await loadCompanyIdentity(client, organisationId);
+  // A partner's renter pays the partner, never through ZURIAUTO's payment
+  // provider (multi-company phase B): its own page, or none.
+  let paymentUrl = company.paymentUrl;
+  if (!company.poweredBy) try {
     const request = await provider.createRequest({
       amountCents: outcome.quote.amountCents,
       currency: "chf",

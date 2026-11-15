@@ -28,7 +28,7 @@ type State =
   | { kind: "choosing" }
   | { kind: "working" }
   | { kind: "returned" }
-  | { kind: "extended"; paymentUrl: string; amountCents: number; newEndAt: string }
+  | { kind: "extended"; paymentUrl: string | null; amountCents: number; newEndAt: string }
   | { kind: "failed"; message: string };
 
 function formatZurich(iso: string): string {
@@ -125,6 +125,8 @@ export default function ManageRental(props: ManageRentalProps) {
           />
         </dl>
 
+        {/* No button for a company without a payment page (phase B). */}
+        {state.paymentUrl && (
         <a
           href={state.paymentUrl}
           target="_blank"
@@ -134,6 +136,7 @@ export default function ManageRental(props: ManageRentalProps) {
           <CreditCard className="h-4 w-4" />
           {L.manage.payNow}
         </a>
+        )}
       </Panel>
     );
   }

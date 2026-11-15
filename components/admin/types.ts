@@ -198,6 +198,9 @@ export type Me = {
   username: string;
   displayName: string;
   role: "owner" | "staff";
+  /** The account's company's brand, shown in the shell (phase B). Optional,
+   *  so a client running against an older deployment shows ZURIAUTO. */
+  companyName?: string;
 };
 
 export interface UnsentContract {

@@ -7,19 +7,18 @@
  */
 
 import { PDFDocument, StandardFonts } from "pdf-lib";
-import { GTC_ENTITY } from "@/locales/gtc";
+import type { PublicCompany } from "@/lib/company/identity";
 import {
   CONTENT_WIDTH,
   formatDate,
   formatDateTime,
   formatMileage,
-  formatTime,
-  INK,
   MARGIN,
   MUTED,
+  placeAndDate,
   RULE,
-  toIsoDate,
   toWinAnsi,
+  writeCompanyHeader,
   Writer,
 } from "./contractPdf";
 import { fuelLevelToFraction, type FleetVehicle } from "./fleet";
@@ -42,6 +41,8 @@ export interface ReturnPdfInput {
    * should not look like a defect in the document.
    */
   ownerSignaturePng?: Uint8Array;
+  /** The renting company (multi-company phase B), as on the contract. */
+  company: PublicCompany;
 }
 
 /** `350.50 CHF`, Swiss grouping, always two decimals — money on paper. */
@@ -81,16 +82,7 @@ export async function buildReturnPdf(input: ReturnPdfInput): Promise<Uint8Array>
   const w = new Writer(doc, font, bold);
 
   // --- Header ----------------------------------------------------------
-  w.page.drawText(toWinAnsi("ZURIAUTO"), {
-    x: MARGIN,
-    y: w.cursor,
-    size: 18,
-    font: bold,
-    color: INK,
-  });
-  w.gap(20);
-  w.text(`${P.lessor}: ${GTC_ENTITY}`, { size: 9, color: MUTED });
-  w.gap(10);
+  writeCompanyHeader(w, input.company, P.lessor);
   w.text(R.pdf.title, { size: 14, font: bold });
   w.gap(6);
   w.field(R.pdf.returnNumber, returnNumber);
@@ -234,8 +226,7 @@ export async function buildReturnPdf(input: ReturnPdfInput): Promise<Uint8Array>
   );
   w.gap(2);
   w.text(
-    `${P.placeAndDate}: ${details.place || "Zurich"}, ` +
-      `${formatDate(toIsoDate(issuedAt))}, ${formatTime(issuedAt)}`,
+    `${P.placeAndDate}: ${placeAndDate(details.place || input.company.signingPlace, issuedAt)}`,
     { size: 9, color: MUTED }
   );
 

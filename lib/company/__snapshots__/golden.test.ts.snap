@@ -1,0 +1,732 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`ZURIAUTO golden output (recorded before phase B) > availability mail, de 1`] = `
+{
+  "subject": "Ein Fahrzeug ist bei ZURIAUTO verfügbar",
+  "text": "2 Fahrzeuge sind soeben frei geworden.
+
+Sie hatten uns gebeten, Sie zu benachrichtigen. Die Verfügbarkeit
+ändert sich im Laufe des Tages — melden Sie sich am besten bald:
+
+https://zuriauto.ch/book
+
+Wenn Sie keine weiteren Nachrichten wünschen, hier abmelden:
+https://zuriauto.ch/u/x",
+}
+`;
+
+exports[`ZURIAUTO golden output (recorded before phase B) > availability mail, en 1`] = `
+{
+  "subject": "A car is available at ZURIAUTO",
+  "text": "2 cars have just become available.
+
+You asked us to let you know. Availability changes through the day,
+so it is worth getting in touch soon:
+
+https://zuriauto.ch/book
+
+If you no longer want these messages, unsubscribe here:
+https://zuriauto.ch/u/x",
+}
+`;
+
+exports[`ZURIAUTO golden output (recorded before phase B) > contract PDF, de 1`] = `
+"[producer zuriauto.ch] [author ]
+ZURIAUTO  Vermieter: Rigitrade AG  MIETVERTRAG - FAHRZEUGÜBERNAHME  Vertrags-Nr.   ZA-20260822-0002  Erstellt am   22.08.2026 13:00  FAHRZEUG  Modell   Toyota Prius Hybrid  Kontrollschild-Nr.   ZH 513 925  Kilometerstand bei Übernahme   120'000 km  Tankfüllung   3/4  MIETDAUER UND PREIS  Mietart   Geschäftlich - wöchentlich / monatlich  Beginn der Miete   17.08.2026 11:00  Vereinbarte Rückgabe   07.09.2026 11:00  Anzahl Wochen   3  Wochenpreis   CHF 450.00  Kaution   CHF 500.00  Zahlungsart   TWINT  MIETER  Name   Meier  Vorname   Anna  Geburtsdatum   12.04.1990  Adresse   Bahnhofstrasse 1, 8001 Zürich, Switzerland  Mobil-Nr.   +41791234567  E-Mail   anna@example.ch  FAHRZEUGZUSTAND BEI ÜBERNAHME  Vorhandene Schäden   Keine sichtbaren Schäden gemeldet  ANNAHME DER AGB  Der Mieter hat die Allgemeinen Geschäftsbedingungen gelesen und akzeptiert. Fassung   2026-07-31 (22.10.2026)  Sprache   DE  Akzeptiert am   17.08.2026 11:00  Art. 15.1 AGB - Wahrheitsgemässe Angaben: bestätigt am 17.08.2026 11:00 Art. 15.5 AGB - Falsche Angaben und Unterlagen: bestätigt am 17.08.2026 11:00  UNTERSCHRIFT DES MIETERS  ZA-20260822-0002   -   Seite 1 von 3
+NAME IN DRUCKSCHRIFT: ANNA MEIER Ort, Datum, Uhrzeit: Zurich, 22.08.2026, 13:00  ZA-20260822-0002   -   Seite 2 von 3
+IDENTITÄTSDOKUMENTE  Ausweis- und Führerscheinkopien liegen aus Vertrag ZA-20260212-0007 vom 2026-02-12 vor.  Die Originale wurden bei der Übergabe geprüft: Büro, 2026-08-22.  ZA-20260822-0002   -   Seite 3 von 3"
+`;
+
+exports[`ZURIAUTO golden output (recorded before phase B) > contract PDF, en 1`] = `
+"[producer zuriauto.ch] [author ]
+ZURIAUTO  Lessor: Rigitrade AG  RENTAL CONTRACT - VEHICLE HANDOVER  Contract no.   ZA-20260822-0002  Issued   22.08.2026 13:00  VEHICLE  Model   Toyota Prius Hybrid  Licence plate no.   ZH 513 925  Mileage at handover   120'000 km  Fuel level   3/4  RENTAL PERIOD AND PRICE  Rental type   Business - weekly / monthly  Start of rental   17.08.2026 11:00  Agreed return   07.09.2026 11:00  Number of weeks   3  Weekly price   CHF 450.00  Deposit   CHF 500.00  Paid by   TWINT  RENTER  Family name   Meier  First name   Anna  Date of birth   12.04.1990  Address   Bahnhofstrasse 1, 8001 Zürich, Switzerland  Mobile no.   +41791234567  Email   anna@example.ch  VEHICLE CONDITION AT HANDOVER  Pre-existing damage   No visible damage reported  ACCEPTANCE OF THE GTC  The renter has read and accepted the General Terms and Conditions. Version   2026-07-31 (22.10.2026)  Language   DE  Accepted at   17.08.2026 11:00  Art. 15.1 GTC - Truthful information: confirmed on 17.08.2026 11:00 Art. 15.5 GTC - False information and documents: confirmed on 17.08.2026 11:00  RENTER'S SIGNATURE  ZA-20260822-0002   -   Page 1 of 3
+NAME IN BLOCK CAPITALS: ANNA MEIER Place, date, time: Zurich, 22.08.2026, 13:00  ZA-20260822-0002   -   Page 2 of 3
+IDENTITY DOCUMENTS  ID and driving licence copies are on file from contract ZA-20260212-0007 of 2026-02-12.  The originals were checked at handover: office, 2026-08-22.  ZA-20260822-0002   -   Page 3 of 3"
+`;
+
+exports[`ZURIAUTO golden output (recorded before phase B) > customer email, de 1`] = `
+{
+  "html": "<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#ffffff;padding:28px 20px;">
+  <tr>
+    <td align="left">
+      <table role="presentation" align="left" cellpadding="0" cellspacing="0" style="max-width:540px;width:100%;text-align:left;">
+        <tr>
+          <td style="padding:0 0 16px;border-bottom:2px solid #0f172a;">
+            <span style="font-family:Arial, Helvetica, sans-serif;font-size:17px;letter-spacing:5px;font-weight:bold;color:#0f172a;">ZURIAUTO</span>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:28px 0 0;font-family:Arial, Helvetica, sans-serif;font-size:15px;line-height:1.65;color:#1e293b;">
+            <p style="margin:0 0 16px;">Guten Tag Anna Meier</p>
+            <p style="margin:0 0 16px;">Im Anhang finden Sie Ihren unterschriebenen Mietvertrag.</p>
+            <p style="margin:0 0 28px;color:#475569;">Vertrags-Nr.: <strong style="color:#0f172a;">ZA-20260822-0002</strong></p>
+
+            <p style="margin:0 0 14px;color:#475569;">Sie können die Miete direkt und sicher per Kreditkarte oder TWINT bezahlen.</p>
+            <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 32px;">
+              <tr>
+                <td style="padding:0 10px 0 0;">
+                  <a href="https://pay.sumup.com/b2c/QH47IRGK" style="display:inline-block;background-color:#0f172a;color:#ffffff;text-decoration:none;font-family:Arial, Helvetica, sans-serif;font-size:14px;padding:11px 24px;border-radius:6px;">Kreditkarte</a>
+                </td>
+                <td>
+                  <a href="https://go.twint.ch/1/e/tw?tw=acq.lf42UVlQQmWchQ9Tc9F26Jz5NoLlBomH_GHXKQtNDVX2QFYuD_n6mKCpYAihzGcx" style="display:inline-block;border:1px solid #0f172a;color:#0f172a;text-decoration:none;font-family:Arial, Helvetica, sans-serif;font-size:14px;padding:10px 24px;border-radius:6px;">TWINT</a>
+                </td>
+              </tr>
+            </table>
+
+            <p style="margin:0;">Freundliche Grüsse<br />ZURIAUTO</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:28px 0 0;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="border-top:1px solid #e2e8f0;padding:14px 0 0;font-family:Arial, Helvetica, sans-serif;font-size:12px;color:#94a3b8;">
+                  ZURIAUTO &middot; A brand by Rigitrade AG &middot; <a href="https://zuriauto.ch" style="color:#94a3b8;">zuriauto.ch</a>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>",
+  "text": "Guten Tag Anna Meier
+
+Im Anhang finden Sie Ihren unterschriebenen Mietvertrag.
+
+Vertrags-Nr.: ZA-20260822-0002
+
+Zahlung per Kreditkarte:
+https://pay.sumup.com/b2c/QH47IRGK
+
+Zahlung per TWINT:
+https://go.twint.ch/1/e/tw?tw=acq.lf42UVlQQmWchQ9Tc9F26Jz5NoLlBomH_GHXKQtNDVX2QFYuD_n6mKCpYAihzGcx
+
+Freundliche Grüsse
+ZURIAUTO",
+}
+`;
+
+exports[`ZURIAUTO golden output (recorded before phase B) > customer email, en 1`] = `
+{
+  "html": "<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#ffffff;padding:28px 20px;">
+  <tr>
+    <td align="left">
+      <table role="presentation" align="left" cellpadding="0" cellspacing="0" style="max-width:540px;width:100%;text-align:left;">
+        <tr>
+          <td style="padding:0 0 16px;border-bottom:2px solid #0f172a;">
+            <span style="font-family:Arial, Helvetica, sans-serif;font-size:17px;letter-spacing:5px;font-weight:bold;color:#0f172a;">ZURIAUTO</span>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:28px 0 0;font-family:Arial, Helvetica, sans-serif;font-size:15px;line-height:1.65;color:#1e293b;">
+            <p style="margin:0 0 16px;">Hello Anna Meier</p>
+            <p style="margin:0 0 16px;">Please find your signed rental contract attached.</p>
+            <p style="margin:0 0 28px;color:#475569;">Contract no.: <strong style="color:#0f172a;">ZA-20260822-0002</strong></p>
+
+            <p style="margin:0 0 14px;color:#475569;">You can pay the rental securely by credit card or TWINT right away.</p>
+            <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 32px;">
+              <tr>
+                <td style="padding:0 10px 0 0;">
+                  <a href="https://pay.sumup.com/b2c/QH47IRGK" style="display:inline-block;background-color:#0f172a;color:#ffffff;text-decoration:none;font-family:Arial, Helvetica, sans-serif;font-size:14px;padding:11px 24px;border-radius:6px;">Credit card</a>
+                </td>
+                <td>
+                  <a href="https://go.twint.ch/1/e/tw?tw=acq.lf42UVlQQmWchQ9Tc9F26Jz5NoLlBomH_GHXKQtNDVX2QFYuD_n6mKCpYAihzGcx" style="display:inline-block;border:1px solid #0f172a;color:#0f172a;text-decoration:none;font-family:Arial, Helvetica, sans-serif;font-size:14px;padding:10px 24px;border-radius:6px;">TWINT</a>
+                </td>
+              </tr>
+            </table>
+
+            <p style="margin:0;">Kind regards<br />ZURIAUTO</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:28px 0 0;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="border-top:1px solid #e2e8f0;padding:14px 0 0;font-family:Arial, Helvetica, sans-serif;font-size:12px;color:#94a3b8;">
+                  ZURIAUTO &middot; A brand by Rigitrade AG &middot; <a href="https://zuriauto.ch" style="color:#94a3b8;">zuriauto.ch</a>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>",
+  "text": "Hello Anna Meier
+
+Please find your signed rental contract attached.
+
+Contract no.: ZA-20260822-0002
+
+Pay by credit card:
+https://pay.sumup.com/b2c/QH47IRGK
+
+Pay by TWINT:
+https://go.twint.ch/1/e/tw?tw=acq.lf42UVlQQmWchQ9Tc9F26Jz5NoLlBomH_GHXKQtNDVX2QFYuD_n6mKCpYAihzGcx
+
+Kind regards
+ZURIAUTO",
+}
+`;
+
+exports[`ZURIAUTO golden output (recorded before phase B) > fine mails to the renter, de 1`] = `
+{
+  "named": {
+    "subject": "Busse für ZH 513925 vom 02.10.2026: Sie wurden als Lenker gemeldet",
+    "text": "Guten Tag Anna
+
+Wir haben eine Busse für den Toyota Prius (ZH 513925) erhalten, den Sie zu diesem Zeitpunkt gemietet hatten.
+
+Wann:        02.10.2026, 10:00
+Wo:          Zürich, Seebahnstrasse
+Übertretung: Überschreiten der Höchstgeschwindigkeit
+Betrag:      CHF 120.00
+Absender:    Stadtpolizei Zürich
+Nummer:      B-123456
+
+Wir haben Sie der Behörde (Stadtpolizei Zürich) als Lenker gemeldet. Die Busse wird Ihnen direkt zugestellt; bitte bezahlen Sie sie dann dort. Bitte bezahlen Sie nichts an uns.
+
+Freundliche Grüsse
+ZURIAUTO",
+  },
+  "notice": {
+    "subject": "Busse für ZH 513925 vom 02.10.2026",
+    "text": "Guten Tag Anna
+
+Wir haben eine Busse für den Toyota Prius (ZH 513925) erhalten, den Sie zu diesem Zeitpunkt gemietet hatten.
+
+Wann:        02.10.2026, 10:00
+Wo:          Zürich, Seebahnstrasse
+Übertretung: Überschreiten der Höchstgeschwindigkeit
+Betrag:      CHF 120.00
+Zahlbar bis: 30.11.2026
+Absender:    Stadtpolizei Zürich
+Nummer:      B-123456
+
+Bitte bezahlen Sie den Betrag direkt an den Absender, mit dem Einzahlungsschein im beigefügten Schreiben (QR-Code mit Ihrer Banking-App scannen). ZURIAUTO zieht ihn nicht ein.
+
+Sobald Sie bezahlt haben, bestätigen Sie es bitte hier mit einem Screenshot der Zahlung:
+https://zuriauto.ch/fines/pay/abc
+
+Gemäss den Gebühren in unseren AGB verrechnen wir eine Bearbeitungsgebühr von CHF 25.00. Bitte bezahlen Sie diese per Karte oder TWINT mit dem Vermerk «Busse B-123456»:
+Karte: https://pay.sumup.com/b2c/QH47IRGK
+TWINT: https://go.twint.ch/1/e/tw?tw=acq.lf42UVlQQmWchQ9Tc9F26Jz5NoLlBomH_GHXKQtNDVX2QFYuD_n6mKCpYAihzGcx
+
+Eine unbezahlte Busse kommt als Mahnung mit weiteren Kosten zurück.
+
+Freundliche Grüsse
+ZURIAUTO",
+  },
+  "reminder": {
+    "subject": "Mahnung: Busse für ZH 513925 vom 02.10.2026",
+    "text": "Guten Tag Anna
+
+Die folgende Busse ist noch nicht bezahlt, und wir haben eine Mahnung erhalten. Bitte bezahlen Sie sie jetzt, spätestens bis 30.11.2026.
+
+Wann:        02.10.2026, 10:00
+Wo:          Zürich, Seebahnstrasse
+Übertretung: Überschreiten der Höchstgeschwindigkeit
+Betrag:      CHF 120.00
+Zahlbar bis: 30.11.2026
+Absender:    Stadtpolizei Zürich
+Nummer:      B-123456
+
+Bitte bezahlen Sie den Betrag direkt an den Absender, mit dem Einzahlungsschein im beigefügten Schreiben (QR-Code mit Ihrer Banking-App scannen). ZURIAUTO zieht ihn nicht ein.
+
+Sobald Sie bezahlt haben, bestätigen Sie es bitte hier mit einem Screenshot der Zahlung:
+https://zuriauto.ch/fines/pay/abc
+
+Gemäss den Gebühren in unseren AGB verrechnen wir eine Bearbeitungsgebühr von CHF 25.00. Bitte bezahlen Sie diese per Karte oder TWINT mit dem Vermerk «Busse B-123456»:
+Karte: https://pay.sumup.com/b2c/QH47IRGK
+TWINT: https://go.twint.ch/1/e/tw?tw=acq.lf42UVlQQmWchQ9Tc9F26Jz5NoLlBomH_GHXKQtNDVX2QFYuD_n6mKCpYAihzGcx
+
+Eine unbezahlte Busse kommt als Mahnung mit weiteren Kosten zurück.
+
+Freundliche Grüsse
+ZURIAUTO",
+  },
+  "reopened": {
+    "subject": "Die Busse für ZH 513925 vom 02.10.2026 ist noch offen",
+    "text": "Guten Tag Anna
+
+Der Absender hat uns für die Busse vom 02.10.2026 (ZH 513925) eine Mahnung geschickt: Die Zahlung ist dort nicht eingegangen. Die Mahnung liegt bei.
+
+Falls Sie bezahlt haben, senden Sie uns bitte hier die Bestätigung Ihrer Bank — ein Screenshot genügt:
+https://zuriauto.ch/fines/pay/abc
+
+Falls nicht, bezahlen Sie die Busse bitte jetzt mit dem Einzahlungsschein der beigelegten Mahnung.
+
+Freundliche Grüsse
+ZURIAUTO",
+  },
+  "thanks": {
+    "subject": "Zahlung bestätigt: Busse für ZH 513925 vom 02.10.2026",
+    "text": "Guten Tag Anna
+
+Vielen Dank — wir haben Ihre Zahlung der Busse vermerkt.
+
+Freundliche Grüsse
+ZURIAUTO",
+  },
+}
+`;
+
+exports[`ZURIAUTO golden output (recorded before phase B) > fine mails to the renter, en 1`] = `
+{
+  "named": {
+    "subject": "Traffic fine for ZH 513925 of 02.10.2026: you were named as the driver",
+    "text": "Hello Anna
+
+We have received a traffic fine for the Toyota Prius (ZH 513925), which you had rented at the time.
+
+When:     02.10.2026, 10:00
+Where:    Zürich, Seebahnstrasse
+Offence:  Speeding
+Amount:   CHF 120.00
+Issued by: Stadtpolizei Zürich
+Number:   B-123456
+
+We have named you to Stadtpolizei Zürich as the driver. They will send the fine to you directly; please pay it to them when it arrives. Please do not pay anything to us.
+
+Kind regards
+ZURIAUTO",
+  },
+  "notice": {
+    "subject": "Traffic fine for ZH 513925 of 02.10.2026",
+    "text": "Hello Anna
+
+We have received a fine for the Toyota Prius (ZH 513925), which you were renting at the time.
+
+When:      02.10.2026, 10:00
+Where:     Zürich, Seebahnstrasse
+Offence:   Speeding
+Amount:    CHF 120.00
+Pay by:    30.11.2026
+Issued by: Stadtpolizei Zürich
+Number:    B-123456
+
+Please pay the amount directly to the issuer, using the payment slip in the attached letter (scan the QR code with your banking app). ZURIAUTO does not collect it.
+
+Once you have paid, please confirm it here with a screenshot of the payment:
+https://zuriauto.ch/fines/pay/abc
+
+Under the fees set out in our terms we charge a handling fee of CHF 25.00. Please pay it by card or TWINT, quoting fine B-123456:
+Card:  https://pay.sumup.com/b2c/QH47IRGK
+TWINT: https://go.twint.ch/1/e/tw?tw=acq.lf42UVlQQmWchQ9Tc9F26Jz5NoLlBomH_GHXKQtNDVX2QFYuD_n6mKCpYAihzGcx
+
+An unpaid fine comes back as a reminder with further costs.
+
+Kind regards
+ZURIAUTO",
+  },
+  "reminder": {
+    "subject": "Reminder: Traffic fine for ZH 513925 of 02.10.2026",
+    "text": "Hello Anna
+
+The fine below has not been paid yet, and the issuer has sent a reminder. Please pay it now, by 30.11.2026 at the latest.
+
+When:      02.10.2026, 10:00
+Where:     Zürich, Seebahnstrasse
+Offence:   Speeding
+Amount:    CHF 120.00
+Pay by:    30.11.2026
+Issued by: Stadtpolizei Zürich
+Number:    B-123456
+
+Please pay the amount directly to the issuer, using the payment slip in the attached letter (scan the QR code with your banking app). ZURIAUTO does not collect it.
+
+Once you have paid, please confirm it here with a screenshot of the payment:
+https://zuriauto.ch/fines/pay/abc
+
+Under the fees set out in our terms we charge a handling fee of CHF 25.00. Please pay it by card or TWINT, quoting fine B-123456:
+Card:  https://pay.sumup.com/b2c/QH47IRGK
+TWINT: https://go.twint.ch/1/e/tw?tw=acq.lf42UVlQQmWchQ9Tc9F26Jz5NoLlBomH_GHXKQtNDVX2QFYuD_n6mKCpYAihzGcx
+
+An unpaid fine comes back as a reminder with further costs.
+
+Kind regards
+ZURIAUTO",
+  },
+  "reopened": {
+    "subject": "The fine for ZH 513925 of 02.10.2026 is still unpaid",
+    "text": "Hello Anna
+
+The issuer has sent a reminder for the fine of 02.10.2026 (ZH 513925): according to them, it has not been paid. The reminder is attached.
+
+If you did pay, please send us the confirmation from your bank here — a screenshot is enough:
+https://zuriauto.ch/fines/pay/abc
+
+If not, please pay it now with the slip in the attached reminder.
+
+Kind regards
+ZURIAUTO",
+  },
+  "thanks": {
+    "subject": "Payment confirmed: fine for ZH 513925 of 02.10.2026",
+    "text": "Hello Anna
+
+Thank you — we have recorded your payment of the fine.
+
+Kind regards
+ZURIAUTO",
+  },
+}
+`;
+
+exports[`ZURIAUTO golden output (recorded before phase B) > labels naming the company, de 1`] = `
+{
+  "email": {
+    "customerBody": "Im Anhang finden Sie Ihren unterschriebenen Mietvertrag.",
+    "customerHello": "Guten Tag",
+    "customerPayment": "Zahlung per Kreditkarte:",
+    "customerPaymentTwint": "Zahlung per TWINT:",
+    "customerSignature": "Freundliche Grüsse
+ZURIAUTO",
+    "customerSubject": "Ihr Mietvertrag – ZURIAUTO",
+    "officeSubject": "Neuer Mietvertrag",
+  },
+  "result": {
+    "contractNumber": "Vertrags-Nr.",
+    "download": "PDF herunterladen",
+    "offlineBody": "Der Versand per E-Mail ist derzeit nicht möglich. Bitte laden Sie den Vertrag herunter und senden Sie ihn an ZURIAUTO.",
+    "offlineTitle": "Vertrag erstellt",
+    "partialBody": "Ihre Kopie konnte nicht zugestellt werden. Bitte laden Sie den Vertrag hier herunter.",
+    "partialTitle": "Vertrag an ZURIAUTO gesendet",
+    "payHint": "Sie können die Miete direkt und sicher per Kreditkarte oder TWINT bezahlen.",
+    "payNow": "Jetzt bezahlen",
+    "payWithCard": "Kreditkarte",
+    "payWithTwint": "TWINT",
+    "share": "Teilen",
+    "storedBody": "Der Vertrag ist bei ZURIAUTO hinterlegt. Der E-Mail-Versand hat nicht geklappt — bitte laden Sie ihn hier herunter.",
+    "storedTitle": "Vertrag erfasst",
+    "successBody": "Der unterschriebene Vertrag wurde an Sie und an ZURIAUTO gesendet.",
+    "successTitle": "Vertrag abgeschlossen",
+  },
+  "retEmail": {
+    "customerBody": "Im Anhang finden Sie Ihr unterschriebenes Rückgabeprotokoll.",
+    "customerHello": "Guten Tag",
+    "customerSubject": "Ihre Rückgabebestätigung – ZURIAUTO",
+    "officeSubject": "Fahrzeugrückgabe",
+  },
+  "retResult": {
+    "offlineBody": "Der Versand per E-Mail ist derzeit nicht möglich. Bitte laden Sie das Protokoll herunter und senden Sie es an ZURIAUTO.",
+    "offlineTitle": "Protokoll erstellt",
+    "partialBody": "Ihre Kopie konnte nicht zugestellt werden. Bitte laden Sie das Protokoll hier herunter.",
+    "partialTitle": "Protokoll an ZURIAUTO gesendet",
+    "referenceNumber": "Rückgabe-Nr.",
+    "successBody": "Das unterschriebene Rückgabeprotokoll wurde an Sie und an ZURIAUTO gesendet.",
+    "successTitle": "Rückgabe übermittelt",
+  },
+}
+`;
+
+exports[`ZURIAUTO golden output (recorded before phase B) > labels naming the company, en 1`] = `
+{
+  "email": {
+    "customerBody": "Please find your signed rental contract attached.",
+    "customerHello": "Hello",
+    "customerPayment": "Pay by credit card:",
+    "customerPaymentTwint": "Pay by TWINT:",
+    "customerSignature": "Kind regards
+ZURIAUTO",
+    "customerSubject": "Your rental contract – ZURIAUTO",
+    "officeSubject": "New rental contract",
+  },
+  "result": {
+    "contractNumber": "Contract no.",
+    "download": "Download PDF",
+    "offlineBody": "Email delivery is currently unavailable. Please download the contract and send it to ZURIAUTO.",
+    "offlineTitle": "Contract created",
+    "partialBody": "Your copy could not be delivered. Please download the contract here.",
+    "partialTitle": "Contract sent to ZURIAUTO",
+    "payHint": "You can pay the rental securely by credit card or TWINT right away.",
+    "payNow": "Pay now",
+    "payWithCard": "Credit card",
+    "payWithTwint": "TWINT",
+    "share": "Share",
+    "storedBody": "The contract is on file with ZURIAUTO. The email did not go out — please download it here.",
+    "storedTitle": "Contract recorded",
+    "successBody": "The signed contract has been sent to you and to ZURIAUTO.",
+    "successTitle": "Contract completed",
+  },
+  "retEmail": {
+    "customerBody": "Please find your signed return report attached.",
+    "customerHello": "Hello",
+    "customerSubject": "Your return confirmation – ZURIAUTO",
+    "officeSubject": "Vehicle return",
+  },
+  "retResult": {
+    "offlineBody": "Email delivery is currently unavailable. Please download the report and send it to ZURIAUTO.",
+    "offlineTitle": "Report created",
+    "partialBody": "Your copy could not be delivered. Please download the report here.",
+    "partialTitle": "Report sent to ZURIAUTO",
+    "referenceNumber": "Return no.",
+    "successBody": "The signed return report has been sent to you and to ZURIAUTO.",
+    "successTitle": "Return submitted",
+  },
+}
+`;
+
+exports[`ZURIAUTO golden output (recorded before phase B) > lifecycle renter mails, de 1`] = `
+{
+  "correction": {
+    "subject": "Bitte ignorieren: Zahlung Woche 3 – ZH 513925",
+    "text": "Guten Tag Anna
+
+Am 10.11.2026 haben wir Ihnen eine Zahlungsaufforderung für Woche 3 (CHF 450.00) Ihrer Miete des Toyota Prius (ZH 513925) gesendet.
+
+Diese Woche ist bei uns erledigt. Bitte betrachten Sie die Nachricht als gegenstandslos – Sie müssen nichts tun.
+
+Entschuldigen Sie die Unannehmlichkeiten.
+
+Freundliche Grüsse
+ZURIAUTO",
+  },
+  "due": {
+    "subject": "Zahlung Woche 3 fällig – ZH 513925",
+    "text": "Guten Tag Anna
+
+Die Zahlung für Woche 3 Ihrer Miete des Toyota Prius (ZH 513925) ist jetzt fällig.
+
+Bereits bezahlt (z. B. bar im Büro oder per TWINT)? Dann betrachten Sie diese Nachricht bitte als gegenstandslos – Sie müssen nichts tun.
+
+Betrag: CHF 450.00
+Fällig am: 16.11.2026
+Referenz: ZA-3
+
+Bitte geben Sie den oben genannten Betrag auf der Zahlungsseite ein:
+https://pay.example/x
+
+Fragen? Antworten Sie einfach auf diese E-Mail.
+
+Freundliche Grüsse
+ZURIAUTO",
+  },
+  "ending": {
+    "subject": "Ihre Miete endet am 20.11.26, 10:00 – ZH 513925",
+    "text": "Guten Tag Anna
+
+Ihre Miete des Toyota Prius (ZH 513925) endet am 20.11.26, 10:00.
+
+Bitte teilen Sie uns mit, wie Sie weiter vorgehen möchten — Fahrzeug zurückgeben oder Miete verlängern:
+https://zuriauto.ch/rental/manage?t=x
+
+Der Link ist einmalig gültig und läuft in zwei Wochen ab. Falls er nicht mehr funktioniert, antworten Sie einfach auf diese E-Mail.
+
+Freundliche Grüsse
+ZURIAUTO",
+  },
+  "extension": {
+    "subject": "Miete verlängert bis 04.12.26, 10:00 – ZH 513925",
+    "text": "Guten Tag Anna
+
+Ihre Miete des Toyota Prius (ZH 513925) wurde um 2 Woche(n) verlängert.
+Neues Rückgabedatum: 04.12.26, 10:00.
+
+Zusätzlicher Betrag: CHF 900.00
+
+Hier können Sie bezahlen:
+https://pay.example/y
+
+Freundliche Grüsse
+ZURIAUTO",
+  },
+  "mfk": {
+    "subject": "Fahrzeugprüfung (MFK) am 29.11.2026 – ZH 513925",
+    "text": "Guten Tag Anna
+
+Für den Toyota Prius (ZH 513925), den Sie mieten, ist am 29.11.2026 die amtliche Fahrzeugprüfung (MFK) fällig (in 14 Tagen).
+
+Das Fahrzeug muss dafür zur Prüfung gebracht werden. Wir melden uns, um einen Termin abzusprechen – Sie können auch einfach auf diese E-Mail antworten.
+
+Freundliche Grüsse
+ZURIAUTO",
+  },
+  "reminder": {
+    "subject": "Erinnerung: Zahlung Woche 3 – ZH 513925",
+    "text": "Guten Tag Anna
+
+Die Zahlung für Woche 3 Ihrer Miete des Toyota Prius (ZH 513925) ist bei uns noch nicht eingegangen.
+
+Bereits bezahlt (z. B. bar im Büro oder per TWINT)? Dann betrachten Sie diese Nachricht bitte als gegenstandslos – Sie müssen nichts tun.
+
+Betrag: CHF 450.00
+Referenz: ZA-3
+
+Bitte geben Sie den oben genannten Betrag auf der Zahlungsseite ein:
+https://pay.example/x
+
+Fragen? Antworten Sie einfach auf diese E-Mail.
+
+Freundliche Grüsse
+ZURIAUTO",
+  },
+  "service": {
+    "subject": "Ölservice fällig bei 130'000 km – ZH 513925",
+    "text": "Guten Tag Anna
+
+Für den Toyota Prius (ZH 513925), den Sie mieten, ist bei 130'000 km der Ölservice fällig.
+Nach unserer Schätzung steht das Fahrzeug bei etwa 128'900 km – das ist ungefähr am 25.11.2026.
+
+Bitte melden Sie sich, um den Service zu vereinbaren – antworten Sie einfach auf diese E-Mail.
+
+Freundliche Grüsse
+ZURIAUTO",
+  },
+}
+`;
+
+exports[`ZURIAUTO golden output (recorded before phase B) > lifecycle renter mails, en 1`] = `
+{
+  "correction": {
+    "subject": "Please ignore: week 3 payment – ZH 513925",
+    "text": "Hello Anna
+
+On 10.11.2026 we sent you a payment request for week 3 (CHF 450.00) of your rental of the Toyota Prius (ZH 513925).
+
+This week is settled on our side. Please ignore that message – there is nothing you need to do.
+
+We apologise for the inconvenience.
+
+Kind regards
+ZURIAUTO",
+  },
+  "due": {
+    "subject": "Week 3 payment due – ZH 513925",
+    "text": "Hello Anna
+
+The payment for week 3 of your rental of the Toyota Prius (ZH 513925) is now due.
+
+Already paid (e.g. in cash at the office or by TWINT)? Then please ignore this message – there is nothing you need to do.
+
+Amount: CHF 450.00
+Due on: 16.11.2026
+Reference: ZA-3
+
+Please enter the amount above on the payment page:
+https://pay.example/x
+
+Questions? Simply reply to this email.
+
+Kind regards
+ZURIAUTO",
+  },
+  "ending": {
+    "subject": "Your rental ends on 20.11.26, 10:00 – ZH 513925",
+    "text": "Hello Anna
+
+Your rental of the Toyota Prius (ZH 513925) is due to end on 20.11.26, 10:00.
+
+Please let us know what you would like to do — return the car, or keep it for longer:
+https://zuriauto.ch/rental/manage?t=x
+
+The link works once and expires in two weeks. If it has stopped working, reply to this email and we will send a new one.
+
+Kind regards
+ZURIAUTO",
+  },
+  "extension": {
+    "subject": "Rental extended to 04.12.26, 10:00 – ZH 513925",
+    "text": "Hello Anna
+
+Your rental of the Toyota Prius (ZH 513925) has been extended by 2 week(s).
+The new return date is 04.12.26, 10:00.
+
+Additional amount: CHF 900.00
+
+You can pay here:
+https://pay.example/y
+
+Kind regards
+ZURIAUTO",
+  },
+  "mfk": {
+    "subject": "Vehicle inspection (MFK) on 29.11.2026 – ZH 513925",
+    "text": "Hello Anna
+
+The Toyota Prius (ZH 513925) you are renting is due for its official vehicle inspection (MFK) on 29.11.2026 (in 14 days).
+
+The car has to be brought in for the inspection. We will contact you to agree on a time; you can also reply to this email.
+
+Kind regards
+ZURIAUTO",
+  },
+  "reminder": {
+    "subject": "Reminder: week 3 payment – ZH 513925",
+    "text": "Hello Anna
+
+We have not yet received the payment for week 3 of your rental of the Toyota Prius (ZH 513925).
+
+Already paid (e.g. in cash at the office or by TWINT)? Then please ignore this message – there is nothing you need to do.
+
+Amount: CHF 450.00
+Reference: ZA-3
+
+Please enter the amount above on the payment page:
+https://pay.example/x
+
+Questions? Simply reply to this email.
+
+Kind regards
+ZURIAUTO",
+  },
+  "service": {
+    "subject": "Oil service due at 130'000 km – ZH 513925",
+    "text": "Hello Anna
+
+The Toyota Prius (ZH 513925) you are renting is due for its oil service at 130'000 km.
+By our estimate the car is at about 128'900 km, so that is around 25.11.2026.
+
+Please contact us to arrange the service — simply reply to this email.
+
+Kind regards
+ZURIAUTO",
+  },
+}
+`;
+
+exports[`ZURIAUTO golden output (recorded before phase B) > police nomination letter 1`] = `
+{
+  "subject": "Lenkerangabe zu Busse-Nr. B-123456 – ZH 513925",
+  "text": "Sehr geehrte Damen und Herren
+
+Anbei informieren wir Sie über den Lenker zum Bussgeld (Busse-Nr. B-123456).
+
+Unser Fahrzeug ZH 513925 wurde am 02.10.2026 um 10:00 Uhr von folgender Person gefahren:
+
+Name, Vorname:  MEIER, Anna
+Geburtsdatum:   12.04.1990
+Wohnadresse:    Bahnhofstrasse 1, 8001 Zürich
+Mobil-Nr.:      +41791234567
+E-Mail:         anna@example.ch
+
+Als Nachweis der Miete liegen bei:
+- Mietvertrag ZA-20260822-0002.pdf
+
+Für Rückfragen stehen wir Ihnen gerne zur Verfügung.
+Freundliche Grüsse
+Katamesh, Ahmed
+*************
+Zuriauto.ch
+Eine Marke der Rigitrade AG
+T. +41 58 513 99 96
+
+Schaffhauserstrasse 550
+8052 Zürich",
+}
+`;
+
+exports[`ZURIAUTO golden output (recorded before phase B) > return PDF, de 1`] = `
+"[producer zuriauto.ch] [author ]
+ZURIAUTO  Vermieter: Rigitrade AG  RÜCKGABEPROTOKOLL - FAHRZEUGRÜCKGABE  Rückgabe-Nr.   ZR-20261018-513925-A1B2  Erstellt am   18.10.2026 13:00  FAHRZEUG  Modell   Toyota Prius Hybrid  Kontrollschild-Nr.   ZH 513 925  Kilometerstand bei Rückgabe   121'450 km  Tankfüllung   1/2  ZUSTAND BEI RÜCKGABE  Fahrzeugausweis im Handschuhfach   Ja  Autoschlüssel retourniert   Ja  Fahrzeug aus der Bolt-App entfernt   Nein  Sauberkeit   Sauber  Neue Schäden   Keine neuen Schäden gemeldet  ZAHLUNG  Bekannte Radar-/Parkbussen   Nein  Miete bis heute vollständig bezahlt   Ja  Zahlungsmethoden   TWINT  Bezahlt am   18.10.2026  Offene Zahlung vorhanden   Nein  Depot zurückzuzahlen   Ja  MIETER  Name   Meier  Vorname   Anna  E-Mail   anna@example.ch  UNTERSCHRIFTEN  ZR-20261018-513925-A1B2   -   Seite 1 von 2
+UNTERSCHRIFT EIGENTÜMER   UNTERSCHRIFT MIETER  NAME IN DRUCKSCHRIFT: ANNA MEIER Ort, Datum, Uhrzeit: Zurich, 18.10.2026, 13:00  ZR-20261018-513925-A1B2   -   Seite 2 von 2"
+`;
+
+exports[`ZURIAUTO golden output (recorded before phase B) > return PDF, en 1`] = `
+"[producer zuriauto.ch] [author ]
+ZURIAUTO  Lessor: Rigitrade AG  RETURN REPORT - VEHICLE RETURN  Return no.   ZR-20261018-513925-A1B2  Issued   18.10.2026 13:00  VEHICLE  Model   Toyota Prius Hybrid  Licence plate no.   ZH 513 925  Mileage at return   121'450 km  Fuel level   1/2  CONDITION AT RETURN  Vehicle registration document in the glovebox Yes  Car key returned   Yes  Car removed from the Bolt app   No  Cleanliness   Clean  New damage   No new damage reported  PAYMENT  Known radar/parking tickets   No  Rental fully paid up to today   Yes  Payment methods   TWINT  Paid on   18.10.2026  Outstanding payment   No  Deposit to be paid back   Yes  RENTER  Family name   Meier  First name   Anna  Email   anna@example.ch  SIGNATURES  ZR-20261018-513925-A1B2   -   Page 1 of 2
+OWNER'S SIGNATURE   RENTER'S SIGNATURE  NAME IN BLOCK CAPITALS: ANNA MEIER Place, date, time: Zurich, 18.10.2026, 13:00  ZR-20261018-513925-A1B2   -   Page 2 of 2"
+`;

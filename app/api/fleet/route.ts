@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { publicCompany } from "@/lib/company/identity";
+import { loadCompanyIdentity } from "@/lib/company/load";
 import { prisma } from "@/lib/db";
 import { findSiteOrganisation } from "@/lib/organisation";
 import { BY_OFFICE_ORDER } from "@/lib/admin/carOrder";
@@ -88,5 +90,9 @@ export async function GET(request: Request) {
       : undefined,
   }));
 
-  return NextResponse.json({ vehicles });
+  // The company these forms serve (multi-company phase B): its name heads
+  // the PDFs the browser builds, and its payment links are the buttons.
+  const company = publicCompany(await loadCompanyIdentity(prisma, site.id));
+
+  return NextResponse.json({ vehicles, company });
 }
