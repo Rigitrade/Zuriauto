@@ -11,19 +11,7 @@ import { prisma } from "@/lib/db";
  * for the company links (`zuriauto.ch/<slug>/pickup`) that phase C adds.
  */
 
-/** Top-level paths the site already uses, so no company can take them. */
-const RESERVED = new Set([
-  "admin", "api", "book", "pickup", "return", "privacy", "gtc", "availability",
-  "fines", "rental", "partner", "_next", "public", "static",
-  "favicon.ico", "robots.txt", "sitemap.xml", "icon.jpg",
-]);
-
-const SLUG = /^[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])$/;
-
-/** True for a slug a new company may take. */
-export function isValidCompanySlug(slug: string): boolean {
-  return SLUG.test(slug) && !RESERVED.has(slug.toLowerCase());
-}
+export { isValidCompanySlug } from "@/lib/company/slug";
 
 export class NoOrganisation extends Error {
   constructor() {

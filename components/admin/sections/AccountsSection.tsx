@@ -7,6 +7,7 @@ import { useAdmin } from "@/components/admin/shell/AdminContext";
 import { AccountActions } from "@/components/admin/parts/AccountActions";
 import { PasswordInput } from "@/components/admin/parts/PasswordInput";
 import { Dialog } from "@/components/admin/parts/Dialog";
+import { PartnerForm, PartnersPanel, usePartners } from "@/components/admin/parts/PartnerCompanies";
 import { Panel } from "@/components/admin/parts/Panel";
 import { day } from "@/components/admin/format";
 import { messageForCode } from "@/lib/admin/labels";
@@ -26,6 +27,10 @@ export function AccountsSection() {
   const router = useRouter();
 
   const [creating, setCreating] = useState(false);
+  // ZURIAUTO's owner chooses what to add: a person, or a partner company.
+  const canManagePartners = me.canManagePartners === true;
+  const [kind, setKind] = useState<"person" | "partner">("person");
+  const { partners, reload: reloadPartners } = usePartners(canManagePartners);
   const [draft, setDraft] = useState({
     displayName: "",
     username: "",
@@ -43,6 +48,12 @@ export function AccountsSection() {
   }, [isOwner, router]);
 
   if (!isOwner) return null;
+
+  function openDialog(next: "person" | "partner") {
+    setKind(next);
+    setMessage("");
+    setCreating(true);
+  }
 
   const owners = accounts.filter(
     (account) => account.role === "owner" && !account.disabledAt
@@ -92,9 +103,36 @@ export function AccountsSection() {
       <Dialog
         open={creating}
         onClose={() => setCreating(false)}
-        title={L.accounts.addHeading}
+        title={kind === "partner" ? L.partners.addPartner : L.accounts.addHeading}
         closeLabel={L.accounts.close}
       >
+        {canManagePartners && (
+          <div role="radiogroup" className="mb-4 grid grid-cols-2 gap-1 rounded-md bg-[var(--admin-sunk)] p-1 text-sm">
+            {(["person", "partner"] as const).map((option) => (
+              <button
+                key={option}
+                type="button"
+                role="radio"
+                aria-checked={kind === option}
+                onClick={() => setKind(option)}
+                className={`h-9 rounded ${kind === option ? "bg-[var(--admin-surface)] font-medium shadow-sm" : "text-[var(--admin-muted)]"}`}
+              >
+                {option === "person" ? L.partners.kindPerson : L.partners.kindPartner}
+              </button>
+            ))}
+          </div>
+        )}
+        {kind === "partner" && canManagePartners ? (
+          <PartnerForm
+            L={L}
+            onError={setMessage}
+            onCreated={async (message) => {
+              setCreating(false);
+              await reloadPartners();
+              setMessage(message);
+            }}
+          />
+        ) : (
         <form onSubmit={createAccount} className="grid gap-3">
           <label className="grid gap-1">
             <span className="text-xs text-[var(--admin-muted)]">{L.accounts.displayName}</span>
@@ -148,6 +186,7 @@ export function AccountsSection() {
             {L.accounts.create}
           </button>
         </form>
+        )}
       </Dialog>
 
       <Panel
@@ -156,11 +195,11 @@ export function AccountsSection() {
         action={
           <button
             type="button"
-            onClick={() => setCreating(true)}
+            onClick={() => openDialog("person")}
             className="inline-flex h-9 items-center gap-1.5 rounded-md bg-[var(--admin-accent)] px-3 text-sm font-medium text-[var(--admin-accent-ink)] transition-opacity hover:opacity-90"
           >
             <Plus className="h-4 w-4" aria-hidden="true" />
-            {L.accounts.addHeading}
+            {canManagePartners ? L.partners.add : L.accounts.addHeading}
           </button>
         }
       >
@@ -233,6 +272,12 @@ export function AccountsSection() {
           </table>
         </div>
       </Panel>
+
+      {canManagePartners && (
+        <div className="mt-6">
+          <PartnersPanel L={L} partners={partners} onAdd={() => openDialog("partner")} />
+        </div>
+      )}
     </>
   );
 }
