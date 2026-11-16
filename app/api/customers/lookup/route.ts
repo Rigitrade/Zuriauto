@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { findSiteOrganisation } from "@/lib/organisation";
+import { formCompany } from "@/lib/company/formCompany";
 import { findCustomersByPhone } from "@/lib/rental/findCustomers";
 import { normalisePhone } from "@/lib/rental/phone";
 import { hashIp, rateLimited } from "@/lib/rental/rateLimit";
@@ -93,10 +93,10 @@ export async function POST(request: Request) {
 
   const phoneKey = normalisePhone(phone);
 
-  const organisation = await findSiteOrganisation();
-  if (!organisation) {
-    console.error("[customer-lookup] no organisation row — run pnpm db:seed");
-    return NextResponse.json({ code: "not-configured" }, { status: 503 });
+  const { organisation, response } = await formCompany(request);
+  if (response) {
+    if (response.status === 503) console.error("[customer-lookup] no organisation row — run pnpm db:seed");
+    return response;
   }
 
   // An unnormalisable number is not an error. It is a number nobody can be

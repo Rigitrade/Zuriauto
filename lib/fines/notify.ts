@@ -164,16 +164,24 @@ export async function alertOffice(
   dedupeSuffix?: string
 ): Promise<"sent" | "already" | "failed"> {
   if (!deps.mail) return "failed";
+  // The fine's own company's office, in its name (multi-company phase C,
+  // 16.11.2026): a partner's fine is never reported to ZURIAUTO's office,
+  // and a partner with no office address gets no alert at all.
+  const owner = await deps.client.fine.findUnique({ where: { id: fine.id }, select: { organisationId: true } });
+  if (!owner) return "failed";
+  const own = inCompanyName(deps, await loadCompanyIdentity(deps.client, owner.organisationId));
+  const mail = own.mail;
+  if (!mail) return "failed";
   return sendFineOnce(
-    deps,
+    own,
     {
       fineId: fine.id,
       kind: "OFFICE_ALERT",
       dedupeKey: `${kind}-${dedupeSuffix ?? fine.reminderLevel}`,
-      to: deps.mail.office,
+      to: mail.office,
     },
     async () => ({
-      to: deps.mail!.office,
+      to: mail.office,
       ...officeFineAlertMail({
         kind,
         plate: fine.car?.plate ?? "—",

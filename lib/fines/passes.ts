@@ -16,12 +16,14 @@
  */
 
 import { labelsFor } from "@/lib/admin/labels";
+import { companyIdentityCache } from "@/lib/company/load";
+import type { LifecycleMailConfig } from "@/lib/rental/lifecycleMail";
 import { sendMail } from "@/lib/rental/lifecycleMail";
 import { zurichDayString } from "@/lib/rental/passes";
 import { recordEvent } from "./events";
 import { officeFineDigestMail } from "./mail";
 import { deliverFine } from "./nominate";
-import { alertOffice, fineAdminUrl, notifyRenter, type NotifyDeps } from "./notify";
+import { alertOffice, fineAdminUrl, inCompanyName, notifyRenter, type NotifyDeps } from "./notify";
 import { claimable, processFineDocument } from "./process";
 import type { FineReader } from "./reader";
 
@@ -136,13 +138,31 @@ function isUniqueViolation(error: unknown): boolean {
  */
 export async function fineDigestPass(deps: FinePassDeps): Promise<number> {
   if (!deps.mail) return 0;
-  const office = deps.mail.office;
-  const dedupeKey = `digest-${zurichDayString(deps.now)}`;
-  const waiting = await deps.client.fine.findMany({
+  const all = await deps.client.fine.findMany({
     where: { status: "NEEDS_REVIEW" },
     orderBy: { createdAt: "asc" },
-    select: { id: true, reviewReason: true, car: { select: { plate: true } } },
+    select: { id: true, organisationId: true, reviewReason: true, car: { select: { plate: true } } },
   });
+
+  // One list per company, to its own office in its name (multi-company
+  // phase C, 16.11.2026). A partner with no office address gets none.
+  const companyOf = companyIdentityCache(deps.client);
+  let listed = 0;
+  for (const organisationId of new Set(all.map((fine) => fine.organisationId))) {
+    const mail = inCompanyName(deps, await companyOf(organisationId)).mail;
+    if (!mail) continue;
+    listed += await companyDigest(deps, mail, all.filter((fine) => fine.organisationId === organisationId));
+  }
+  return listed;
+}
+
+async function companyDigest(
+  deps: FinePassDeps,
+  companyMailConfig: LifecycleMailConfig,
+  waiting: { id: string; reviewReason: string | null; car: { plate: string } | null }[]
+): Promise<number> {
+  const office = companyMailConfig.office;
+  const dedupeKey = `digest-${zurichDayString(deps.now)}`;
 
   const claims: string[] = [];
   for (const fine of waiting) {
@@ -169,7 +189,7 @@ export async function fineDigestPass(deps: FinePassDeps): Promise<number> {
   );
 
   try {
-    await (deps.send ?? sendMail)(deps.mail, { to: office, ...mail });
+    await (deps.send ?? sendMail)(companyMailConfig, { to: office, ...mail });
     await deps.client.fineNotification.updateMany({
       where: { id: { in: claims } },
       data: { sentAt: deps.now, attempts: { increment: 1 } },

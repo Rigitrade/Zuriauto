@@ -1,5 +1,6 @@
 import { TriangleAlert } from "lucide-react";
 import { MainLayout } from "@/components/MainLayout";
+import { CompanyFrame } from "@/components/company/CompanyFrame";
 import FinePayment from "@/components/fines/FinePayment";
 import { prisma } from "@/lib/db";
 import { formatFineMoment } from "@/lib/fines/mail";
@@ -55,6 +56,7 @@ export default async function FinePayPage({
   const fine = await prisma.fine.findUniqueOrThrow({
     where: { id: resolved.fineId },
     select: {
+      organisationId: true,
       violationAt: true,
       violationTimeKnown: true,
       amountCents: true,
@@ -67,8 +69,9 @@ export default async function FinePayPage({
     },
   });
 
+  // The fine's company: a partner's renter stays in the partner's frame.
   return (
-    <MainLayout>
+    <CompanyFrame organisationId={fine.organisationId}>
       <section className="bg-gradient-to-b from-slate-50 to-white py-12 sm:py-16">
         <div className="container mx-auto max-w-xl px-4">
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
@@ -85,6 +88,6 @@ export default async function FinePayPage({
           </div>
         </div>
       </section>
-    </MainLayout>
+    </CompanyFrame>
   );
 }

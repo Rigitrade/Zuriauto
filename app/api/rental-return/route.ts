@@ -4,7 +4,7 @@ import { ZURIAUTO_IDENTITY } from "@/lib/company/identity";
 import { loadCompanyIdentity } from "@/lib/company/load";
 import { companyMail } from "@/lib/company/mailEnvelope";
 import { prisma } from "@/lib/db";
-import { findSiteOrganisation } from "@/lib/organisation";
+import { formCompany } from "@/lib/company/formCompany";
 import { sendFinesFromReturn } from "@/lib/fines/renter";
 import { readLifecycleMailConfig } from "@/lib/rental/lifecycleMail";
 import { buildCustomerEmail } from "@/lib/rental/customerEmail";
@@ -147,7 +147,9 @@ function readMailConfig(): MailConfig | null {
 async function recordReturn(
   form: FormData,
   meta: { returnNumber: string; vehicleId: string },
-  pdfBytes: Uint8Array
+  pdfBytes: Uint8Array,
+  /** The company whose return page sent this; null on an empty database. */
+  organisationId: string | null
 ): Promise<PersistReturnResult | null> {
   const raw = form.get("details");
   if (typeof raw !== "string") return null;
@@ -176,14 +178,13 @@ async function recordReturn(
   }
 
   try {
-    const organisation = await findSiteOrganisation();
-    if (!organisation) {
+    if (!organisationId) {
       console.error("[rental-return] no organisation row — run pnpm db:seed");
       return null;
     }
 
     return await persistReturn({
-      organisationId: organisation.id,
+      organisationId,
       details: parsed.data,
       vehicleSlug: meta.vehicleId,
       returnNumber: meta.returnNumber,
@@ -313,12 +314,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ code: "mail-not-configured" }, { status: 503 });
   }
 
-  // The returns form serves the site company (ZURIAUTO) until phase C gives
-  // each company its own return link; the report is in its name.
-  const site = await findSiteOrganisation();
+  // The site company (ZURIAUTO), or the partner whose return page this is
+  // (phase C, 16.11.2026); the report is in its name. An unknown partner
+  // name is refused before anything is recorded or sent.
+  const found = await formCompany(request);
+  if (found.response?.status === 404) return found.response;
+  const site = found.organisation ?? null;
   const company = site ? await loadCompanyIdentity(prisma, site.id) : ZURIAUTO_IDENTITY;
   const config = companyMail(shared, company);
   if (!config) {
+    // A partner with no office address: nothing can be mailed in its name,
+    // but the return is recorded all the same, so the car is not left
+    // "rented" (phase C, 16.11.2026). The browser falls back to download.
+    await recordReturn(form, meta, new Uint8Array(await file.arrayBuffer()), site?.id ?? null);
     return NextResponse.json({ code: "mail-not-configured" }, { status: 503 });
   }
 
@@ -335,7 +343,7 @@ export async function POST(request: Request) {
   // the Phase 1 failure mode where a failed send meant it existed nowhere.
   // Every failure below is swallowed on purpose: none of them is a reason to
   // withhold the document from the office.
-  const recorded = await recordReturn(form, meta, pdfBytes);
+  const recorded = await recordReturn(form, meta, pdfBytes, site?.id ?? null);
 
   // A car marked out with no recorded renter: this return just named them,
   // and any fine that waited only for their address goes out now, as one

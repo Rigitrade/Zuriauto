@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { findSiteOrganisation } from "@/lib/organisation";
+import { formCompany } from "@/lib/company/formCompany";
 import { rateLimited } from "@/lib/rental/rateLimit";
 import { findReturnPrefill } from "@/lib/rental/returnPrefill";
 
@@ -62,10 +62,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ code: "bad-request" }, { status: 400 });
   }
 
-  const organisation = await findSiteOrganisation();
-  if (!organisation) {
-    console.error("[return-prefill] no organisation row — run pnpm db:seed");
-    return NextResponse.json({ code: "not-configured" }, { status: 503 });
+  const { organisation, response } = await formCompany(request);
+  if (response) {
+    if (response.status === 503) console.error("[return-prefill] no organisation row — run pnpm db:seed");
+    return response;
   }
 
   const prefill = await findReturnPrefill(prisma, organisation.id, vehicleId);

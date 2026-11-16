@@ -2,7 +2,8 @@
 
 import { usePathname } from "next/navigation";
 import { waLink } from "@/lib/whatsapp";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { inPartnerFrame, subscribePartnerFrame } from "@/components/company/partnerFrame";
 
 // Shared with the booking form so the number cannot drift between the two.
 const WHATSAPP_URL = waLink();
@@ -10,6 +11,8 @@ const WHATSAPP_URL = waLink();
 export default function WhatsAppButton() {
   const pathname = usePathname();
   const [isVisible, setIsVisible] = useState(false);
+  // ZURIAUTO's number, so never on a partner's page (phase C, 16.11.2026).
+  const partnerPage = useSyncExternalStore(subscribePartnerFrame, inPartnerFrame, () => false);
 
   // Hold the button back briefly so it animates in rather than
   // appearing in the first paint.
@@ -34,6 +37,7 @@ export default function WhatsAppButton() {
    * for the fonts, the toaster and the i18n provider to drift.
    */
   if (pathname === "/admin" || pathname.startsWith("/admin/")) return null;
+  if (partnerPage) return null;
 
   return (
     <button

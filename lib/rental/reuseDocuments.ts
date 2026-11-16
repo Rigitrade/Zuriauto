@@ -25,10 +25,19 @@ export async function copyDocumentsForward(
   client: PrismaClient,
   store: AssetStore,
   submissionId: string,
-  sourceContractId: string
+  sourceContractId: string,
+  /** The new contract's company. Another company's documents are never
+   *  copied: the reuse token names a contract, not a company, and since
+   *  partners have their own pickup links (phase C, 16.11.2026) a token from
+   *  one company's lookup could be sent to another's form. */
+  organisationId: string
 ): Promise<StoredAsset[]> {
   const source = await client.asset.findMany({
-    where: { contractId: sourceContractId, kind: { in: [...REUSABLE_KINDS] } },
+    where: {
+      contractId: sourceContractId,
+      contract: { organisationId },
+      kind: { in: [...REUSABLE_KINDS] },
+    },
     select: { kind: true, storageKey: true, contentType: true, bytes: true },
   });
 

@@ -30,6 +30,9 @@ export default defineConfig({
       },
       {
         plugins: [tsconfigPaths()],
+        // The JSX runtime Next.js uses, for the tests that call a server
+        // component and inspect what it returns (companyLinks.test.ts).
+        esbuild: { jsx: "automatic" },
         test: {
           name: "db",
           include: ["tests/db/**/*.test.ts"],

@@ -21,6 +21,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useI18n } from "@/lib/hooks/use-i18n";
 import { publicCompany, withCompany, ZURIAUTO_IDENTITY, type PublicCompany } from "@/lib/company/identity";
+import { withCompanyParam } from "@/lib/company/companyLink";
+import type { CompanyFormProps } from "./RentalPickupWizard";
 import {
   type FleetVehicle,
   FUEL_LEVELS,
@@ -156,12 +158,12 @@ function dataUrlToBytes(dataUrl: string): Uint8Array {
   return bytes;
 }
 
-export default function RentalReturnWizard() {
+export default function RentalReturnWizard({ companySlug, initialCompany }: CompanyFormProps = {}) {
   const { currentLanguage } = useI18n();
   const language = asRentalLanguage(currentLanguage);
   // The company these forms serve, from /api/fleet (multi-company phase B):
   // ZURIAUTO until the answer arrives, as the compiled-in fleet is.
-  const [company, setCompany] = useState<PublicCompany>(() => publicCompany(ZURIAUTO_IDENTITY));
+  const [company, setCompany] = useState<PublicCompany>(() => initialCompany ?? publicCompany(ZURIAUTO_IDENTITY));
   const L = withCompany(labelsFor(language), company);
   const R = L.ret;
 
@@ -203,7 +205,7 @@ export default function RentalReturnWizard() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/fleet/?scope=return")
+    fetch(withCompanyParam("/api/fleet/?scope=return", companySlug))
       .then((response) => (response.ok ? response.json() : null))
       .then((payload) => {
         if (cancelled || !payload) return;
@@ -232,7 +234,7 @@ export default function RentalReturnWizard() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [companySlug]);
 
   const vehicle = useMemo(
     () => vehicles.find((candidate) => candidate.id === form.vehicleId),
@@ -258,7 +260,7 @@ export default function RentalReturnWizard() {
   useEffect(() => {
     if (!form.vehicleId) return;
     let cancelled = false;
-    fetch("/api/rental-return/prefill/", {
+    fetch(withCompanyParam("/api/rental-return/prefill/", companySlug), {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ vehicleId: form.vehicleId }),
@@ -314,7 +316,7 @@ export default function RentalReturnWizard() {
     };
     // `prefilled` is read, not watched: the lookup belongs to the car.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.vehicleId]);
+  }, [form.vehicleId, companySlug]);
 
   // Ticks so a form left open does not show a stamp that disagrees with the
   // one the PDF records at submit. Set after mount for hydration's sake.
@@ -591,7 +593,7 @@ export default function RentalReturnWizard() {
 
       // Trailing slash, as at pickup: next.config.ts 308s the unslashed path
       // and fetch would re-upload the body to follow it.
-      const response = await fetch("/api/rental-return/", {
+      const response = await fetch(withCompanyParam("/api/rental-return/", companySlug), {
         method: "POST",
         body,
       });
