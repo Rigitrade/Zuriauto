@@ -66,6 +66,8 @@ export const CASES: Record<string, Partial<Record<Method, Case>>> = {
   },
   // ZURIAUTO's owner only (phase D): a's own id is the site company, which is
   // refused (403), never "not found" — the control call below relies on that.
+  // Every company side by side (16.11.2026): ZURIAUTO's owner only.
+  "partners/overview": { GET: {} },
   "partners/[id]": {
     PATCH: { params: (a) => ({ id: a.organisationId }), body: () => ({ brandName: "Renamed" }) },
   },

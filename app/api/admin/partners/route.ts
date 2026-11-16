@@ -104,6 +104,9 @@ export async function POST(request: Request) {
           brandName: input.brandName,
           legalName: input.legalName,
           officeEmail: input.officeEmail,
+          // Its renters' payments count from today: nothing of it predates the
+          // system, so there is no history to settle (16.11.2026).
+          paymentsCutoverAt: new Date(),
         },
         select: { id: true, name: true, slug: true },
       });

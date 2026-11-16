@@ -213,7 +213,7 @@ export function usePartners(enabled: boolean) {
 }
 
 const ROW_BUTTON =
-  "inline-flex h-8 items-center rounded-md border border-[var(--admin-rule-strong)] px-2.5 text-xs font-medium transition-colors hover:bg-[var(--admin-sunk)] disabled:opacity-50";
+  "inline-flex h-8 shrink-0 items-center whitespace-nowrap rounded-md border border-[var(--admin-rule-strong)] px-2.5 text-xs font-medium transition-colors hover:bg-[var(--admin-sunk)] disabled:opacity-50";
 
 async function patchPartner(id: string, body: Record<string, unknown>) {
   const response = await fetch(`/api/admin/partners/${id}/`, {
@@ -303,7 +303,7 @@ export function PartnersPanel(props: {
           <p className="px-4 py-6 text-sm text-[var(--admin-faint)]">{P.none}</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="mt-2 w-full min-w-[56rem] text-sm">
+            <table className="mt-2 w-full min-w-[60rem] text-sm">
               <thead className="bg-[var(--admin-sunk)] text-xs uppercase tracking-wider text-[var(--admin-faint)]">
                 <tr>
                   <th className="px-4 py-2.5 text-left font-medium">{P.colName}</th>
@@ -311,55 +311,75 @@ export function PartnersPanel(props: {
                   <th className="px-4 py-2.5 text-left font-medium">{P.colOwner}</th>
                   <th className="px-4 py-2.5 text-left font-medium">{P.colOffice}</th>
                   <th className="px-4 py-2.5 text-right font-medium">{P.colCars}</th>
-                  <th className="px-4 py-2.5 text-left font-medium">{P.colStatus}</th>
                   <th className="px-4 py-2.5 text-left font-medium">{P.colCreated}</th>
-                  <th className="px-4 py-2.5" />
+                  <th className="sticky right-0 bg-[var(--admin-sunk)] px-4 py-2.5" />
                 </tr>
               </thead>
               <tbody>
                 {props.partners.map((partner) => (
-                  <tr key={partner.id} className="border-t border-[var(--admin-rule)]">
+                  <tr key={partner.id} className="border-t border-[var(--admin-rule)] align-middle">
                     <td className="px-4 py-3">
-                      <div className="font-medium">{partner.brandName ?? partner.name}</div>
-                      {partner.legalName && <div className="text-xs text-[var(--admin-faint)]">{partner.legalName}</div>}
+                      {/* Name and standing together: the status is read with the name. */}
+                      <div className="flex items-center gap-2 whitespace-nowrap">
+                        <span className="font-medium">{partner.brandName ?? partner.name}</span>
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                            partner.disabled
+                              ? "bg-[var(--admin-crit-soft)] text-[var(--admin-crit)]"
+                              : "bg-[var(--admin-accent-soft)] text-[var(--admin-accent)]"
+                          }`}
+                        >
+                          {partner.disabled ? P.statusOff : P.statusOn}
+                        </span>
+                      </div>
+                      {partner.legalName && (
+                        <div className="whitespace-nowrap text-xs text-[var(--admin-faint)]">{partner.legalName}</div>
+                      )}
                     </td>
-                    <td className="px-4 py-3 font-mono text-xs text-[var(--admin-muted)]">
+                    <td className="whitespace-nowrap px-4 py-3">
                       {partner.slug ? (
-                        // Its renters' links (phase C), to check or pass on.
-                        (["pickup", "return"] as const).map((form) => (
-                          <div key={form}>
-                            <a href={`/${partner.slug}/${form}/`} target="_blank" rel="noreferrer" className="hover:underline">
-                              /{partner.slug}/{form}/
-                            </a>
+                        <>
+                          <div className="font-mono text-xs text-[var(--admin-muted)]">/{partner.slug}/</div>
+                          {/* Its renters' links (phase C), to check or pass on. */}
+                          <div className="mt-0.5 flex gap-2 text-xs">
+                            {(["pickup", "return"] as const).map((form) => (
+                              <a
+                                key={form}
+                                href={`/${partner.slug}/${form}/`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-[var(--admin-accent)] hover:underline"
+                              >
+                                {form === "pickup" ? P.linkPickup : P.linkReturn} ↗
+                              </a>
+                            ))}
                           </div>
-                        ))
+                        </>
                       ) : (
                         "—"
                       )}
                     </td>
                     <td className="px-4 py-3 text-[var(--admin-muted)]">
                       {partner.owners.map((owner) => (
-                        <div key={owner.username}>
-                          {owner.displayName} <span className="font-mono text-xs">({owner.username})</span>
+                        // Name, then the sign-in name under it, as the company
+                        // column shows its legal name.
+                        <div key={owner.username} className="whitespace-nowrap">
+                          <div>{owner.displayName}</div>
+                          <div className="font-mono text-xs text-[var(--admin-faint)]">{owner.username}</div>
                         </div>
                       ))}
                     </td>
-                    <td className="px-4 py-3 text-[var(--admin-muted)]">{partner.officeEmail ?? "—"}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">{partner.cars}</td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${
-                          partner.disabled
-                            ? "bg-[var(--admin-crit-soft)] text-[var(--admin-crit)]"
-                            : "bg-[var(--admin-accent-soft)] text-[var(--admin-accent)]"
-                        }`}
-                      >
-                        {partner.disabled ? P.statusOff : P.statusOn}
-                      </span>
+                    <td className="max-w-[16rem] px-4 py-3 text-[var(--admin-muted)]">
+                      {/* One line; a long address is cut, and shown whole on hover. */}
+                      <div className="truncate" title={partner.officeEmail ?? undefined}>
+                        {partner.officeEmail ?? "—"}
+                      </div>
                     </td>
-                    <td className="px-4 py-3 tabular-nums text-[var(--admin-faint)]">{day(partner.createdAt)}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex justify-end gap-1.5">
+                    <td className="px-4 py-3 text-right tabular-nums">{partner.cars}</td>
+                    <td className="whitespace-nowrap px-4 py-3 tabular-nums text-[var(--admin-faint)]">{day(partner.createdAt)}</td>
+                    {/* Pinned right: on a narrow screen the table scrolls, the buttons stay. */}
+                    <td className="sticky right-0 bg-[var(--admin-surface)] px-4 py-3 shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.12)]">
+                      <div className="flex flex-nowrap justify-end gap-1.5">
                         <button type="button" disabled={busy} onClick={() => void view(partner)} className={ROW_BUTTON}>
                           {P.view}
                         </button>
