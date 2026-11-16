@@ -5,6 +5,7 @@ import { BY_OFFICE_ORDER } from "@/lib/admin/carOrder";
 import { isPdfLicence } from "@/lib/admin/carLicence";
 import { requireAdmin } from "@/lib/admin/session";
 import { isSiteOwner } from "@/lib/admin/siteOwner";
+import { VIEW_COOKIE, viewCookieFrom, viewCookieOptions } from "@/lib/admin/view";
 import { fineAttentionCounts } from "@/lib/fines/queries";
 import { openBalances } from "@/lib/payments/account";
 import { paymentReviewCount } from "@/lib/payments/queries";
@@ -45,6 +46,9 @@ export interface AdminOverview {
     companyName: string;
     /** ZURIAUTO's owner only: may create partner companies in Konten. */
     canManagePartners: boolean;
+    /** Set while ZURIAUTO's owner views this partner read-only (phase D):
+     *  the account's own company, for the way back. Null otherwise. */
+    viewing: { ownCompanyName: string } | null;
   };
   cars: {
     id: string;
@@ -404,6 +408,9 @@ export async function GET(request: Request) {
       role: user.role,
       companyName: (await loadCompanyIdentity(prisma, organisation.id)).brandName,
       canManagePartners: await isSiteOwner(user),
+      viewing: user.viewing
+        ? { ownCompanyName: (await loadCompanyIdentity(prisma, user.viewing.ownOrganisationId)).brandName }
+        : null,
     },
     cars: cars.map((car) => ({
       id: car.id,
@@ -529,5 +536,13 @@ export async function GET(request: Request) {
     openBalances: owing,
   };
 
-  return NextResponse.json(payload);
+  const response = NextResponse.json(payload);
+  // A view cookie this account may not use (a partner's owner, staff, a
+  // company gone): cleared, so the read-only guard in front of the routes
+  // does not go on refusing this account's own saves (phase D).
+  const hasViewCookie = viewCookieFrom(request) !== undefined || (request.headers.get("cookie") ?? "").includes(`${VIEW_COOKIE}=`);
+  if (hasViewCookie && !user.viewing) {
+    response.cookies.set(VIEW_COOKIE, "", viewCookieOptions(0));
+  }
+  return response;
 }

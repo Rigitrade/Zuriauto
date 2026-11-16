@@ -21,6 +21,7 @@ const COLUMNS = {
   signingPlace: true,
   paymentUrl: true,
   twintUrl: true,
+  disabledAt: true,
 } as const;
 
 /**

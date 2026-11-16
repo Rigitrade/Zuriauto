@@ -65,6 +65,7 @@ export async function resolveManageToken(
     include: {
       rental: {
         include: {
+          organisation: { select: { disabledAt: true } },
           customer: true,
           car: true,
           contracts: {
@@ -86,6 +87,10 @@ export async function resolveManageToken(
   // A completed or cancelled rental has nothing left to manage. Same message:
   // the renter should be talking to the office, not to a form.
   if (row.rental.status !== "ACTIVE") return { ok: false, reason: "unusable" };
+
+  // A company ZURIAUTO has switched off (phase D): its renters' links stop,
+  // like its public ones. Nobody there could see an extension or a notice.
+  if (row.rental.organisation.disabledAt) return { ok: false, reason: "unusable" };
 
   // Nor does a running weekly rental: it has no end to extend, and no ending
   // reminder ever carries it a link. Refused all the same, should one arrive.

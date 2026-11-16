@@ -87,12 +87,14 @@ export async function resolveFinePaymentToken(
       purpose: true,
       expiresAt: true,
       usedAt: true,
-      fine: { select: { id: true, status: true, reviewReason: true } },
+      fine: { select: { id: true, status: true, reviewReason: true, organisation: { select: { disabledAt: true } } } },
     },
   });
   if (!row || row.purpose !== "FINE_PAYMENT" || !row.fine || !tokenIsUsable(row, now)) {
     return { ok: false };
   }
   if (!isPayable(row.fine)) return { ok: false };
+  // A company ZURIAUTO has switched off (phase D): its links stop working.
+  if (row.fine.organisation.disabledAt) return { ok: false };
   return { ok: true, tokenId: row.id, fineId: row.fine.id };
 }

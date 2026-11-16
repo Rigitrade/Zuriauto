@@ -28,13 +28,16 @@ function displayName(name: string): string {
 
 /**
  * The mail settings for one company's sends, or null when it cannot be mailed
- * on its own behalf (a partner with no office address yet): nothing is sent
- * then, and certainly not to ZURIAUTO's office.
+ * on its own behalf (a partner with no office address yet, or one ZURIAUTO
+ * has switched off): nothing is sent then, and certainly not to ZURIAUTO's
+ * office.
  */
 export function companyMail<T extends { from: string; office: string; archive?: string; replyTo?: string }>(
   config: T,
   company: CompanyIdentity
 ): T | null {
+  // Switched off by ZURIAUTO (phase D): no mail goes out in its name at all.
+  if (company.switchedOff) return null;
   if (!company.poweredBy) {
     return company.officeEmail ? { ...config, office: company.officeEmail } : config;
   }

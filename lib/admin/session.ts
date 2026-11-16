@@ -22,6 +22,7 @@
 
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { prisma } from "@/lib/db";
+import { viewablePartner, viewCookieFrom } from "@/lib/admin/view";
 
 export const ADMIN_COOKIE = "zuriauto_admin";
 
@@ -35,9 +36,16 @@ export interface AdminIdentity {
   role: "owner" | "staff";
   /** The company this account works for. Every office read and write is
    *  confined to it (multi-company phase A, 15.11.2026). Read from the row on
-   *  each request, like `role`, so moving an account takes effect at once. */
+   *  each request, like `role`, so moving an account takes effect at once.
+   *  While ZURIAUTO's owner views a partner, the partner's (phase D). */
   organisationId: string;
+  /** Set while ZURIAUTO's owner views a partner, read-only (phase D,
+   *  16.11.2026): the account's own company, to go back to. */
+  viewing?: { ownOrganisationId: string };
 }
+
+/** Reading methods: the only ones a view of a partner lets through. */
+const READING = new Set(["GET", "HEAD", "OPTIONS"]);
 
 function secret(): string {
   const value = process.env.ADMIN_SECRET;
@@ -155,7 +163,9 @@ export function adminCookieFrom(request: Request): string | undefined {
  */
 export async function requireAdmin(
   request: Request,
-  now: Date = new Date()
+  now: Date = new Date(),
+  /** The account's own company, ignoring an open view: for starting a view. */
+  options: { ownCompany?: boolean } = {}
 ): Promise<AdminIdentity | null> {
   const claim = readAdminCookie(adminCookieFrom(request), now);
   if (!claim) return null;
@@ -170,19 +180,32 @@ export async function requireAdmin(
       organisationId: true,
       disabledAt: true,
       credentialsChangedAt: true,
+      organisation: { select: { disabledAt: true } },
     },
   });
   if (!user || user.disabledAt) return null;
+  // A company ZURIAUTO has switched off (phase D): all its sessions end.
+  if (user.organisation.disabledAt) return null;
   // Issued before the password last changed: a stale session.
   if (user.credentialsChangedAt.getTime() > claim.issuedAt) return null;
 
-  return {
+  const identity: AdminIdentity = {
     id: user.id,
     username: user.username,
     displayName: user.displayName,
     role: user.role,
     organisationId: user.organisationId,
   };
+  if (options.ownCompany) return identity;
+
+  // ZURIAUTO's owner viewing a partner, read-only (phase D, 16.11.2026):
+  // every route then works on the partner's records, and nothing that writes
+  // gets through. The middleware answers such a write "read-only" first; this
+  // is the wall should anything reach a route without passing it.
+  const partner = await viewablePartner(user, viewCookieFrom(request));
+  if (!partner) return identity;
+  if (!READING.has(request.method.toUpperCase())) return null;
+  return { ...identity, organisationId: partner, viewing: { ownOrganisationId: user.organisationId } };
 }
 
 /**

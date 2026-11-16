@@ -203,6 +203,8 @@ export type Me = {
   companyName?: string;
   /** ZURIAUTO's owner only: may create partner companies in Konten. */
   canManagePartners?: boolean;
+  /** Set while ZURIAUTO's owner views a partner read-only (phase D). */
+  viewing?: { ownCompanyName: string } | null;
 };
 
 export interface UnsentContract {

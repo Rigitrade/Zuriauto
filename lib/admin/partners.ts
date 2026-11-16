@@ -32,3 +32,16 @@ export const newPartnerSchema = z
   .strict();
 
 export type NewPartner = z.infer<typeof newPartnerSchema>;
+
+/**
+ * ZURIAUTO's owner corrects a partner, or switches it off and on (phase D,
+ * 16.11.2026). The same rules as when it was created, every field optional.
+ */
+export const partnerChangeSchema = newPartnerSchema
+  .omit({ owner: true })
+  .partial()
+  .extend({ disabled: z.boolean().optional() })
+  .strict()
+  .refine((change) => Object.keys(change).length > 0, "nothing to change");
+
+export type PartnerChange = z.infer<typeof partnerChangeSchema>;

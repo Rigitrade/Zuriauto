@@ -49,6 +49,8 @@ function day(iso: string): Date {
 export async function fineDocumentRetryPass(deps: FinePassDeps): Promise<number> {
   const documents = await deps.client.fineDocument.findMany({
     where: {
+      // A company ZURIAUTO has switched off is left as it was (phase D).
+      organisation: { disabledAt: null },
       ...claimable(deps.now),
       uploadedAt: { lte: new Date(deps.now.getTime() - RETRY_AFTER_MS) },
     },
@@ -80,6 +82,7 @@ export async function fineDueSoonPass(deps: FinePassDeps): Promise<number> {
   const today = zurichDayString(deps.now);
   const fines = await deps.client.fine.findMany({
     where: {
+      organisation: { disabledAt: null },
       status: "NOTIFIED",
       dueDate: {
         gte: day(today),
@@ -99,7 +102,7 @@ export async function fineDueSoonPass(deps: FinePassDeps): Promise<number> {
 export async function fineOverduePass(deps: FinePassDeps): Promise<number> {
   const today = zurichDayString(deps.now);
   const fines = await deps.client.fine.findMany({
-    where: { status: "NOTIFIED", dueDate: { lt: day(today) } },
+    where: { status: "NOTIFIED", dueDate: { lt: day(today) }, organisation: { disabledAt: null } },
     select: {
       id: true,
       reminderLevel: true,
@@ -139,7 +142,7 @@ function isUniqueViolation(error: unknown): boolean {
 export async function fineDigestPass(deps: FinePassDeps): Promise<number> {
   if (!deps.mail) return 0;
   const all = await deps.client.fine.findMany({
-    where: { status: "NEEDS_REVIEW" },
+    where: { status: "NEEDS_REVIEW", organisation: { disabledAt: null } },
     orderBy: { createdAt: "asc" },
     select: { id: true, organisationId: true, reviewReason: true, car: { select: { plate: true } } },
   });

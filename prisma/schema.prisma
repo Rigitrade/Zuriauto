@@ -102,6 +102,10 @@ model Organisation {
   signingPlace String?
   paymentUrl   String?
   twintUrl     String?
+  /// Switched off by ZURIAUTO (multi-company phase D, 16.11.2026): its logins,
+  /// its renter links and its daily mails stop; its records are kept, and it
+  /// can be switched on again. Never set on the site company.
+  disabledAt   DateTime?
   createdAt  DateTime          @default(now())
   cars       Car[]
   customers  Customer[]

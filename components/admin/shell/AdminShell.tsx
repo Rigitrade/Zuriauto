@@ -387,6 +387,26 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
         <div className="flex min-w-0 flex-1 flex-col">
           <header className="sticky top-0 z-10 border-b border-[var(--admin-rule)] bg-[var(--admin-surface)]/95 backdrop-blur">
+            {me.viewing && (
+              // ZURIAUTO's owner inside a partner's console, read-only (phase
+              // D): always on screen, with the one way back.
+              <div
+                role="status"
+                className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--admin-attn-rule)] bg-[var(--admin-attn-soft)] px-4 py-2 text-sm text-[var(--admin-attn)] sm:px-6 lg:px-8"
+              >
+                <span>{L.partners.viewBanner.replace("{name}", me.companyName ?? "")}</span>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await fetch("/api/admin/view/", { method: "DELETE" });
+                    window.location.assign("/admin/accounts/");
+                  }}
+                  className="inline-flex h-8 items-center rounded-md border border-[var(--admin-attn-rule)] bg-[var(--admin-surface)] px-3 text-xs font-medium text-[var(--admin-ink)] transition-colors hover:bg-[var(--admin-sunk)]"
+                >
+                  {L.partners.viewBack.replace("{name}", me.viewing.ownCompanyName)}
+                </button>
+              </div>
+            )}
             <div className="flex items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
               <div className="min-w-0">
                 {/* The brand only appears here below md, where the sidebar

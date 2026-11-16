@@ -8,6 +8,7 @@ import {
   ADMIN_SESSION_TTL_MS,
   issueAdminSession,
 } from "@/lib/admin/session";
+import { VIEW_COOKIE } from "@/lib/admin/viewGuard";
 
 /**
  * Signing in and out of the fleet page.
@@ -86,7 +87,9 @@ export async function POST(request: Request) {
   // (a database index since multi-company phase A, 15.11.2026), so the name
   // alone names one account.
   const user = await prisma.adminUser.findFirst({
-    where: { username: credentials.username, disabledAt: null },
+    // A company ZURIAUTO has switched off (phase D) signs nobody in; it gets
+    // the same one answer as a wrong password.
+    where: { username: credentials.username, disabledAt: null, organisation: { disabledAt: null } },
     select: {
       id: true,
       username: true,
@@ -145,6 +148,9 @@ export async function POST(request: Request) {
     },
   });
   response.cookies.set(ADMIN_COOKIE, token, cookieOptions(ADMIN_SESSION_TTL_MS / 1000));
+  // A fresh sign-in starts in the account's own company, never in a view of
+  // a partner left open by whoever used this browser before (phase D).
+  response.cookies.set(VIEW_COOKIE, "", cookieOptions(0));
   return response;
 }
 
@@ -152,5 +158,6 @@ export async function POST(request: Request) {
 export async function DELETE() {
   const response = NextResponse.json({ ok: true });
   response.cookies.set(ADMIN_COOKIE, "", cookieOptions(0));
+  response.cookies.set(VIEW_COOKIE, "", cookieOptions(0));
   return response;
 }

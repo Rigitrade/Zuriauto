@@ -58,4 +58,12 @@ describe("companyMail", () => {
   it("sends nothing for a partner with no office address, rather than to ZURIAUTO's office", () => {
     expect(companyMail(CONFIG, partner({}))).toBeNull();
   });
+
+  it("sends nothing for a partner ZURIAUTO has switched off (phase D)", () => {
+    const off = partner({ officeEmail: "office@meier.ch", disabledAt: new Date("2026-11-16T10:00:00Z") });
+    expect(off.switchedOff).toBe(true);
+    expect(companyMail(CONFIG, off)).toBeNull();
+    // On again: mails flow as before.
+    expect(companyMail(CONFIG, partner({ officeEmail: "office@meier.ch", disabledAt: null }))).not.toBeNull();
+  });
 });
