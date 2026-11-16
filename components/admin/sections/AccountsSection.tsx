@@ -7,6 +7,7 @@ import { useAdmin } from "@/components/admin/shell/AdminContext";
 import { AccountActions } from "@/components/admin/parts/AccountActions";
 import { PasswordInput } from "@/components/admin/parts/PasswordInput";
 import { Dialog } from "@/components/admin/parts/Dialog";
+import { FormError } from "@/components/admin/parts/FormError";
 import { PartnerForm, PartnersPanel, usePartners } from "@/components/admin/parts/PartnerCompanies";
 import { Panel } from "@/components/admin/parts/Panel";
 import { day } from "@/components/admin/format";
@@ -30,6 +31,9 @@ export function AccountsSection() {
   // ZURIAUTO's owner chooses what to add: a person, or a partner company.
   const canManagePartners = me.canManagePartners === true;
   const [kind, setKind] = useState<"person" | "partner">("person");
+  // The dialog's own error. The page banner (setMessage) sits behind the open
+  // dialog, so an error sent there looks like nothing happened.
+  const [formError, setFormError] = useState("");
   const { partners, reload: reloadPartners } = usePartners(canManagePartners);
   const [draft, setDraft] = useState({
     displayName: "",
@@ -52,6 +56,7 @@ export function AccountsSection() {
   function openDialog(next: "person" | "partner") {
     setKind(next);
     setMessage("");
+    setFormError("");
     setCreating(true);
   }
 
@@ -65,14 +70,14 @@ export function AccountsSection() {
    *  should not sign anybody out or refetch the fleet. */
   async function createAccount(event: React.FormEvent) {
     event.preventDefault();
-    setMessage("");
+    setFormError("");
 
     if (draft.password.length < 10) {
-      setMessage(L.accounts.passwordTooShort);
+      setFormError(L.accounts.passwordTooShort);
       return;
     }
     if (!USERNAME_PATTERN.test(draft.username.trim().toLowerCase())) {
-      setMessage(L.accounts.usernameInvalid);
+      setFormError(L.accounts.usernameInvalid);
       return;
     }
 
@@ -89,7 +94,7 @@ export function AccountsSection() {
       // construction instead of by accident. The dialog stays open so the
       // typed name is still there to correct.
       const result = await response.json().catch(() => ({}));
-      setMessage(messageForCode(L, result.code));
+      setFormError(messageForCode(L, result.code));
       return;
     }
 
@@ -114,7 +119,10 @@ export function AccountsSection() {
                 type="button"
                 role="radio"
                 aria-checked={kind === option}
-                onClick={() => setKind(option)}
+                onClick={() => {
+                  setKind(option);
+                  setFormError("");
+                }}
                 className={`h-9 rounded ${kind === option ? "bg-[var(--admin-surface)] font-medium shadow-sm" : "text-[var(--admin-muted)]"}`}
               >
                 {option === "person" ? L.partners.kindPerson : L.partners.kindPartner}
@@ -125,7 +133,8 @@ export function AccountsSection() {
         {kind === "partner" && canManagePartners ? (
           <PartnerForm
             L={L}
-            onError={setMessage}
+            error={formError}
+            onError={setFormError}
             onCreated={async (message) => {
               setCreating(false);
               await reloadPartners();
@@ -179,6 +188,7 @@ export function AccountsSection() {
               <option value="owner">{L.accounts.roles.owner}</option>
             </select>
           </label>
+          <FormError message={formError} />
           <button
             type="submit"
             className="mt-1 h-10 rounded-md bg-[var(--admin-accent)] px-3 text-sm font-medium text-[var(--admin-accent-ink)] transition-opacity hover:opacity-90"

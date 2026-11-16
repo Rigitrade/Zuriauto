@@ -8,6 +8,7 @@ import { day } from "@/components/admin/format";
 import { messageForCode, type AdminLabels } from "@/lib/admin/labels";
 import { suggestSlug } from "@/lib/company/slug";
 import { USERNAME_PATTERN } from "@/lib/admin/users";
+import { FormError } from "@/components/admin/parts/FormError";
 
 /**
  * Partner companies in Konten, for ZURIAUTO's owner only (15.11.2026). The
@@ -51,6 +52,9 @@ function Field(props: { label: string; hint?: string; children: React.ReactNode 
 export function PartnerForm(props: {
   L: AdminLabels;
   onCreated: (message: string) => void;
+  /** Shown inside the form, by the button; the page banner is hidden
+   *  behind the open dialog. */
+  error: string;
   onError: (message: string) => void;
 }) {
   const { L } = props;
@@ -175,6 +179,7 @@ export function PartnerForm(props: {
       </Field>
 
       <p className="rounded-md bg-[var(--admin-sunk)] px-3 py-2 text-xs text-[var(--admin-muted)]">{P.restHint}</p>
+      <FormError message={props.error} />
       <button
         type="submit"
         disabled={busy}
