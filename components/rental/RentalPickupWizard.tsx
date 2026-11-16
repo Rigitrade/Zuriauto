@@ -20,6 +20,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useI18n } from "@/lib/hooks/use-i18n";
 import { publicCompany, withCompany, ZURIAUTO_IDENTITY, type PublicCompany } from "@/lib/company/identity";
+import { withCompanyParam } from "@/lib/company/companyLink";
+import { noCarForPartner } from "@/lib/rental/labels";
 import { GTC_DATE, type GtcLanguage } from "@/locales/gtc";
 import {
   availableFleet,
@@ -254,12 +256,23 @@ function dataUrlToBytes(dataUrl: string): Uint8Array {
   return bytes;
 }
 
-export default function RentalPickupWizard() {
+/**
+ * Phase C (16.11.2026): a partner's page (`/<slug>/pickup/`) names its
+ * company, and every call the form makes carries that name. ZURIAUTO's own
+ * page passes nothing and works exactly as before.
+ */
+export interface CompanyFormProps {
+  companySlug?: string;
+  /** The partner's name and links, so its renter never sees ZURIAUTO's. */
+  initialCompany?: PublicCompany;
+}
+
+export default function RentalPickupWizard({ companySlug, initialCompany }: CompanyFormProps = {}) {
   const { currentLanguage } = useI18n();
   const language = asRentalLanguage(currentLanguage);
   // The company these forms serve, from /api/fleet (multi-company phase B):
   // ZURIAUTO until the answer arrives, as the compiled-in fleet is.
-  const [company, setCompany] = useState<PublicCompany>(() => publicCompany(ZURIAUTO_IDENTITY));
+  const [company, setCompany] = useState<PublicCompany>(() => initialCompany ?? publicCompany(ZURIAUTO_IDENTITY));
   const L = withCompany(labelsFor(language), company);
 
   const [step, setStep] = useState(1);
@@ -274,7 +287,8 @@ export default function RentalPickupWizard() {
    * response, when it arrives, is authoritative: it reflects what is actually
    * available.
    */
-  const [vehicles, setVehicles] = useState<FleetVehicle[]>(availableFleet);
+  // A partner's page starts empty: the compiled-in list is ZURIAUTO's cars.
+  const [vehicles, setVehicles] = useState<FleetVehicle[]>(() => (companySlug ? [] : availableFleet));
   const [documents, setDocuments] = useState<DocumentImages>(EMPTY_DOCUMENTS);
 
   /**
@@ -352,7 +366,7 @@ export default function RentalPickupWizard() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/fleet/")
+    fetch(withCompanyParam("/api/fleet/", companySlug))
       .then((response) => (response.ok ? response.json() : null))
       .then((payload) => {
         if (cancelled || !payload?.vehicles) return;
@@ -376,7 +390,7 @@ export default function RentalPickupWizard() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [companySlug]);
 
   // The stamp shown next to the place. Ticks so a form left open for ten
   // minutes does not display a time that disagrees with the one the PDF
@@ -651,7 +665,7 @@ export default function RentalPickupWizard() {
     setLookupState("checking");
     setCandidates(null);
     try {
-      const response = await fetch("/api/customers/lookup/", {
+      const response = await fetch(withCompanyParam("/api/customers/lookup/", companySlug), {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ phone: form.mobile }),
@@ -919,7 +933,7 @@ export default function RentalPickupWizard() {
       // Trailing slash is deliberate: `trailingSlash: true` in next.config.ts
       // 308-redirects the unslashed path, and fetch would re-upload the whole
       // multi-megabyte body to follow it.
-      const response = await fetch("/api/rental-contract/", {
+      const response = await fetch(withCompanyParam("/api/rental-contract/", companySlug), {
         method: "POST",
         body,
       });
@@ -1134,7 +1148,12 @@ export default function RentalPickupWizard() {
               {/* Nothing free. The picker is replaced rather than shown
                   empty: an open select with no options tells a customer
                   standing at the desk nothing about what to do next. */}
-              {noCarsAvailable ? (
+              {noCarsAvailable && companySlug ? (
+                // The waiting list is ZURIAUTO's; a partner's renter asks its office.
+                <p className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
+                  {noCarForPartner(language, company.brandName)}
+                </p>
+              ) : noCarsAvailable ? (
                 <AvailabilityNotice L={L} language={language} />
               ) : (
                 <Field label={L.vehicle.select} error={errors.vehicleId} required>

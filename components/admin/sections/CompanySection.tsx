@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAdmin } from "@/components/admin/shell/AdminContext";
 import { Panel } from "@/components/admin/parts/Panel";
+import { companyFormUrl } from "@/lib/company/companyLink";
 
 /**
  * The company's own details (multi-company phase B, 15.11.2026): what its
@@ -114,6 +115,8 @@ export function CompanySection() {
         </p>
       )}
 
+      {loaded && !loaded.isSite && loaded.slug && <RenterLinks slug={loaded.slug} L={C.links} />}
+
       {GROUPS.map((group) => (
         <Panel key={group.key} title={C.sections[group.key]}>
           <div className="grid gap-3 px-4 py-4 sm:grid-cols-2">
@@ -154,5 +157,47 @@ export function CompanySection() {
         </button>
       </div>
     </form>
+  );
+}
+
+/**
+ * A partner's pickup and return links (multi-company phase C, 16.11.2026),
+ * on this site's own address so they work on a preview as on zuriauto.ch.
+ */
+function RenterLinks(props: {
+  slug: string;
+  L: { title: string; intro: string; pickup: string; return: string; copy: string; copied: string };
+}) {
+  const [origin, setOrigin] = useState("");
+  const [copied, setCopied] = useState<string | null>(null);
+  useEffect(() => setOrigin(window.location.origin), []);
+  const rows = [
+    { key: "pickup", label: props.L.pickup, url: companyFormUrl(origin, props.slug, "pickup") },
+    { key: "return", label: props.L.return, url: companyFormUrl(origin, props.slug, "return") },
+  ];
+
+  return (
+    <Panel title={props.L.title}>
+      <div className="grid gap-3 px-4 py-4">
+        <p className="text-sm text-[var(--admin-muted)]">{props.L.intro}</p>
+        {rows.map((row) => (
+          <div key={row.key} className="grid gap-1">
+            <span className="text-xs text-[var(--admin-muted)]">{row.label}</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <code className="min-w-0 break-all rounded-md bg-[var(--admin-sunk)] px-2 py-1.5 font-mono text-sm">{row.url}</code>
+              <button
+                type="button"
+                onClick={() => {
+                  void navigator.clipboard?.writeText(row.url).then(() => setCopied(row.key));
+                }}
+                className="h-8 rounded-md border border-[var(--admin-rule-strong)] px-2.5 text-xs font-medium transition-colors hover:bg-[var(--admin-sunk)]"
+              >
+                {copied === row.key ? props.L.copied : props.L.copy}
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </Panel>
   );
 }

@@ -66,13 +66,14 @@ async function firstPickup(store: MemoryStore) {
 describe("copyDocumentsForward", () => {
   it("copies the five identity documents and nothing else", async () => {
     const store = createMemoryStore();
-    const { saved } = await firstPickup(store);
+    const { saved, organisationId } = await firstPickup(store);
 
     const copied = await copyDocumentsForward(
       prisma,
       store,
       "new-submission",
-      saved.contractId
+      saved.contractId,
+      organisationId
     );
 
     expect(copied).toHaveLength(5);
@@ -89,13 +90,14 @@ describe("copyDocumentsForward", () => {
 
   it("gives every copy a new key under the new submission", async () => {
     const store = createMemoryStore();
-    const { saved } = await firstPickup(store);
+    const { saved, organisationId } = await firstPickup(store);
 
     const copied = await copyDocumentsForward(
       prisma,
       store,
       "new-submission",
-      saved.contractId
+      saved.contractId,
+      organisationId
     );
 
     for (const asset of copied) {
@@ -107,13 +109,14 @@ describe("copyDocumentsForward", () => {
 
   it("carries the size and content type from the source row", async () => {
     const store = createMemoryStore();
-    const { saved } = await firstPickup(store);
+    const { saved, organisationId } = await firstPickup(store);
 
     const copied = await copyDocumentsForward(
       prisma,
       store,
       "new-submission",
-      saved.contractId
+      saved.contractId,
+      organisationId
     );
     const portrait = copied.find((asset) => asset.kind === "PORTRAIT");
     expect(portrait?.contentType).toBe("image/jpeg");
@@ -136,7 +139,7 @@ describe("copyDocumentsForward", () => {
     // Loud, because the caller has already told the customer their documents
     // are on file.
     await expect(
-      copyDocumentsForward(prisma, store, "new-submission", saved.contractId)
+      copyDocumentsForward(prisma, store, "new-submission", saved.contractId, org.id)
     ).rejects.toThrow(/incomplete/i);
   });
 });
@@ -209,5 +212,33 @@ describe("persistPickup with reuse", () => {
 
     expect(await prisma.customer.count()).toBe(1);
     expect(await prisma.rental.count()).toBe(2);
+  });
+});
+
+describe("reusing documents across companies (multi-company phase C, 16.11.2026)", () => {
+  it("refuses another company's contract, and copies nothing", async () => {
+    const store = createMemoryStore();
+    const { saved } = await firstPickup(store);
+    const partner = await prisma.organisation.create({ data: { name: "MEIER CARS", slug: "meier" } });
+    await prisma.car.create({
+      data: { organisationId: partner.id, slug: "meier-1", model: "Skoda Octavia", plate: "ZH 777001", status: "available" },
+    });
+    const before = await prisma.asset.count();
+
+    await expect(
+      persistPickup({
+        organisationId: partner.id,
+        details: { ...details, vehicleId: "meier-1" },
+        vehicleSlug: "meier-1",
+        uploads: ALL_FIVE.filter((upload) => upload.kind === "SIGNATURE"),
+        pdf: { body: new Uint8Array([7]) },
+        store,
+        reuseFromContractId: saved.contractId,
+        identityCheckedAt: new Date(),
+      })
+    ).rejects.toThrow();
+
+    expect(await prisma.asset.count()).toBe(before);
+    expect(await prisma.rental.count({ where: { organisationId: partner.id } })).toBe(0);
   });
 });

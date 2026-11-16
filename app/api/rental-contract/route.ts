@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { loadCompanyIdentity } from "@/lib/company/load";
 import { prisma } from "@/lib/db";
-import { findSiteOrganisation } from "@/lib/organisation";
+import { formCompany } from "@/lib/company/formCompany";
 import type { AssetKind } from "@/generated/prisma/client";
 import { sendContractMails } from "@/lib/rental/mail";
 import { persistPickup, type PickupUpload } from "@/lib/rental/persistPickup";
@@ -120,10 +120,11 @@ export async function POST(request: Request) {
     });
   }
 
-  const organisation = await findSiteOrganisation();
-  if (!organisation) {
-    console.error("[rental-contract] no organisation row — run pnpm db:seed");
-    return NextResponse.json({ code: "not-configured" }, { status: 503 });
+  // The site company, or the partner whose pickup page this is (phase C).
+  const { organisation, response } = await formCompany(request);
+  if (response) {
+    if (response.status === 503) console.error("[rental-contract] no organisation row — run pnpm db:seed");
+    return response;
   }
 
   const pdfBytes = new Uint8Array(await file.arrayBuffer());

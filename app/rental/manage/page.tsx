@@ -1,5 +1,6 @@
 import { TriangleAlert } from "lucide-react";
 import { MainLayout } from "@/components/MainLayout";
+import { CompanyFrame } from "@/components/company/CompanyFrame";
 import ManageRental from "@/components/rental/ManageRental";
 import { prisma } from "@/lib/db";
 import { asRentalLanguage, labelsFor } from "@/lib/rental/labels";
@@ -61,8 +62,9 @@ export default async function ManagePage({
 
   const { rental } = resolved;
 
+  // The rental's company: a partner's renter stays in the partner's frame.
   return (
-    <MainLayout>
+    <CompanyFrame organisationId={rental.organisationId}>
       <section className="bg-gradient-to-b from-slate-50 to-white py-12 sm:py-16">
         <div className="container mx-auto max-w-xl px-4">
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
@@ -80,6 +82,6 @@ export default async function ManagePage({
           </div>
         </div>
       </section>
-    </MainLayout>
+    </CompanyFrame>
   );
 }

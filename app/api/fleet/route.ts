@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { publicCompany } from "@/lib/company/identity";
 import { loadCompanyIdentity } from "@/lib/company/load";
 import { prisma } from "@/lib/db";
-import { findSiteOrganisation } from "@/lib/organisation";
+import { formCompany, companyParam } from "@/lib/company/formCompany";
+import { withCompanyParam } from "@/lib/company/companyLink";
 import { BY_OFFICE_ORDER } from "@/lib/admin/carOrder";
 import type { FleetVehicle } from "@/lib/rental/fleet";
 
@@ -43,9 +44,14 @@ export async function GET(request: Request) {
   const status = scope === "return" ? "rented" : "available";
 
   // The site's company only: a partner company's cars are never offered
-  // on ZURIAUTO's forms (multi-company phase A, 15.11.2026).
-  const site = await findSiteOrganisation();
-  if (!site) return NextResponse.json({ vehicles: [] });
+  // on ZURIAUTO's forms (multi-company phase A, 15.11.2026). A partner's own
+  // pages name it, and are offered its cars only (phase C, 16.11.2026).
+  const found = await formCompany(request);
+  if (found.response) {
+    return found.response.status === 404 ? found.response : NextResponse.json({ vehicles: [] });
+  }
+  const site = found.organisation;
+  const named = companyParam(request);
   const cars = await prisma.car.findMany({
     where: { organisationId: site.id, status },
     // The office's order from the vehicles screen, so the pickup form lists
@@ -86,7 +92,7 @@ export async function GET(request: Request) {
     // not what a person recognises.
     colour: car.colour ?? undefined,
     photoUrl: car.photoUpdatedAt
-      ? `/api/cars/${encodeURIComponent(car.slug)}/photo/?v=${car.photoUpdatedAt.getTime()}`
+      ? withCompanyParam(`/api/cars/${encodeURIComponent(car.slug)}/photo/?v=${car.photoUpdatedAt.getTime()}`, named)
       : undefined,
   }));
 

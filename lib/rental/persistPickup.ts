@@ -89,7 +89,7 @@ export async function persistPickup(
   // under one prefix rather than a contract pointing at objects that are not
   // there.
   const carried = reuseFrom
-    ? await copyDocumentsForward(prisma, store, submissionId, reuseFrom)
+    ? await copyDocumentsForward(prisma, store, submissionId, reuseFrom, input.organisationId)
     : [];
 
   const pdfKey = assetKey(submissionId, "CONTRACT_PDF", "pdf");

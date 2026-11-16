@@ -37,6 +37,8 @@ import {
 import { freeReader } from "@/lib/fines/reader";
 import { getAssetStore } from "@/lib/storage";
 import { companyIdentityCache } from "@/lib/company/load";
+import { companyMail } from "@/lib/company/mailEnvelope";
+import type { CompanyIdentity } from "@/lib/company/identity";
 import { getPaymentProvider } from "@/lib/payments";
 import {
   MANAGE_TOKEN_TTL_HOURS,
@@ -193,8 +195,29 @@ function renterName(customer: { firstName: string; lastName: string }): string {
 // 1. The client's headline ask: tell the renter their rental is ending.
 // ---------------------------------------------------------------------
 
+// ---------------------------------------------------------------------
+// The daily run per company (multi-company phase C, 16.11.2026).
+//
+// One run serves every company. Each message goes out with its company's
+// mail settings: a partner's renters read the partner's name and reply to
+// the partner's office, and its office alerts go to that office. ZURIAUTO's
+// settings are exactly the configured ones. A partner with no office address
+// gets nothing sent in its name (the send fails and is recorded), and never
+// a copy to ZURIAUTO's office.
+// ---------------------------------------------------------------------
+
+function companyMailFor(deps: SchedulerDeps, company: CompanyIdentity): LifecycleMailConfig | null {
+  return deps.mail ? companyMail(deps.mail, company) : null;
+}
+
+/** Each company's mail settings for one pass, reading each company once. */
+function mailPerCompany(deps: SchedulerDeps): (organisationId: string) => Promise<LifecycleMailConfig | null> {
+  const companyOf = companyIdentityCache(deps.client);
+  return async (organisationId) => companyMailFor(deps, await companyOf(organisationId));
+}
+
 export async function preEndReminderPass(deps: SchedulerDeps): Promise<number> {
-  const { client, now, baseUrl, mail } = deps;
+  const { client, now, baseUrl } = deps;
   const { from, to } = endingSoonWindow(now);
 
   // The coarse filter matches the index built in Phase 2 for exactly this
@@ -213,6 +236,7 @@ export async function preEndReminderPass(deps: SchedulerDeps): Promise<number> {
     // predicate is the one under test.
     if (!isRentalEndingSoon(rental, now)) continue;
     const company = await companyOf(rental.organisationId);
+    const mail = companyMailFor(deps, company);
 
     const sent = await sendOnce(
       client,
@@ -507,7 +531,8 @@ export async function planPaymentMails(
  * one list serves the office better.
  */
 async function paymentMailHold(deps: SchedulerDeps, candidates: Candidates): Promise<Set<string>> {
-  const { client, now, mail, baseUrl } = deps;
+  const { client, now, baseUrl } = deps;
+  const mailOf = mailPerCompany(deps);
   const rows = planRows(candidates, now);
   const held = heldOrganisations(rows, deps.releaseHoldFor);
 
@@ -516,6 +541,7 @@ async function paymentMailHold(deps: SchedulerDeps, candidates: Candidates): Pro
     const claimed = await client.officeNotice.createMany({ data: [notice], skipDuplicates: true });
     if (claimed.count === 0) continue;
     try {
+      const mail = await mailOf(organisationId);
       if (!mail) throw new Error("mail-not-configured");
       const message = paymentMailHoldMail({
         cap: paymentMailCap(),
@@ -541,9 +567,11 @@ async function paymentMailHold(deps: SchedulerDeps, candidates: Candidates): Pro
 async function escalateToOffice(
   deps: SchedulerDeps,
   charge: ChargeWithRental,
-  reason: OfficeOnlyReason
+  reason: OfficeOnlyReason,
+  mailOf: (organisationId: string) => Promise<LifecycleMailConfig | null>
 ): Promise<number> {
-  const { client, now, mail } = deps;
+  const { client, now } = deps;
+  const mail = await mailOf(charge.organisationId);
   const { rental } = charge;
 
   const moved = await client.charge.updateMany({
@@ -589,11 +617,12 @@ async function escalateToOffice(
 export async function chargeOfficeOnlyPass(deps: SchedulerDeps): Promise<number> {
   const candidates = await paymentMailCandidates(deps.client, deps.now, deps.onlyOrganisation);
   const held = await paymentMailHold(deps, candidates);
+  const mailOf = mailPerCompany(deps);
   let count = 0;
   for (const charge of [...candidates.requests, ...candidates.reminders]) {
     if (held.has(charge.organisationId)) continue;
     const reason = officeOnlyReason(charge, charge.rental, deps.now);
-    if (reason) count += await escalateToOffice(deps, charge, reason);
+    if (reason) count += await escalateToOffice(deps, charge, reason, mailOf);
   }
   return count;
 }
@@ -606,7 +635,7 @@ export async function paymentMailHeldCount(deps: SchedulerDeps): Promise<number>
 }
 
 export async function weeklyChargePass(deps: SchedulerDeps): Promise<number> {
-  const { client, now, mail } = deps;
+  const { client, now } = deps;
 
   const all = await paymentMailCandidates(client, now, deps.onlyOrganisation);
   const held = await paymentMailHold(deps, all);
@@ -622,6 +651,7 @@ export async function weeklyChargePass(deps: SchedulerDeps): Promise<number> {
     const { rental } = charge;
     const reference = `${rental.car.plate} W${charge.weekNumber}`;
     const company = await companyOf(charge.organisationId);
+    const mail = companyMailFor(deps, company);
 
     // Claim the transition BEFORE talking to the provider. The provider call is
     // the one step here that is not idempotent — a real processor would issue
@@ -702,7 +732,7 @@ export async function weeklyChargePass(deps: SchedulerDeps): Promise<number> {
 }
 
 export async function chargeReminderPass(deps: SchedulerDeps): Promise<number> {
-  const { client, now, mail } = deps;
+  const { client, now } = deps;
 
   const all = await paymentMailCandidates(client, now, deps.onlyOrganisation);
   const held = await paymentMailHold(deps, all);
@@ -716,6 +746,7 @@ export async function chargeReminderPass(deps: SchedulerDeps): Promise<number> {
 
     const { rental } = charge;
     const company = await companyOf(charge.organisationId);
+    const mail = companyMailFor(deps, company);
 
     await sendOnce(
       client,
@@ -759,7 +790,8 @@ export async function chargeReminderPass(deps: SchedulerDeps): Promise<number> {
 }
 
 export async function chargeOverduePass(deps: SchedulerDeps): Promise<number> {
-  const { client, now, mail } = deps;
+  const { client, now } = deps;
+  const mailOf = mailPerCompany(deps);
 
   const candidates = await client.charge.findMany({
     where: {
@@ -776,6 +808,7 @@ export async function chargeOverduePass(deps: SchedulerDeps): Promise<number> {
     if (isBeforeRemindersStart(charge.dueDate)) continue;
 
     const { rental } = charge;
+    const mail = await mailOf(charge.organisationId);
 
     await sendOnce(
       client,
@@ -822,7 +855,8 @@ export async function chargeOverduePass(deps: SchedulerDeps): Promise<number> {
 // ---------------------------------------------------------------------
 
 export async function rentalOverduePass(deps: SchedulerDeps): Promise<number> {
-  const { client, now, mail } = deps;
+  const { client, now } = deps;
+  const mailOf = mailPerCompany(deps);
 
   const candidates = await client.rental.findMany({
     where: { status: "ACTIVE", endAt: { lt: now } },
@@ -834,6 +868,7 @@ export async function rentalOverduePass(deps: SchedulerDeps): Promise<number> {
   for (const rental of candidates) {
     if (!isRentalOverdue(rental, now)) continue;
     if (isBeforeRemindersStart(rental.endAt)) continue;
+    const mail = await mailOf(rental.organisationId);
 
     const sent = await sendOnce(
       client,
@@ -875,8 +910,9 @@ export async function rentalOverduePass(deps: SchedulerDeps): Promise<number> {
 // ---------------------------------------------------------------------
 
 export async function mailRetryPass(deps: SchedulerDeps): Promise<number> {
-  const { client, now, mail } = deps;
-  if (!mail) return 0;
+  const { client, now } = deps;
+  if (!deps.mail) return 0;
+  const mailOf = mailPerCompany(deps);
 
   const staleBefore = new Date(now.getTime() - RETRY_MIN_AGE_HOURS * 3_600_000);
 
@@ -899,6 +935,10 @@ export async function mailRetryPass(deps: SchedulerDeps): Promise<number> {
     // is a short notice to the office that a message could not be delivered,
     // which is more useful than a stale reminder to a renter.
     try {
+      // The company's own office: a partner's lost message is the partner's
+      // to chase, never ZURIAUTO's office's.
+      const mail = await mailOf(row.organisationId);
+      if (!mail) throw new Error("company-has-no-office-email");
       await sendMail(mail, {
         to: mail.office,
         subject: `Zustellung fehlgeschlagen: ${row.kind}`,
@@ -951,7 +991,8 @@ export async function mailRetryPass(deps: SchedulerDeps): Promise<number> {
 // ---------------------------------------------------------------------
 
 export async function mfkDuePass(deps: SchedulerDeps): Promise<number> {
-  const { client, now, mail } = deps;
+  const { client, now } = deps;
+  const mailOf = mailPerCompany(deps);
   const { to } = mfkDueWindow(now);
 
   // The coarse filter matches the index on [organisationId, mfkDate]. Open at
@@ -1018,6 +1059,7 @@ export async function mfkDuePass(deps: SchedulerDeps): Promise<number> {
       blocked = moved.count > 0;
     }
 
+    const mail = await mailOf(car.organisationId);
     if (!mail) continue;
 
     const message = mfkDueMail({
@@ -1162,8 +1204,8 @@ async function notifyRenterAndOffice(
  * days out — see MFK_EARLY_NOTICE_DAYS for why the two are not one window.
  */
 export async function mfkNoticePass(deps: SchedulerDeps): Promise<number> {
-  const { client, now, mail } = deps;
-  if (!mail) return 0;
+  const { client, now } = deps;
+  if (!deps.mail) return 0;
   const { to } = mfkEarlyNoticeWindow(now);
 
   const cars = await client.car.findMany({
@@ -1188,6 +1230,8 @@ export async function mfkNoticePass(deps: SchedulerDeps): Promise<number> {
     const mfkDate = car.mfkDate;
     if (!mfkDate || !isMfkInEarlyNotice(mfkDate, now)) continue;
     const company = await companyOf(car.organisationId);
+    const mail = companyMailFor(deps, company);
+    if (!mail) continue;
 
     const rental = car.rentals[0] ?? null;
     const daysLeft = mfkDaysLeft(mfkDate, now);
@@ -1245,8 +1289,8 @@ export async function mfkNoticePass(deps: SchedulerDeps): Promise<number> {
  * passed the figure.
  */
 export async function serviceDuePass(deps: SchedulerDeps): Promise<number> {
-  const { client, now, mail } = deps;
-  if (!mail) return 0;
+  const { client, now } = deps;
+  if (!deps.mail) return 0;
 
   const cars = await client.car.findMany({
     where: {
@@ -1298,6 +1342,8 @@ export async function serviceDuePass(deps: SchedulerDeps): Promise<number> {
 
     const rental = car.rentals[0] ?? null;
     const company = await companyOf(car.organisationId);
+    const mail = companyMailFor(deps, company);
+    if (!mail) continue;
     const figures = {
       dueKm: forecast.dueKm,
       estimatedKmNow: forecast.estimatedKmNow,

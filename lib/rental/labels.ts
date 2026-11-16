@@ -1028,3 +1028,18 @@ export function payHintFor(
   if (links.paymentUrl && links.twintUrl) return result.payHint;
   return PAY_HINT_ONE_WAY[language][links.twintUrl ? "twint" : "card"];
 }
+
+/**
+ * A partner's pickup page with no free car (multi-company phase C,
+ * 16.11.2026). ZURIAUTO's page offers its waiting list here; that list is
+ * ZURIAUTO's, so a partner's renter is sent to the partner instead. Kept
+ * outside the labels so ZURIAUTO's wording cannot move.
+ */
+const NO_CAR_PARTNER = {
+  de: "Gerade ist kein Fahrzeug frei. Bitte wenden Sie sich direkt an {brand}.",
+  en: "No vehicle is free right now. Please contact {brand} directly.",
+} as const;
+
+export function noCarForPartner(language: RentalLanguage, brandName: string): string {
+  return NO_CAR_PARTNER[language].replace("{brand}", brandName);
+}

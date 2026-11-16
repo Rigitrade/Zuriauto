@@ -381,6 +381,14 @@ const de = {
     intro:
       "Diese Angaben stehen auf Ihren Mietverträgen, Rückgabeprotokollen, E-Mails an Mieter und Schreiben an Behörden.",
     shortName: "Kurzname in Links",
+    links: {
+      title: "Ihre Links für Mieter",
+      intro: "Senden Sie diese Links Ihren Mietern, z. B. per WhatsApp. Sie zeigen nur Ihre Fahrzeuge, und Verträge und Rückgaben gehören Ihrer Firma.",
+      pickup: "Übernahme (Mietvertrag)",
+      return: "Rückgabe",
+      copy: "Kopieren",
+      copied: "Kopiert",
+    },
     sections: { identity: "Name", address: "Adresse", contact: "Kontakt", payment: "Zahlung" },
     fields: {
       brandName: "Markenname (Schriftzug)",
@@ -1166,6 +1174,14 @@ const en: typeof de = {
     intro:
       "These details appear on your rental contracts, return reports, emails to renters and letters to authorities.",
     shortName: "Short name in links",
+    links: {
+      title: "Your links for renters",
+      intro: "Send these links to your renters, e.g. by WhatsApp. They show only your vehicles, and contracts and returns belong to your company.",
+      pickup: "Pickup (rental contract)",
+      return: "Return",
+      copy: "Copy",
+      copied: "Copied",
+    },
     sections: { identity: "Name", address: "Address", contact: "Contact", payment: "Payment" },
     fields: {
       brandName: "Brand name (wordmark)",

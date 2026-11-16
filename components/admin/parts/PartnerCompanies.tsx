@@ -240,7 +240,20 @@ export function PartnersPanel(props: { L: AdminLabels; partners: PartnerRow[]; o
                     <div className="font-medium">{partner.name}</div>
                     {partner.legalName && <div className="text-xs text-[var(--admin-faint)]">{partner.legalName}</div>}
                   </td>
-                  <td className="px-4 py-3 font-mono text-xs text-[var(--admin-muted)]">{partner.slug ?? "—"}</td>
+                  <td className="px-4 py-3 font-mono text-xs text-[var(--admin-muted)]">
+                    {partner.slug ? (
+                      // Its renters' links (phase C), to check or pass on.
+                      (["pickup", "return"] as const).map((form) => (
+                        <div key={form}>
+                          <a href={`/${partner.slug}/${form}/`} target="_blank" rel="noreferrer" className="hover:underline">
+                            /{partner.slug}/{form}/
+                          </a>
+                        </div>
+                      ))
+                    ) : (
+                      "—"
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-[var(--admin-muted)]">
                     {partner.owners.map((owner) => (
                       <div key={owner.username}>
