@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Plus } from "lucide-react";
+import { Eye, Pencil, Plus, Power } from "lucide-react";
+import { RowMenu, RowMenuItem, RowMenuSeparator } from "@/components/admin/parts/RowMenu";
 import { PasswordInput } from "@/components/admin/parts/PasswordInput";
 import { Panel } from "@/components/admin/parts/Panel";
 import { day } from "@/components/admin/format";
@@ -225,6 +226,67 @@ async function patchPartner(id: string, body: Record<string, unknown>) {
   return { ok: response.ok, result };
 }
 
+/** Name with its standing beside it, legal name under it. */
+function PartnerName({ partner, P }: { partner: PartnerRow; P: AdminLabels["partners"] }) {
+  return (
+    <>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <span className="font-medium break-words">{partner.brandName ?? partner.name}</span>
+        <span
+          className={`rounded-full px-2 py-0.5 text-[11px] font-medium whitespace-nowrap ${
+            partner.disabled
+              ? "bg-[var(--admin-crit-soft)] text-[var(--admin-crit)]"
+              : "bg-[var(--admin-accent-soft)] text-[var(--admin-accent)]"
+          }`}
+        >
+          {partner.disabled ? P.statusOff : P.statusOn}
+        </span>
+      </div>
+      {partner.legalName && <div className="text-xs break-words text-[var(--admin-faint)]">{partner.legalName}</div>}
+    </>
+  );
+}
+
+/** Its renters' links (phase C), to check or pass on. */
+function PartnerLinks({ partner, P }: { partner: PartnerRow; P: AdminLabels["partners"] }) {
+  if (!partner.slug) return <>—</>;
+  return (
+    <>
+      <div className="truncate font-mono text-xs text-[var(--admin-muted)]" title={`/${partner.slug}/`}>
+        /{partner.slug}/
+      </div>
+      <div className="mt-0.5 flex flex-wrap gap-x-2 text-xs">
+        {(["pickup", "return"] as const).map((form) => (
+          <a
+            key={form}
+            href={`/${partner.slug}/${form}/`}
+            target="_blank"
+            rel="noreferrer"
+            className="whitespace-nowrap text-[var(--admin-accent)] hover:underline"
+          >
+            {form === "pickup" ? P.linkPickup : P.linkReturn} ↗
+          </a>
+        ))}
+      </div>
+    </>
+  );
+}
+
+/** Name, then the sign-in name under it. */
+function PartnerOwners({ partner }: { partner: PartnerRow }) {
+  if (partner.owners.length === 0) return <>—</>;
+  return (
+    <>
+      {partner.owners.map((owner) => (
+        <div key={owner.username}>
+          <div>{owner.displayName}</div>
+          <div className="truncate font-mono text-xs text-[var(--admin-faint)]">{owner.username}</div>
+        </div>
+      ))}
+    </>
+  );
+}
+
 /**
  * The partners already created, with what ZURIAUTO's owner can do to each
  * (phase D, 16.11.2026): look inside read-only, correct its details, switch it
@@ -243,6 +305,8 @@ export function PartnersPanel(props: {
   const [switchingOff, setSwitchingOff] = useState<PartnerRow | null>(null);
   const [busy, setBusy] = useState(false);
   const [dialogError, setDialogError] = useState("");
+  /** The open row menu: partner id and layout, as both layouts are in the page. */
+  const [menuFor, setMenuFor] = useState<string | null>(null);
 
   async function view(partner: PartnerRow) {
     setBusy(true);
@@ -282,6 +346,47 @@ export function PartnersPanel(props: {
     }
   }
 
+  /** View, edit and switch off/on, behind one button, as on the fleet table. */
+  function actions(partner: PartnerRow, layout: "table" | "card") {
+    const key = `${partner.id}:${layout}`;
+    const name = partner.brandName ?? partner.name;
+    return (
+      <RowMenu
+        label={`${L.fleet.actions} · ${name}`}
+        disabled={busy}
+        open={menuFor === key}
+        onOpenChange={(next) => setMenuFor(next ? key : null)}
+      >
+        <RowMenuItem icon={<Eye className="h-4 w-4" aria-hidden="true" />} onSelect={() => void view(partner)}>
+          {P.view}
+        </RowMenuItem>
+        <RowMenuItem icon={<Pencil className="h-4 w-4" aria-hidden="true" />} onSelect={() => setEditing(partner)}>
+          {P.edit}
+        </RowMenuItem>
+        <RowMenuSeparator />
+        {partner.disabled ? (
+          <RowMenuItem
+            icon={<Power className="h-4 w-4" aria-hidden="true" />}
+            onSelect={() => void setDisabled(partner, false)}
+          >
+            {P.switchOn}
+          </RowMenuItem>
+        ) : (
+          <RowMenuItem
+            danger
+            icon={<Power className="h-4 w-4" aria-hidden="true" />}
+            onSelect={() => {
+              setDialogError("");
+              setSwitchingOff(partner);
+            }}
+          >
+            {P.switchOff}
+          </RowMenuItem>
+        )}
+      </RowMenu>
+    );
+  }
+
   return (
     <>
       <Panel
@@ -302,124 +407,94 @@ export function PartnersPanel(props: {
         {props.partners.length === 0 ? (
           <p className="px-4 py-6 text-sm text-[var(--admin-faint)]">{P.none}</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="mt-2 w-full min-w-[60rem] text-sm">
+          <>
+            {/* Wide screens (from 1280px): a table that always fits the panel. Fixed column
+                widths, long values wrapped or cut with "…" (whole on hover),
+                and the three actions behind one button, so nothing ever
+                scrolls sideways. */}
+            <table className="mt-2 hidden w-full table-fixed text-sm xl:table">
+              <colgroup>
+                <col className="w-[19%]" />
+                <col className="w-[15%]" />
+                <col className="w-[18%]" />
+                <col className="w-[22%]" />
+                <col className="w-[10%]" />
+                <col className="w-[12%]" />
+                <col className="w-12" />
+              </colgroup>
               <thead className="bg-[var(--admin-sunk)] text-xs uppercase tracking-wider text-[var(--admin-faint)]">
                 <tr>
-                  <th className="px-4 py-2.5 text-left font-medium">{P.colName}</th>
-                  <th className="px-4 py-2.5 text-left font-medium">{P.colSlug}</th>
-                  <th className="px-4 py-2.5 text-left font-medium">{P.colOwner}</th>
-                  <th className="px-4 py-2.5 text-left font-medium">{P.colOffice}</th>
-                  <th className="px-4 py-2.5 text-right font-medium">{P.colCars}</th>
-                  <th className="px-4 py-2.5 text-left font-medium">{P.colCreated}</th>
-                  <th className="sticky right-0 bg-[var(--admin-sunk)] px-4 py-2.5" />
+                  <th className="truncate px-3 py-2.5 text-left font-medium first:pl-4">{P.colName}</th>
+                  <th className="truncate px-3 py-2.5 text-left font-medium">{P.colSlug}</th>
+                  <th className="truncate px-3 py-2.5 text-left font-medium">{P.colOwner}</th>
+                  <th className="truncate px-3 py-2.5 text-left font-medium">{P.colOffice}</th>
+                  <th className="truncate px-3 py-2.5 text-right font-medium" title={P.colCars}>{P.colCars}</th>
+                  <th className="truncate px-3 py-2.5 text-left font-medium">{P.colCreated}</th>
+                  <th className="py-2.5 pr-2" />
                 </tr>
               </thead>
               <tbody>
                 {props.partners.map((partner) => (
-                  <tr key={partner.id} className="border-t border-[var(--admin-rule)] align-middle">
-                    <td className="px-4 py-3">
-                      {/* Name and standing together: the status is read with the name. */}
-                      <div className="flex items-center gap-2 whitespace-nowrap">
-                        <span className="font-medium">{partner.brandName ?? partner.name}</span>
-                        <span
-                          className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                            partner.disabled
-                              ? "bg-[var(--admin-crit-soft)] text-[var(--admin-crit)]"
-                              : "bg-[var(--admin-accent-soft)] text-[var(--admin-accent)]"
-                          }`}
-                        >
-                          {partner.disabled ? P.statusOff : P.statusOn}
-                        </span>
-                      </div>
-                      {partner.legalName && (
-                        <div className="whitespace-nowrap text-xs text-[var(--admin-faint)]">{partner.legalName}</div>
-                      )}
+                  <tr key={partner.id} className="border-t border-[var(--admin-rule)] align-top">
+                    <td className="py-3 pr-3 pl-4">
+                      <PartnerName partner={partner} P={P} />
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3">
-                      {partner.slug ? (
-                        <>
-                          <div className="font-mono text-xs text-[var(--admin-muted)]">/{partner.slug}/</div>
-                          {/* Its renters' links (phase C), to check or pass on. */}
-                          <div className="mt-0.5 flex gap-2 text-xs">
-                            {(["pickup", "return"] as const).map((form) => (
-                              <a
-                                key={form}
-                                href={`/${partner.slug}/${form}/`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-[var(--admin-accent)] hover:underline"
-                              >
-                                {form === "pickup" ? P.linkPickup : P.linkReturn} ↗
-                              </a>
-                            ))}
-                          </div>
-                        </>
-                      ) : (
-                        "—"
-                      )}
+                    <td className="px-3 py-3">
+                      <PartnerLinks partner={partner} P={P} />
                     </td>
-                    <td className="px-4 py-3 text-[var(--admin-muted)]">
-                      {partner.owners.map((owner) => (
-                        // Name, then the sign-in name under it, as the company
-                        // column shows its legal name.
-                        <div key={owner.username} className="whitespace-nowrap">
-                          <div>{owner.displayName}</div>
-                          <div className="font-mono text-xs text-[var(--admin-faint)]">{owner.username}</div>
-                        </div>
-                      ))}
+                    <td className="px-3 py-3 break-words text-[var(--admin-muted)]">
+                      <PartnerOwners partner={partner} />
                     </td>
-                    <td className="max-w-[16rem] px-4 py-3 text-[var(--admin-muted)]">
-                      {/* One line; a long address is cut, and shown whole on hover. */}
+                    <td className="px-3 py-3 text-[var(--admin-muted)]">
                       <div className="truncate" title={partner.officeEmail ?? undefined}>
                         {partner.officeEmail ?? "—"}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-right tabular-nums">{partner.cars}</td>
-                    <td className="whitespace-nowrap px-4 py-3 tabular-nums text-[var(--admin-faint)]">{day(partner.createdAt)}</td>
-                    {/* Pinned right: on a narrow screen the table scrolls, the buttons stay. */}
-                    <td className="sticky right-0 bg-[var(--admin-surface)] px-4 py-3 shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.12)]">
-                      <div className="flex flex-nowrap justify-end gap-1.5">
-                        <button type="button" disabled={busy} onClick={() => void view(partner)} className={ROW_BUTTON}>
-                          {P.view}
-                        </button>
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={() => setEditing(partner)}
-                          className={ROW_BUTTON}
-                        >
-                          {P.edit}
-                        </button>
-                        {partner.disabled ? (
-                          <button
-                            type="button"
-                            disabled={busy}
-                            onClick={() => void setDisabled(partner, false)}
-                            className={ROW_BUTTON}
-                          >
-                            {P.switchOn}
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            disabled={busy}
-                            onClick={() => {
-                              setDialogError("");
-                              setSwitchingOff(partner);
-                            }}
-                            className={`${ROW_BUTTON} text-[var(--admin-crit)]`}
-                          >
-                            {P.switchOff}
-                          </button>
-                        )}
-                      </div>
+                    <td className="px-3 py-3 text-right tabular-nums">{partner.cars}</td>
+                    <td className="px-3 py-3 whitespace-nowrap tabular-nums text-[var(--admin-faint)]">
+                      {day(partner.createdAt)}
+                    </td>
+                    <td className="py-2 pr-2">
+                      <div className="flex justify-end">{actions(partner, "table")}</div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
+
+            {/* Narrower screens: one card per partner, the same facts stacked,
+                two per line where there is room. */}
+            <ul className="mt-2 divide-y divide-[var(--admin-rule)] border-t border-[var(--admin-rule)] xl:hidden">
+              {props.partners.map((partner) => (
+                <li key={partner.id} className="px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <PartnerName partner={partner} P={P} />
+                    </div>
+                    {actions(partner, "card")}
+                  </div>
+                  <dl className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1.5 text-sm sm:grid-cols-[auto_minmax(0,1fr)_auto_minmax(0,1fr)]">
+                    <dt className="text-[var(--admin-faint)]">{P.colSlug}</dt>
+                    <dd className="min-w-0">
+                      <PartnerLinks partner={partner} P={P} />
+                    </dd>
+                    <dt className="text-[var(--admin-faint)]">{P.colOwner}</dt>
+                    <dd className="min-w-0 break-words text-[var(--admin-muted)]">
+                      <PartnerOwners partner={partner} />
+                    </dd>
+                    <dt className="text-[var(--admin-faint)]">{P.colOffice}</dt>
+                    <dd className="min-w-0 truncate text-[var(--admin-muted)]" title={partner.officeEmail ?? undefined}>
+                      {partner.officeEmail ?? "—"}
+                    </dd>
+                    <dt className="text-[var(--admin-faint)]">{P.colCars}</dt>
+                    <dd className="tabular-nums">{partner.cars}</dd>
+                    <dt className="text-[var(--admin-faint)]">{P.colCreated}</dt>
+                    <dd className="tabular-nums text-[var(--admin-muted)]">{day(partner.createdAt)}</dd>
+                  </dl>
+                </li>
+              ))}
+            </ul>
+          </>
         )}
       </Panel>
 
