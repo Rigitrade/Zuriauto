@@ -38,7 +38,7 @@ import type { Car, Labels } from "@/components/admin/types";
  * which pale rectangle means what.
  */
 
-const STATUS_CHIP: Record<string, string> = {
+export const STATUS_CHIP: Record<string, string> = {
   available:
     "bg-[var(--admin-good-soft)] text-[var(--admin-good)] ring-[var(--admin-good)]/20",
   rented:

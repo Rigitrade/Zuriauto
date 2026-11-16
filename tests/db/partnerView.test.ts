@@ -59,7 +59,7 @@ describe("ZURIAUTO views a partner, read-only", () => {
       const response = await call(route, c, a, b, viewing(b));
       // Read, not refused: the partner's record is reached. "partners" is
       // ZURIAUTO's own list, which inside a partner's view is not offered.
-      if (route.route === "partners") expect(response.status).toBe(403);
+      if (route.route === "partners" || route.route === "partners/overview") expect(response.status).toBe(403);
       else expect(response.status, response.text.slice(0, 200)).toBe(200);
       for (const marker of markersOf(a)) {
         expect(response.text.includes(marker), `showed A's ${marker}`).toBe(false);

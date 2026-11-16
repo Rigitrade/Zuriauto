@@ -8,6 +8,7 @@ import {
   History,
   KeyRound,
   LayoutDashboard,
+  Network,
   Lock,
   Receipt,
   Users,
@@ -37,6 +38,8 @@ interface Item {
   /** Owner-only items are not rendered for staff. The fence is the API's
    *  403 — this only avoids showing a door that will not open. */
   ownerOnly?: boolean;
+  /** ZURIAUTO's owner only: the page across every company (16.11.2026). */
+  siteOwnerOnly?: boolean;
   badge?: number;
 }
 
@@ -48,6 +51,8 @@ export function railItems(L: Labels, me: Me, attention: number): Item[] {
       icon: LayoutDashboard,
       badge: attention || undefined,
     },
+    // Every company side by side, right after ZURIAUTO's own overview.
+    { href: "/admin/partners", label: L.nav.partners, icon: Network, siteOwnerOnly: true },
     { href: "/admin/rentals", label: L.nav.rentals, icon: KeyRound },
     { href: "/admin/vehicles", label: L.nav.fleet, icon: CarFront },
     // Beside the fleet, because it is a question about a car rather than
@@ -69,7 +74,9 @@ export function railItems(L: Labels, me: Me, attention: number): Item[] {
     // the accounts beside it.
     { href: "/admin/company", label: L.nav.company, icon: Building2, ownerOnly: true },
     { href: "/admin/password", label: L.nav.myPassword, icon: Lock },
-  ].filter((item) => !item.ownerOnly || me.role === "owner");
+  ]
+    .filter((item) => !item.ownerOnly || me.role === "owner")
+    .filter((item) => !item.siteOwnerOnly || me.canManagePartners === true);
 }
 
 /** Exact for Overview, prefix for the rest: /admin must not light up while
