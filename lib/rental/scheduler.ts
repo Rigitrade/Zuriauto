@@ -223,7 +223,7 @@ export async function preEndReminderPass(deps: SchedulerDeps): Promise<number> {
   // The coarse filter matches the index built in Phase 2 for exactly this
   // query: [organisationId, status, endAt].
   const candidates = await client.rental.findMany({
-    where: { status: "ACTIVE", endAt: { gt: from, lte: to } },
+    where: { status: "ACTIVE", endAt: { gt: from, lte: to }, organisation: SWITCHED_ON },
     include: rentalInclude,
   });
 
@@ -321,7 +321,16 @@ export async function preEndReminderPass(deps: SchedulerDeps): Promise<number> {
  * charges are still owed is `isOwedAfterReturn`. A rental the office closed by
  * hand is still absent — stopping the chasing is part of what they mean by it.
  */
+/**
+ * Only companies that are on (multi-company phase D, 16.11.2026). The daily
+ * run leaves a partner ZURIAUTO has switched off exactly as it was: no week
+ * is asked for, reminded or marked overdue, no reminder is used up, while it
+ * is off. Switched on again, the next run picks up where things stood.
+ */
+const SWITCHED_ON = { disabledAt: null } satisfies Prisma.OrganisationWhereInput;
+
 const chargeableRental = {
+  organisation: SWITCHED_ON,
   OR: [
     { status: { in: ["ACTIVE", "RETURN_SUBMITTED"] } },
     { status: "COMPLETED", events: { some: { type: RETURN_CLOSE_EVENT } } },
@@ -859,7 +868,7 @@ export async function rentalOverduePass(deps: SchedulerDeps): Promise<number> {
   const mailOf = mailPerCompany(deps);
 
   const candidates = await client.rental.findMany({
-    where: { status: "ACTIVE", endAt: { lt: now } },
+    where: { status: "ACTIVE", endAt: { lt: now }, organisation: SWITCHED_ON },
     include: rentalInclude,
   });
 
@@ -921,6 +930,7 @@ export async function mailRetryPass(deps: SchedulerDeps): Promise<number> {
       sentAt: null,
       attempts: { lt: MAX_MAIL_ATTEMPTS },
       createdAt: { lte: staleBefore },
+      rental: { organisation: SWITCHED_ON },
     },
     orderBy: { createdAt: "asc" },
     take: 50,
@@ -1001,6 +1011,7 @@ export async function mfkDuePass(deps: SchedulerDeps): Promise<number> {
   // road unnoticed.
   const cars = await client.car.findMany({
     where: {
+      organisation: SWITCHED_ON,
       mfkDate: { not: null, lte: to },
       // A retired car is already off the road, and moving it to maintenance
       // would misreport why — the office retired it deliberately.
@@ -1210,6 +1221,7 @@ export async function mfkNoticePass(deps: SchedulerDeps): Promise<number> {
 
   const cars = await client.car.findMany({
     where: {
+      organisation: SWITCHED_ON,
       mfkDate: { not: null, lte: to },
       status: { in: ["available", "rented"] },
     },
@@ -1294,6 +1306,7 @@ export async function serviceDuePass(deps: SchedulerDeps): Promise<number> {
 
   const cars = await client.car.findMany({
     where: {
+      organisation: SWITCHED_ON,
       status: { in: ["available", "rented"] },
       OR: [{ serviceDoneKm: { not: null } }, { serviceDueKm: { not: null } }],
     },

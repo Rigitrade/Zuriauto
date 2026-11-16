@@ -35,6 +35,12 @@ export interface CompanyIdentity {
   twintUrl: string | null;
   /** A partner company: its renters read "powered by ZURIAUTO" (Ahmed, 15.11.2026). */
   poweredBy: boolean;
+  /**
+   * A partner ZURIAUTO has switched off (phase D, 16.11.2026): nothing is
+   * mailed in its name. Absent rather than false otherwise, so an identity
+   * of a company that is on reads exactly as before.
+   */
+  switchedOff?: true;
 }
 
 /** The columns of `Organisation` that hold the identity. */
@@ -53,6 +59,8 @@ export interface CompanyColumns {
   signingPlace: string | null;
   paymentUrl: string | null;
   twintUrl: string | null;
+  /** Switched off by ZURIAUTO (phase D). Optional: older callers omit it. */
+  disabledAt?: Date | null;
 }
 
 /** Exactly what ZURIAUTO's documents and mails printed before phase B. */
@@ -126,6 +134,7 @@ export function identityOf(org: CompanyColumns, isSite: boolean): CompanyIdentit
     paymentUrl: clean(org.paymentUrl),
     twintUrl: clean(org.twintUrl),
     poweredBy: true,
+    ...(org.disabledAt ? { switchedOff: true as const } : {}),
   };
 }
 

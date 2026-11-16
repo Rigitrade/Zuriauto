@@ -292,3 +292,81 @@ describe("ZURIAUTO's office address in Firma", () => {
     expect(sent[0].config.replyTo).toBeUndefined();
   });
 });
+
+describe("a partner ZURIAUTO has switched off (phase D)", () => {
+  /** Everything of a company the daily run could move or create. */
+  async function stateOf(organisationId: string) {
+    const org = { organisationId };
+    return JSON.stringify(
+      await Promise.all([
+        prisma.charge.findMany({ where: org, orderBy: { id: "asc" } }),
+        prisma.rental.findMany({ where: org, orderBy: { id: "asc" } }),
+        prisma.car.findMany({ where: org, orderBy: { id: "asc" } }),
+        prisma.notification.findMany({ where: org, orderBy: { id: "asc" } }),
+        prisma.officeNotice.findMany({ where: org, orderBy: { id: "asc" } }),
+        prisma.fineNotification.findMany({ where: { fine: org }, orderBy: { id: "asc" } }),
+        prisma.fine.findMany({ where: org, orderBy: { id: "asc" } }),
+      ])
+    );
+  }
+
+  /** A late car, MFK due, a week to ask for, one to remind, one to chase, and a fine past due. */
+  async function busyPartner(tag: string) {
+    const meier = await company("meier");
+    const { car, rental } = await rentalOf(meier.id, tag, { ...late, mfkDate: new Date("2026-08-25T00:00:00Z") });
+    const week = (weekNumber: number, status: "SCHEDULED" | "REQUESTED" | "REMINDED", at: Record<string, Date>) =>
+      prisma.charge.create({
+        data: {
+          organisationId: meier.id,
+          rentalId: rental.id,
+          weekNumber,
+          dueDate: new Date("2026-08-11T08:00:00Z"),
+          amountCents: 45_000,
+          status,
+          ...at,
+        },
+      });
+    await week(2, "SCHEDULED", {});
+    await week(3, "REQUESTED", { requestedAt: new Date("2026-08-12T09:00:00Z") });
+    await week(4, "REMINDED", { requestedAt: new Date("2026-08-12T09:00:00Z"), remindedAt: new Date("2026-08-15T09:00:00Z") });
+    await prisma.fine.create({
+      data: {
+        organisationId: meier.id,
+        carId: car.id,
+        rentalId: rental.id,
+        status: "NOTIFIED",
+        amountCents: 4000,
+        fineNumber: `n-${tag}`,
+        dueDate: new Date("2026-08-15T00:00:00Z"),
+      },
+    });
+    return meier;
+  }
+
+  async function runAll(now: Date) {
+    const { runDailyPasses } = await import("@/lib/rental/scheduler");
+    const fineMails: string[] = [];
+    await runDailyPasses({ ...deps(now), fineSend: async (_c, m) => void fineMails.push(m.to) });
+    return fineMails;
+  }
+
+  it("is on: the same day's work moves its records (the control)", async () => {
+    const meier = await busyPartner("701");
+    const before = await stateOf(meier.id);
+    await runAll(afterLate);
+    expect(await stateOf(meier.id)).not.toBe(before);
+    expect(sent.some((m) => m.to === MEIER_OFFICE)).toBe(true);
+  });
+
+  it("is off: the daily run leaves every record of it as it was, and sends nothing", async () => {
+    const meier = await busyPartner("702");
+    await prisma.organisation.update({ where: { id: meier.id }, data: { disabledAt: new Date("2026-08-19T09:00:00Z") } });
+    const before = await stateOf(meier.id);
+
+    const fineMails = await runAll(afterLate);
+
+    expect(await stateOf(meier.id)).toBe(before);
+    expect(sent.filter((m) => m.to === MEIER_OFFICE || m.to.startsWith("rita-702"))).toEqual([]);
+    expect(fineMails).toEqual([]);
+  });
+});

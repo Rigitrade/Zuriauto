@@ -41,14 +41,17 @@ export async function findSiteOrganisation(
   return findSiteOrganisationWith(client);
 }
 
-/** The company a public link names, or null. */
+/**
+ * The company a public link names, or null. A company ZURIAUTO has switched
+ * off (phase D, 16.11.2026) is not found: its links stop working.
+ */
 export async function organisationBySlug(
   slug: string,
   client: OrgClient = prisma
 ): Promise<{ id: string; slug: string } | null> {
   const found = await client.organisation.findUnique({
     where: { slug: slug.toLowerCase() },
-    select: { id: true, slug: true },
+    select: { id: true, slug: true, disabledAt: true },
   });
-  return found && found.slug ? { id: found.id, slug: found.slug } : null;
+  return found && found.slug && !found.disabledAt ? { id: found.id, slug: found.slug } : null;
 }

@@ -36,24 +36,29 @@ export async function GET(request: Request) {
       id: true,
       name: true,
       slug: true,
+      brandName: true,
       legalName: true,
       officeEmail: true,
+      disabledAt: true,
       createdAt: true,
       adminUsers: {
         where: { role: "owner", disabledAt: null },
         orderBy: { createdAt: "asc" },
         select: { username: true, displayName: true },
       },
-      _count: { select: { cars: true } },
+      // Running rentals, for the warning before switching a partner off.
+      _count: { select: { cars: true, rentals: { where: { status: "ACTIVE" } } } },
     },
   });
 
   return NextResponse.json({
-    partners: partners.map(({ adminUsers, _count, createdAt, ...partner }) => ({
+    partners: partners.map(({ adminUsers, _count, createdAt, disabledAt, ...partner }) => ({
       ...partner,
       createdAt: createdAt.toISOString(),
       owners: adminUsers,
       cars: _count.cars,
+      activeRentals: _count.rentals,
+      disabled: disabledAt !== null,
     })),
   });
 }

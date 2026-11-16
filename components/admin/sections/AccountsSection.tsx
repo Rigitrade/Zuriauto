@@ -285,7 +285,13 @@ export function AccountsSection() {
 
       {canManagePartners && (
         <div className="mt-6">
-          <PartnersPanel L={L} partners={partners} onAdd={() => openDialog("partner")} />
+          <PartnersPanel
+            L={L}
+            partners={partners}
+            onAdd={() => openDialog("partner")}
+            onChanged={reloadPartners}
+            onMessage={setMessage}
+          />
         </div>
       )}
     </>
